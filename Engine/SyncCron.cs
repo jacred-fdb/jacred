@@ -81,6 +81,8 @@ namespace JacRed.Engine
 
                                 FileDB.AddOrUpdate(torrents);
 
+                                Console.WriteLine($"sync: processed {torrents.Count} torrents (countread={root.countread}); nextread={root.nextread}");
+
                                 lastsync = root.collections.Last().Value.fileTime;
 
                                 if (root.nextread)

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -79,7 +79,7 @@ namespace JacRed.Engine
                         i.Value.update,
                         i.Value.check,
                         i.Value.alltorrents,
-                        tracks = new 
+                        tracks = new
                         {
                             wait = i.Value.trkwait,
                             confirm = i.Value.trkconfirm,
@@ -87,8 +87,9 @@ namespace JacRed.Engine
                         }
 
                     }), Formatting.Indented));
+                    Console.WriteLine($"stats: wrote {stats.Count} trackers to Data/temp/stats.json / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }
-                catch { }
+                catch (Exception ex) { Console.WriteLine($"stats: error / {ex.Message}"); }
             }
         }
     }

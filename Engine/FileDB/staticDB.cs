@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
@@ -15,7 +15,7 @@ namespace JacRed.Engine
         #region FileDB
         /// <summary>
         /// $"{search_name}:{search_originalname}"
-        /// Верхнее время изменения 
+        /// Верхнее время изменения
         /// </summary>
         public static ConcurrentDictionary<string, TorrentInfo> masterDb = new ConcurrentDictionary<string, TorrentInfo>();
 
@@ -225,11 +225,17 @@ namespace JacRed.Engine
 
                 try
                 {
+                    int evicted = 0;
                     foreach (var i in openWriteTask)
                     {
                         if (DateTime.UtcNow > i.Value.lastread.AddHours(AppInit.conf.evercache.validHour))
-                            openWriteTask.TryRemove(i.Key, out _);
+                        {
+                            if (openWriteTask.TryRemove(i.Key, out _))
+                                evicted++;
+                        }
                     }
+                    if (evicted > 0)
+                        Console.WriteLine($"fdb_cron: evicted {evicted} cache entries (validHour) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }
                 catch { }
             }
@@ -251,8 +257,14 @@ namespace JacRed.Engine
                         var query = openWriteTask.Where(i => DateTime.Now > i.Value.create.AddMinutes(10));
                         query = query.OrderBy(i => i.Value.countread).ThenBy(i => i.Value.lastread);
 
+                        int dropped = 0;
                         foreach (var i in query.Take(AppInit.conf.evercache.dropCacheTake))
-                            openWriteTask.TryRemove(i.Key, out _);
+                        {
+                            if (openWriteTask.TryRemove(i.Key, out _))
+                                dropped++;
+                        }
+                        if (dropped > 0)
+                            Console.WriteLine($"fdb_cron_fast: dropped {dropped} cache entries (maxOpenWriteTask) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     }
                 }
                 catch { }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
 using JacRed.Engine.CORE;
@@ -35,13 +35,13 @@ namespace JacRed.Controllers
         }
 
         [Route("version")]
-        public ActionResult Version() 
+        public ActionResult Version()
         {
             return Content("11", contentType: "text/plain; charset=utf-8");
         }
 
         [Route("lastupdatedb")]
-        public ActionResult LastUpdateDB() 
+        public ActionResult LastUpdateDB()
         {
             if (FileDB.masterDb == null || FileDB.masterDb.Count == 0)
                 return Content("01.01.2000 01:01", contentType: "text/plain; charset=utf-8");
@@ -624,7 +624,7 @@ namespace JacRed.Controllers
                 HashSet<string> languages = null;
                 var ffprobe = rqnum ? null : FFprobe(i, out languages);
 
-                Results.Add(new Result() 
+                Results.Add(new Result()
                 {
                     Tracker = i.trackerName,
                     Details = i.url != null && i.url.StartsWith("http") ? i.url : null,
@@ -638,7 +638,7 @@ namespace JacRed.Controllers
                     MagnetUri = i.magnet,
                     ffprobe = ffprobe,
                     languages = languages,
-                    info = rqnum ? null : new TorrentInfo() 
+                    info = rqnum ? null : new TorrentInfo()
                     {
                         name = i.name,
                         originalname = i.originalname,
@@ -694,7 +694,7 @@ namespace JacRed.Controllers
             }
             #endregion
 
-            #region Выборка 
+            #region Выборка
             var torrents = new Dictionary<string, TorrentDetails>();
 
             #region AddTorrents
@@ -861,7 +861,7 @@ namespace JacRed.Controllers
                     langs = TracksDB.Languages(t, streams ?? t.ffprobe);
                 }
 
-                var model = new Models.TorrentQuality() 
+                var model = new Models.TorrentQuality()
                 {
                     types = t.types.ToHashSet(),
                     createTime = t.createTime,
@@ -938,6 +938,8 @@ namespace JacRed.Controllers
         {
             if (_fastdb == null || update)
             {
+                if (update)
+                    Console.WriteLine($"fastdb: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 var fastdb = new Dictionary<string, List<string>>();
 
                 foreach (var item in FileDB.masterDb.ToArray())
@@ -959,6 +961,8 @@ namespace JacRed.Controllers
                 }
 
                 _fastdb = fastdb;
+                if (update)
+                    Console.WriteLine($"fastdb: rebuild end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} keys={fastdb.Count}");
             }
 
             return _fastdb;

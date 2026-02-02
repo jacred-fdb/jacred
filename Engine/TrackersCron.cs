@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
@@ -28,6 +28,7 @@ namespace JacRed.Engine
 
                 try
                 {
+                    Console.WriteLine($"trackers: start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     HashSet<string> trackers = new HashSet<string>();
 
                     foreach (var item in FileDB.masterDb.ToArray())
@@ -60,8 +61,9 @@ namespace JacRed.Engine
                     }
 
                     File.WriteAllLines("wwwroot/trackers.txt", trackers);
+                    Console.WriteLine($"trackers: end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} wrote {trackers.Count} trackers to wwwroot/trackers.txt");
                 }
-                catch { }
+                catch (Exception ex) { Console.WriteLine($"trackers: error / {ex.Message}"); }
             }
         }
 

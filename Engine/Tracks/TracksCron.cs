@@ -1,4 +1,4 @@
-﻿using JacRed.Models.Details;
+using JacRed.Models.Details;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,6 +30,7 @@ namespace JacRed.Engine
 
                 try
                 {
+                    Console.WriteLine($"tracks: start typetask={typetask} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     var starttime = DateTime.Now;
                     var torrents = new List<TorrentDetails>();
 
@@ -100,6 +101,8 @@ namespace JacRed.Engine
                         }
                     }
 
+                    Console.WriteLine($"tracks: typetask={typetask} collected {torrents.Count} torrents to process");
+
                     foreach (var t in torrents.OrderByDescending(i => i.updateTime))
                     {
                         try
@@ -121,8 +124,10 @@ namespace JacRed.Engine
                         }
                         catch { }
                     }
+
+                    Console.WriteLine($"tracks: end typetask={typetask} / {DateTime.Now:yyyy-MM-dd HH:mm:ss} (elapsed {(DateTime.Now - starttime).TotalMinutes:F1}m)");
                 }
-                catch { }
+                catch (Exception ex) { Console.WriteLine($"tracks: error typetask={typetask} / {ex.Message}"); }
             }
         }
     }
