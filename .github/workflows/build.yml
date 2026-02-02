@@ -75,3 +75,4 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/${{ matrix.output_dir }}
+          retention-days: 7
