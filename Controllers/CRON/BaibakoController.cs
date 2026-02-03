@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -104,15 +105,23 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.Baibako.host}/browse.php";
+                ParserLog.Write("baibako", $"Starting parse maxpage={maxpage}, base: {baseUrl}");
                 for (int page = 0; page <= maxpage; page++)
                 {
                     if (page > 1)
                         await Task.Delay(AppInit.conf.Baibako.parseDelay);
 
+                    ParserLog.Write("baibako", $"Page {page}: {baseUrl}?page={page}");
                     await parsePage(page);
                 }
+                ParserLog.Write("baibako", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("baibako", $"Error: {ex.Message}");
+            }
             finally
             {
                 workParse = false;

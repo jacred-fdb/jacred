@@ -1,4 +1,4 @@
-﻿namespace JacRed.Models.AppConf
+namespace JacRed.Models.AppConf
 {
     public class TrackerSettings
     {
@@ -36,13 +36,16 @@
 
         public string cookie { get; set; }
 
+        /// <summary>When true and global log is true, parser writes to Data/log/{tracker}.log</summary>
+        public bool log { get; set; }
+
         public bool useproxy { get; set; }
 
         public int reqMinute { get; set; }
 
-        public int parseDelay 
-        { 
-            get 
+        public int parseDelay
+        {
+            get
             {
                 if (reqMinute == -1)
                     return 10;

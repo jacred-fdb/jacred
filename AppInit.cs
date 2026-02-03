@@ -53,6 +53,27 @@ namespace JacRed
         static (AppInit, DateTime) cacheconf = default;
 
         public static AppInit conf => cacheconf.Item1;
+
+        /// <summary>Parser log is written only when global log and this tracker's log are both true.</summary>
+        public static bool TrackerLogEnabled(string trackerName)
+        {
+            if (conf?.log != true || string.IsNullOrWhiteSpace(trackerName))
+                return false;
+            switch (trackerName.ToLowerInvariant())
+            {
+                case "baibako": return conf.Baibako.log;
+                case "bitru": return conf.Bitru.log;
+                case "kinozal": return conf.Kinozal.log;
+                case "megapeer": return conf.Megapeer.log;
+                case "nnmclub": return conf.NNMClub.log;
+                case "rutor": return conf.Rutor.log;
+                case "rutracker": return conf.Rutracker.log;
+                case "selezen": return conf.Selezen.log;
+                case "toloka": return conf.Toloka.log;
+                case "torrentby": return conf.TorrentBy.log;
+                default: return false;
+            }
+        }
         #endregion
 
 

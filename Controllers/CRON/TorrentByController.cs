@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -40,6 +41,9 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = AppInit.conf.TorrentBy.rqHost();
+                ParserLog.Write("torrentby", $"Starting parse page={page}, base: {baseUrl}");
                 // films     - Зарубежные фильмы    | Фильмы
                 // movies    - Наши фильмы          | Фильмы
                 // serials   - Сериалы              | Сериалы
@@ -50,11 +54,17 @@ namespace JacRed.Controllers.CRON
                 // sport     - Спорт                | Спорт
                 foreach (string cat in new List<string>() { "films", "movies", "serials", "tv", "humor", "cartoons", "anime", "sport" })
                 {
+                    string pageUrl = $"{baseUrl}/{cat}/?page={page}";
+                    ParserLog.Write("torrentby", $"Category {cat}: {pageUrl}");
                     await parsePage(cat, page);
                     log += $"{cat} - {page}\n";
                 }
+                ParserLog.Write("torrentby", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("torrentby", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;

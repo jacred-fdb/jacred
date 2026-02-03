@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -108,10 +109,13 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.Kinozal.host}/browse.php";
+                ParserLog.Write("kinozal", $"Starting parse page={page}, base: {baseUrl}");
                 foreach (string cat in new List<string>()
                 {
                     // Сериалы
-                    "45", "46", 
+                    "45", "46",
 
                     // Фильмы
                     "8", "6", "15", "17", "35", "39", "13", "14", "24", "11", "9", "47", "18", "37", "12", "10", "7", "16",
@@ -126,11 +130,17 @@ namespace JacRed.Controllers.CRON
                     "20"
                 })
                 {
+                    string pageUrl = $"{baseUrl}?c={cat}&page={page}";
+                    ParserLog.Write("kinozal", $"Category {cat}: {pageUrl}");
                     await parsePage(cat, page);
                     log += $"{cat} - {page}\n";
                 }
+                ParserLog.Write("kinozal", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("kinozal", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;
@@ -146,7 +156,7 @@ namespace JacRed.Controllers.CRON
             foreach (string cat in new List<string>()
             {
                 // Сериалы
-                "45", "46", 
+                "45", "46",
 
                 // Фильмы
                 "8", "6", "15", "17", "35", "39", "13", "14", "24", "11", "9", "47", "18", "37", "12", "10", "7", "16",
@@ -492,7 +502,7 @@ namespace JacRed.Controllers.CRON
                 }
             }
 
-            await FileDB.AddOrUpdate(torrents, async (t, db) => 
+            await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
                 if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
                     return true;

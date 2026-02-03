@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -39,6 +40,9 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php";
+                ParserLog.Write("nnmclub", $"Starting parse page={page}, base: {baseUrl}");
                 // 10 - Новинки кино          | Фильмы
                 // 13 - Наше кино             | Фильмы
                 // 6  - Зарубежное кино       | Фильмы
@@ -51,11 +55,17 @@ namespace JacRed.Controllers.CRON
                 // 11 - HD, UHD и 3D Кино     | Фильмы
                 foreach (string cat in new List<string>() { "10", "13", "6", "4", "3", "22", "23", "1", "7", "11" })
                 {
+                    string pageUrl = $"{baseUrl}?c={cat}&start={page * 20}";
+                    ParserLog.Write("nnmclub", $"Category {cat}: {pageUrl}");
                     await parsePage(cat, page);
                     log += $"{cat} - {page}\n";
                 }
+                ParserLog.Write("nnmclub", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("nnmclub", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;
@@ -431,7 +441,7 @@ namespace JacRed.Controllers.CRON
                         }
                         else
                         {
-                            // Трансформеры: Война за Кибертрон / Transformers: War For Cybertron (2020) 
+                            // Трансформеры: Война за Кибертрон / Transformers: War For Cybertron (2020)
                             g = Regex.Match(title, "^([^/\\(\\|]+) / ([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
                             if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
                             {
@@ -443,7 +453,7 @@ namespace JacRed.Controllers.CRON
                             }
                             else
                             {
-                                // Спина к спине (2020-2021) 
+                                // Спина к спине (2020-2021)
                                 g = Regex.Match(title, "^([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
                                 name = g[1].Value;
 

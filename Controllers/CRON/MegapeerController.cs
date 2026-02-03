@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -39,6 +40,9 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.Megapeer.rqHost()}/browse.php";
+                ParserLog.Write("megapeer", $"Starting parse page={page}, base: {baseUrl}");
                 // 174 - Зарубежные фильмы          | Фильмы
                 // 79  - Наши фильмы                | Фильмы
                 // 6   - Зарубежные сериалы         | Сериалы
@@ -48,11 +52,17 @@ namespace JacRed.Controllers.CRON
                 // 76  - Мультипликация             | Мультфильмы, Мультсериалы
                 foreach (string cat in new List<string>() { "174", "79", "6", "5", "55", "57", "76" })
                 {
+                    string pageUrl = $"{baseUrl}?cat={cat}&page={page}";
+                    ParserLog.Write("megapeer", $"Category {cat}: {pageUrl}");
                     bool res = await parsePage(cat, page);
                     log += $"{cat} - {page} / {res}\n";
                 }
+                ParserLog.Write("megapeer", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("megapeer", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;
@@ -148,7 +158,7 @@ namespace JacRed.Controllers.CRON
         #region parsePage
         async Task<bool> parsePage(string cat, int page)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}&page={page}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: new List<(string name, string val)>() 
+            string html = await HttpClient.Get($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}&page={page}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: new List<(string name, string val)>()
             {
                 ("dnt", "1"),
                 ("pragma", "no-cache"),

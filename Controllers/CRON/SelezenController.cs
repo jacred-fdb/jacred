@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -110,9 +111,18 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string pageUrl = page == 1
+                    ? $"{AppInit.conf.Selezen.host}/relizy-ot-selezen/"
+                    : $"{AppInit.conf.Selezen.host}/relizy-ot-selezen/page/{page}/";
+                ParserLog.Write("selezen", $"Starting parse page={page}: {pageUrl}");
                 await parsePage(page);
+                ParserLog.Write("selezen", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("selezen", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;

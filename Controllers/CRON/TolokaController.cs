@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -110,13 +111,22 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = AppInit.conf.Toloka.host;
+                ParserLog.Write("toloka", $"Starting parse page={page}, base: {baseUrl}");
                 foreach (string cat in new List<string>() { "16", "96", "19", "139", "32", "173", "174", "44" })
                 {
+                    string pageUrl = page == 0 ? $"{baseUrl}/f{cat}" : $"{baseUrl}/f{cat}-{page * 45}?sort=8";
+                    ParserLog.Write("toloka", $"Category {cat}: {pageUrl}");
                     await parsePage(cat, page);
                     log += $"{cat} - {page}\n";
                 }
+                ParserLog.Write("toloka", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("toloka", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;
@@ -148,8 +158,8 @@ namespace JacRed.Controllers.CRON
             }
             #endregion
 
-            foreach (string cat in new List<string>() 
-            { 
+            foreach (string cat in new List<string>()
+            {
                 // Українське озвучення
                 "16", "32",  "19", "44", "127",
 

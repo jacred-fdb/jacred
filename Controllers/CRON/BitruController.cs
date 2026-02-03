@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -39,15 +40,24 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.Bitru.rqHost()}/browse.php";
+                ParserLog.Write("bitru", $"Starting parse page={page}, base: {baseUrl}");
                 // movie     - Фильмы    | Фильмы
                 // serial    - Сериалы   | Сериалы
                 foreach (string cat in new List<string>() { "movie", "serial" })
                 {
+                    string pageUrl = $"{baseUrl}?tmp={cat}&page={page}";
+                    ParserLog.Write("bitru", $"Category {cat}: {pageUrl}");
                     await parsePage(cat, page);
                     log += $"{cat} - {page}\n";
                 }
+                ParserLog.Write("bitru", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("bitru", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;

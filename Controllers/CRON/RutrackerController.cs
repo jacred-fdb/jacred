@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -21,7 +22,7 @@ namespace JacRed.Controllers.CRON
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static readonly HashSet<string> firstPageCats = new HashSet<string>()
-        { 
+        {
             // 3D Кинофильмы
             "549",
 
@@ -58,7 +59,7 @@ namespace JacRed.Controllers.CRON
             // Зарубежные сериалы (HD Video)
             "119", "1803", "266", "193", "1690", "1459", "825", "1248", "1288",
 
-            // Сериалы Латинской Америки, Турции и Индии 
+            // Сериалы Латинской Америки, Турции и Индии
             "325", "534", "694", "704",
 
             // Аниме
@@ -150,13 +151,22 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php";
+                ParserLog.Write("rutracker", $"Starting parse page={page}, base: {baseUrl}");
                 foreach (string cat in firstPageCats)
                 {
+                    string pageUrl = page == 0 ? $"{baseUrl}?f={cat}" : $"{baseUrl}?f={cat}&start={page * 50}";
+                    ParserLog.Write("rutracker", $"Category {cat}: {pageUrl}");
                     bool result = await parsePage(cat, page);
                     log += $"{cat} - {page} - {result}\n";
                 }
+                ParserLog.Write("rutracker", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("rutracker", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;
@@ -463,7 +473,7 @@ namespace JacRed.Controllers.CRON
                     }
                     #endregion
                 }
-                else if (cat is "1105" or "2491" or "1389" or "915" or "1939" or "46" or "671" or "2177" or "2538" or "251" or "98" or "97" or "851" or "2178" or "821" or "2076" or "56" or "2123" or "876" or "2139" or "1467" 
+                else if (cat is "1105" or "2491" or "1389" or "915" or "1939" or "46" or "671" or "2177" or "2538" or "251" or "98" or "97" or "851" or "2178" or "821" or "2076" or "56" or "2123" or "876" or "2139" or "1467"
                                        or "1469" or "249" or "552" or "500" or "2112" or "1327" or "1468" or "2168" or "2160" or "314" or "1281" or "2110" or "979" or "2169" or "2164" or "2166" or "2163"
                                        or "24" or "1959" or "939" or "1481" or "113" or "115" or "882" or "1482" or "393" or "2537" or "532" or "827")
                 {

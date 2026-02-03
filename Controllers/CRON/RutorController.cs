@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -38,6 +39,9 @@ namespace JacRed.Controllers.CRON
 
             try
             {
+                var sw = Stopwatch.StartNew();
+                string baseUrl = $"{AppInit.conf.Rutor.rqHost()}/browse";
+                ParserLog.Write("rutor", $"Starting parse page={page}, base: {baseUrl}");
                 // 1  - Зарубежные фильмы          | Фильмы
                 // 5  - Наши фильмы                | Фильмы
                 // 4  - Зарубежные сериалы         | Сериалы
@@ -51,11 +55,17 @@ namespace JacRed.Controllers.CRON
                 // 15 - Юмор                       | ТВ Шоу
                 foreach (string cat in new List<string>() { "1", "5", "4", "16", "12", "6", "7", "10", "17", "13", "15" })
                 {
+                    string pageUrl = $"{baseUrl}/{page}/{cat}/0/0";
+                    ParserLog.Write("rutor", $"Category {cat}: {pageUrl}");
                     bool res = await parsePage(cat, page);
                     log += $"{cat} - {page} / {res}\n";
                 }
+                ParserLog.Write("rutor", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ParserLog.Write("rutor", $"Error: {ex.Message}");
+            }
             finally
             {
                 _workParse = false;
