@@ -4,7 +4,7 @@
 
 ## AI Документация
 
-[![DeepWiki](https://deepwiki.com/badge.svg)](https://github.com/jacred-fdb/jacred)
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/jacred-fdb/jacred)
 
 ## Установка
 
