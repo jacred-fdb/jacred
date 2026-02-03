@@ -25,7 +25,7 @@ namespace JacRed
             SyncController.Configuration();
             ApiController.getFastdb(update: true);
 
-            ThreadPool.QueueUserWorkItem(async _ => 
+            ThreadPool.QueueUserWorkItem(async _ =>
             {
                 while (true)
                 {

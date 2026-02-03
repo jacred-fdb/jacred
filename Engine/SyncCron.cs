@@ -50,7 +50,7 @@ namespace JacRed.Engine
                             bool reset = true;
                             DateTime lastSave = DateTime.Now;
 
-                            next: var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync}&start={starsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
+                        next: var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync}&start={starsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
 
                             Console.WriteLine($"sync: time={lastsync} ({FormatFileTime(lastsync)}) & start={starsync} ({FormatFileTime(starsync)})");
 
@@ -112,8 +112,8 @@ namespace JacRed.Engine
                         }
                         else
                         {
-                            #region Sync.v1
-                            next: var root = await HttpClient.Get<Models.Sync.v1.RootObject>($"{AppInit.conf.syncapi}/sync/torrents?time={lastsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
+                        #region Sync.v1
+                        next: var root = await HttpClient.Get<Models.Sync.v1.RootObject>($"{AppInit.conf.syncapi}/sync/torrents?time={lastsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
                             if (root?.torrents != null && root.torrents.Count > 0)
                             {
                                 FileDB.AddOrUpdate(root.torrents.Select(i => i.value).ToList());
@@ -177,7 +177,7 @@ namespace JacRed.Engine
                         {
                             Console.WriteLine($"\n\nsync_spidr: start / {DateTime.Now.ToString(TimeFormat)}");
 
-                            next: var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync_spidr}&spidr=true", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
+                        next: var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync_spidr}&spidr=true", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
 
                             Console.WriteLine($"sync_spidr: time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)})");
 

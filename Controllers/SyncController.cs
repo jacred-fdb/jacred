@@ -36,7 +36,7 @@ namespace JacRed.Controllers
         [Route("/sync/conf")]
         public JsonResult SyncConf()
         {
-            return Json(new 
+            return Json(new
             {
                 fbd = true,
                 spidr = true,
@@ -69,7 +69,7 @@ namespace JacRed.Controllers
             bool nextread = false;
             int take = 2_000, countread = 0;
             var collections = new List<Collection>(take);
-            
+
             foreach (var item in masterDbCache.Where(i => i.Value.fileTime > time))
             {
                 var torrent = new Dictionary<string, TorrentDetails>();
@@ -81,7 +81,7 @@ namespace JacRed.Controllers
 
                     if (spidr || (start != -1 && start > t.Value.updateTime.ToFileTimeUtc()))
                     {
-                        torrent.TryAdd(t.Key, new TorrentDetails() 
+                        torrent.TryAdd(t.Key, new TorrentDetails()
                         {
                             sid = t.Value.sid,
                             pir = t.Value.pir,
@@ -145,8 +145,8 @@ namespace JacRed.Controllers
                 return Json(new List<string>());
 
             int take = 2_000;
-            var torrents = new List<Models.Sync.v1.Torrent>(take+1);
-            
+            var torrents = new List<Models.Sync.v1.Torrent>(take + 1);
+
             foreach (var item in masterDbCache.Where(i => i.Value.fileTime > time))
             {
                 foreach (var torrent in FileDB.OpenRead(item.Key, cache: false))

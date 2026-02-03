@@ -429,7 +429,7 @@ namespace JacRed.Controllers.CRON
 
                 if (!string.IsNullOrWhiteSpace(magnet))
                 {
-                    t.magnet= magnet;
+                    t.magnet = magnet;
                     return true;
                 }
 

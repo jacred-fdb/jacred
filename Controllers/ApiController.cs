@@ -497,7 +497,7 @@ namespace JacRed.Controllers
                                 }
                             }
 
-                            t.torrent.magnet= magnet;
+                            t.torrent.magnet = magnet;
                         }
                         #endregion
 

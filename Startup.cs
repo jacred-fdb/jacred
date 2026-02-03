@@ -38,7 +38,8 @@ namespace JacRed
                 options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/vnd.apple.mpegurl", "image/svg+xml" });
             });
 
-            services.AddControllersWithViews().AddJsonOptions(options => {
+            services.AddControllersWithViews().AddJsonOptions(options =>
+            {
                 options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                 options.JsonSerializerOptions.PropertyNamingPolicy = null;
                 //options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
@@ -53,7 +54,7 @@ namespace JacRed
             ApplicationServices = app.ApplicationServices;
             app.UseDeveloperExceptionPage();
 
-            // IP клиента
+            // IP пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto

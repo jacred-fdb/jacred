@@ -54,7 +54,7 @@ namespace JacRed.Controllers
                     {
                         torrent.Value.size = getSizeInfo(torrent.Value.sizeName);
                         torrent.Value.updateTime = DateTime.UtcNow;
-                        FileDB.masterDb[item.Key] = new Models.TorrentInfo() { updateTime = torrent.Value.updateTime, fileTime  = torrent.Value.updateTime.ToFileTimeUtc() };
+                        FileDB.masterDb[item.Key] = new Models.TorrentInfo() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
                     }
 
                     fdb.savechanges = true;
