@@ -70,6 +70,7 @@ namespace JacRed
                 case "rutracker": return conf.Rutracker.log;
                 case "selezen": return conf.Selezen.log;
                 case "toloka": return conf.Toloka.log;
+                case "mazepa": return conf.Mazepa.log;
                 case "torrentby": return conf.TorrentBy.log;
                 default: return false;
             }
@@ -144,6 +145,8 @@ namespace JacRed
         public TrackerSettings Bitru = new TrackerSettings("https://bitru.org");
 
         public TrackerSettings Toloka = new TrackerSettings("https://toloka.to");
+
+        public TrackerSettings Mazepa = new TrackerSettings("https://mazepa.to");
 
         public TrackerSettings Rutracker = new TrackerSettings("https://rutracker.org");
 
