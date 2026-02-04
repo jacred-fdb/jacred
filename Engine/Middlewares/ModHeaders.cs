@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -73,14 +74,24 @@ namespace JacRed.Engine.Middlewares
                 }
             }
 
-            bool isCron = httpContext.Request.Path.Value?.StartsWith("/cron/") == true;
-            if (isCron)
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Cron task started: {httpContext.Request.Path}");
+            bool isCron = httpContext.Request.Path.Value?.StartsWith("/cron/", StringComparison.OrdinalIgnoreCase) == true;
+            var cronStopwatch = isCron ? Stopwatch.StartNew() : null;
 
             await _next(httpContext);
 
-            if (isCron)
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Cron task finished: {httpContext.Request.Path}");
+            if (isCron && cronStopwatch != null)
+            {
+                cronStopwatch.Stop();
+                var path = httpContext.Request.Path.Value ?? "";
+                var label = path.Length > 6 && path.StartsWith("/cron/", StringComparison.OrdinalIgnoreCase) ? path.Substring(6) : path.TrimStart('/');
+                var elapsed = cronStopwatch.ElapsedMilliseconds >= 1000
+                    ? $"{cronStopwatch.Elapsed.TotalSeconds:F1}s"
+                    : $"{cronStopwatch.ElapsedMilliseconds}ms";
+                var status = httpContext.Response.StatusCode;
+                var ts = DateTime.Now.ToString("HH:mm:ss");
+                var fail = status >= 400 ? " FAIL" : "";
+                Console.WriteLine($"cron: [{ts}] {label} {elapsed} {status}{fail}");
+            }
         }
     }
 }
