@@ -262,7 +262,10 @@ namespace JacRed.Controllers.CRON
             string normalized = tParse.ReplaceBadNames(html);
             var list = new List<TorrentDetails>();
 
-            await CollectFromEpisodeLinks(normalized, host, cookie, list, page);
+            // Карта urlPath -> (name, originalname) из hor-breaker: чтобы эпизоды из episode_links попадали в тот же бакет (Капли Бога : Drops of God), а не создавали дубликат (Drops of God : Drops of God).
+            var horBreakerNameMap = BuildHorBreakerNameMap(normalized);
+
+            await CollectFromEpisodeLinks(normalized, host, cookie, list, page, horBreakerNameMap);
             string source = "episode_links";
             if (list.Count == 0)
             {
@@ -276,6 +279,9 @@ namespace JacRed.Controllers.CRON
             }
             int beforeMovies = list.Count;
             await CollectFromMovies(normalized, host, cookie, list, page);
+
+            // Один url — одна запись: убираем дубликаты по url, оставляем запись с русским названием (name != originalname), чтобы не было двух бакетов на один сериал.
+            DedupeListByUrl(list);
             if (list.Count > beforeMovies)
                 source = source + "+movies:" + (list.Count - beforeMovies);
 
@@ -339,7 +345,50 @@ namespace JacRed.Controllers.CRON
             return false;
         }
 
-        static async Task CollectFromEpisodeLinks(string html, string host, string cookie, List<TorrentDetails> list, int page)
+        /// <summary>Строит по HTML карту urlPath сериала (series/.../season_N/episode_M/) -> (name ru, originalname) из блоков hor-breaker, чтобы подставлять русское название в episode_links и избегать дубликатов бакетов.</summary>
+        static Dictionary<string, (string name, string originalname)> BuildHorBreakerNameMap(string html)
+        {
+            var map = new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase);
+            foreach (string row in html.Split(new[] { "class=\"hor-breaker dashed\"" }, StringSplitOptions.None).Skip(1))
+            {
+                if (string.IsNullOrWhiteSpace(row))
+                    continue;
+                string url = Regex.Match(row, @"href=""/([^""]+)""", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                string name = Regex.Match(row, @"<div class=""name-ru"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                string originalname = Regex.Match(row, @"<div class=""name-en"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                if (string.IsNullOrEmpty(url) || !url.StartsWith("series/") || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(originalname))
+                    continue;
+                string key = url.TrimEnd('/');
+                if (!map.ContainsKey(key))
+                    map[key] = (HttpUtility.HtmlDecode(name), HttpUtility.HtmlDecode(originalname));
+            }
+            return map;
+        }
+
+        /// <summary>Оставляет по одному торренту на url; при дубликате оставляет запись с русским названием (name != originalname), чтобы ключ бакета был один.</summary>
+        static void DedupeListByUrl(List<TorrentDetails> list)
+        {
+            var byUrl = new Dictionary<string, TorrentDetails>(StringComparer.OrdinalIgnoreCase);
+            foreach (var t in list)
+            {
+                if (string.IsNullOrEmpty(t?.url))
+                    continue;
+                if (!byUrl.TryGetValue(t.url, out var existing))
+                {
+                    byUrl[t.url] = t;
+                    continue;
+                }
+                // Уже есть запись: оставляем ту, у которой есть русское название (name != originalname)
+                bool currentHasRu = !string.IsNullOrEmpty(t.name) && !string.IsNullOrEmpty(t.originalname) && !string.Equals(t.name, t.originalname, StringComparison.OrdinalIgnoreCase);
+                bool existingHasRu = !string.IsNullOrEmpty(existing.name) && !string.IsNullOrEmpty(existing.originalname) && !string.Equals(existing.name, existing.originalname, StringComparison.OrdinalIgnoreCase);
+                if (currentHasRu && !existingHasRu)
+                    byUrl[t.url] = t;
+            }
+            list.Clear();
+            list.AddRange(byUrl.Values);
+        }
+
+        static Task CollectFromEpisodeLinks(string html, string host, string cookie, List<TorrentDetails> list, int page, Dictionary<string, (string name, string originalname)> horBreakerNameMap = null)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var linkRe = new Regex(@"<a\s[^>]*href=""[^""]*?(/series/([^/""]+)/season_(\d+)/episode_(\d+)/)[^""]*""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
@@ -354,12 +403,12 @@ namespace JacRed.Controllers.CRON
                 if (string.IsNullOrEmpty(serieName) || seen.Contains(urlPath))
                     continue;
                 var sm = sinfoRe.Match(block);
-                var dm = dateRe.Match(block);
-                if (!sm.Success || !dm.Success)
+                var dateMatches = dateRe.Matches(block);
+                if (!sm.Success || dateMatches.Count == 0)
                     continue;
 
-                string sinfo = HttpUtility.HtmlDecode(Regex.Replace(sm.Value, @"[\s]+", " ").Trim());
-                string dateStr = dm.Groups[1].Value;
+                // В блоке может быть несколько дат (год сериала и дата эпизода). Берём последнюю — она относится к текущему эпизоду (season_N/episode_N), а не к первому сезону.
+                string dateStr = dateMatches[dateMatches.Count - 1].Groups[1].Value;
                 DateTime createTime = tParse.ParseCreateTime(dateStr, "dd.MM.yyyy");
                 if (createTime == default)
                     createTime = DateTime.UtcNow;
@@ -367,8 +416,14 @@ namespace JacRed.Controllers.CRON
                 if (relased <= 0)
                     continue;
                 seen.Add(urlPath);
+                string sinfo = HttpUtility.HtmlDecode(Regex.Replace(sm.Value, @"[\s]+", " ").Trim());
                 string originalname = serieName.Replace("_", " ");
                 string name = originalname;
+                if (horBreakerNameMap != null && horBreakerNameMap.TryGetValue(urlPath.TrimEnd('/'), out var ruNames))
+                {
+                    name = ruNames.name;
+                    originalname = ruNames.originalname;
+                }
                 list.Add(new TorrentDetails
                 {
                     trackerName = "lostfilm",
@@ -382,9 +437,10 @@ namespace JacRed.Controllers.CRON
                     relased = relased
                 });
             }
+            return Task.CompletedTask;
         }
 
-        static async Task CollectFromNewMovie(string html, string host, string cookie, List<TorrentDetails> list, int page)
+        static Task CollectFromNewMovie(string html, string host, string cookie, List<TorrentDetails> list, int page)
         {
             var re = new Regex(@"<a\s+class=""new-movie""\s+href=""(?:https?://[^""]+)?(/series/[^""]+)""[^>]*title=""([^""]*)""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
             foreach (Match m in re.Matches(html))
@@ -397,7 +453,8 @@ namespace JacRed.Controllers.CRON
 
                 string sinfo = Regex.Match(block, @"<div\s+class=""title""[^>]*>\s*([^<]+)\s*</div>", RegexOptions.IgnoreCase).Groups[1].Value;
                 sinfo = HttpUtility.HtmlDecode(Regex.Replace(sinfo, @"[\s]+", " ").Trim());
-                string dateStr = Regex.Match(block, @"<div\s+class=""date""[^>]*>(\d{2}\.\d{2}\.\d{4})</div>", RegexOptions.IgnoreCase).Groups[1].Value;
+                var newMovieDateMatches = Regex.Matches(block, @"<div\s+class=""date""[^>]*>(\d{2}\.\d{2}\.\d{4})</div>", RegexOptions.IgnoreCase);
+                string dateStr = newMovieDateMatches.Count > 0 ? newMovieDateMatches[newMovieDateMatches.Count - 1].Groups[1].Value : "";
                 DateTime createTime = tParse.ParseCreateTime(dateStr, "dd.MM.yyyy");
                 if (createTime == default && page != 1)
                     continue;
@@ -425,9 +482,10 @@ namespace JacRed.Controllers.CRON
                     relased = relased
                 });
             }
+            return Task.CompletedTask;
         }
 
-        static async Task CollectFromHorBreaker(string html, string host, string cookie, List<TorrentDetails> list, int page)
+        static Task CollectFromHorBreaker(string html, string host, string cookie, List<TorrentDetails> list, int page)
         {
             foreach (string row in html.Split(new[] { "class=\"hor-breaker dashed\"" }, StringSplitOptions.None).Skip(1))
             {
@@ -466,6 +524,7 @@ namespace JacRed.Controllers.CRON
                     relased = relased
                 });
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>Собирает фильмы с /new/: ссылки на /movies/ и блоки с «Фильм» + дата. Для каждого получает V-страницу и добавляет раздачи по качествам (SD, 1080p, 720p).</summary>
@@ -795,6 +854,143 @@ namespace JacRed.Controllers.CRON
             if (s.Length > maxNameLength)
                 s = s.Substring(0, maxNameLength).Trim();
             return s.Length > 0 ? s : title.Trim();
+        }
+
+        /// <summary>Запрашивает /new/, парсит даты и возвращает, что мы извлекаем (dateStr, relased). Для проверки года в заголовках. Опционально ?series=slug фильтрует по сериалу (например Drops_of_God).</summary>
+        [HttpGet]
+        public async Task<IActionResult> VerifyPage(string series = null)
+        {
+            if (AppInit.conf == null || AppInit.conf.Lostfilm == null)
+                return Json(new { error = "conf" });
+
+            string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
+            string cookie = AppInit.conf.Lostfilm.cookie;
+            string url = $"{host}/new/";
+
+            string html = await HttpClient.Get(url, cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy, httpversion: 2);
+            if (string.IsNullOrEmpty(html) || !html.Contains("LostFilm.TV"))
+                return Json(new { error = "empty", url });
+
+            var items = ParseNewPageDates(html, host);
+            string seriesFilter = null;
+            if (!string.IsNullOrWhiteSpace(series))
+            {
+                seriesFilter = series.Trim().Replace(" ", "_");
+                string seriesNorm = seriesFilter.Replace("_", " ").ToLowerInvariant();
+                items = items.Where(i =>
+                {
+                    string u = (i.url ?? "").ToLowerInvariant();
+                    string t = (i.title ?? "").ToLowerInvariant();
+                    return u.Contains(seriesNorm.Replace(" ", "_")) || u.Contains(seriesNorm) || t.Contains(seriesNorm);
+                }).ToList();
+            }
+
+            return Json(new
+            {
+                ok = true,
+                url,
+                filteredBy = seriesFilter,
+                count = items.Count,
+                items = items.Select(i => new
+                {
+                    i.title,
+                    i.dateStr,
+                    i.relased,
+                    i.url,
+                    i.source
+                }).ToArray()
+            });
+        }
+
+        /// <summary>Парсит HTML /new/ и возвращает список с dateStr (как на сайте), relased (год в заголовке), title, url, source.</summary>
+        static List<(string title, string dateStr, int relased, string url, string source)> ParseNewPageDates(string html, string host)
+        {
+            var result = new List<(string title, string dateStr, int relased, string url, string source)>();
+            var sinfoRe = new Regex(@"(\d+)\s*сезон\s*(\d+)\s*серия", RegexOptions.IgnoreCase);
+            var dateRe = new Regex(@"(\d{2}\.\d{2}\.\d{4})");
+
+            // episode_links
+            var linkRe = new Regex(@"<a\s[^>]*href=""[^""]*?(/series/([^/""]+)/season_(\d+)/episode_(\d+)/)[^""]*""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (Match m in linkRe.Matches(html))
+            {
+                string urlPath = m.Groups[1].Value.TrimStart('/');
+                string serieName = m.Groups[2].Value;
+                string block = m.Groups[5].Value;
+                if (string.IsNullOrEmpty(serieName) || seen.Contains(urlPath))
+                    continue;
+                var sm = sinfoRe.Match(block);
+                var dateMatches = dateRe.Matches(block);
+                if (!sm.Success || dateMatches.Count == 0)
+                    continue;
+                string sinfo = HttpUtility.HtmlDecode(Regex.Replace(sm.Value, @"[\s]+", " ").Trim());
+                string dateStr = dateMatches[dateMatches.Count - 1].Groups[1].Value;
+                DateTime createTime = tParse.ParseCreateTime(dateStr, "dd.MM.yyyy");
+                if (createTime == default)
+                    createTime = DateTime.UtcNow;
+                int relased = createTime != default ? createTime.Year : 0;
+                if (relased <= 0)
+                    continue;
+                seen.Add(urlPath);
+                string originalname = serieName.Replace("_", " ");
+                string name = originalname;
+                string title = $"{name} / {originalname} / {sinfo} [{relased}]";
+                result.Add((title, dateStr, relased, $"{host?.TrimEnd('/')}/{urlPath}", "episode_links"));
+            }
+
+            // new-movie blocks (другой формат даты в блоке)
+            var newMovieRe = new Regex(@"<a\s+class=""new-movie""\s+href=""(?:https?://[^""]+)?(/series/[^""]+)""[^>]*title=""([^""]*)""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
+            foreach (Match m in newMovieRe.Matches(html))
+            {
+                string urlPath = m.Groups[1].Value.TrimStart('/');
+                string nameFromAttr = ShortenSeriesName(HttpUtility.HtmlDecode(m.Groups[2].Value.Trim()));
+                string block = m.Groups[3].Value;
+                if (string.IsNullOrEmpty(urlPath) || !urlPath.StartsWith("series/"))
+                    continue;
+                string sinfo = Regex.Match(block, @"<div\s+class=""title""[^>]*>\s*([^<]+)\s*</div>", RegexOptions.IgnoreCase).Groups[1].Value;
+                sinfo = HttpUtility.HtmlDecode(Regex.Replace(sinfo, @"[\s]+", " ").Trim());
+                var newMovieDateMatches = Regex.Matches(block, @"<div\s+class=""date""[^>]*>(\d{2}\.\d{2}\.\d{4})</div>", RegexOptions.IgnoreCase);
+                string dateStr = newMovieDateMatches.Count > 0 ? newMovieDateMatches[newMovieDateMatches.Count - 1].Groups[1].Value : "";
+                DateTime createTime = tParse.ParseCreateTime(dateStr, "dd.MM.yyyy");
+                if (createTime == default)
+                    createTime = DateTime.UtcNow;
+                int relased = createTime != default ? createTime.Year : 0;
+                if (relased <= 0)
+                    continue;
+                string serieName = Regex.Match(urlPath, @"series/([^/]+)(?:/|$)").Groups[1].Value;
+                string originalname = serieName.Replace("_", " ");
+                string seriesName = !string.IsNullOrWhiteSpace(nameFromAttr) ? nameFromAttr : originalname;
+                string title = $"{seriesName} / {originalname} / {sinfo} [{relased}]";
+                string fullUrl = $"{host?.TrimEnd('/')}/{urlPath}";
+                if (!result.Any(i => i.url == fullUrl))
+                    result.Add((title, dateStr, relased, fullUrl, "new-movie"));
+            }
+
+            // hor-breaker
+            foreach (string row in html.Split(new[] { "class=\"hor-breaker dashed\"" }, StringSplitOptions.None).Skip(1))
+            {
+                if (string.IsNullOrWhiteSpace(row))
+                    continue;
+                string url = Regex.Match(row, @"href=""/([^""]+)""", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                string sinfo = Regex.Match(row, @"<div class=""left-part"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                string name = Regex.Match(row, @"<div class=""name-ru"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                string originalname = Regex.Match(row, @"<div class=""name-en"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                string dateStr = Regex.Match(row, @"<div class=""right-part"">(\d{2}\.\d{2}\.\d{4})</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                if (string.IsNullOrEmpty(url) || !url.StartsWith("series/") || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(originalname) || string.IsNullOrEmpty(sinfo) || string.IsNullOrEmpty(dateStr))
+                    continue;
+                DateTime createTime = tParse.ParseCreateTime(dateStr, "dd.MM.yyyy");
+                if (createTime == default)
+                    createTime = DateTime.UtcNow;
+                int relased = createTime != default ? createTime.Year : 0;
+                if (relased <= 0)
+                    continue;
+                string title = $"{HttpUtility.HtmlDecode(name)} / {HttpUtility.HtmlDecode(originalname)} / {sinfo} [{relased}]";
+                string fullUrl = $"{host?.TrimEnd('/')}/{url}";
+                if (!result.Any(i => i.url == fullUrl))
+                    result.Add((title, dateStr, relased, fullUrl, "hor-breaker"));
+            }
+
+            return result;
         }
 
         /// <summary>Статистика по раздачам lostfilm в базе: количество, с магнитом, примеры ключей.</summary>

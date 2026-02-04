@@ -16,7 +16,7 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/mazepa/[action]")]
     public class MazepaController : BaseController
     {
-    static readonly Dictionary<string, string[]> Categories = new()
+        static readonly Dictionary<string, string[]> Categories = new()
     {
         // Українські фільми
         { "37",  new[] { "movie" } },
