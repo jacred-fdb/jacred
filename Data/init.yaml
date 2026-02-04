@@ -28,10 +28,10 @@ synctrackers:
   - torrentby
   - selezen
   - animelayer
-  - anilibria
-  - anifilm
 disable_trackers:
   - hdrezka
+  - anifilm
+  - anilibria
 syncsport: true
 syncspidr: true
 maxreadfile: 250
