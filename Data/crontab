@@ -6,51 +6,58 @@
 1    1   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrents/UpdateDetails?forced=true"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrents/UpdateTorrMediaCache"
 
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/underverse/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/underverse/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/underverse/ParseAllTask"
-
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/ParseAllTask"
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/parse"
+*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/UpdateTasksParse"
+*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/ParseAllTask"
 
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/ParseAllTask"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/parseMagnet"
 
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/ParseAllTask"
-
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/ParseAllTask"
-
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/ParseAllTask"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/parseMagnet"
 
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/ParseAllTask"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/parseMagnet"
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/parse"
+*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse"
+*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/ParseAllTask"
 
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/ParseAllTask"
 
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/parse"
+*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/UpdateTasksParse"
+*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/ParseAllTask"
+
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/parse"
+*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse"
+*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/ParseAllTask"
+
 */40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parseMagnet"
 
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animedia/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anilibria/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anifilm/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anidub/parse"
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/parse"
+# *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/UpdateTasksParse"
+# */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/ParseAllTask"
+# *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/parseMagnet"
 
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/baibako/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/hamsterstudio/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/hdrezka/parse"
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/lostfilm/parse"
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animedia/parse"
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anilibria/parse"
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anifilm/parse"
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anidub/parse"
+
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/baibako/parse"
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/hamsterstudio/parse"
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/hdrezka/parse"
+
+# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/lostfilm/parse"

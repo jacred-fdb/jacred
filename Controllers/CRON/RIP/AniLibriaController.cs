@@ -25,7 +25,7 @@ namespace JacRed.Controllers.CRON
             {
                 for (int after = 0; after <= limit; after++)
                 {
-                    after = after+40;
+                    after = after + 40;
 
                     var roots = await HttpClient.Get<List<RootObject>>($"{AppInit.conf.Anilibria.rqHost()}/v2/getUpdates?limit=40&after={after - 40}&include=raw_torrent", IgnoreDeserializeObject: true, useproxy: AppInit.conf.Anilibria.useproxy);
                     if (roots == null || roots.Count == 0)

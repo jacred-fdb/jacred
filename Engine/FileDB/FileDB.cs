@@ -37,7 +37,7 @@ namespace JacRed.Engine
             {
                 bool updateFull = false;
 
-                void upt(bool uptfull = false, bool updatetime = true) 
+                void upt(bool uptfull = false, bool updatetime = true)
                 {
                     savechanges = true;
 

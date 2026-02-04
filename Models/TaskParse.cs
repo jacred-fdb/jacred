@@ -7,7 +7,7 @@ namespace JacRed.Models.tParse
         #region TaskParse
         public TaskParse() { }
 
-        public TaskParse(int _page) 
+        public TaskParse(int _page)
         {
             page = _page;
         }

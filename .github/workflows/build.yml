@@ -7,13 +7,23 @@ on:
   pull_request:
     branches:
       - main
+  release:
+    types:
+      - published
+  workflow_run:
+    workflows:
+      - Release
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
 
 env:
   DOTNET_VERSION: "9.0.x"
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   packages: read
   id-token: write
@@ -21,6 +31,7 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.artifact_name }}
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -42,8 +53,18 @@ jobs:
             output_dir: osx-amd64
             artifact_name: jacred-osx-amd64
     steps:
+      - name: Get release tag (when triggered by Release workflow)
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        id: release_tag
+        run: |
+          TAG=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && steps.release_tag.outputs.tag || (github.event_name == 'release' && github.event.release.tag_name) || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5.1.0
@@ -75,4 +96,52 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/${{ matrix.output_dir }}
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'release' && 365 || 7 }}
+
+  upload-release-assets:
+    name: Attach artifacts to release
+    needs: build
+    if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Get release tag
+        if: github.event_name == 'workflow_run'
+        id: release_tag
+        run: |
+          TAG=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6.0.0
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Create release archives
+        id: archives
+        run: |
+          set -e
+          RELEASE_DIR=release-files
+          mkdir -p "$RELEASE_DIR"
+
+          for artifact_dir in artifacts/*/; do
+            name=$(basename "$artifact_dir")
+            (cd "$artifact_dir" && zip -r "../../$RELEASE_DIR/${name}.zip" .)
+          done
+
+          {
+            echo 'files<<EOF'
+            ls -1 "$RELEASE_DIR"/*.zip
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || steps.release_tag.outputs.tag }}
+          files: ${{ steps.archives.outputs.files }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

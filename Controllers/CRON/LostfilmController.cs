@@ -17,7 +17,7 @@ namespace JacRed.Controllers.CRON
         #region LostfilmController
         static System.Net.Http.HttpClient cloudHttp;
 
-        static LostfilmController() 
+        static LostfilmController()
         {
             //var handler = new ClearanceHandler("http://ip:8191/")
             //{

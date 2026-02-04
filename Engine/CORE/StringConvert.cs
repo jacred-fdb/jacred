@@ -29,7 +29,7 @@ namespace JacRed.Engine.CORE
 
                 return FindStartText(res, end);
             }
-            catch 
+            catch
             {
                 return null;
             }
@@ -49,11 +49,12 @@ namespace JacRed.Engine.CORE
 
 
                     int endIndex = data.IndexOf(end);
-                    if (endIndex == 0) {
+                    if (endIndex == 0)
+                    {
                         data = data.Remove(startIndex);
                         break;
                     }
-                    
+
                     data = data.Remove(startIndex, (endIndex - startIndex));
                 }
 

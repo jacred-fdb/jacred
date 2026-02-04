@@ -1,0 +1,41 @@
+{
+  "name": "router",
+  "main": "src/worker.js",
+  "workers_dev": false,
+  "preview_urls": false,
+  "compatibility_date": "2026-01-20",
+  "routes": [
+    {
+      "pattern": "router.torrservera.net",
+      "zone_name": "torrservera.net",
+      "custom_domain": true,
+    },
+    // {
+    //   "pattern": "keenetic.torrservera.net",
+    //   "zone_name": "torrservera.net",
+    //   "custom_domain": true,
+    // },
+    // {
+    //   "pattern": "terraform.torrservera.net",
+    //   "zone_name": "torrservera.net",
+    //   "custom_domain": true,
+    // },
+  ],
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 0.5,
+    "logs": {
+      "enabled": false,
+    },
+    "traces": {
+      "enabled": false,
+    },
+  },
+  "logpush": false,
+  "upload_source_maps": true,
+  "dev": {
+    "local_protocol": "http",
+    "port": 8787,
+    "ip": "localhost",
+  },
+}
