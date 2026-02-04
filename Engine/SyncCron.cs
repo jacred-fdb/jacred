@@ -33,6 +33,12 @@ namespace JacRed.Engine
             {
                 try
                 {
+                    if (AppInit.conf == null)
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        continue;
+                    }
+
                     if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi))
                     {
                         Console.WriteLine($"\n\nsync: start / {DateTime.Now.ToString(TimeFormat)}");
@@ -153,7 +159,8 @@ namespace JacRed.Engine
                 }
 
                 await Task.Delay(1000 * Random.Shared.Next(60, 300));
-                await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync));
+                if (AppInit.conf != null)
+                    await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync));
             }
         }
         #endregion
@@ -163,11 +170,17 @@ namespace JacRed.Engine
         {
             while (true)
             {
-                int spidrMinutes = 20 > AppInit.conf.timeSyncSpidr ? 20 : AppInit.conf.timeSyncSpidr;
-                await Task.Delay(1000 * 60 * spidrMinutes);
-
                 try
                 {
+                    if (AppInit.conf == null)
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        continue;
+                    }
+
+                    int spidrMinutes = 20 > AppInit.conf.timeSyncSpidr ? 20 : AppInit.conf.timeSyncSpidr;
+                    await Task.Delay(1000 * 60 * spidrMinutes);
+
                     if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi) && AppInit.conf.syncspidr)
                     {
                         long lastsync_spidr = -1;
@@ -184,9 +197,15 @@ namespace JacRed.Engine
                             if (root?.collections != null && root.collections.Count > 0)
                             {
                                 foreach (var collection in root.collections)
+                                {
+                                    if (collection?.Value?.torrents == null)
+                                        continue;
                                     FileDB.AddOrUpdate(collection.Value.torrents.Values);
+                                }
 
-                                lastsync_spidr = root.collections.Last().Value.fileTime;
+                                var lastCollection = root.collections.LastOrDefault();
+                                if (lastCollection?.Value != null)
+                                    lastsync_spidr = lastCollection.Value.fileTime;
 
                                 if (root.nextread)
                                     goto next;
