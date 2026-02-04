@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -19,6 +19,8 @@ namespace JacRed.Controllers.CRON
 
         async public Task<string> Parse(bool fullparse)
         {
+            if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains("anifilm", StringComparer.OrdinalIgnoreCase))
+                return "disabled";
             if (workParse)
                 return "work";
 

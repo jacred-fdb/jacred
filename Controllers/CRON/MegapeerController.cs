@@ -85,6 +85,8 @@ namespace JacRed.Controllers.CRON
 
         async public Task<string> Parse(int page)
         {
+            if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains("megapeer", StringComparer.OrdinalIgnoreCase))
+                return "disabled";
             if (_workParse)
                 return "work";
 
@@ -129,6 +131,8 @@ namespace JacRed.Controllers.CRON
         #region UpdateTasksParse
         async public Task<string> UpdateTasksParse()
         {
+            if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains("megapeer", StringComparer.OrdinalIgnoreCase))
+                return "disabled";
             foreach (string cat in new List<string>() { "80", "79", "6", "5", "55", "57", "76" })
             {
                 await Task.Delay(AppInit.conf.Megapeer.parseDelay);
@@ -170,6 +174,8 @@ namespace JacRed.Controllers.CRON
 
         async public Task<string> ParseAllTask()
         {
+            if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains("megapeer", StringComparer.OrdinalIgnoreCase))
+                return "disabled";
             if (_parseAllTaskWork)
                 return "work";
 

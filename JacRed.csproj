@@ -10,8 +10,14 @@
   <ItemGroup>
     <Compile Remove="Data\**" />
     <Content Remove="Data\**" />
+    <Content Remove="temp\**" />
+    <Content Remove="router\**" />
     <EmbeddedResource Remove="Data\**" />
+    <EmbeddedResource Remove="temp\**" />
+    <EmbeddedResource Remove="router\**" />
     <None Remove="Data\**" />
+    <None Remove="temp\**" />
+    <None Remove="router\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +35,7 @@
     <PackageReference Include="BencodeNET" Version="5.0.0" />
     <PackageReference Include="MonoTorrent" Version="3.0.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="YamlDotNet" Version="15.1.0" />
   </ItemGroup>
 
   <!--<PropertyGroup>

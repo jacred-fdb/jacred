@@ -24,6 +24,11 @@ namespace JacRed.Engine
             catch { return fileTime.ToString(); }
         }
 
+        static string FormatElapsed(TimeSpan ts)
+        {
+            return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}.{ts.Milliseconds / 100}";
+        }
+
         #region Torrents
         async public static Task Torrents()
         {
@@ -33,9 +38,18 @@ namespace JacRed.Engine
             {
                 try
                 {
+                    if (AppInit.conf == null)
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        continue;
+                    }
+
                     if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi))
                     {
-                        Console.WriteLine($"\n\nsync: start / {DateTime.Now.ToString(TimeFormat)}");
+                        var cycleStart = DateTime.Now;
+                        var cycleTotal = 0;
+
+                        Console.WriteLine($"sync: start / {DateTime.Now.ToString(TimeFormat)}");
 
                         if (lastsync == -1 && File.Exists(LastSyncPath))
                             lastsync = long.Parse(File.ReadAllText(LastSyncPath));
@@ -47,12 +61,15 @@ namespace JacRed.Engine
                             if (starsync == -1 && File.Exists(StarSyncPath))
                                 starsync = long.Parse(File.ReadAllText(StarSyncPath));
 
+                            Console.WriteLine($"sync: loaded state lastsync={lastsync} ({FormatFileTime(lastsync)}) starsync={starsync} ({FormatFileTime(starsync)})");
+
                             bool reset = true;
                             DateTime lastSave = DateTime.Now;
+                            int batchIndex = 0;
 
-                        next: var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync}&start={starsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
-
-                            Console.WriteLine($"sync: time={lastsync} ({FormatFileTime(lastsync)}) & start={starsync} ({FormatFileTime(starsync)})");
+                        next: batchIndex++;
+                            var batchStart = DateTime.Now;
+                            var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync}&start={starsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
 
                             if (root?.collections == null)
                             {
@@ -67,24 +84,36 @@ namespace JacRed.Engine
                             {
                                 reset = true;
                                 var torrents = new List<TorrentBaseDetails>(root.countread);
+                                int filteredByTracker = 0, filteredBySport = 0;
 
                                 foreach (var collection in root.collections)
                                 {
                                     foreach (var torrent in collection.Value.torrents)
                                     {
                                         if (AppInit.conf.synctrackers != null && torrent.Value.trackerName != null && !AppInit.conf.synctrackers.Contains(torrent.Value.trackerName))
+                                        {
+                                            filteredByTracker++;
                                             continue;
+                                        }
 
                                         if (!AppInit.conf.syncsport && torrent.Value.types != null && torrent.Value.types.Contains("sport"))
+                                        {
+                                            filteredBySport++;
                                             continue;
+                                        }
 
                                         torrents.Add(torrent.Value);
                                     }
                                 }
 
+                                if (filteredByTracker > 0 || filteredBySport > 0)
+                                    Console.WriteLine($"sync:   incoming {root.countread}; filtered out {filteredByTracker} by tracker, {filteredBySport} by sport");
+
                                 FileDB.AddOrUpdate(torrents);
 
-                                Console.WriteLine($"sync: processed {torrents.Count} torrents (countread={root.countread}); nextread={root.nextread}");
+                                cycleTotal += torrents.Count;
+                                var batchElapsed = DateTime.Now - batchStart;
+                                Console.WriteLine($"sync: [{batchIndex}] time={lastsync} ({FormatFileTime(lastsync)}) | {torrents.Count} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
 
                                 lastsync = root.collections.Last().Value.fileTime;
 
@@ -95,18 +124,20 @@ namespace JacRed.Engine
                                         lastSave = DateTime.Now;
                                         FileDB.SaveChangesToFile();
                                         File.WriteAllText(LastSyncPath, lastsync.ToString());
+                                        Console.WriteLine($"sync: saved state (lastsync.txt)");
                                     }
-
                                     goto next;
                                 }
 
                                 starsync = lastsync;
                                 File.WriteAllText(StarSyncPath, starsync.ToString());
+                                Console.WriteLine($"sync: saved state (starsync.txt)");
                             }
                             else if (root.collections.Count == 0)
                             {
                                 starsync = lastsync;
                                 File.WriteAllText(StarSyncPath, starsync.ToString());
+                                Console.WriteLine($"sync: saved state (starsync.txt)");
                             }
                             #endregion
                         }
@@ -116,7 +147,9 @@ namespace JacRed.Engine
                         next: var root = await HttpClient.Get<Models.Sync.v1.RootObject>($"{AppInit.conf.syncapi}/sync/torrents?time={lastsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
                             if (root?.torrents != null && root.torrents.Count > 0)
                             {
-                                FileDB.AddOrUpdate(root.torrents.Select(i => i.value).ToList());
+                                var v1Torrents = root.torrents.Select(i => i.value).ToList();
+                                FileDB.AddOrUpdate(v1Torrents);
+                                cycleTotal += v1Torrents.Count;
 
                                 lastsync = root.torrents.Last().value.updateTime.ToFileTimeUtc();
 
@@ -129,7 +162,8 @@ namespace JacRed.Engine
                         FileDB.SaveChangesToFile();
                         File.WriteAllText(LastSyncPath, lastsync.ToString());
 
-                        Console.WriteLine($"sync: end / {DateTime.Now.ToString(TimeFormat)}");
+                        var cycleElapsed = DateTime.Now - cycleStart;
+                        Console.WriteLine($"sync: end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
                     }
                     else
                     {
@@ -153,7 +187,8 @@ namespace JacRed.Engine
                 }
 
                 await Task.Delay(1000 * Random.Shared.Next(60, 300));
-                await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync));
+                if (AppInit.conf != null)
+                    await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync));
             }
         }
         #endregion
@@ -163,11 +198,17 @@ namespace JacRed.Engine
         {
             while (true)
             {
-                int spidrMinutes = 20 > AppInit.conf.timeSyncSpidr ? 20 : AppInit.conf.timeSyncSpidr;
-                await Task.Delay(1000 * 60 * spidrMinutes);
-
                 try
                 {
+                    if (AppInit.conf == null)
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        continue;
+                    }
+
+                    int spidrMinutes = 20 > AppInit.conf.timeSyncSpidr ? 20 : AppInit.conf.timeSyncSpidr;
+                    await Task.Delay(1000 * 60 * spidrMinutes);
+
                     if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi) && AppInit.conf.syncspidr)
                     {
                         long lastsync_spidr = -1;
@@ -175,24 +216,43 @@ namespace JacRed.Engine
                         var conf = await HttpClient.Get<JObject>($"{AppInit.conf.syncapi}/sync/conf");
                         if (conf != null && conf.ContainsKey("spidr") && conf.Value<bool>("spidr"))
                         {
-                            Console.WriteLine($"\n\nsync_spidr: start / {DateTime.Now.ToString(TimeFormat)}");
+                            var cycleStart = DateTime.Now;
+                            var cycleTotal = 0;
+                            int batchIndex = 0;
 
-                        next: var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync_spidr}&spidr=true", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
+                            Console.WriteLine($"sync_spidr: start / {DateTime.Now.ToString(TimeFormat)}");
 
-                            Console.WriteLine($"sync_spidr: time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)})");
+                        next: batchIndex++;
+                            var batchStart = DateTime.Now;
+                            var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync_spidr}&spidr=true", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
 
                             if (root?.collections != null && root.collections.Count > 0)
                             {
-                                foreach (var collection in root.collections)
-                                    FileDB.AddOrUpdate(collection.Value.torrents.Values);
+                                var batchCount = root.collections.Sum(c => c.Value?.torrents?.Count ?? 0);
 
-                                lastsync_spidr = root.collections.Last().Value.fileTime;
+                                foreach (var collection in root.collections)
+                                {
+                                    if (collection?.Value?.torrents == null)
+                                        continue;
+                                    FileDB.AddOrUpdate(collection.Value.torrents.Values);
+                                }
+
+                                cycleTotal += batchCount;
+                                var batchElapsed = DateTime.Now - batchStart;
+                                Console.WriteLine($"sync_spidr: [{batchIndex}] time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)}) | {root.collections.Count} collections, {batchCount} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
+
+                                var lastCollection = root.collections.LastOrDefault();
+                                if (lastCollection?.Value != null)
+                                    lastsync_spidr = lastCollection.Value.fileTime;
 
                                 if (root.nextread)
+                                {
                                     goto next;
+                                }
                             }
 
-                            Console.WriteLine($"sync_spidr: end / {DateTime.Now.ToString(TimeFormat)}");
+                            var cycleElapsed = DateTime.Now - cycleStart;
+                            Console.WriteLine($"sync_spidr: end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
                         }
                     }
                     else

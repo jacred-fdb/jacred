@@ -1,0 +1,196 @@
+---
+# Full example config (example.yaml). Copy to init.yaml or init.conf to use.
+# Config priority: init.yaml > init.conf. If both exist, init.yaml is used.
+
+listenip: any
+listenport: 9117
+apikey: ""
+mergeduplicates: true
+openstats: true
+opensync: true
+log: false
+logFdb: false
+logFdbRetentionDays: 7
+logFdbMaxSizeMb: 0
+logFdbMaxFiles: 0
+logParsers: false
+syncapi: https://jacred.torrservera.net
+synctrackers:
+  - rutracker
+  - rutor
+  - kinozal
+  - nnmclub
+  - megapeer
+  - bitru
+  - toloka
+  - lostfilm
+  - baibako
+  - torrentby
+  - selezen
+  - animelayer
+# RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
+disable_trackers:
+  - hdrezka
+  - anifilm
+  - anilibria
+syncsport: true
+syncspidr: true
+maxreadfile: 250
+tracks: false
+tracksdelay: 20000
+tsuri:
+  - http://127.0.0.1:8090
+timeStatsUpdate: 15
+timeSync: 30
+timeSyncSpidr: 60
+evercache:
+  enable: false
+  validHour: 1
+  maxOpenWriteTask: 200
+  dropCacheTake: 200
+
+# Tracker settings (optional; defaults are used if omitted)
+Rutor:
+  host: http://rutor.info
+  alias: "" # e.g. http://rutor....onion
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+Megapeer:
+  host: http://megapeer.vip
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+TorrentBy:
+  host: https://torrent.by
+  alias: "" # e.g. https://torrentby.workers.dev
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+Kinozal:
+  host: https://kinozal.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+  login:
+    u: ""
+    p: ""
+
+NNMClub:
+  host: https://nnmclub.to
+  alias: "" # e.g. http://nnmclub....onion
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+Bitru:
+  host: https://bitru.org
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+Toloka:
+  host: https://toloka.to
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+  login:
+    u: ""
+    p: ""
+
+Rutracker:
+  host: https://rutracker.org
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+Selezen:
+  host: https://open.selezen.org
+  cookie: null
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+  login:
+    u: ""
+    p: ""
+
+Anilibria:
+  host: https://api.anilibria.tv
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+
+Animelayer:
+  host: http://animelayer.ru
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  login:
+    u: ""
+    p: ""
+
+Anifilm:
+  host: https://anifilm.net
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+
+Rezka:
+  host: https://rezka.cc
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+
+Baibako:
+  host: http://baibako.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+  login:
+    u: ""
+    p: ""
+
+Lostfilm:
+  host: https://www.lostfilm.tv
+  cookie: "lf_loyal_person=0; lf_session=test_session_value; lf_udv=test_udv_value; PHPSESSID=test_phpsessid_value"
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+
+proxy:
+  pattern: ""
+  useAuth: false
+  BypassOnLocal: false
+  username: ""
+  password: ""
+  list:
+    - ip:port
+    - socks5://ip:port
+
+globalproxy:
+  - pattern: "\\.onion"
+    useAuth: false
+    BypassOnLocal: false
+    username: ""
+    password: ""
+    list:
+      - socks5://127.0.0.1:9050

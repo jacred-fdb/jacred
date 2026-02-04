@@ -1,0 +1,49 @@
+---
+# Minimal config (init.yaml). Same as init.conf in YAML.
+# If both init.yaml and init.conf exist, init.yaml is used.
+
+listenip: any
+listenport: 9117
+apikey: ""
+mergeduplicates: true
+openstats: true
+opensync: true
+log: false
+logFdb: false
+logFdbRetentionDays: 7
+logFdbMaxSizeMb: 0
+logFdbMaxFiles: 0
+logParsers: false
+syncapi: https://jacred.torrservera.net
+synctrackers:
+  - rutracker
+  - rutor
+  - kinozal
+  - nnmclub
+  - megapeer
+  - bitru
+  - toloka
+  - lostfilm
+  - baibako
+  - torrentby
+  - selezen
+  - animelayer
+  - anilibria
+  - anifilm
+disable_trackers:
+  - hdrezka
+syncsport: true
+syncspidr: true
+maxreadfile: 250
+tracks: false
+tracksdelay: 20000
+tsuri:
+  - http://127.0.0.1:8090
+timeStatsUpdate: 15
+timeSync: 30
+timeSyncSpidr: 60
+evercache:
+  enable: false
+  validHour: 1
+  maxOpenWriteTask: 200
+  dropCacheTake: 200

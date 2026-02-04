@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -112,10 +112,22 @@ namespace JacRed.Engine
                     t._sn = StringConvert.SearchName(t.name);
                     upt();
                 }
+                else if (string.IsNullOrWhiteSpace(t.name) && !string.IsNullOrWhiteSpace(torrent.title))
+                {
+                    t.name = torrent.title;
+                    t._sn = StringConvert.SearchName(t.name);
+                    upt();
+                }
 
                 if (!string.IsNullOrWhiteSpace(torrent.originalname) && torrent.originalname != t.originalname)
                 {
                     t.originalname = torrent.originalname;
+                    t._so = StringConvert.SearchName(t.originalname);
+                    upt();
+                }
+                else if (string.IsNullOrWhiteSpace(t.originalname) && !string.IsNullOrWhiteSpace(torrent.title))
+                {
+                    t.originalname = torrent.title;
                     t._so = StringConvert.SearchName(t.originalname);
                     upt();
                 }
@@ -135,8 +147,8 @@ namespace JacRed.Engine
                 if (updateFull)
                     updateFullDetails(t);
 
-                else if (AppInit.conf.log)
-                    File.AppendAllText("Data/log/fdb.txt", JsonConvert.SerializeObject(new List<TorrentBaseDetails>() { torrent, t }, Formatting.Indented) + ",\n\n");
+                else if (AppInit.conf.logFdb || AppInit.conf.log)
+                    AppendFdbLog(torrent, t);
 
                 t.checkTime = DateTime.Now;
                 AddOrUpdateMasterDb(t);
@@ -146,6 +158,8 @@ namespace JacRed.Engine
                 if (string.IsNullOrWhiteSpace(torrent.magnet) || torrent.types == null || torrent.types.Length == 0)
                     return;
 
+                var name = torrent.name ?? torrent.title ?? "";
+                var originalname = torrent.originalname ?? torrent.title ?? "";
                 t = new TorrentDetails()
                 {
                     url = torrent.url,
@@ -154,8 +168,8 @@ namespace JacRed.Engine
                     createTime = torrent.createTime,
                     updateTime = torrent.updateTime,
                     title = torrent.title,
-                    name = torrent.name,
-                    originalname = torrent.originalname,
+                    name = name,
+                    originalname = originalname,
                     pir = torrent.pir,
                     sid = torrent.sid,
                     relased = torrent.relased,
@@ -163,12 +177,85 @@ namespace JacRed.Engine
                     magnet = torrent.magnet,
                     ffprobe = torrent.ffprobe
                 };
+                t._sn = StringConvert.SearchName(t.name);
+                t._so = StringConvert.SearchName(t.originalname);
 
                 savechanges = true;
                 updateFullDetails(t);
                 Database.TryAdd(t.url, t);
                 AddOrUpdateMasterDb(t);
             }
+        }
+        #endregion
+
+        #region FdbLog
+        static readonly string FdbLogDir = "Data/log";
+        const string FdbLogPrefix = "fdb.";
+
+        static void AppendFdbLog(TorrentBaseDetails torrent, TorrentDetails t)
+        {
+            try
+            {
+                if (!Directory.Exists(FdbLogDir))
+                    Directory.CreateDirectory(FdbLogDir);
+
+                int retentionDays = AppInit.conf?.logFdbRetentionDays ?? 0;
+                if (retentionDays > 0)
+                {
+                    var cutoff = DateTime.UtcNow.Date.AddDays(-retentionDays);
+                    foreach (var path in Directory.EnumerateFiles(FdbLogDir, FdbLogPrefix + "*.log"))
+                    {
+                        string name = Path.GetFileNameWithoutExtension(path);
+                        if (name.Length > FdbLogPrefix.Length && DateTime.TryParseExact(name.Substring(FdbLogPrefix.Length), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fileDate) && fileDate < cutoff)
+                            try { File.Delete(path); } catch { }
+                    }
+                }
+
+                string logPath = Path.Combine(FdbLogDir, FdbLogPrefix + DateTime.UtcNow.ToString("yyyy-MM-dd") + ".log");
+                string jsonLine = JsonConvert.SerializeObject(new List<TorrentBaseDetails>() { torrent, t }, Formatting.None) + "\n";
+                File.AppendAllText(logPath, jsonLine);
+
+                PurgeFdbLogBySizeAndCount();
+            }
+            catch { }
+        }
+
+        static void PurgeFdbLogBySizeAndCount()
+        {
+            int maxSizeMb = AppInit.conf?.logFdbMaxSizeMb ?? 0;
+            int maxFiles = AppInit.conf?.logFdbMaxFiles ?? 0;
+            if (maxSizeMb <= 0 && maxFiles <= 0)
+                return;
+            try
+            {
+                long maxBytes = maxSizeMb > 0 ? (long)maxSizeMb * 1024 * 1024 : long.MaxValue;
+                var list = new List<(string path, long length, DateTime date)>();
+                foreach (var path in Directory.EnumerateFiles(FdbLogDir, FdbLogPrefix + "*.log"))
+                {
+                    string name = Path.GetFileNameWithoutExtension(path);
+                    if (name.Length <= FdbLogPrefix.Length || !DateTime.TryParseExact(name.Substring(FdbLogPrefix.Length), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fileDate))
+                        continue;
+                    long len = 0;
+                    try { len = new FileInfo(path).Length; } catch { }
+                    list.Add((path, len, fileDate));
+                }
+                list.Sort((a, b) => a.date.CompareTo(b.date));
+                long total = list.Sum(x => x.length);
+                int count = list.Count;
+                foreach (var item in list)
+                {
+                    if (total <= maxBytes && count <= maxFiles)
+                        break;
+                    try
+                    {
+                        File.Delete(item.path);
+                        total -= item.length;
+                        count--;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
         #endregion
 

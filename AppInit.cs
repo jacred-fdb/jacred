@@ -1,16 +1,100 @@
 using JacRed.Models;
 using JacRed.Models.AppConf;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using YamlDotNet.Serialization;
 
 namespace JacRed
 {
     public class AppInit
     {
+        private static readonly HashSet<string> SensitiveKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "apikey", "cookie", "u", "p", "username", "password"
+        };
+
+        /// <summary>
+        /// Returns current configuration as JSON with sensitive values (apikey, cookie, login, proxy auth) redacted.
+        /// </summary>
+        public static string GetSafeConfigJson()
+        {
+            var c = conf;
+            if (c == null) return "{}";
+            var jo = JObject.FromObject(c);
+            RedactSensitive(jo);
+            return jo.ToString(Formatting.Indented);
+        }
+
+        private static void RedactSensitive(JToken token)
+        {
+            if (token is JObject obj)
+            {
+                foreach (var prop in obj.Properties().ToList())
+                {
+                    if (SensitiveKeys.Contains(prop.Name) && prop.Value != null && prop.Value.Type != JTokenType.Null && prop.Value.Type != JTokenType.Undefined)
+                    {
+                        var val = prop.Value.ToString();
+                        if (!string.IsNullOrEmpty(val))
+                            prop.Value = "***";
+                    }
+                    else
+                        RedactSensitive(prop.Value);
+                }
+            }
+            else if (token is JArray arr)
+            {
+                foreach (var item in arr)
+                    RedactSensitive(item);
+            }
+        }
+
+        private static void LogSafeConfig(string label, string source = null)
+        {
+            try
+            {
+                var src = string.IsNullOrEmpty(source) ? "" : $" from {source}";
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {label}{src} applied (sensitive data redacted):");
+                Console.WriteLine(GetSafeConfigJson());
+            }
+            catch { }
+        }
+
+        private const string ConfigFileYaml = "init.yaml";
+        private const string ConfigFileJson = "init.conf";
+
+        /// <summary>
+        /// Config file priority: init.yaml wins over init.conf. If both exist, init.yaml is used.
+        /// </summary>
+        private static (string path, DateTime lastWrite) GetConfigSource()
+        {
+            var hasYaml = File.Exists(ConfigFileYaml);
+            var hasJson = File.Exists(ConfigFileJson);
+            if (hasYaml)
+                return (ConfigFileYaml, File.GetLastWriteTimeUtc(ConfigFileYaml));
+            if (hasJson)
+                return (ConfigFileJson, File.GetLastWriteTimeUtc(ConfigFileJson));
+            return (null, default);
+        }
+
+        private static AppInit LoadConfigFromFile(string path)
+        {
+            var text = File.ReadAllText(path);
+            if (path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            {
+                var deserializer = new DeserializerBuilder().Build();
+                var yamlObj = deserializer.Deserialize<object>(new StringReader(text));
+                var json = JsonConvert.SerializeObject(yamlObj);
+                return JsonConvert.DeserializeObject<AppInit>(json);
+            }
+            return JsonConvert.DeserializeObject<AppInit>(text);
+        }
+
         #region AppInit
         static AppInit()
         {
@@ -18,21 +102,35 @@ namespace JacRed
             {
                 try
                 {
+                    var (path, lastWrite) = GetConfigSource();
+
                     if (cacheconf.Item1 == null)
                     {
-                        if (!File.Exists("init.conf"))
+                        if (path == null)
                         {
                             cacheconf.Item1 = new AppInit();
+                            cacheconf.Item2 = null;
+                            cacheconf.Item3 = default;
+                            LogSafeConfig("config (default)");
                             return;
                         }
+                        cacheconf.Item1 = LoadConfigFromFile(path);
+                        cacheconf.Item2 = path;
+                        cacheconf.Item3 = lastWrite;
+                        LogSafeConfig("config (start)", path);
+                        return;
                     }
 
-                    var lastWriteTime = File.GetLastWriteTime("init.conf");
+                    if (path == null)
+                        return;
 
-                    if (cacheconf.Item2 != lastWriteTime)
+                    if (cacheconf.Item2 != path || cacheconf.Item3 != lastWrite)
                     {
-                        cacheconf.Item1 = JsonConvert.DeserializeObject<AppInit>(File.ReadAllText("init.conf"));
-                        cacheconf.Item2 = lastWriteTime;
+                        bool isReload = cacheconf.Item2 != null;
+                        cacheconf.Item1 = LoadConfigFromFile(path);
+                        cacheconf.Item2 = path;
+                        cacheconf.Item3 = lastWrite;
+                        LogSafeConfig(isReload ? "config (reload)" : "config (start)", path);
                     }
                 }
                 catch { }
@@ -50,14 +148,15 @@ namespace JacRed
             });
         }
 
-        static (AppInit, DateTime) cacheconf = default;
+        static (AppInit, string path, DateTime lastWrite) cacheconf = default;
 
         public static AppInit conf => cacheconf.Item1;
 
-        /// <summary>Parser log is written only when global log and this tracker's log are both true.</summary>
+        // Parser log is written only when parser log is enabled and this tracker's log is true.
         public static bool TrackerLogEnabled(string trackerName)
         {
-            if (conf?.log != true || string.IsNullOrWhiteSpace(trackerName))
+            bool parserLogEnabled = conf?.logParsers == true || conf?.log == true;
+            if (!parserLogEnabled || string.IsNullOrWhiteSpace(trackerName))
                 return false;
             switch (trackerName.ToLowerInvariant())
             {
@@ -72,6 +171,7 @@ namespace JacRed
                 case "toloka": return conf.Toloka.log;
                 case "mazepa": return conf.Mazepa.log;
                 case "torrentby": return conf.TorrentBy.log;
+                case "lostfilm": return conf.Lostfilm.log;
                 default: return false;
             }
         }
@@ -108,7 +208,23 @@ namespace JacRed
 
         public string[] tsuri = new string[] { "http://127.0.0.1:8090" };
 
+        // Deprecated: use logFdb and logParsers. When true, enables both fdb and parser logs for backward compatibility.
         public bool log = false;
+
+        // When true, write FileDB add/update entries to Data/log/fdb.YYYY-MM-DD.log as JSON Lines (one JSON array per line; subject to retention/size/file limits).
+        public bool logFdb = false;
+
+        // Keep fdb log files only for this many days (0 = keep all). Applied when logFdb is true.
+        public int logFdbRetentionDays = 7;
+
+        // Max total size of fdb log files in MB (0 = no limit). Oldest files are deleted first.
+        public int logFdbMaxSizeMb = 0;
+
+        // Max number of fdb log files to keep (0 = no limit). Oldest files are deleted first.
+        public int logFdbMaxFiles = 0;
+
+        // When true, parsers write to Data/log/{tracker}.log for trackers that have log enabled in their settings.
+        public bool logParsers = false;
 
         public string syncapi = null;
 

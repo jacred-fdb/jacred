@@ -15,13 +15,14 @@ namespace JacRed.Engine
 
             while (true)
             {
-                if (AppInit.conf.timeStatsUpdate == -1)
+                if (AppInit.conf?.timeStatsUpdate == -1)
                 {
                     await Task.Delay(TimeSpan.FromMinutes(1));
                     continue;
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(AppInit.conf.timeStatsUpdate));
+                var intervalMinutes = AppInit.conf?.timeStatsUpdate ?? 90;
+                await Task.Delay(TimeSpan.FromMinutes(intervalMinutes));
 
                 try
                 {
@@ -30,9 +31,13 @@ namespace JacRed.Engine
 
                     foreach (var item in FileDB.masterDb.ToArray())
                     {
-                        foreach (var t in FileDB.OpenRead(item.Key, cache: false).Values)
+                        var db = FileDB.OpenRead(item.Key, cache: false);
+                        if (db == null)
+                            continue;
+
+                        foreach (var t in db.Values)
                         {
-                            if (string.IsNullOrEmpty(t.trackerName))
+                            if (t == null || string.IsNullOrEmpty(t.trackerName))
                                 continue;
 
                             try
@@ -71,6 +76,9 @@ namespace JacRed.Engine
                         }
                     }
 
+                    if (!Directory.Exists("Data/temp"))
+                        Directory.CreateDirectory("Data/temp");
+
                     File.WriteAllText("Data/temp/stats.json", JsonConvert.SerializeObject(stats.OrderByDescending(i => i.Value.alltorrents).Select(i => new
                     {
                         trackerName = i.Key,
@@ -89,7 +97,7 @@ namespace JacRed.Engine
                     }), Formatting.Indented));
                     Console.WriteLine($"stats: wrote {stats.Count} trackers to Data/temp/stats.json / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }
-                catch (Exception ex) { Console.WriteLine($"stats: error / {ex.Message}"); }
+                catch (Exception ex) { Console.WriteLine($"stats: error / {ex.Message}"); if (ex.StackTrace != null) Console.WriteLine(ex.StackTrace); }
             }
         }
     }

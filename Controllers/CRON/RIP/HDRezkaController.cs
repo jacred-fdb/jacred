@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -20,6 +20,8 @@ namespace JacRed.Controllers.CRON
 
         async public Task<string> Parse(int maxpage = 1)
         {
+            if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains("hdrezka", StringComparer.OrdinalIgnoreCase))
+                return "disabled";
             if (workParse)
                 return "work";
 
