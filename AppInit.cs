@@ -54,10 +54,11 @@ namespace JacRed
 
         public static AppInit conf => cacheconf.Item1;
 
-        /// <summary>Parser log is written only when global log and this tracker's log are both true.</summary>
+        // Parser log is written only when parser log is enabled and this tracker's log is true.
         public static bool TrackerLogEnabled(string trackerName)
         {
-            if (conf?.log != true || string.IsNullOrWhiteSpace(trackerName))
+            bool parserLogEnabled = conf?.logParsers == true || conf?.log == true;
+            if (!parserLogEnabled || string.IsNullOrWhiteSpace(trackerName))
                 return false;
             switch (trackerName.ToLowerInvariant())
             {
@@ -108,7 +109,23 @@ namespace JacRed
 
         public string[] tsuri = new string[] { "http://127.0.0.1:8090" };
 
+        // Deprecated: use logFdb and logParsers. When true, enables both fdb and parser logs for backward compatibility.
         public bool log = false;
+
+        // When true, write FileDB add/update entries to Data/log/fdb.YYYY-MM-DD.log as JSON Lines (one JSON array per line; subject to retention/size/file limits).
+        public bool logFdb = false;
+
+        // Keep fdb log files only for this many days (0 = keep all). Applied when logFdb is true.
+        public int logFdbRetentionDays = 7;
+
+        // Max total size of fdb log files in MB (0 = no limit). Oldest files are deleted first.
+        public int logFdbMaxSizeMb = 0;
+
+        // Max number of fdb log files to keep (0 = no limit). Oldest files are deleted first.
+        public int logFdbMaxFiles = 0;
+
+        // When true, parsers write to Data/log/{tracker}.log for trackers that have log enabled in their settings.
+        public bool logParsers = false;
 
         public string syncapi = null;
 

@@ -36,7 +36,7 @@ namespace JacRed.Models.AppConf
 
         public string cookie { get; set; }
 
-        /// <summary>When true and global log is true, parser writes to Data/log/{tracker}.log</summary>
+        /// <summary>When true and parser log is enabled (logParsers or log), parser writes to Data/log/{tracker}.log</summary>
         public bool log { get; set; }
 
         public bool useproxy { get; set; }
