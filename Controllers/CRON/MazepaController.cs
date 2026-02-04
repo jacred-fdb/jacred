@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -194,6 +195,57 @@ namespace JacRed.Controllers.CRON
             return $"magnet:?xt=urn:btih:{m.Groups[1].Value}";
         }
 
+        /// <summary>Extract size string (e.g. "5.5 GB") from topic row HTML. Tries strict then fallback regex.</summary>
+        static string ParseSizeName(string block)
+        {
+            var m = Regex.Match(block, @">([\d\.,]+)\s*&nbsp;(GB|MB|TB)<", RegexOptions.IgnoreCase);
+            if (m.Success && !string.IsNullOrWhiteSpace(m.Groups[1].Value))
+                return $"{m.Groups[1].Value.Trim()} {m.Groups[2].Value.Trim()}";
+
+            m = Regex.Match(block, @"([\d\.,]+)\s*(GB|MB|TB|ГБ|МБ|ТБ)\b", RegexOptions.IgnoreCase);
+            if (m.Success && !string.IsNullOrWhiteSpace(m.Groups[1].Value))
+                return $"{m.Groups[1].Value.Trim()} {m.Groups[2].Value.Trim()}";
+
+            return null;
+        }
+
+        /// <summary>Parse size string (e.g. "5.5 GB") to size in bytes. Matches FileDB getSizeInfo logic.</summary>
+        static double ParseSizeBytes(string sizeName)
+        {
+            if (string.IsNullOrWhiteSpace(sizeName)) return 0;
+            try
+            {
+                var g = Regex.Match(sizeName, "([0-9\\.,]+)\\s*(Mb|МБ|GB|ГБ|TB|ТБ)", RegexOptions.IgnoreCase).Groups;
+                if (string.IsNullOrWhiteSpace(g[2].Value)) return 0;
+                if (!double.TryParse(g[1].Value.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double size) || size == 0)
+                    return 0;
+                string u = g[2].Value.ToLowerInvariant();
+                if (u is "gb" or "гб") size *= 1024;
+                else if (u is "tb" or "тб") size *= 1048576;
+                return size * 1048576;
+            }
+            catch { return 0; }
+        }
+
+        static int ParseQuality(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return 480;
+            if (title.Contains("2160p") || Regex.IsMatch(title, "(4k|uhd)( |\\]|,|$)", RegexOptions.IgnoreCase)) return 2160;
+            if (title.Contains("1080p")) return 1080;
+            if (title.Contains("720p")) return 720;
+            return 480;
+        }
+
+        static string ParseVideotype(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return "sdr";
+            string lower = title.ToLower();
+            if (Regex.IsMatch(lower, "(\\[|,| )sdr( |\\]|,|$)")) return "sdr";
+            if (Regex.IsMatch(lower, "(\\[|,| )hdr(10| |\\]|,|$)") || Regex.IsMatch(lower, "(10-bit|10 bit|10-бит|10 бит|hdr10)"))
+                return "hdr";
+            return "sdr";
+        }
+
         async Task<(int found, int added, string signature)> ParseCategory(string url, string[] types, string host)
         {
             string html = await HttpClient.Get(url, cookie: Cookie(memoryCache));
@@ -219,10 +271,7 @@ namespace JacRed.Controllers.CRON
                 string magnet = Regex.Match(block,
                     @"href=""(magnet:\?[^""]+)""").Groups[1].Value;
 
-                string size = Regex.Match(block,
-                    @">([\d\.,]+)\s*&nbsp;(GB|MB|TB)<").Groups[1].Value + " " +
-                              Regex.Match(block,
-                    @">([\d\.,]+)\s*&nbsp;(GB|MB|TB)<").Groups[2].Value;
+                string sizeName = ParseSizeName(block);
 
                 string _sid = Regex.Match(block,
                     @"seedmed[^>]*><b>(\d+)</b>").Groups[1].Value;
@@ -236,19 +285,26 @@ namespace JacRed.Controllers.CRON
                 int.TryParse(_sid, out int sid);
                 int.TryParse(_pir, out int pir);
 
-                list.Add(new TorrentDetails()
+                var name = tParse.ReplaceBadNames(title) ?? title.Trim();
+                var titleTrim = title.Trim();
+                var details = new TorrentDetails()
                 {
                     trackerName = "mazepa",
                     types = types,
-                    url = $"{host}/viewtopic.php?t={tid}", // ✅ КЛЮЧ
-                    title = title.Trim(),
-                    name = tParse.ReplaceBadNames(title),
+                    url = $"{host}/viewtopic.php?t={tid}",
+                    title = titleTrim,
+                    name = name,
+                    originalname = titleTrim,
                     magnet = NormalizeMagnet(magnet),
-                    sizeName = size,
+                    sizeName = sizeName,
+                    size = ParseSizeBytes(sizeName),
+                    quality = ParseQuality(titleTrim),
+                    videotype = ParseVideotype(titleTrim),
                     sid = sid,
                     pir = pir,
                     createTime = DateTime.UtcNow
-                });
+                };
+                list.Add(details);
             }
 
             list = list.GroupBy(x => x.url).Select(g => g.First()).ToList();
