@@ -16,10 +16,57 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/mazepa/[action]")]
     public class MazepaController : BaseController
     {
-        static readonly Dictionary<string, string[]> Categories = new()
-        {
-            { "37", new[] { "movie" } }
-        };
+    static readonly Dictionary<string, string[]> Categories = new()
+    {
+        // Українські фільми
+        { "37",  new[] { "movie" } },
+        { "7",   new[] { "movie" } },
+
+        // Фільми
+        { "175", new[] { "movie" } },
+        { "147", new[] { "movie" } },
+        { "12",  new[] { "movie" } },
+        { "13",  new[] { "movie" } },
+        { "174", new[] { "movie" } },
+
+        // Українські серіали
+        { "38",  new[] { "serial" } },
+        { "8",   new[] { "serial" } },
+
+        // Серіали
+        { "152", new[] { "serial" } },
+        { "44",  new[] { "serial" } },
+        { "14",  new[] { "serial" } },
+
+        // Українські мультфільми
+        { "35",  new[] { "multfilm" } },
+        { "5",   new[] { "multfilm" } },
+
+        // Мультфільми
+        { "155", new[] { "multfilm" } },
+        { "41",  new[] { "multfilm" } },
+        { "10",  new[] { "multfilm" } },
+
+        // Українські мультсеріали
+        { "36",  new[] { "multserial" } },
+        { "6",   new[] { "multserial" } },
+
+        // Мультсеріали
+        { "43",  new[] { "multserial" } },
+        { "11",  new[] { "multserial" } },
+
+        // Аніме
+        { "16",  new[] { "anime" } },
+
+        // Українські документальні
+        { "39",  new[] { "documovie" } },
+        { "9",   new[] { "documovie" } },
+
+        // Документальні
+        { "157", new[] { "documovie" } },
+        { "42",  new[] { "documovie" } },
+        { "15",  new[] { "documovie" } },
+    };
 
         static bool _workParse = false;
 
