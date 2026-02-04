@@ -9,9 +9,7 @@ using Microsoft.Extensions.Caching.Memory;
 using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
-using MonoTorrent;
 using System.Net;
-using System.Web;
 
 namespace JacRed.Controllers.CRON
 {
@@ -20,33 +18,7 @@ namespace JacRed.Controllers.CRON
     {
         static readonly Dictionary<string, string[]> Categories = new()
         {
-            { "37", new[] { "movie", "ua", "hd", "uhd" } },
-            { "7",  new[] { "movie", "ua", "sd" } },
-            { "175", new[] { "movie", "ua", "new" } },
-            { "147", new[] { "movie", "uhd" } },
-            { "12",  new[] { "movie", "hd" } },
-            { "13",  new[] { "movie", "sd" } },
-            { "174", new[] { "movie", "sub" } },
-            { "38", new[] { "serial", "ua", "hd", "uhd" } },
-            { "8",  new[] { "serial", "ua", "sd" } },
-            { "152", new[] { "serial", "uhd" } },
-            { "44",  new[] { "serial", "hd" } },
-            { "14",  new[] { "serial", "sd" } },
-            { "35", new[] { "multfilm", "ua", "hd" } },
-            { "5",  new[] { "multfilm", "ua", "sd" } },
-            { "155", new[] { "multfilm", "uhd" } },
-            { "41",  new[] { "multfilm", "hd" } },
-            { "10",  new[] { "multfilm", "sd" } },
-            { "36", new[] { "multserial", "ua" } },
-            { "6",  new[] { "multserial", "ua", "sd" } },
-            { "43", new[] { "multserial", "hd" } },
-            { "11",  new[] { "multserial", "sd" } },
-            { "16", new[] { "anime" } },
-            { "39", new[] { "documovie", "ua" } },
-            { "9",  new[] { "documovie", "ua", "sd" } },
-            { "157", new[] { "documovie", "uhd" } },
-            { "42",  new[] { "documovie", "hd" } },
-            { "15",  new[] { "documovie", "sd" } }
+            { "37", new[] { "movie" } }
         };
 
         static bool _workParse = false;
@@ -69,7 +41,6 @@ namespace JacRed.Controllers.CRON
                 var login = AppInit.conf.Mazepa.login.u;
                 var pass = AppInit.conf.Mazepa.login.p;
                 var host = AppInit.conf.Mazepa.host;
-
                 if (string.IsNullOrEmpty(host)) return false;
 
                 var handler = new System.Net.Http.HttpClientHandler()
@@ -79,8 +50,7 @@ namespace JacRed.Controllers.CRON
                 };
 
                 using var client = new System.Net.Http.HttpClient(handler);
-                client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0");
-                client.DefaultRequestHeaders.Add("Referer", $"{host}/login.php");
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
 
                 var data = new Dictionary<string, string>
                 {
@@ -91,7 +61,8 @@ namespace JacRed.Controllers.CRON
                     { "login", "Увійти" }
                 };
 
-                var response = await client.PostAsync($"{host}/login.php", new System.Net.Http.FormUrlEncodedContent(data));
+                var response = await client.PostAsync($"{host}/login.php",
+                    new System.Net.Http.FormUrlEncodedContent(data));
 
                 if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
                 {
@@ -130,17 +101,32 @@ namespace JacRed.Controllers.CRON
                 foreach (var cat in Categories)
                 {
                     int start = 0;
+                    int page = 1;
+                    string lastSignature = null;
+
                     while (true)
                     {
-                        await Task.Delay(1200);
-
                         string url = $"{host}/viewforum.php?f={cat.Key}&start={start}";
-                        int added = await ParseCategory(url, cat.Value, host);
+                        ParserLog.Write("mazepa", $"Parsing forum {cat.Key} (page {page})");
 
-                        if (added == 0) break;
+                        var (found, added, signature) = await ParseCategory(url, cat.Value, host);
+                        ParserLog.Write("mazepa", $"Found {found} topics, added {added}");
 
+                        if (found == 0)
+                            break;
+
+                        if (signature == lastSignature)
+                        {
+                            ParserLog.Write("mazepa", $"DUPLICATE PAGE → STOP at {page}");
+                            break;
+                        }
+
+                        lastSignature = signature;
                         total += added;
                         start += 50;
+                        page++;
+
+                        await Task.Delay(800);
                     }
                 }
 
@@ -150,63 +136,86 @@ namespace JacRed.Controllers.CRON
             finally { _workParse = false; }
         }
 
-        async Task<int> ParseCategory(string url, string[] types, string host)
+        static string NormalizeMagnet(string magnet)
+        {
+            if (string.IsNullOrEmpty(magnet)) return null;
+            magnet = WebUtility.HtmlDecode(magnet);
+
+            var m = Regex.Match(magnet, @"btih:([A-Fa-f0-9]{40}|[A-Z2-7]{32})");
+            if (!m.Success) return null;
+
+            return $"magnet:?xt=urn:btih:{m.Groups[1].Value}";
+        }
+
+        async Task<(int found, int added, string signature)> ParseCategory(string url, string[] types, string host)
         {
             string html = await HttpClient.Get(url, cookie: Cookie(memoryCache));
-            if (string.IsNullOrEmpty(html)) return 0;
+            if (string.IsNullOrEmpty(html)) return (0, 0, null);
 
-            var rg = new Regex(@"href=""topic-[^""]*t=(\d+)\.html""[^>]*>(.*?)</a>", RegexOptions.IgnoreCase);
+            var rows = Regex.Matches(html, @"<tr id=""tr-(\d+)"".*?>.*?</tr>",
+                RegexOptions.Singleline);
+
+            if (rows.Count == 0) return (0, 0, null);
+
             var list = new List<TorrentDetails>();
 
-            foreach (Match m in rg.Matches(html))
+            foreach (Match row in rows)
             {
-                string tid = m.Groups[1].Value;
-                string title = Regex.Replace(WebUtility.HtmlDecode(m.Groups[2].Value), "<.*?>", "").Trim();
-                if (title.Length < 3) continue;
+                string block = row.Value;
 
-                list.Add(new TorrentDetails
+                string tid = Regex.Match(block, @"tr-(\d+)").Groups[1].Value;
+                if (string.IsNullOrEmpty(tid)) continue;
+
+                string title = Regex.Match(block,
+                    @"class=""torTopic[^""]*""><b>([^<]+)</b>").Groups[1].Value;
+
+                string magnet = Regex.Match(block,
+                    @"href=""(magnet:\?[^""]+)""").Groups[1].Value;
+
+                string size = Regex.Match(block,
+                    @">([\d\.,]+)\s*&nbsp;(GB|MB|TB)<").Groups[1].Value + " " +
+                              Regex.Match(block,
+                    @">([\d\.,]+)\s*&nbsp;(GB|MB|TB)<").Groups[2].Value;
+
+                string _sid = Regex.Match(block,
+                    @"seedmed[^>]*><b>(\d+)</b>").Groups[1].Value;
+
+                string _pir = Regex.Match(block,
+                    @"leechmed[^>]*><b>(\d+)</b>").Groups[1].Value;
+
+                if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(magnet))
+                    continue;
+
+                int.TryParse(_sid, out int sid);
+                int.TryParse(_pir, out int pir);
+
+                list.Add(new TorrentDetails()
                 {
                     trackerName = "mazepa",
-                    url = $"{host}/viewtopic.php?t={tid}",
-                    title = title,
-                    name = tParse.ReplaceBadNames(title),
                     types = types,
-                    createTime = DateTime.Now
+                    url = $"{host}/viewtopic.php?t={tid}", // ✅ КЛЮЧ
+                    title = title.Trim(),
+                    name = tParse.ReplaceBadNames(title),
+                    magnet = NormalizeMagnet(magnet),
+                    sizeName = size,
+                    sid = sid,
+                    pir = pir,
+                    createTime = DateTime.UtcNow
                 });
             }
 
-            if (list.Count == 0) return 0;
+            list = list.GroupBy(x => x.url).Select(g => g.First()).ToList();
+            string signature = string.Join(",", list.Take(5).Select(x => x.url));
 
             int added = 0;
 
-            await FileDB.AddOrUpdate(list, async (t, db) =>
+            await FileDB.AddOrUpdate(list, (t, db) =>
             {
-                if (db.TryGetValue(t.url, out var old) && !string.IsNullOrEmpty(old.magnet))
-                    return false;
-
-                await Task.Delay(300);
-
-                string htmlTopic = await HttpClient.Get(t.url, cookie: Cookie(memoryCache));
-                if (string.IsNullOrEmpty(htmlTopic)) return false;
-
-                var mag = Regex.Match(htmlTopic, @"href=""(magnet:\?xt=urn:btih:[^""]+)""");
-                if (!mag.Success) return false;
-
-                t.magnet = WebUtility.HtmlDecode(mag.Groups[1].Value);
-
-                var size = Regex.Match(htmlTopic, @"(\d+(?:[\.,]\d+)?)\s*(GB|MB|TB)", RegexOptions.IgnoreCase);
-                if (size.Success)
-                    t.sizeName = $"{size.Groups[1]} {size.Groups[2]}".Replace(",", ".");
-
-                if (htmlTopic.Contains("2160p")) t.quality = 2160;
-                else if (htmlTopic.Contains("1080p")) t.quality = 1080;
-                else if (htmlTopic.Contains("720p")) t.quality = 720;
-
                 added++;
-                return true;
+                return Task.FromResult(true);
             });
 
-            return added;
+            return (list.Count, added, signature);
         }
     }
 }
