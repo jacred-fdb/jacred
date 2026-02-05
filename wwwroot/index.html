@@ -248,6 +248,15 @@
             </svg>
             <span class="hidden sm:inline">API ключ</span>
           </button>
+          <button type="button" id="torServerBtn"
+            class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent"
+            aria-label="Настройки TorrServer" title="Настройки TorrServer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+            <span class="hidden sm:inline">TorrServer</span>
+          </button>
           <button id="toggleTheme"
             class="tap-target p-3 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 transition-all group"
             aria-label="Переключить тему" type="button">
@@ -646,6 +655,45 @@
     </div>
   </div>
 
+  <!-- Tor server settings modal -->
+  <div id="torServerModal" class="fixed inset-0 z-[100] hidden" aria-modal="true" aria-labelledby="torServerModalTitle"
+    role="dialog">
+    <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="torServerModalBackdrop"></div>
+    <div class="relative flex min-h-full items-center justify-center p-4">
+      <div
+        class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 animate-fade-in">
+        <h2 id="torServerModalTitle" class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Настройки
+          TorrServer</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">URL TorrServer. При отправке с карточки
+          торрента браузер отправляет POST с <strong>save_to_db: true</strong>. Данные авторизации хранятся только в
+          этом браузере (localStorage).</p>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL сервера</label>
+        <input type="url" id="torServerUrlInput" autocomplete="off"
+          class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+          placeholder="http://my.torrserver.com" />
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Логин (необязательно)</label>
+        <input type="text" id="torServerLoginInput" autocomplete="off"
+          class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+          placeholder="Логин для Basic Auth" />
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Пароль (необязательно)</label>
+        <input type="password" id="torServerPasswordInput" autocomplete="off"
+          class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+          placeholder="Пароль для Basic Auth" />
+        <p id="torServerModalError" class="text-sm text-red-500 dark:text-red-400 mb-4 hidden"></p>
+        <div class="flex gap-3 justify-end">
+          <button type="button" id="torServerModalCancel"
+            class="px-4 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            Отмена
+          </button>
+          <button type="button" id="torServerModalSave"
+            class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
       (function () {
         'use strict';
@@ -878,6 +926,9 @@
                   </button>
                   <button type="button" class="btn-copy-hash tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-emerald-500/90 dark:hover:bg-emerald-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Копировать хеш торрента" aria-label="Копировать хеш">
                     <svg class="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                  </button>
+                  <button type="button" class="btn-send-to-tor tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-violet-500/90 dark:hover:bg-violet-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Отправить на TorrServer" aria-label="Отправить на TorrServer">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
                   </button>
                 </div>
               </div>
@@ -1287,6 +1338,53 @@
             if (e.key === 'Escape' && apiKeyModal && !apiKeyModal.classList.contains('hidden')) closeApiKeyModal();
           });
 
+          const torServerModal = document.getElementById('torServerModal');
+          const torServerUrlInput = document.getElementById('torServerUrlInput');
+          const torServerLoginInput = document.getElementById('torServerLoginInput');
+          const torServerPasswordInput = document.getElementById('torServerPasswordInput');
+          const torServerModalError = document.getElementById('torServerModalError');
+          const torServerModalSave = document.getElementById('torServerModalSave');
+          const torServerModalCancel = document.getElementById('torServerModalCancel');
+          const torServerModalBackdrop = document.getElementById('torServerModalBackdrop');
+          const openTorServerModal = () => {
+            if (torServerUrlInput) torServerUrlInput.value = localStorage.getItem('jacredTorServerUrl') || '';
+            if (torServerLoginInput) torServerLoginInput.value = localStorage.getItem('jacredTorServerLogin') || '';
+            if (torServerPasswordInput) torServerPasswordInput.value = localStorage.getItem('jacredTorServerPassword') || '';
+            if (torServerModalError) { torServerModalError.classList.add('hidden'); torServerModalError.textContent = ''; }
+            if (torServerModal) torServerModal.classList.remove('hidden');
+            setTimeout(() => { if (torServerUrlInput) torServerUrlInput.focus(); }, 100);
+          };
+          const closeTorServerModal = () => { if (torServerModal) torServerModal.classList.add('hidden'); };
+          document.getElementById('torServerBtn').addEventListener('click', openTorServerModal);
+          if (torServerModalCancel) torServerModalCancel.addEventListener('click', closeTorServerModal);
+          if (torServerModalBackdrop) torServerModalBackdrop.addEventListener('click', closeTorServerModal);
+          const saveTorServerFromModal = () => {
+            const url = (torServerUrlInput && torServerUrlInput.value) ? torServerUrlInput.value.trim() : '';
+            const login = (torServerLoginInput && torServerLoginInput.value) ? torServerLoginInput.value.trim() : '';
+            const password = (torServerPasswordInput && torServerPasswordInput.value) ? torServerPasswordInput.value : '';
+            if (!url) {
+              if (torServerModalError) { torServerModalError.textContent = 'Введите URL сервера'; torServerModalError.classList.remove('hidden'); }
+              return;
+            }
+            try {
+              new URL(url);
+            } catch (err) {
+              if (torServerModalError) { torServerModalError.textContent = 'Некорректный URL'; torServerModalError.classList.remove('hidden'); }
+              return;
+            }
+            try {
+              localStorage.setItem('jacredTorServerUrl', url);
+              localStorage.setItem('jacredTorServerLogin', login);
+              localStorage.setItem('jacredTorServerPassword', password);
+            } catch (e) { }
+            if (torServerModalError) { torServerModalError.classList.add('hidden'); torServerModalError.textContent = ''; }
+            closeTorServerModal();
+          };
+          if (torServerModalSave) torServerModalSave.addEventListener('click', saveTorServerFromModal);
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && torServerModal && !torServerModal.classList.contains('hidden')) closeTorServerModal();
+          });
+
           // Load more (client-side pagination)
           const loadMoreBtn = document.getElementById('loadMoreBtn');
           if (loadMoreBtn) loadMoreBtn.addEventListener('click', loadMore);
@@ -1305,6 +1403,54 @@
             const magnet = $(this).attr('data-magnet');
             const hash = extractInfoHashFromMagnet(magnet);
             if (hash) copyToClipboardWithFeedback(hash, '.btn-copy-hash', '<i class="fas fa-check text-green-600 text-sm"></i>');
+          });
+
+          // Send to Tor server (delegated): POST with action=add, link=magnet, save_to_db=true; optional Basic Auth from localStorage
+          $(document).on('click', '.btn-send-to-tor', async function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const magnet = $(this).attr('data-magnet');
+            if (!magnet) return;
+            let baseUrl = (localStorage.getItem('jacredTorServerUrl') || '').trim();
+            const login = (localStorage.getItem('jacredTorServerLogin') || '').trim();
+            const password = localStorage.getItem('jacredTorServerPassword') || '';
+            const $btn = $(this);
+            const origTitle = $btn.attr('title');
+            const setFeedback = (msg) => {
+              $btn.attr('title', msg);
+              setTimeout(() => { $btn.attr('title', origTitle); }, 3000);
+            };
+            if (!baseUrl) {
+              openTorServerModal();
+              return;
+            }
+            let torUrl = baseUrl.replace(/\/$/, '') + '/torrents';
+            let authHeader = null;
+            try {
+              const urlObj = new URL(baseUrl);
+              if (urlObj.username || urlObj.password) {
+                authHeader = 'Basic ' + btoa(decodeURIComponent(urlObj.username || '') + ':' + decodeURIComponent(urlObj.password || ''));
+                torUrl = urlObj.origin.replace(/\/$/, '') + (urlObj.pathname === '/' ? '' : urlObj.pathname.replace(/\/$/, '')) + '/torrents';
+              }
+            } catch (ignore) { }
+            if (!authHeader && login && password)
+              authHeader = 'Basic ' + btoa(login + ':' + password);
+            const headers = { 'Content-Type': 'application/json' };
+            if (authHeader) headers['Authorization'] = authHeader;
+            const body = { action: 'add', link: magnet, save_to_db: true };
+            try {
+              const res = await fetch(torUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+              if (res.ok) {
+                setFeedback('Торрент отправлен на TorrServer (save_to_db: true)');
+              } else {
+                const text = await res.text();
+                setFeedback('Ошибка ' + res.status + (text ? ': ' + text.slice(0, 80) : ''));
+                if (res.status === 401) setFeedback('Ошибка авторизации: проверьте логин и пароль');
+                if (res.status === 403 || (text && text.toLowerCase().includes('cors'))) setFeedback('CORS: разрешите запросы с этого сайта в настройках TorrServer');
+              }
+            } catch (err) {
+              setFeedback(err.message || 'Ошибка сети. Проверьте URL и CORS на TorrServerе.');
+            }
           });
 
           // Tracker filter button: click = search only this tracker; click again = clear tracker filter (show all trackers)
