@@ -98,7 +98,7 @@ namespace JacRed.Engine
                                     if (typetask == 1 || (t.sid > 0 && t.updateTime > DateTime.Today.AddDays(-20)))
                                         torrents.Add(t);
                                 }
-                                catch { }
+                                catch (Exception) { }
                             }
                         }
                     }
@@ -124,7 +124,7 @@ namespace JacRed.Engine
                                 await TracksDB.Add(t.magnet);
                             }
                         }
-                        catch { }
+                        catch (Exception) { }
                     }
 
                     Console.WriteLine($"tracks: end typetask={typetask} / {DateTime.Now:yyyy-MM-dd HH:mm:ss} (elapsed {(DateTime.Now - starttime).TotalMinutes:F1}m)");

@@ -33,7 +33,7 @@ namespace JacRed.Engine
                             if (res?.streams != null && res.streams.Count > 0)
                                 Database.TryAdd(infohash, res);
                         }
-                        catch { }
+                        catch (Exception) { }
                     }
                 }
             }
@@ -84,7 +84,7 @@ namespace JacRed.Engine
                 if (res?.streams == null || res.streams.Count == 0)
                     return null;
             }
-            catch { return null; }
+            catch (Exception) { return null; }
 
             Database.AddOrUpdate(infohash, res, (k, v) => res);
             return res.streams;
@@ -105,7 +105,7 @@ namespace JacRed.Engine
             {
                 infohash = MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex();
             }
-            catch { return; }
+            catch (Exception) { return; }
 
             if (string.IsNullOrEmpty(infohash) || infohash.Length != 40)
                 return;
@@ -152,7 +152,7 @@ namespace JacRed.Engine
                     res = await TorrserverClient.Ffp(tsuri, infohash, fileIndex: 1, timeoutSeconds: Math.Max(60, (timeoutMinutes - 1) * 60), tsuser, tspass);
                 }
             }
-            catch { }
+            catch (Exception) { }
             finally
             {
                 await TorrserverClient.RemTorrent(tsuri, infohash, 15, tsuser, tspass);
@@ -167,7 +167,7 @@ namespace JacRed.Engine
                 string path = pathDb(infohash, createfolder: true);
                 await File.WriteAllTextAsync(path, JsonConvert.SerializeObject(res, Formatting.Indented));
             }
-            catch { }
+            catch (Exception) { }
         }
 
 
@@ -197,7 +197,7 @@ namespace JacRed.Engine
 
                 return languages;
             }
-            catch { return null; }
+            catch (Exception) { return null; }
         }
     }
 }

@@ -66,7 +66,7 @@ namespace JacRed.Engine
                 await CORE.HttpClient.Post(url, new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json"),
                     timeoutSeconds: timeoutSeconds, addHeaders: AuthHeaders(username, password));
             }
-            catch { /* best effort */ }
+            catch (Exception) { /* best effort */ }
         }
 
         /// <summary>
