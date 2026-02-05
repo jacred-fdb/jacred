@@ -238,7 +238,7 @@ namespace JacRed
                 list.Add((
                     t.url.Trim(),
                     string.IsNullOrWhiteSpace(t.username) ? null : t.username?.Trim(),
-                    string.IsNullOrWhiteSpace(t.password) ? null : t.password?.Trim()
+                    string.IsNullOrWhiteSpace(t.password) ? null : t.password.Trim()
                 ));
             }
             return list;
