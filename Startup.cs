@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
+using System.Net;
 using System.Text.Json.Serialization;
 using JacRed.Engine.Middlewares;
 
@@ -65,10 +66,16 @@ namespace JacRed
             ApplicationServices = app.ApplicationServices;
             app.UseDeveloperExceptionPage();
 
-            // IP �������
+
+            // Реальный IP клиента за cloudflared/прокси: доверяем X-Forwarded-For от loopback
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
-                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+                KnownNetworks =
+                {
+                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Loopback, 8),
+                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.IPv6Loopback, 128)
+                }
             });
 
             app.UseCors();
