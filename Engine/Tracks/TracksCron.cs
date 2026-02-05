@@ -18,10 +18,18 @@ namespace JacRed.Engine
         async public static Task Run(int typetask)
         {
             await Task.Delay(20_000);
+			
+			bool firstRun = (typetask == 1); // Для задачи 1 сразу выполняем первый запуск
+
 
             while (true)
             {
-                await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? 60 : 180));
+                if (!firstRun)
+				{
+					await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? 60 : 180));
+				}
+				firstRun = false;
+				
                 if (AppInit.conf.tracks == false)
                     continue;
 
