@@ -1,585 +1,1438 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html lang="ru" class="dark">
 
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=device-width">
-    <link rel="icon" href="./img/favicon.ico">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description"
+    content="JacRed - Торрент агрегатор. Поиск торрентов по нескольким трекерам в BDRip и HDRip качестве" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Поиск торрентов | JacRed</title>
+  <link rel="icon" type="image/png" href="./img/jacred.png" />
+  <link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
+  <link rel="apple-touch-icon" href="./img/icon-192.png" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="search" type="application/opensearchdescription+xml" title="Torlook" href="/opensearch.xml" />
 
-    <title>Поиск торрентов</title>
+  <!-- Preconnect for fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    <link rel="preload" href="https://fonts.googleapis.com/css?family=Rubik:300,400&display=auto" as="style">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Rubik:300,400&display=auto">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] },
+          animation: {
+            'fade-in': 'fadeIn 0.2s ease-out',
+            'slide-up': 'slideUp 0.25s ease-out',
+            'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(8px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
+          }
+        }
+      }
+    }
+  </script>
 
-    <link rel="search" type="application/opensearchdescription+xml" title="Torlook" href="/opensearch.xml">
-    <link rel="stylesheet" type="text/css" href="./css/icheck-material.css?v=5">
-    <link rel="stylesheet" type="text/css" href="./css/microtip.min.css?v=1">
-    <link rel="stylesheet" type="text/css" href="./css/styles.css?v=15" />
+  <style>
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
-    <script src="./js/jquery.quicksearch.min.js?v=3"></script>
-    <script src="./js/script.js?v=8"></script>
+    .dark ::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
 
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 5px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f3f4f6;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      animation: spin 0.7s linear infinite;
+    }
+
+    * {
+      transition-property: background-color, border-color, color, fill, stroke, opacity, transform;
+      transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+      transition-duration: 100ms;
+    }
+
+    *:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+
+    body {
+      background-color: #0a0a0f;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    :root:not(.dark) body {
+      background-color: #f9fafb;
+    }
+
+    .collapse-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease-out;
+    }
+
+    .collapse-content.show {
+      max-height: 2200px;
+      transition: max-height 0.25s ease-in;
+    }
+
+    @keyframes blinker {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .blink {
+      animation: blinker 1s linear infinite;
+    }
+
+    @media (max-width: 640px) {
+
+      input,
+      select,
+      button:not(.btn-copy-magnet) {
+        min-height: 44px;
+        font-size: 16px;
+      }
+    }
+
+    .tap-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    button,
+    a.magneto,
+    .btn-copy-magnet {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .toolbar-field {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .dark .toolbar-field {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (max-width: 767px) {
+      #app {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      #resultsDiv .webResult .h2 {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      #resultsDiv .webResult .magneto+.btn-copy-magnet {
+        margin-top: 0;
+      }
+    }
+
+    @media (min-width: 768px) {
+      #filterContainer.show {
+        max-height: 1800px;
+      }
+    }
+
+    .line-clamp-1 {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
+    }
+
+    .line-clamp-2 {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+    }
+  </style>
 </head>
 
-<body>
+<body class="text-gray-100 font-sans min-h-screen antialiased">
+  <div id="app" class="container mx-auto px-3 sm:px-4 py-3 sm:py-5 max-w-5xl">
 
+    <!-- Header (aligned with stats.html) -->
+    <header class="mb-4 sm:mb-6 animate-slide-up">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+          <a href="/"
+            class="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gradient-to-br from-red-500 via-red-600 to-amber-500 rounded-xl shadow-lg shadow-red-900/50"
+            aria-label="На главную">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </a>
+          <div class="min-w-0">
+            <h1
+              class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent truncate">
+              Поиск торрентов</h1>
+            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 hidden sm:block">По названию, КП или
+              IMDB</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <a href="/stats.html"
+            class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium no-underline transition-colors"
+            aria-label="Статистика трекеров">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span class="hidden sm:inline">Статистика</span>
+          </a>
+          <button type="button" id="apiKeyBtn"
+            class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent"
+            aria-label="Установить API ключ" title="Установить API ключ">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span class="hidden sm:inline">API ключ</span>
+          </button>
+          <button id="toggleTheme"
+            class="tap-target p-3 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 transition-all group"
+            aria-label="Переключить тему" type="button">
+            <svg id="iconMoon"
+              class="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 hidden"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+            <svg id="iconSun" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
 
-<div id="page">
+    <!-- Search Form (card style like stats.html toolbar) -->
+    <form id="searchForm"
+      class="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-800 shadow-sm mb-5 animate-slide-up toolbar-field">
 
-    <div class="logo">
-        <!--<img src="./img/logo.svg" class="logo-icon" />-->
+      <!-- Search Input -->
+      <div class="mb-4">
+        <div class="relative">
+          <input type="text" id="s" name="s"
+            class="w-full px-4 py-3.5 pl-12 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+            placeholder="Введите название для поиска..." autocomplete="off" autofocus />
+          <svg class="absolute left-4 top-4 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none"
+            stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <button type="button" id="clear"
+            class="absolute right-3 top-3 p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all hidden"
+            aria-label="Очистить">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div id="validateError" class="text-red-500 dark:text-red-400 text-sm mt-2 text-center blink hidden"></div>
+      </div>
+
+      <!-- Filters Toggle -->
+      <div class="mb-3">
+        <button type="button" id="filterToggle" aria-expanded="false" aria-controls="filterContainer"
+          class="tap-target w-full flex items-center justify-between px-4 py-3 min-h-[44px] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-gray-900 dark:text-gray-100 font-medium transition-all">
+          <span class="flex items-center gap-2">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span id="filterToggleLabel">Дополнительные фильтры</span>
+            <span id="filterCountBadge" class="hidden text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full"></span>
+          </span>
+          <svg id="filterToggleIcon" class="w-5 h-5 shrink-0 transition-transform duration-150" fill="none"
+            stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Filters Container (Collapsible): 1 col mobile, 2 tablet, 3 desktop -->
+      <div id="filterContainer" class="collapse-content" aria-hidden="true">
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Уточнить</label>
+            <input name="refine" type="text" placeholder="Например BDRip, WEB-DL, США"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Исключить</label>
+            <input name="exclude" type="text" placeholder="Например HEVC"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Качество</label>
+            <select name="quality" aria-label="Качество"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любое</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Тип видео</label>
+            <select name="videotype" aria-label="Тип видео"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любое</option>
+              <option value="sdr">SDR</option>
+              <option value="hdr">HDR</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Озвучка</label>
+            <select name="voice" aria-label="Озвучка"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любая</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Сезон</label>
+            <select name="season" aria-label="Сезон"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любой</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Категория</label>
+            <select name="type" aria-label="Категория"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любая</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Трекер</label>
+            <select name="tracker" aria-label="Трекер"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любой</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Год</label>
+            <select name="year" aria-label="Год"
+              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              <option value="">Любой</option>
+            </select>
+          </div>
+          <div class="md:col-span-2 lg:col-span-3">
+            <button type="button" id="filterReset"
+              class="px-4 py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-all">
+              Сбросить фильтры
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Options: sort (sid/size/date) + exact search -->
+      <div class="flex flex-wrap items-center gap-3 sm:gap-5 mb-4">
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+            <input type="radio" name="sort" value="sid" id="sortSid"
+              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" checked />
+            <span
+              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              сидам</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+            <input type="radio" name="sort" value="size" id="sortSize"
+              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" />
+            <span
+              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              размеру</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+            <input type="radio" name="sort" value="date" id="sortDate"
+              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" />
+            <span
+              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              дате</span>
+          </label>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+          <input type="checkbox" id="forcedSearch" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 shrink-0" />
+          <span
+            class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">Точный
+            поиск</span>
+        </label>
+      </div>
+
+      <!-- Submit and Reset -->
+      <div class="flex gap-3 flex-wrap sm:flex-nowrap">
+        <button type="submit" id="submitButton"
+          class="flex-1 min-h-[48px] py-3.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/30 transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed tap-target">
+          <span id="submitButtonText">ИСКАТЬ</span>
+        </button>
+        <button type="button" id="clearSearchStorage"
+          class="min-h-[48px] px-4 py-3.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium rounded-xl transition-all tap-target shrink-0"
+          title="Очистить сохранённый запрос и показать пустой поиск">
+          Сбросить
+        </button>
+      </div>
+
+    </form>
+
+    <!-- Loading State -->
+    <div id="loading" class="hidden text-center py-16 animate-fade-in">
+      <div class="inline-flex flex-col items-center gap-4">
+        <div class="relative">
+          <div class="w-16 h-16 border-4 border-gray-300 dark:border-gray-700 border-t-red-600 rounded-full spinner">
+          </div>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 font-medium text-lg">Поиск торрентов...</p>
+      </div>
     </div>
-    
-    <div id="searchForm">
-        <form id="search" action="/">
-            <fieldset>
-                <div class="search-line-field">
-                    <input name="s" id="s" type="text" placeholder="Веном 2 or tt7097896 or kp1227967" value=""/>
 
-                    <input type="submit" value="найти" id="submitButton" />
-                </div>
-            </fieldset>
-        </form>
+    <!-- Results Container -->
+    <div id="resultsDiv" class="animate-slide-up">
 
-        <div id="filter">
-            <div class="filter-container">
-                <div class="w2">
-                    <div class="filter-label">Уточнить</div>
-                    <input name="refine" placeholder="Например BDRip, WEB-DL, США" />
-                </div>
+      <!-- Initial Help Message -->
+      <div class="webResult help">
+        <div
+          class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-2xl p-8 border border-blue-200 dark:border-blue-900/30 text-center">
+          <svg class="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните поиск</h3>
+          <p class="text-gray-600 dark:text-gray-400">Введите название фильма или сериала для поиска по трекерам</p>
+        </div>
+      </div>
 
-                <div class="w2">
-                    <div class="filter-label">Исключить</div>
-                    <input name="exclude" placeholder="Например HEVC" />
-                </div>
-				
-                <div class="w4">
-                    <div class="filter-label">Качество</div>
-                    <select name="quality"></select>
-                </div>
-				<div class="w4">
-                    <div class="filter-label">Тип видео</div>
-                    <select name="type">
-                        <option value="">Любое</option>
-                        <option value="sdr">SDR</option>
-                        <option value="hdr">HDR</option>
-                    </select>
-                </div>
-				<div class="w4">
-                    <div class="filter-label">Озвучка</div>
-                    <select name="voice"></select>
-                </div>
-                <div class="w4">
-                    <div class="filter-label">Сезон</div>
-                    <select name="season"></select>
-                </div>
+      <!-- Example Result (Hidden by default - shown via JS) -->
+      <div class="webResult hidden mb-6">
+        <div
+          class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-lg shadow-gray-200/50 dark:shadow-black/20">
 
-                <div class="w4">
-                    <div class="filter-label">Категория</div>
-                    <select name="category"></select>
-                </div>
-				
-                <div class="w4">
-                    <div class="filter-label">Трекер</div>
-                    <select name="tracker"></select>
-                </div>
-                <div class="w4">
-                    <div class="filter-label">Год</div>
-                    <select name="year"></select>
-                </div>
-                <div class="w4">
-                    <button class="filter-button">Сбросить фильтр</button>
-                </div>
+          <!-- Title -->
+          <div
+            class="h2 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-850 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <a href="#"
+                  class="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Название торрента
+                </a>
+              </div>
+              <a href="#"
+                class="magneto flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg flex items-center justify-center transition-all group">
+                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </a>
             </div>
+          </div>
+
+          <!-- Content -->
+          <div class="p-6">
+            <!-- Description -->
+            <div class="desc text-gray-700 dark:text-gray-300 mb-4 text-center">
+              Описание релиза
+            </div>
+
+            <!-- Tags -->
+            <div class="tags flex flex-wrap justify-center gap-2 mb-4">
+              <span
+                class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm">Качество</span>
+              <span
+                class="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">Озвучка</span>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span class="text-gray-600 dark:text-gray-400">Размер:</span>
+                <span class="size font-medium text-cyan-600 dark:text-cyan-400">1.50 GB</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-gray-600 dark:text-gray-400">Дата:</span>
+                <span class="date font-medium text-purple-600 dark:text-purple-400">2024-02-05</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1">
+                  <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span class="seeders font-semibold text-green-600 dark:text-green-400">10</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span class="leechers font-semibold text-red-600 dark:text-red-400">5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Not Found Message -->
+      <div class="webResult notfound hidden">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
+          <svg class="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Ничего не найдено</h3>
+          <p class="text-gray-600 dark:text-gray-400">По вашему запросу результатов не обнаружено. Попробуйте изменить
+            поисковый запрос.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Load more (sibling to resultsDiv so it survives innerHTML replace) -->
+    <div id="loadMoreWrap" class="hidden text-center mt-5">
+      <button type="button" id="loadMoreBtn"
+        class="tap-target min-h-[48px] px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium rounded-xl transition-all duration-150">
+        Загрузить ещё
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-16 bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+
+        <!-- Social Links -->
+        <div class="social flex items-center gap-3">
+          <a href="https://github.com/jacred-fdb/jacred" target="_blank" rel="noopener"
+            class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            aria-label="GitHub">
+            <i class="fab fa-github text-xl"></i>
+          </a>
+          <a href="https://t.me/pavelpikta" target="_blank" rel="noopener"
+            class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            aria-label="Telegram">
+            <i class="fab fa-telegram text-xl"></i>
+          </a>
         </div>
 
-        <div id="searchInContainer">
-            <div class="icheck-material-cyan">
-                <input type="radio" name="sort" value="sid" id="sortSeeders" checked />
-                <label for="sortSeeders"> по сидам</label>
-            </div>
-
-            <div class="icheck-material-cyan">
-                <input type="radio" name="sort" value="size" id="sortSize"  />
-                <label for="sortSize"> по размеру</label>
-            </div>
-
-            <div class="icheck-material-cyan">
-                <input type="radio" name="sort" value="date" id="sortDate"  />
-                <label for="sortDate"> по дате</label>
-            </div>
-
-            <div class="icheck-material-cyan" style="margin-left: auto;">
-                <input type="checkbox" name="exact" id="exactSearch" >
-                <label for="exactSearch" id="exactLabel" >Точный поиск</label>
-            </div>
+        <!-- Copyright -->
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+          Работает на <a href="https://github.com/jacred-fdb/jacred" target="_blank" rel="noopener"
+            class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Jacred</a>
         </div>
 
-    </div>
+        <!-- Language
+        <div class="lang flex items-center gap-2">
+          <span class="text-sm text-gray-600 dark:text-gray-400">Lang:</span>
+          <button class="opacity-50 hover:opacity-100 transition-opacity">
+            <img src="https://flagcdn.com/w20/ru.png" alt="RU" class="w-5 h-auto" />
+          </button>
+        </div> -->
 
+      </div>
+    </footer>
 
-    <div id="resultsDiv" class="">
+  </div>
 
-        <div class="webResult item">
-            <p><a rel="nofollow"><b></b> </a></p>
-            <div class="h2">
-                <!--noindex-->
-                <a rel="nofollow">tracer</a>
-                <!--/noindex-->
-                <span class="webResultTitle"> 
-                    <span class="size">1.00&nbsp;GB</span> 
-                    <span class="date">2000-01-01</span>
-                    <span class="seeders">⬆ 1</span> 
-                    <span class="leechers">⬇ 1</span>
+  <!-- Back to Top Button (respects safe area on iPhone) -->
+  <button id="backToTop"
+    class="fixed p-3 sm:p-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-full shadow-2xl shadow-red-900/50 opacity-0 pointer-events-none transition-all duration-150 z-50 group hover:scale-110 active:scale-95 tap-target"
+    style="bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); right: calc(1rem + env(safe-area-inset-right, 0px));"
+    aria-label="Вернуться к началу страницы">
+    <svg class="w-6 h-6 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor"
+      viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+    </svg>
+  </button>
 
-                    <span class="magnet">
-                        <a class="magneto ut-download-url" href=""></a>
-                    </span>
-                </span>
-            </div>
+  <!-- API Key Modal -->
+  <div id="apiKeyModal" class="fixed inset-0 z-[100] hidden" aria-modal="true" aria-labelledby="apiKeyModalTitle"
+    role="dialog">
+    <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="apiKeyModalBackdrop"></div>
+    <div class="relative flex min-h-full items-center justify-center p-4">
+      <div
+        class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 animate-fade-in">
+        <h2 id="apiKeyModalTitle" class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Установить API
+          ключ</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ключ используется для поиска по API. Сохраняется в
+          браузере.</p>
+        <input type="password" id="apiKeyInput" autocomplete="off"
+          class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          placeholder="Введите ключ API" />
+        <p id="apiKeyModalError" class="text-sm text-red-500 dark:text-red-400 mb-4 hidden"></p>
+        <div class="flex gap-3 justify-end">
+          <button type="button" id="apiKeyModalCancel"
+            class="px-4 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            Отмена
+          </button>
+          <button type="button" id="apiKeyModalSave"
+            class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">
+            Сохранить
+          </button>
         </div>
-        
+      </div>
     </div>
+  </div>
 
-    <div id="empty" class="msg">Введите название фильма или сериала для поиска.</div>
-    <div id="noresults" class="msg">По вашему запросу мы не чего не нашли.</div>
-    <div id="loading" class="msg">Поиск... ожидайте результатов.</div>
+  <script>
+      (function () {
+        'use strict';
 
-    <script>
-        const content = $('#resultsDiv'),
-            empty   = $('#empty'),
-            loading = $('#loading'),
-            noresults = $('#noresults'),
-            input   = $('#s'),
-            filrt   = $('#filter')
+        // DOM Elements cache
+        const elements = {
+          searchForm: null,
+          searchInput: null,
+          clear: null,
+          submitButton: null,
+          submitButtonText: null,
+          validateError: null,
+          loading: null,
+          resultsDiv: null,
+          filterToggle: null,
+          filterToggleIcon: null,
+          filterContainer: null,
+          sortSize: null,
+          sortDate: null,
+          forcedSearch: null,
+          toggleTheme: null,
+          iconMoon: null,
+          iconSun: null,
+          backToTop: null
+        };
 
-        let results = []
-        let filtred = []
+        const PAGE_SIZE = 20;
+        // API returns up to 2000 items; no take/skip. We paginate client-side.
 
-        let filter_search = {
-            voice: [],
-            tracker: []
-        }
+        // State
+        const state = {
+          isLoading: false,
+          filtersVisible: false,
+          allItems: [],
+          filteredItems: [],
+          displayCount: 0,
+          currentQuery: '',
+          filterRefine: '',
+          filterExclude: ''
+        };
 
-        function sort(){
-            content.empty()
+        // Utility: Debounce
+        const debounce = (func, wait) => {
+          let timeout;
+          return function executedFunction(...args) {
+            const later = () => {
+              clearTimeout(timeout);
+              func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+          };
+        };
 
-            const key = window.localStorage.getItem('sort') || 'sid'
+        // Theme management
+        const updateThemeIcons = (isDark) => {
+          if (isDark) {
+            elements.iconMoon.classList.remove('hidden');
+            elements.iconSun.classList.add('hidden');
+          } else {
+            elements.iconMoon.classList.add('hidden');
+            elements.iconSun.classList.remove('hidden');
+          }
+        };
 
-            filtred.sort((c,b)=>{
-                if(c[key] < b[key]) return 1
-                if(c[key] > b[key]) return -1
-                return 0
-            })
+        const toggleTheme = () => {
+          document.documentElement.classList.toggle('dark');
+          const isDark = document.documentElement.classList.contains('dark');
+          updateThemeIcons(isDark);
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', isDark ? '#0a0a0f' : '#f9fafb');
+          try { localStorage.setItem('jacredTheme', isDark ? 'dark' : 'light'); } catch (e) { console.warn('Failed to save theme:', e); }
+        };
 
-            filtred.forEach(function(elem){
-                const item = $(`<div class="webResult item">
-                    <p><a href="`+elem.url+`" target="_blank">`+elem.title+`</a></p>
-                    <div class="info"></div>
-                    <div class="h2">
-						<img class="trackerIco" src="./img/ico/`+elem.tracker+`.ico">
-                        `+elem.tracker+`
-                        <span class="webResultTitle"> 
-                            <span class="size">`+elem.sizeName+`</span> 
-                            <span class="date">`+elem.dateHuman+`</span>
-                            <span class="seeders">⬆ `+(elem.sid || 0)+`</span> 
-                            <span class="leechers">⬇ `+(elem.pir || 0)+`</span>
+        const initTheme = () => {
+          try {
+            const savedTheme = localStorage.getItem('jacredTheme');
+            const isDark = savedTheme !== 'light';
+            if (isDark) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+            updateThemeIcons(isDark);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', isDark ? '#0a0a0f' : '#f9fafb');
+          } catch (e) {
+            document.documentElement.classList.add('dark');
+            updateThemeIcons(true);
+          }
+        };
 
-                            <span class="magnet">
-                                <a class="magneto ut-download-url" href="`+elem.magnet+`"></a>
-                            </span>
-                        </span>
-                    </div>
-                </div>`)
+        // Clear button visibility
+        const updateClearButton = () => {
+          if (elements.searchInput.value.length > 0) {
+            elements.clear.classList.remove('hidden');
+          } else {
+            elements.clear.classList.add('hidden');
+          }
+        };
 
-                if(elem.videoInfo){
-                    const info = $(`<div>
-                        <div>
-                            <span>Video</span>
-                            <div>`+(elem.videoInfo.video || '---')+`</div>
-                        </div>
-                        <div>
-                            <span>Audio</span>
-                            <div>`+(elem.videoInfo.audio || '---')+`</div>
-                        </div>
-                        <div>
-                            <span>Subtitle</span>
-                            <div>`+(elem.videoInfo.subtitle || '---')+`</div>
-                        </div>
-                        <div>
-                            <span>Voice</span>
-                            <div>`+(elem.videoInfo.voice || '---')+`</div>
-                        </div>
-                    </div>`)
+        // Clear search input
+        const handleClear = () => {
+          elements.searchInput.value = '';
+          elements.searchInput.focus();
+          updateClearButton();
+          elements.validateError.classList.add('hidden');
+        };
 
-                    item.find('.info').append(info)
-                }
+        // Count active filters (selects with non-empty value + refine/exclude)
+        const getActiveFilterCount = () => {
+          let n = 0;
+          document.querySelectorAll('#filterContainer select.filter-input').forEach(function (el) {
+            if (el.value) n++;
+          });
+          const refine = (document.querySelector('#filterContainer [name="refine"]') || {}).value || '';
+          const exclude = (document.querySelector('#filterContainer [name="exclude"]') || {}).value || '';
+          if (refine.trim()) n++;
+          if (exclude.trim()) n++;
+          return n;
+        };
 
-                if(elem.media && elem.media.length){
-                    const icon = $('<span class="files">≣ ('+elem.media.length+')</span>')
+        const updateFilterCountBadge = () => {
+          const n = getActiveFilterCount();
+          const $badge = $('#filterCountBadge');
+          const $label = $('#filterToggleLabel');
+          if (n > 0) {
+            $badge.removeClass('hidden').text(n);
+            $label.attr('aria-label', 'Дополнительные фильтры, активно ' + n);
+          } else {
+            $badge.addClass('hidden');
+            $label.removeAttr('aria-label');
+          }
+        };
 
-                    const files = $(`<div class="files">
-                            <div class="files-title">Файлы</div>
-                            <div class="files-list"></div>
-                        </div>`)
+        // Toggle filters (with localStorage persistence)
+        const toggleFilters = () => {
+          state.filtersVisible = !state.filtersVisible;
+          if (state.filtersVisible) {
+            elements.filterContainer.classList.add('show');
+            elements.filterContainer.setAttribute('aria-hidden', 'false');
+            if (elements.filterToggleIcon) elements.filterToggleIcon.style.transform = 'rotate(180deg)';
+            if (elements.filterToggle) elements.filterToggle.setAttribute('aria-expanded', 'true');
+          } else {
+            elements.filterContainer.classList.remove('show');
+            elements.filterContainer.setAttribute('aria-hidden', 'true');
+            if (elements.filterToggleIcon) elements.filterToggleIcon.style.transform = 'rotate(0deg)';
+            if (elements.filterToggle) elements.filterToggle.setAttribute('aria-expanded', 'false');
+          }
+          try { localStorage.setItem('jacredFiltersOpen', state.filtersVisible ? '1' : '0'); } catch (e) { }
+        };
 
-                    elem.media.forEach(file=>{
-                        $('.files-list',files).append('<div>'+file.path+'</div>')
-                    })
+        // Disable/Enable results
+        const setResultsDisabled = (disabled) => {
+          if (disabled) {
+            elements.resultsDiv.style.opacity = '0.4';
+            elements.resultsDiv.style.pointerEvents = 'none';
+          } else {
+            elements.resultsDiv.style.opacity = '1';
+            elements.resultsDiv.style.pointerEvents = 'auto';
+          }
+        };
 
-                    icon.on('click',()=>{
-                        files.addClass('show')
-                    })
+        // Escape HTML for safe insertion
+        const escapeHtml = (str) => {
+          if (str == null) return '';
+          const div = document.createElement('div');
+          div.textContent = str;
+          return div.innerHTML;
+        };
 
-                    $('.info',item).append(files)
+        // Format date from API (ISO string or timestamp)
+        const formatDate = (createTime) => {
+          if (createTime == null) return '—';
+          const d = new Date(createTime);
+          if (isNaN(d.getTime())) return '—';
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
 
-                    $('.webResultTitle',item).prepend(icon)
-                }
+        // Escape for HTML attribute (for magnet in data-magnet and href)
+        const escapeAttr = (str) => {
+          if (str == null) return '';
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        };
 
-                content.append(item)
-            })
-        }
+        const getCurrentTrackerFilter = () => {
+          const sel = document.querySelector('#filterContainer select[name="tracker"]');
+          return (sel && sel.value) ? sel.value.trim() : '';
+        };
 
+        // Build one result card HTML
+        const buildCardHtml = (elem, activeTracker) => {
+          const title = escapeHtml(elem.title || elem.name || '');
+          const url = elem.url ? escapeAttr(elem.url) : '#';
+          const magnetRaw = elem.magnet || '';
+          const magnetAttr = escapeAttr(magnetRaw) || '#';
+          const sizeName = escapeHtml(elem.sizeName || '—');
+          const dateStr = formatDate(elem.createTime);
+          const sid = elem.sid != null ? elem.sid : 0;
+          const pir = elem.pir != null ? elem.pir : 0;
+          const tracker = (elem.tracker || '').toLowerCase();
+          const icoSrc = `./img/ico/${tracker}.ico`;
+          const trackerName = elem.tracker || '';
+          const isTrackerActive = activeTracker && (trackerName === activeTracker);
+          const trackerBtnClass = isTrackerActive
+            ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-400 dark:border-blue-600 text-blue-800 dark:text-blue-200 ring-2 ring-blue-400 dark:ring-blue-500'
+            : 'bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 text-gray-700 dark:text-gray-300 hover:text-blue-700 dark:hover:text-blue-300';
+          return `
+          <div class="webResult mb-3 sm:mb-4">
+            <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow shadow-gray-200/50 dark:shadow-black/20">
+              <div class="h2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <button type="button" class="btn-filter-tracker tap-target flex items-center gap-1.5 px-2 py-1.5 rounded-md border text-xs font-medium flex-shrink-0 transition-all ${trackerBtnClass}" data-tracker="${escapeAttr(trackerName)}" title="${isTrackerActive ? 'Сбросить фильтр по трекеру' : 'Искать только на этом трекере'}" aria-label="Фильтр по трекеру ${escapeHtml(trackerName)}">
+                    <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" onerror="this.style.display='none'">
+                    <span>${escapeHtml(trackerName)}</span>
+                  </button>
+                  <a href="${url}" target="_blank" rel="noopener noreferrer"
+                    class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words min-w-0 line-clamp-2 sm:line-clamp-1">${title}</a>
+                </div>
+                <div class="flex flex-row gap-1.5 flex-shrink-0">
+                  <a href="${magnetAttr}" rel="noopener noreferrer" class="magneto tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow transition-all hover:shadow-inner" title="Открыть в торрент-клиенте" aria-label="Открыть магнит">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                  </a>
+                  <button type="button" class="btn-copy-magnet tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-amber-500/90 dark:hover:bg-amber-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Копировать магнит-ссылку" aria-label="Копировать магнит">
+                    <i class="far fa-copy text-sm sm:text-base"></i>
+                  </button>
+                  <button type="button" class="btn-copy-hash tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-emerald-500/90 dark:hover:bg-emerald-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Копировать хеш торрента" aria-label="Копировать хеш">
+                    <svg class="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg><span class="size font-medium text-cyan-600 dark:text-cyan-400">${sizeName}</span></span>
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="date font-medium text-purple-600 dark:text-purple-400">${dateStr}</span></span>
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg><span class="seeders font-semibold text-green-600 dark:text-green-400">${sid}</span></span>
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg><span class="leechers font-semibold text-red-600 dark:text-red-400">${pir}</span></span>
+              </div>
+            </div>
+          </div>`;
+        };
 
-        function initFilter(){
-            filter_search.voice    = ["Любая"]
-            filter_search.tracker  = ["Любой"]
-            filter_search.year     = ["Любой"]
-            filter_search.season   = ["Любой"]
-            filter_search.category = ["Любая"]
+        const helpHtml = `<div class="webResult help"><div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-2xl p-8 border border-blue-200 dark:border-blue-900/30 text-center"><svg class="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните поиск</h3><p class="text-gray-600 dark:text-gray-400">Введите название фильма или сериала, КП или IMDB для поиска по трекерам</p></div></div>`;
+        const notfoundHtml = `<div class="webResult notfound"><div class="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center"><svg class="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Ничего не найдено</h3><p class="text-gray-600 dark:text-gray-400">По вашему запросу результатов не обнаружено. Попробуйте изменить запрос или фильтры.</p></div></div>`;
 
-            let years   = []
-            let seasons = []
-            let types   = []
-            let quality = []
+        const clearSearchStorage = () => {
+          try {
+            localStorage.removeItem('search');
+            localStorage.removeItem('sort');
+            localStorage.removeItem('exact');
+          } catch (e) { }
+          elements.searchInput.value = '';
+          const sidRadio = document.querySelector('input[type=radio][name=sort][value=sid]');
+          if (sidRadio) sidRadio.checked = true;
+          if (elements.forcedSearch) elements.forcedSearch.checked = false;
+          elements.resultsDiv.innerHTML = helpHtml;
+          const loadMoreWrap = document.getElementById('loadMoreWrap');
+          if (loadMoreWrap) loadMoreWrap.classList.add('hidden');
+          state.allItems = [];
+          state.filteredItems = [];
+          state.displayCount = 0;
+          state.currentQuery = '';
+          updateClearButton();
+          updateFilterCountBadge();
+        };
 
-            results.forEach(element => {
-                if(element.voices && element.voices.length){
-                    element.voices.forEach(voice => {
-                        if(filter_search.voice.indexOf(voice) == -1) filter_search.voice.push(voice)
-                    })
-                }
+        // Build results HTML. items = array or null. limit = show first N (client-side pagination).
+        const buildResultsFromJson = (items, limit) => {
+          if (items == null || !Array.isArray(items)) return { html: helpHtml, hasMore: false };
+          if (items.length === 0) return { html: notfoundHtml, hasMore: false };
+          const show = limit ? items.slice(0, limit) : items;
+          const activeTracker = getCurrentTrackerFilter();
+          const html = show.map(e => buildCardHtml(e, activeTracker)).join('');
+          return { html, hasMore: limit ? items.length > limit : false };
+        };
 
-                if(filter_search.tracker.indexOf(element.tracker) === -1) filter_search.tracker.push(element.tracker)
+        // Build API URL (no take/skip — API returns up to 2000). Sort: sid | size | create.
+        const buildApiUrl = (query) => {
+          const sortVal = (document.querySelector('input[name="sort"]:checked') || {}).value || 'sid';
+          const sortMap = { sid: 'sid', size: 'size', date: 'create' };
+          const forcedSearch = elements.forcedSearch && elements.forcedSearch.checked;
+          let url = '/api/v1.0/torrents?search=' + encodeURIComponent(query) + '&sort=' + (sortMap[sortVal] || 'sid');
+          if (forcedSearch) url += '&exact=true';
+          const c = document.getElementById('filterContainer');
+          if (c) {
+            const get = (name) => (c.querySelector('[name="' + name + '"]') || {}).value || '';
+            const type = get('type');
+            const tracker = get('tracker');
+            const voice = get('voice');
+            const videotype = get('videotype');
+            const year = get('year');
+            const quality = get('quality');
+            const season = get('season');
+            if (type) url += '&type=' + encodeURIComponent(type);
+            if (tracker) url += '&tracker=' + encodeURIComponent(tracker);
+            if (voice) url += '&voice=' + encodeURIComponent(voice);
+            if (videotype) url += '&videotype=' + encodeURIComponent(videotype);
+            if (year) url += '&relased=' + encodeURIComponent(year);
+            if (quality) url += '&quality=' + encodeURIComponent(quality);
+            if (season) url += '&season=' + encodeURIComponent(season);
+          }
+          const apiKey = localStorage.getItem('api_key');
+          if (apiKey) url += '&apikey=' + encodeURIComponent(apiKey);
+          return url;
+        };
 
-                if(years.indexOf(element.relased) === -1 && element.relased) years.push(element.relased)
-                if(quality.indexOf(element.quality) === -1 && element.quality) quality.push(element.quality)
+        // Populate filter selects from results; preserve current selection even if not in new result set
+        const initFilter = (items) => {
+          const $c = $('#filterContainer');
+          if (!items || !items.length) return;
+          const quality = new Set(), years = new Set(), trackers = new Set(), voices = new Set(), seasons = new Set(), types = new Set();
+          items.forEach((el) => {
+            if (el.quality) quality.add(el.quality);
+            if (el.relased) years.add(el.relased);
+            if (el.tracker) trackers.add(el.tracker);
+            if (el.voices && el.voices.length) el.voices.forEach((v) => voices.add(v));
+            if (el.seasons && el.seasons.length) el.seasons.forEach((s) => seasons.add(s));
+            if (el.types && el.types.length) el.types.forEach((t) => types.add(t));
+          });
+          const fillSelect = (name, values, firstLabel) => {
+            const $s = $c.find('[name="' + name + '"]');
+            if (!$s.length) return;
+            const current = ($s.val() || '').trim();
+            if (current) values.add(current);
+            $s.find('option:not([value=""])').remove();
+            Array.from(values).sort().forEach((v) => { $s.append($('<option>').attr('value', v).text(v)); });
+            if (current) $s.val(current);
+          };
+          fillSelect('quality', quality, 'Любое');
+          fillSelect('year', years, 'Любой');
+          fillSelect('tracker', trackers, 'Любой');
+          fillSelect('voice', voices, 'Любая');
+          fillSelect('season', seasons, 'Любой');
+          fillSelect('type', types, 'Любая');
+        };
 
-                if(element.seasons && element.seasons.length){
-                    element.seasons.forEach(s=>{
-                        if(seasons.indexOf(s) === -1 && s) seasons.push(s)
-                    })
-                }
+        // Apply client-side refine/exclude and return filtered items
+        const applyClientFilters = (items) => {
+          const refine = (state.filterRefine || '').trim().toLowerCase();
+          const exclude = (state.filterExclude || '').trim().toLowerCase();
+          if (!refine && !exclude) return items;
+          return items.filter((el) => {
+            const title = (el.title || el.name || '').toLowerCase();
+            if (refine && title.indexOf(refine) === -1) return false;
+            if (exclude && title.indexOf(exclude) !== -1) return false;
+            return true;
+          });
+        };
 
-                if(element.types && element.types.length){
-                    element.types.forEach(s=>{
-                        if(types.indexOf(s) === -1 && s) types.push(s)
-                    })
-                }
-            })
-
-            years.sort().reverse() 
-            seasons.sort().reverse()
-            types.sort().reverse() 
-            quality.sort()
-
-            years.splice( 0, 0, "Любой" )
-            seasons.splice( 0, 0, "Любой" )
-            types.splice( 0, 0, "Любая" )
-            quality.splice( 0, 0, "Любое" )
-
-            filter_search.year = years
-            filter_search.season = seasons
-            filter_search.category = types
-            filter_search.quality = quality
-
-            const append = function(name, value){
-                const select = $('[name="'+name+'"]', filrt)
-
-                value.forEach(v=>{
-                    select.append('<option value="'+v+'">'+v+'</option>')
+        // Check API key (like original getKey/checkKey)
+        const ensureApiKey = () => {
+          return new Promise((resolve, reject) => {
+            const tryKey = (k) => {
+              const url = '/api/v1.0/conf' + (k ? '?apikey=' + encodeURIComponent(k) : '');
+              fetch(url)
+                .then(r => r.json())
+                .then(json => {
+                  if (json.apikey) {
+                    if (k) localStorage.setItem('api_key', k);
+                    resolve();
+                  } else {
+                    const entered = prompt(k ? 'Ключ неверный. Введите ключ API:' : 'Введите ключ API:');
+                    if (entered) tryKey(entered);
+                    else reject(new Error('Требуется ключ API'));
+                  }
                 })
+                .catch(() => reject(new Error('Требуется ключ API')));
+            };
+            const key = localStorage.getItem('api_key');
+            tryKey(key || '');
+          });
+        };
 
-                select.val(value[0])
+        // Handle form submit — use API like original index.html
+        const handleSubmit = async (e) => {
+          e.preventDefault();
+
+          const query = elements.searchInput.value.trim();
+
+          if (query.length === 0) {
+            elements.validateError.textContent = 'Поисковый запрос пустой!';
+            elements.validateError.classList.remove('hidden');
+            return;
+          }
+
+          try {
+            localStorage.setItem('search', query);
+          } catch (err) { }
+
+          if (state.isLoading) return;
+
+          state.isLoading = true;
+          elements.loading.classList.remove('hidden');
+          elements.submitButton.disabled = true;
+          elements.submitButtonText.textContent = 'ПОИСК...';
+          setResultsDisabled(true);
+          elements.validateError.classList.add('hidden');
+
+          try {
+            await ensureApiKey();
+          } catch (err) {
+            elements.validateError.textContent = err.message || 'Требуется ключ API';
+            elements.validateError.classList.remove('hidden');
+            state.isLoading = false;
+            elements.loading.classList.add('hidden');
+            elements.submitButton.disabled = false;
+            elements.submitButtonText.textContent = 'ИСКАТЬ';
+            setResultsDisabled(false);
+            return;
+          }
+
+          try {
+            const url = buildApiUrl(query);
+            const response = await fetch(url);
+
+            if (response.status === 401) {
+              elements.validateError.textContent = 'Требуется ключ API. Введите ключ при следующем поиске.';
+              elements.validateError.classList.remove('hidden');
+              const r = buildResultsFromJson([]);
+              elements.resultsDiv.innerHTML = r.html;
+              document.getElementById('loadMoreWrap').classList.add('hidden');
+              document.title = `Скачать торрент - ${query} | JacRed`;
+              try { history.replaceState({}, document.title, '/'); } catch (e) { }
+              return;
             }
 
-            append('voice', filter_search.voice)
-            append('tracker', filter_search.tracker)
-            append('year', filter_search.year)
-            append('season', filter_search.season)
-            append('category', filter_search.category)
-            append('quality', filter_search.quality)
-        }
+            if (!response.ok) throw new Error('HTTP ' + response.status);
 
-        function resetFilter(){
-            $('[name="type"],[name="refine"],[name="exclude"]',filrt).val('')
-            $('[name="quality"],[name="year"],[name="tracker"],[name="voice"],[name="season"],[name="category"]',filrt).each(function(){
-                $(this).val($('option',this).eq(0).attr('value'))
-            })
-            
-        }
+            const items = await response.json();
+            state.allItems = Array.isArray(items) ? items : [];
+            state.currentQuery = query;
+            const fc = document.getElementById('filterContainer');
+            state.filterRefine = (fc && fc.querySelector('[name="refine"]')) ? fc.querySelector('[name="refine"]').value : '';
+            state.filterExclude = (fc && fc.querySelector('[name="exclude"]')) ? fc.querySelector('[name="exclude"]').value : '';
+            initFilter(state.allItems);
+            updateFilterCountBadge();
+            state.filteredItems = applyClientFilters(state.allItems);
+            state.displayCount = PAGE_SIZE;
+            const res = buildResultsFromJson(state.filteredItems, PAGE_SIZE);
+            elements.resultsDiv.innerHTML = res.html;
+            const loadMoreWrap = document.getElementById('loadMoreWrap');
+            if (res.hasMore) loadMoreWrap.classList.remove('hidden'); else loadMoreWrap.classList.add('hidden');
 
-        function filter(){
-            filtred = results.filter(element=>{
-                let pass  = false,
-                    any   = false,
-                    nopass = false
+            document.title = `Скачать торрент - ${query} | JacRed`;
+            try { history.replaceState({}, document.title, '/'); } catch (e) { }
 
-                const quality = $('[name="quality"]',filrt).val()
-                const type    = $('[name="type"]',filrt).val()
-                const year    = $('[name="year"]',filrt).val()
-                const tracker = $('[name="tracker"]',filrt).val()
-                const voice   = $('[name="voice"]',filrt).val()
-                const season   = $('[name="season"]',filrt).val()
-                const category   = $('[name="category"]',filrt).val()
-                const refine  = $('[name="refine"]',filrt).val()
-                const exclude = $('[name="exclude"]',filrt).val()
+          } catch (error) {
+            console.error('Search failed:', error);
+            elements.validateError.textContent = 'Ошибка выполнения поиска';
+            elements.validateError.classList.remove('hidden');
+            const r = buildResultsFromJson([]);
+            elements.resultsDiv.innerHTML = r.html;
+            document.getElementById('loadMoreWrap').classList.add('hidden');
+          } finally {
+            elements.loading.classList.add('hidden');
+            elements.submitButton.disabled = false;
+            elements.submitButtonText.textContent = 'ИСКАТЬ';
+            setResultsDisabled(false);
+            state.isLoading = false;
+          }
+        };
 
-                if(type || refine || exclude || quality !== "Любое"  || year !== "Любой" || tracker !== "Любой" || voice !== "Любая" || season !== "Любой"|| category !== "Любая") any = true
+        // Load more: show next PAGE_SIZE from state.filteredItems (client-side, no API call)
+        const loadMore = () => {
+          if (!state.filteredItems.length || state.displayCount >= state.filteredItems.length) return;
+          state.displayCount += PAGE_SIZE;
+          const res = buildResultsFromJson(state.filteredItems, state.displayCount);
+          elements.resultsDiv.innerHTML = res.html;
+          const loadMoreWrap = document.getElementById('loadMoreWrap');
+          if (res.hasMore) loadMoreWrap.classList.remove('hidden'); else loadMoreWrap.classList.add('hidden');
+        };
 
-                if(quality !== "Любое"){
-                    if(element.quality == parseInt(quality)) pass = true
-                    else nopass = true
-                }
+        const extractInfoHashFromMagnet = (magnet) => {
+          if (!magnet || typeof magnet !== 'string') return '';
+          const m = magnet.match(/urn:btih:([a-fA-F0-9]{40}|[a-fA-F0-9]{64})/);
+          return m ? m[1].toLowerCase() : '';
+        };
 
-                if(type){
-                    if(element.videotype == type) pass = true
-                    else nopass = true
-                } 
-
-                if(tracker !== "Любой"){
-                    if(element.tracker == tracker) pass = true
-                    else nopass = true
-                } 
-
-                if(voice !== "Любая"){
-                    if(element.voices.indexOf(voice) !== -1) pass = true
-                    else nopass = true
-                }
-
-                if(category !== "Любая"){
-                    if(element.types.indexOf(category) !== -1) pass = true
-                    else nopass = true
-                }
-
-                if(season !== "Любой"){
-                    if(element.seasons.indexOf(parseInt(season)) !== -1) pass = true
-                    else nopass = true
-                }
-
-                if(year !== "Любой"){
-                    if(element.relased == parseInt(year)) pass = true
-                    else nopass = true
-                }
-
-                if(refine){
-                    if(element.title.toLowerCase().indexOf(refine.toLowerCase()) !== -1) pass = true
-                    else nopass = true
-                }
-
-                if(exclude){
-                    if(element.title.toLowerCase().indexOf(exclude.toLowerCase()) == -1) pass = true
-                    else nopass = true
-                }
-
-                if(any){
-                    if(nopass) return false
-                    else return pass
-                }
-                else return true
-            })
-        }
-
-        function checkKey(key, call, cancel){
-            $.ajax({
-                dataType: 'json',
-                url: '/api/v1.0/conf?apikey='+encodeURIComponent(key),
-                crossDomain: true,
-                success: (json) => {
-                    if(json.apikey){
-                        window.localStorage.setItem('api_key', key)
-
-                        call()
-                    }
-                    else{
-                        let enter_key = prompt('Ключ не вернный, введите ключ')
-
-                        if(enter_key) checkKey(enter_key, call, cancel)
-                        else cancel()
-                    }
-                }
-            })
-        }
-
-        function getKey(call, cancel){
-            let key = window.localStorage.getItem('api_key')
-
-            if(key){
-                checkKey(key, call, cancel)
+        const copyToClipboardWithFeedback = (text, buttonSelector, iconHtml) => {
+          if (!text) return;
+          const doCopy = () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              return navigator.clipboard.writeText(text);
             }
-            else{
-                $.ajax({
-                    dataType: 'json',
-                    url: '/api/v1.0/conf',
-                    crossDomain: true,
-                    success: (json) => {
-                        if(json.apikey){
-                            call()
-                        }
-                        else{
-                            let enter_key = prompt('Введите ключ')
-
-                            if(enter_key) checkKey(enter_key, call, cancel)
-                            else cancel()
-                        }
-                    }
-                })
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+            return Promise.resolve();
+          };
+          doCopy().then(() => {
+            const btn = document.activeElement && document.activeElement.closest(buttonSelector);
+            if (btn) {
+              const oldHtml = btn.innerHTML;
+              btn.innerHTML = iconHtml || '<i class="fas fa-check text-green-600"></i>';
+              setTimeout(() => { btn.innerHTML = oldHtml; }, 1500);
             }
-        }
+          }).catch(() => doCopy());
+        };
 
-        function search(){
-            let query = window.localStorage.getItem('search')
+        const copyMagnetToClipboard = (magnet) => {
+          if (!magnet) return;
+          copyToClipboardWithFeedback(magnet, '.btn-copy-magnet', '<i class="fas fa-check text-green-600"></i>');
+        };
+        const fallbackCopy = (text) => {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try {
+            document.execCommand('copy');
+            const $btn = $(document.activeElement).closest('.btn-copy-magnet');
+            if ($btn.length) { const oldHtml = $btn.html(); $btn.html('<i class="fas fa-check text-green-600"></i>'); setTimeout(() => { $btn.html(oldHtml); }, 1500); }
+          } catch (e) { }
+          document.body.removeChild(ta);
+        };
 
-            content.empty()
+        // Back to top functionality
+        const handleScroll = debounce(() => {
+          const scrolled = window.pageYOffset || document.documentElement.scrollTop;
 
-            empty.hide()
+          if (scrolled > 300) {
+            elements.backToTop.classList.remove('opacity-0', 'pointer-events-none');
+            elements.backToTop.classList.add('opacity-100');
+          } else {
+            elements.backToTop.classList.remove('opacity-100');
+            elements.backToTop.classList.add('opacity-0', 'pointer-events-none');
+          }
+        }, 100);
 
-            noresults.hide()
+        // Initialize
+        const init = () => {
+          // Cache DOM elements
+          elements.searchForm = document.getElementById('searchForm');
+          elements.searchInput = document.getElementById('s');
+          elements.clear = document.getElementById('clear');
+          elements.submitButton = document.getElementById('submitButton');
+          elements.submitButtonText = document.getElementById('submitButtonText');
+          elements.validateError = document.getElementById('validateError');
+          elements.loading = document.getElementById('loading');
+          elements.resultsDiv = document.getElementById('resultsDiv');
+          elements.filterToggle = document.getElementById('filterToggle');
+          elements.filterToggleIcon = document.getElementById('filterToggleIcon');
+          elements.filterContainer = document.getElementById('filterContainer');
+          elements.sortSize = document.getElementById('sortSize');
+          elements.sortDate = document.getElementById('sortDate');
+          elements.forcedSearch = document.getElementById('forcedSearch');
+          elements.toggleTheme = document.getElementById('toggleTheme');
+          elements.iconMoon = document.getElementById('iconMoon');
+          elements.iconSun = document.getElementById('iconSun');
+          elements.backToTop = document.getElementById('backToTop');
 
-            filrt.hide()
+          // Initialize theme
+          initTheme();
 
-            results = []
+          // Event listeners
+          elements.searchForm.addEventListener('submit', handleSubmit);
+          elements.searchInput.addEventListener('input', () => {
+            updateClearButton();
+            elements.validateError.classList.add('hidden');
+          });
+          elements.clear.addEventListener('click', handleClear);
+          elements.filterToggle.addEventListener('click', toggleFilters);
 
-            resetFilter()
-
-            $('[name="year"],[name="tracker"],[name="voice"],[name="season"],[name="category"],[name="quality"]',filrt).empty()
-
-            if(query){
-                loading.show()
-
-                getKey(function(){
-                    $.ajax({
-                        dataType: 'json',
-                        url: '/api/v1.0/torrents?search='+encodeURIComponent(query)+'&apikey='+encodeURIComponent(window.localStorage.getItem('api_key'))+(window.localStorage.getItem('exact') == '1' ? '&exact=true' : ''),
-                        crossDomain: true,
-                        success: (json) => {
-                            loading.hide()
-
-                            if(json.length){
-                                results = json
-
-                                results.forEach(function(elem){
-                                    let date = new Date(elem.createTime)
-
-                                    elem.date = date.getTime()
-
-                                    elem.dateHuman = date.getFullYear() + '-' + ('0' + (date.getMonth() + 1)).slice(-2)  + '-' + ('0' + date.getDate()).slice(-2)
-
-                                })
-
-                                initFilter()
-
-                                filter()
-
-                                sort()
-
-                                filrt.show()
-                            }
-                            else{
-                                noresults.show()
-                            }
-                        },
-                        error: (jqXHR, exception) => {
-                            loading.hide()
-
-                            noresults.show()
-                        }
-                    })
-                },function(){
-                    loading.hide()
-
-                    noresults.show()
-                })
+          // Restore filters panel state from localStorage
+          try {
+            if (localStorage.getItem('jacredFiltersOpen') === '1') {
+              state.filtersVisible = true;
+              elements.filterContainer.classList.add('show');
+              elements.filterContainer.setAttribute('aria-hidden', 'false');
+              if (elements.filterToggleIcon) elements.filterToggleIcon.style.transform = 'rotate(180deg)';
+              if (elements.filterToggle) elements.filterToggle.setAttribute('aria-expanded', 'true');
+            } else {
+              elements.filterContainer.setAttribute('aria-hidden', 'true');
             }
-            else{
-                empty.show()
+          } catch (e) { }
+          updateFilterCountBadge();
+          elements.toggleTheme.addEventListener('click', toggleTheme);
+          elements.backToTop.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+
+          const clearSearchStorageBtn = document.getElementById('clearSearchStorage');
+          if (clearSearchStorageBtn) clearSearchStorageBtn.addEventListener('click', clearSearchStorage);
+
+          const apiKeyModal = document.getElementById('apiKeyModal');
+          const apiKeyInput = document.getElementById('apiKeyInput');
+          const apiKeyModalError = document.getElementById('apiKeyModalError');
+          const apiKeyModalSave = document.getElementById('apiKeyModalSave');
+          const apiKeyModalCancel = document.getElementById('apiKeyModalCancel');
+          const apiKeyModalBackdrop = document.getElementById('apiKeyModalBackdrop');
+          const openApiKeyModal = () => {
+            if (apiKeyInput) apiKeyInput.value = localStorage.getItem('api_key') || '';
+            if (apiKeyModalError) { apiKeyModalError.classList.add('hidden'); apiKeyModalError.textContent = ''; }
+            if (apiKeyModal) apiKeyModal.classList.remove('hidden');
+            setTimeout(() => { if (apiKeyInput) apiKeyInput.focus(); }, 100);
+          };
+          const closeApiKeyModal = () => { if (apiKeyModal) apiKeyModal.classList.add('hidden'); };
+          document.getElementById('apiKeyBtn').addEventListener('click', openApiKeyModal);
+          if (apiKeyModalCancel) apiKeyModalCancel.addEventListener('click', closeApiKeyModal);
+          if (apiKeyModalBackdrop) apiKeyModalBackdrop.addEventListener('click', closeApiKeyModal);
+          const saveApiKeyFromModal = () => {
+            const key = apiKeyInput.value.trim();
+            if (!key) {
+              if (apiKeyModalError) { apiKeyModalError.textContent = 'Введите ключ'; apiKeyModalError.classList.remove('hidden'); }
+              return;
             }
+            fetch('/api/v1.0/conf?apikey=' + encodeURIComponent(key))
+              .then(r => r.json())
+              .then(json => {
+                if (json.apikey) {
+                  try { localStorage.setItem('api_key', key); } catch (e) { }
+                  closeApiKeyModal();
+                } else {
+                  if (apiKeyModalError) { apiKeyModalError.textContent = 'Ключ неверный или не принят сервером'; apiKeyModalError.classList.remove('hidden'); }
+                }
+              })
+              .catch(() => {
+                if (apiKeyModalError) { apiKeyModalError.textContent = 'Ошибка проверки ключа'; apiKeyModalError.classList.remove('hidden'); }
+              });
+          };
+          if (apiKeyModalSave) apiKeyModalSave.addEventListener('click', saveApiKeyFromModal);
+          if (apiKeyInput) {
+            apiKeyInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); saveApiKeyFromModal(); }
+              if (e.key === 'Escape') { e.preventDefault(); closeApiKeyModal(); }
+            });
+          }
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && apiKeyModal && !apiKeyModal.classList.contains('hidden')) closeApiKeyModal();
+          });
+
+          // Load more (client-side pagination)
+          const loadMoreBtn = document.getElementById('loadMoreBtn');
+          if (loadMoreBtn) loadMoreBtn.addEventListener('click', loadMore);
+
+          // Copy magnet (delegated)
+          $(document).on('click', '.btn-copy-magnet', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            copyMagnetToClipboard($(this).attr('data-magnet'));
+          });
+
+          // Copy info hash from magnet (delegated)
+          $(document).on('click', '.btn-copy-hash', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const magnet = $(this).attr('data-magnet');
+            const hash = extractInfoHashFromMagnet(magnet);
+            if (hash) copyToClipboardWithFeedback(hash, '.btn-copy-hash', '<i class="fas fa-check text-green-600 text-sm"></i>');
+          });
+
+          // Tracker filter button: click = search only this tracker; click again = clear tracker filter (show all trackers)
+          $(document).on('click', '.btn-filter-tracker', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const tracker = ($(this).attr('data-tracker') || '').trim();
+            const sel = document.querySelector('#filterContainer select[name="tracker"]');
+            if (!sel) return;
+            const current = (sel.value || '').trim();
+            const isSameTracker = current && tracker && current.toLowerCase() === tracker.toLowerCase();
+            if (isSameTracker) {
+              // Toggle off: clear tracker filter so search runs on all trackers
+              sel.value = '';
+            } else {
+              const opt = Array.from(sel.options).find(o => (o.value || '').trim().toLowerCase() === tracker.toLowerCase());
+              if (opt) { sel.value = opt.value; } else { sel.value = ''; }
+            }
+            updateFilterCountBadge();
+            if (elements.searchInput.value.trim().length > 0) {
+              elements.searchForm.dispatchEvent(new Event('submit'));
+            }
+          });
+
+          // Filter: refine/exclude — client-side re-filter and re-render (debounced), auto-update
+          const applyRefineExclude = () => {
+            const fc = document.getElementById('filterContainer');
+            if (fc) {
+              const r = fc.querySelector('[name="refine"]');
+              const e = fc.querySelector('[name="exclude"]');
+              state.filterRefine = (r && r.value) || '';
+              state.filterExclude = (e && e.value) || '';
+            }
+            updateFilterCountBadge();
+            if (!state.allItems.length) return;
+            state.filteredItems = applyClientFilters(state.allItems);
+            state.displayCount = PAGE_SIZE;
+            const res = buildResultsFromJson(state.filteredItems, PAGE_SIZE);
+            elements.resultsDiv.innerHTML = res.html;
+            const loadMoreWrap = document.getElementById('loadMoreWrap');
+            if (res.hasMore) loadMoreWrap.classList.remove('hidden'); else loadMoreWrap.classList.add('hidden');
+          };
+          const fc = document.getElementById('filterContainer');
+          if (fc) {
+            fc.querySelectorAll('[name="refine"], [name="exclude"]').forEach(el => {
+              el.addEventListener('input', debounce(applyRefineExclude, 200));
+            });
+          }
+          // Filter: other selects — refetch (API supports them), update badge
+          document.querySelectorAll('#filterContainer select.filter-input').forEach(sel => {
+            sel.addEventListener('change', function () {
+              updateFilterCountBadge();
+              if (elements.searchInput.value.trim().length > 0) elements.searchForm.dispatchEvent(new Event('submit'));
+            });
+          });
+
+          // Filter reset
+          const resetBtn = document.getElementById('filterReset');
+          if (resetBtn) {
+            resetBtn.addEventListener('click', function () {
+              const fc = document.getElementById('filterContainer');
+              if (fc) {
+                fc.querySelectorAll('[name="refine"], [name="exclude"]').forEach(el => { el.value = ''; });
+                fc.querySelectorAll('select.filter-input').forEach(sel => {
+                  if (sel.options.length) sel.selectedIndex = 0;
+                });
+              }
+              state.filterRefine = '';
+              state.filterExclude = '';
+              updateFilterCountBadge();
+              if (elements.searchInput.value.trim().length > 0) elements.searchForm.dispatchEvent(new Event('submit'));
+            });
+          }
+
+          // Sort radios: save sid/size/date and trigger search
+          document.querySelectorAll('input[type=radio][name=sort]').forEach(radio => {
+            radio.addEventListener('change', function () {
+              try { localStorage.setItem('sort', this.value); } catch (e) { }
+              if (elements.searchInput.value.trim().length > 0) elements.searchForm.dispatchEvent(new Event('submit'));
+            });
+          });
+
+          // Exact search: save and trigger search (like original)
+          if (elements.forcedSearch) {
+            elements.forcedSearch.addEventListener('change', function () {
+              try { localStorage.setItem('exact', this.checked ? '1' : '0'); } catch (e) { }
+              if (elements.searchInput.value.trim().length > 0) {
+                elements.searchForm.dispatchEvent(new Event('submit'));
+              }
+            });
+          }
+
+          window.addEventListener('scroll', handleScroll);
+
+          // Initial clear button state
+          updateClearButton();
+
+          // Restore sort and exact from localStorage
+          try {
+            const savedSort = localStorage.getItem('sort');
+            if (savedSort) {
+              const radio = document.querySelector('input[type=radio][name=sort][value="' + savedSort + '"]');
+              if (radio) radio.checked = true;
+            }
+            if (localStorage.getItem('exact') === '1' && elements.forcedSearch) {
+              elements.forcedSearch.checked = true;
+            }
+          } catch (err) { }
+
+          // Restore search only from localStorage (no URL path)
+          const savedSearch = (localStorage.getItem('search') || '').trim();
+          if (savedSearch) {
+            elements.searchInput.value = savedSearch;
+            updateClearButton();
+            elements.searchForm.dispatchEvent(new Event('submit'));
+          }
+        };
+
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', init);
+        } else {
+          init();
         }
-        
 
-        $('#search').submit(function(e){
-            e.preventDefault()
-
-            window.localStorage.setItem('search', input.val())
-
-            search()
-        })
-
-        if(window.localStorage.getItem('search')){
-            input.val(window.localStorage.getItem('search'))
-        }
-
-        $('input[type=radio][name=sort]').change(function() {
-            window.localStorage.setItem('sort',this.value)
-            
-            if(results.length) sort()
-        });
-
-        if(window.localStorage.getItem('sort')){
-            $('input[type=radio][value='+window.localStorage.getItem('sort')+']').prop('checked', true)
-        }
-
-        if(window.localStorage.getItem('exact') == '1'){
-            $('#exactSearch').prop('checked', true)
-        }
-
-        $('select,input',filrt).on('change',function(){
-            filter()
-
-            sort()
-        })
-
-        let keyuptimer
-
-        $('input',filrt).on('keyup',function(){
-            clearTimeout(keyuptimer)
-
-            keyuptimer = setTimeout(()=>{
-                filter()
-
-                sort()
-            },200)
-        })
-
-        $('.filter-button',filrt).on('click',function(){
-            resetFilter()
-
-            filter()
-
-            sort()
-        })
-
-        $('#exactSearch').change(function(){
-            window.localStorage.setItem('exact',this.checked ? 1 : 0)
-
-            search()
-        })
-
-        
-
-        search()
-        
-    </script>
-
-    
-    <div class="footer">
-        <span>Работает на <a>Crazy Spider</a></span>
-    </div>
-</div>
-
-<a href="#" id="back-to-top" title="To infinity and beyond"><i class="fas fa-space-shuttle fa-rotate-270"></i></a>
+      })();
+  </script>
 
 </body>
+
 </html>

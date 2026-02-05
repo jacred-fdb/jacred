@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Статистика трекеров - мониторинг и аналитика" />
+  <title>Статистика трекеров</title>
+  <link rel="icon" type="image/png" href="./img/jacred.png" />
+  <link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
+  <link rel="apple-touch-icon" href="./img/icon-192.png" />
+
+  <!-- Preconnect for fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.4s ease-out',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' }
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(10px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 5px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+
+    /* Light mode scrollbar */
+    ::-webkit-scrollbar-track {
+      background: #f3f4f6;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+
+    /* Skeleton loading animation */
+    @keyframes skeleton-loading {
+      0% {
+        background-position: -200px 0;
+      }
+
+      100% {
+        background-position: calc(200px + 100%) 0;
+      }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #e5e7eb 0px, #f3f4f6 40px, #e5e7eb 80px);
+      background-size: 200px 100%;
+      animation: skeleton-loading 1.5s ease-in-out infinite;
+    }
+
+    .dark .skeleton {
+      background: linear-gradient(90deg, #374151 0px, #4b5563 40px, #374151 80px);
+    }
+
+    /* Smooth transitions */
+    * {
+      transition-property: background-color, border-color, color, fill, stroke;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 150ms;
+    }
+
+    /* Focus visible styles */
+    *:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+
+    /* Number animation */
+    .stat-number {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Grid auto-fit optimization */
+    .stats-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    /* Fade in animation for cards */
+    .stat-card {
+      animation: fade-in 0.3s ease-in-out;
+    }
+
+    /* Loading spinner */
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    /* Light theme backgrounds */
+    body {
+      background-color: #0a0a0f;
+    }
+
+    :root:not(.dark) body {
+      background-color: #f9fafb;
+    }
+
+    /* Search and sort: same look */
+    .toolbar-field {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .dark .toolbar-field {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Mobile: tap targets, table scroll */
+    @media (max-width: 767px) {
+      #app {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-top: 0.75rem;
+        padding-bottom: 1rem;
+      }
+      input, select, button, a[href="/"] {
+        min-height: 44px;
+      }
+      #statsTable {
+        -webkit-overflow-scrolling: touch;
+        margin-left: -0.75rem;
+        margin-right: -0.75rem;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+      #statsTable table {
+        min-width: 640px;
+      }
+    }
+    @media (min-width: 768px) {
+      #statsTable { border-radius: 0.75rem; }
+    }
+  </style>
+</head>
+
+<body class="text-gray-100 dark:text-gray-100 font-sans min-h-screen antialiased">
+  <div id="app" class="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-[1600px]">
+
+    <!-- Header -->
+    <header class="mb-4 sm:mb-8 animate-slide-up">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div
+            class="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-gradient-to-br from-blue-500 via-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/50">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
+              Статистика трекеров
+            </h1>
+            <p class="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">Мониторинг и аналитика в реальном времени</p>
+          </div>
+        </div>
+
+        <button id="toggleTheme"
+          class="p-3 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-all group"
+          aria-label="Переключить тему оформления" type="button">
+          <svg id="iconMoon"
+            class="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 hidden"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          <svg id="iconSun" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Toolbar: мобильная — 3 ряда (поиск → сортировка+счётчик → переключатели); ПК — 2 ряда -->
+    <div class="mb-4 sm:mb-6 animate-slide-up rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/80 shadow-sm overflow-hidden" style="animation-delay: 0.1s;">
+      <!-- Ряд 1 (мобильная): только поиск. ПК: поиск + разделитель + сортировка + разделитель + счётчик -->
+      <div class="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-800">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch gap-2 sm:gap-3">
+          <!-- Поиск: на мобильной на всю ширину, под заголовком -->
+          <div class="relative flex-1 min-w-0 flex w-full sm:flex-1" style="min-width: 0;">
+            <label for="searchTracker" class="sr-only">Поиск трекера</label>
+            <input type="text" id="searchTracker"
+              class="toolbar-field w-full h-11 pl-10 pr-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 dark:focus:border-blue-500 text-sm transition-shadow"
+              placeholder="Поиск по имени трекера..." aria-label="Поиск трекера по имени" autocomplete="off" />
+            <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <div class="h-6 w-px flex-shrink-0 self-center bg-gray-300 dark:bg-gray-600 rounded-full hidden sm:block" aria-hidden="true"></div>
+          <!-- Ряд 2 (мобильная): сортировка + разделитель + число трекеров. ПК: в одну линию с поиском -->
+          <div class="flex flex-row items-stretch gap-2 sm:gap-3 flex-1 min-w-0 sm:flex-initial">
+            <div class="relative flex-1 sm:flex-initial flex-shrink-0 min-w-0">
+              <label for="sortSelect" class="sr-only">Сортировка</label>
+              <select id="sortSelect"
+                class="toolbar-field w-full sm:w-auto h-11 pl-4 pr-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 dark:focus:border-blue-500 cursor-pointer appearance-none transition-shadow min-w-0 sm:min-w-[160px]"
+                aria-label="Сортировка результатов">
+                <option value="name">По имени ↑</option>
+                <option value="newtor">Новые торренты ↓</option>
+                <option value="update">Изменения ↓</option>
+                <option value="alltorrents">Всего торрентов ↓</option>
+                <option value="confirm">Подтверждено ↓</option>
+                <option value="wait">Ожидает ↓</option>
+                <option value="skip">Пропущено ↓</option>
+              </select>
+              <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div class="h-6 w-px flex-shrink-0 self-center bg-gray-300 dark:bg-gray-600 rounded-full" aria-hidden="true"></div>
+            <div class="flex items-center h-11 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50 shrink-0">
+              <span class="stat-number text-sm font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap" id="cardsCounter" aria-live="polite">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ряд 3: переключатели (Главная, Обновить, Краткие числа и т.д.) -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4">
+        <div class="flex flex-nowrap sm:flex-wrap items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
+          <a href="/"
+            class="inline-flex items-center justify-center gap-1.5 sm:gap-2 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium no-underline transition-colors group shrink-0"
+            aria-label="На главную страницу">
+            <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span>Главная</span>
+          </a>
+          <button id="refreshBtn"
+            class="inline-flex items-center justify-center gap-1.5 sm:gap-2 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-medium shadow shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors group shrink-0"
+            type="button" aria-label="Обновить статистику">
+            <svg class="w-4 h-4 group-disabled:spinner shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span id="refreshBtnText">Обновить</span>
+          </button>
+          <button id="toggleNumbers"
+            class="inline-flex items-center justify-center h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium text-center transition-colors shrink-0"
+            type="button" aria-label="Переключить формат чисел"><span>Краткие числа</span></button>
+        </div>
+        <div class="h-4 w-px flex-shrink-0 bg-gray-200 dark:bg-gray-700 hidden sm:block" aria-hidden="true"></div>
+        <div class="flex flex-wrap items-center gap-2 hidden sm:flex">
+          <button id="toggleWidth"
+            class="inline-flex items-center justify-center h-9 min-w-[44px] px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium text-center transition-colors"
+            type="button" aria-label="Переключить широкий режим"><span>Широкий режим</span></button>
+          <button id="toggleView"
+            class="inline-flex items-center justify-center h-9 min-w-[44px] px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium text-center transition-colors"
+            type="button" aria-label="Переключить вид отображения"><span>Карточки</span></button>
+        </div>
+        <div class="w-full sm:w-auto sm:flex-1 sm:min-w-0 flex justify-end order-last sm:order-none">
+          <span class="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium" id="lastUpdate" aria-live="polite">
+            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>—</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="hidden text-center py-16 animate-fade-in" role="status" aria-live="polite">
+      <div class="inline-flex flex-col items-center gap-4">
+        <div class="relative">
+          <div class="w-16 h-16 border-4 border-gray-300 dark:border-gray-800 border-t-blue-500 rounded-full spinner">
+          </div>
+          <div class="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-cyan-500 rounded-full spinner"
+            style="animation-delay: -0.5s; animation-duration: 1.5s;"></div>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 font-medium">Загрузка статистики...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error"
+      class="hidden bg-red-950/50 border-2 border-red-800 rounded-xl p-6 text-center animate-fade-in backdrop-blur-sm"
+      role="alert" aria-live="assertive">
+      <svg class="w-12 h-12 text-red-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <h3 class="text-lg font-semibold text-red-400 mb-2">Ошибка загрузки данных</h3>
+      <p class="text-red-300/80 text-sm mb-4">Не удалось получить данные с сервера</p>
+      <button id="retryBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-medium">
+        Попробовать снова
+      </button>
+    </div>
+
+    <!-- Aggregate Summary Card -->
+    <div id="aggregateHost" class="mb-6 animate-slide-up" style="animation-delay: 0.2s;"
+      aria-label="Сводная статистика по всем трекерам"></div>
+
+    <!-- View Container: cards on mobile, table on desktop/tablet -->
+    <div id="viewContainer" class="animate-slide-up" style="animation-delay: 0.3s;">
+      <!-- Stats Grid (default on mobile) -->
+      <div id="statsGrid" class="hidden stats-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        aria-live="polite" role="region" aria-label="Статистика трекеров"></div>
+
+      <!-- Stats Table (default on desktop/tablet) -->
+      <div id="statsTable" class="overflow-x-auto rounded-xl border border-gray-300 dark:border-gray-800"
+        aria-live="polite" role="region" aria-label="Таблица статистики трекеров">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-100 dark:bg-gray-900 sticky top-0 z-10">
+            <tr class="border-b border-gray-300 dark:border-gray-800">
+              <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Трекер</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Последний новый</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Новые</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Обновлено</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Всего</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Подтверждено</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Ожидает</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Пропущено</th>
+            </tr>
+          </thead>
+          <tbody id="statsTableBody" class="bg-white/50 dark:bg-gray-900/50"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16 animate-fade-in" role="status" aria-live="polite">
+      <svg class="w-16 h-16 text-gray-400 dark:text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p class="text-gray-600 dark:text-gray-500 text-lg font-medium">Ничего не найдено</p>
+      <p class="text-gray-500 dark:text-gray-600 text-sm mt-1">Попробуйте изменить параметры поиска</p>
+    </div>
+
+  </div>
+
+  <!-- Back to Top Button -->
+  <button id="backToTop"
+    class="fixed bottom-6 right-6 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl shadow-blue-900/50 opacity-0 pointer-events-none transition-all duration-300 z-50 group hover:scale-110 active:scale-95"
+    aria-label="Вернуться к началу страницы">
+    <svg class="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor"
+      viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+    </svg>
+  </button>
+
+  <script>
+      (function () {
+        'use strict';
+
+        // Configuration
+        const CONFIG = {
+          API_URL: '/stats/torrents',
+          LAST_UPDATE_URL: '/lastupdatedb',
+          DEBOUNCE_DELAY: 300,
+          RETRY_ATTEMPTS: 3,
+          RETRY_DELAY: 1000
+        };
+
+        // Mobile breakpoint: cards below, table from this width up
+        const VIEW_BREAKPOINT = 768;
+
+        const isDesktopViewport = () => typeof window !== 'undefined' && window.matchMedia(`(min-width: ${VIEW_BREAKPOINT}px)`).matches;
+
+        // State management
+        const state = {
+          data: [],
+          fullNumbers: true,
+          wideMode: false,
+          tableView: true,
+          isLoading: false
+        };
+
+        // DOM Elements cache
+        const elements = {
+          searchInput: null,
+          sortSelect: null,
+          cardsCounter: null,
+          loading: null,
+          error: null,
+          retryBtn: null,
+          aggregateHost: null,
+          statsGrid: null,
+          statsTable: null,
+          statsTableBody: null,
+          emptyState: null,
+          refreshBtn: null,
+          refreshBtnText: null,
+          lastUpdate: null,
+          toggleNumbers: null,
+          toggleWidth: null,
+          toggleView: null,
+          toggleTheme: null,
+          iconMoon: null,
+          iconSun: null,
+          backToTop: null,
+          viewContainer: null
+        };
+
+        // Utility functions
+        const debounce = (func, wait) => {
+          let timeout;
+          return function executedFunction(...args) {
+            const later = () => {
+              clearTimeout(timeout);
+              func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+          };
+        };
+
+        const formatNum = (n) => {
+          if (n == null || n === undefined) return '0';
+          n = Number(n);
+          if (state.fullNumbers) return n.toLocaleString('ru-RU');
+          if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+          if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+          return String(n);
+        };
+
+        const parseUTCDate = (dateStr) => {
+          const parts = dateStr.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+          if (!parts) return null;
+
+          const day = parseInt(parts[1], 10);
+          const month = parseInt(parts[2], 10) - 1;
+          const year = parseInt(parts[3], 10);
+          const hour = parseInt(parts[4], 10);
+          const minute = parseInt(parts[5], 10);
+
+          return new Date(Date.UTC(year, month, day, hour, minute, 0));
+        };
+
+        const formatLocalDateTime = (utcDate) => {
+          if (!utcDate) return '—';
+          return utcDate.toLocaleString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        };
+
+        const getTracksData = (item) => ({
+          wait: item.tracks?.wait ?? 0,
+          confirm: item.tracks?.confirm ?? 0,
+          skip: item.tracks?.skip ?? 0
+        });
+
+        // Rendering functions
+        const renderCard = (item) => {
+          const tracks = getTracksData(item);
+          const ico = `./img/ico/${(item.trackerName || '').toLowerCase()}.ico`;
+          const name = item.trackerName || '—';
+
+          return `
+          <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-300 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-700 hover:shadow-xl hover:shadow-blue-900/10 transition-all duration-200 group" data-name="${name.replace(/"/g, '&quot;')}">
+            <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-800">
+              <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                <img src="${ico}" onerror="this.style.display='none'" alt="" class="w-5 h-5 object-contain" loading="lazy" />
+              </div>
+              <span class="font-semibold text-base text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">${name}</span>
+            </div>
+            <div class="space-y-2.5">
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Последний новый</span>
+                <span class="text-gray-700 dark:text-gray-300 font-medium">${item.lastnewtor || '—'}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Новые за сегодня</span>
+                <span class="stat-number text-blue-600 dark:text-blue-400 font-semibold">${formatNum(item.newtor)}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Обновлено за сегодня</span>
+                <span class="stat-number text-cyan-600 dark:text-cyan-400 font-semibold">${formatNum(item.update)}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Всего торрентов</span>
+                <span class="stat-number text-gray-700 dark:text-gray-200 font-semibold">${formatNum(item.alltorrents)}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm pt-2 border-t border-gray-200/50 dark:border-gray-800/50">
+                <span class="text-gray-500 dark:text-gray-400">Подтверждено</span>
+                <span class="stat-number text-green-600 dark:text-green-400 font-medium">${formatNum(tracks.confirm)}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Ожидает</span>
+                <span class="stat-number text-yellow-600 dark:text-yellow-400 font-medium">${formatNum(tracks.wait)}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Пропущено</span>
+                <span class="stat-number text-red-600 dark:text-red-400 font-medium">${formatNum(tracks.skip)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        };
+
+        const renderTableRow = (item) => {
+          const tracks = getTracksData(item);
+          const ico = `./img/ico/${(item.trackerName || '').toLowerCase()}.ico`;
+          const name = item.trackerName || '—';
+
+          return `
+          <tr class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" data-name="${name.replace(/"/g, '&quot;')}">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <img src="${ico}" onerror="this.style.display='none'" alt="" class="w-5 h-5 object-contain" loading="lazy" />
+                <span class="font-medium text-gray-900 dark:text-gray-200">${name}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">${item.lastnewtor || '—'}</td>
+            <td class="px-4 py-3 text-right stat-number text-blue-600 dark:text-blue-400 font-semibold">${formatNum(item.newtor)}</td>
+            <td class="px-4 py-3 text-right stat-number text-cyan-600 dark:text-cyan-400 font-semibold">${formatNum(item.update)}</td>
+            <td class="px-4 py-3 text-right stat-number text-gray-700 dark:text-gray-200 font-semibold">${formatNum(item.alltorrents)}</td>
+            <td class="px-4 py-3 text-right stat-number text-green-600 dark:text-green-400">${formatNum(tracks.confirm)}</td>
+            <td class="px-4 py-3 text-right stat-number text-yellow-600 dark:text-yellow-400">${formatNum(tracks.wait)}</td>
+            <td class="px-4 py-3 text-right stat-number text-red-600 dark:text-red-400">${formatNum(tracks.skip)}</td>
+          </tr>
+        `;
+        };
+
+        const renderAggregate = (list) => {
+          const sum = list.reduce((acc, item) => {
+            const tracks = getTracksData(item);
+            return {
+              newtor: acc.newtor + (Number(item.newtor) || 0),
+              update: acc.update + (Number(item.update) || 0),
+              alltorrents: acc.alltorrents + (Number(item.alltorrents) || 0),
+              confirm: acc.confirm + tracks.confirm,
+              wait: acc.wait + tracks.wait,
+              skip: acc.skip + tracks.skip
+            };
+          }, { newtor: 0, update: 0, alltorrents: 0, confirm: 0, wait: 0, skip: 0 });
+
+          return `
+          <div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/80 dark:via-gray-900 dark:to-cyan-950/80 rounded-2xl p-6 border border-blue-200 dark:border-blue-900/30 shadow-xl shadow-blue-100/50 dark:shadow-blue-900/20 backdrop-blur-sm">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h2 class="font-bold text-lg text-blue-900 dark:text-blue-100">Сводка по всем трекерам</h2>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div class="bg-blue-100/60 dark:bg-blue-950/40 rounded-xl p-4 border border-blue-200 dark:border-blue-900/30">
+                <div class="text-xs text-blue-700 dark:text-blue-300 mb-2 font-medium">Новые за сегодня</div>
+                <div class="stat-number text-2xl font-bold text-blue-900 dark:text-blue-200">${formatNum(sum.newtor)}</div>
+              </div>
+              <div class="bg-cyan-100/60 dark:bg-cyan-950/40 rounded-xl p-4 border border-cyan-200 dark:border-cyan-900/30">
+                <div class="text-xs text-cyan-700 dark:text-cyan-300 mb-2 font-medium">Обновлено за сегодня</div>
+                <div class="stat-number text-2xl font-bold text-cyan-900 dark:text-cyan-200">${formatNum(sum.update)}</div>
+              </div>
+              <div class="bg-gray-100/80 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-300 dark:border-gray-700/50">
+                <div class="text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium">Всего торрентов</div>
+                <div class="stat-number text-2xl font-bold text-gray-900 dark:text-gray-100">${formatNum(sum.alltorrents)}</div>
+              </div>
+              <div class="bg-green-100/60 dark:bg-green-950/40 rounded-xl p-4 border border-green-200 dark:border-green-900/30">
+                <div class="text-xs text-green-700 dark:text-green-300 mb-2 font-medium">Подтверждено</div>
+                <div class="stat-number text-2xl font-bold text-green-900 dark:text-green-200">${formatNum(sum.confirm)}</div>
+              </div>
+              <div class="bg-yellow-100/60 dark:bg-yellow-950/40 rounded-xl p-4 border border-yellow-200 dark:border-yellow-900/30">
+                <div class="text-xs text-yellow-700 dark:text-yellow-300 mb-2 font-medium">Ожидает</div>
+                <div class="stat-number text-2xl font-bold text-yellow-900 dark:text-yellow-200">${formatNum(sum.wait)}</div>
+              </div>
+              <div class="bg-red-100/60 dark:bg-red-950/40 rounded-xl p-4 border border-red-200 dark:border-red-900/30">
+                <div class="text-xs text-red-700 dark:text-red-300 mb-2 font-medium">Пропущено</div>
+                <div class="stat-number text-2xl font-bold text-red-900 dark:text-red-200">${formatNum(sum.skip)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        };
+
+        // Sorting and filtering
+        const getSortKey = (item, key) => {
+          if (key === 'name') return (item.trackerName || '').toLowerCase();
+          if (key === 'newtor') return Number(item.newtor) || 0;
+          if (key === 'update') return Number(item.update) || 0;
+          if (key === 'alltorrents') return Number(item.alltorrents) || 0;
+
+          const tracks = getTracksData(item);
+          if (key === 'confirm') return tracks.confirm;
+          if (key === 'wait') return tracks.wait;
+          if (key === 'skip') return tracks.skip;
+          return 0;
+        };
+
+        const applyFilterAndSort = () => {
+          const query = (elements.searchInput.value || '').toLowerCase().trim();
+          const sortVal = elements.sortSelect.value || 'name';
+
+          let list = state.data.filter(item => {
+            const name = (item.trackerName || '').toLowerCase();
+            return !query || name.includes(query);
+          });
+
+          list.sort((a, b) => {
+            const ka = getSortKey(a, sortVal);
+            const kb = getSortKey(b, sortVal);
+            if (sortVal === 'name') {
+              return ka < kb ? -1 : ka > kb ? 1 : 0;
+            }
+            return kb - ka;
+          });
+
+          return list;
+        };
+
+        // Main render function
+        const render = () => {
+          const list = applyFilterAndSort();
+
+          // Update grid classes
+          elements.statsGrid.className = 'stats-grid';
+          let gridClasses = 'grid-cols-1 sm:grid-cols-2';
+
+          if (state.wideMode) {
+            gridClasses = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4';
+          } else {
+            gridClasses = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+          }
+
+          elements.statsGrid.className = `stats-grid ${gridClasses}`;
+
+          // Show/hide views
+          if (state.tableView) {
+            elements.statsGrid.classList.add('hidden');
+            elements.statsTable.classList.remove('hidden');
+          } else {
+            elements.statsGrid.classList.remove('hidden');
+            elements.statsTable.classList.add('hidden');
+          }
+
+          // Handle empty state
+          if (list.length === 0) {
+            elements.aggregateHost.innerHTML = '';
+            elements.statsGrid.innerHTML = '';
+            elements.statsTableBody.innerHTML = '';
+            elements.cardsCounter.textContent = '0 трекеров';
+            elements.emptyState.classList.remove('hidden');
+            return;
+          }
+
+          elements.emptyState.classList.add('hidden');
+          elements.cardsCounter.textContent = `${list.length} ${list.length === 1 ? 'трекер' : list.length < 5 ? 'трекера' : 'трекеров'}`;
+
+          // Render aggregate
+          elements.aggregateHost.innerHTML = renderAggregate(list);
+
+          // Render grid or table
+          if (state.tableView) {
+            elements.statsTableBody.innerHTML = list.map(renderTableRow).join('');
+          } else {
+            elements.statsGrid.innerHTML = list.map(renderCard).join('');
+          }
+        };
+
+        // API functions
+        const fetchWithRetry = async (url, attempts = CONFIG.RETRY_ATTEMPTS) => {
+          for (let i = 0; i < attempts; i++) {
+            try {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              return await response.text();
+            } catch (error) {
+              if (i === attempts - 1) throw error;
+              await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * (i + 1)));
+            }
+          }
+        };
+
+        const loadLastUpdate = async () => {
+          try {
+            const response = await fetch(CONFIG.LAST_UPDATE_URL);
+            if (!response.ok) throw new Error('Failed to fetch last update');
+
+            const data = await response.json();
+            if (data && data.lastupdatedb) {
+              const utcDate = parseUTCDate(data.lastupdatedb);
+              const formattedDate = utcDate ? formatLocalDateTime(utcDate) : data.lastupdatedb;
+              elements.lastUpdate.innerHTML = `
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>${formattedDate}</span>
+            `;
+            }
+          } catch (error) {
+            console.warn('Failed to load last update:', error);
+            elements.lastUpdate.innerHTML = `
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>—</span>
+          `;
+          }
+        };
+
+        const load = async () => {
+          if (state.isLoading) return;
+
+          state.isLoading = true;
+          elements.loading.classList.remove('hidden');
+          elements.error.classList.add('hidden');
+          elements.refreshBtn.disabled = true;
+          elements.refreshBtnText.textContent = 'Загрузка...';
+
+          try {
+            const raw = await fetchWithRetry(CONFIG.API_URL);
+
+            if (!raw || !raw.trim()) {
+              state.data = [];
+            } else {
+              state.data = JSON.parse(raw);
+              if (!Array.isArray(state.data)) state.data = [];
+            }
+
+            render();
+            await loadLastUpdate();
+
+          } catch (error) {
+            console.error('Failed to load data:', error);
+            elements.error.classList.remove('hidden');
+          } finally {
+            elements.loading.classList.add('hidden');
+            elements.refreshBtn.disabled = false;
+            elements.refreshBtnText.textContent = 'Обновить';
+            state.isLoading = false;
+          }
+        };
+
+        // Theme management
+        const updateThemeIcons = (isDark) => {
+          if (isDark) {
+            elements.iconMoon.classList.remove('hidden');
+            elements.iconSun.classList.add('hidden');
+          } else {
+            elements.iconMoon.classList.add('hidden');
+            elements.iconSun.classList.remove('hidden');
+          }
+        };
+
+        const toggleTheme = () => {
+          document.documentElement.classList.toggle('dark');
+          const isDark = document.documentElement.classList.contains('dark');
+
+          updateThemeIcons(isDark);
+
+          try {
+            localStorage.setItem('statsTheme', isDark ? 'dark' : 'light');
+          } catch (e) {
+            console.warn('Failed to save theme preference:', e);
+          }
+        };
+
+        const initTheme = () => {
+          try {
+            const savedTheme = localStorage.getItem('statsTheme');
+            const isDark = savedTheme !== 'light';
+
+            if (isDark) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+
+            updateThemeIcons(isDark);
+          } catch (e) {
+            console.warn('Failed to load theme preference:', e);
+            document.documentElement.classList.add('dark');
+            updateThemeIcons(true);
+          }
+        };
+
+        // Back to top functionality
+        const handleScroll = () => {
+          const scrolled = window.pageYOffset || document.documentElement.scrollTop;
+          if (scrolled > 300) {
+            elements.backToTop.classList.remove('opacity-0', 'pointer-events-none');
+            elements.backToTop.classList.add('opacity-100');
+          } else {
+            elements.backToTop.classList.remove('opacity-100');
+            elements.backToTop.classList.add('opacity-0', 'pointer-events-none');
+          }
+        };
+
+        // Event handlers
+        const handleSearch = debounce(() => {
+          render();
+        }, CONFIG.DEBOUNCE_DELAY);
+
+        const handleToggleNumbers = () => {
+          state.fullNumbers = !state.fullNumbers;
+          elements.toggleNumbers.textContent = state.fullNumbers ? 'Краткие числа' : 'Полные числа';
+          render();
+        };
+
+        const handleToggleWidth = () => {
+          state.wideMode = !state.wideMode;
+          elements.toggleWidth.textContent = state.wideMode ? 'Узкий режим' : 'Широкий режим';
+          render();
+        };
+
+        const updateViewToggleLabel = () => {
+          if (elements.toggleView) elements.toggleView.textContent = state.tableView ? 'Карточки' : 'Таблица';
+        };
+
+        const handleToggleView = () => {
+          state.tableView = !state.tableView;
+          updateViewToggleLabel();
+          render();
+        };
+
+        // Initialize
+        const init = () => {
+          // Cache DOM elements
+          elements.searchInput = document.getElementById('searchTracker');
+          elements.sortSelect = document.getElementById('sortSelect');
+          elements.cardsCounter = document.getElementById('cardsCounter');
+          elements.loading = document.getElementById('loading');
+          elements.error = document.getElementById('error');
+          elements.retryBtn = document.getElementById('retryBtn');
+          elements.aggregateHost = document.getElementById('aggregateHost');
+          elements.statsGrid = document.getElementById('statsGrid');
+          elements.statsTable = document.getElementById('statsTable');
+          elements.statsTableBody = document.getElementById('statsTableBody');
+          elements.emptyState = document.getElementById('emptyState');
+          elements.refreshBtn = document.getElementById('refreshBtn');
+          elements.refreshBtnText = document.getElementById('refreshBtnText');
+          elements.lastUpdate = document.getElementById('lastUpdate');
+          elements.toggleNumbers = document.getElementById('toggleNumbers');
+          elements.toggleWidth = document.getElementById('toggleWidth');
+          elements.toggleView = document.getElementById('toggleView');
+          elements.toggleTheme = document.getElementById('toggleTheme');
+          elements.iconMoon = document.getElementById('iconMoon');
+          elements.iconSun = document.getElementById('iconSun');
+          elements.backToTop = document.getElementById('backToTop');
+          elements.viewContainer = document.getElementById('viewContainer');
+
+          // Initialize theme
+          initTheme();
+
+          // Default view: cards on mobile, table on desktop/tablet (≥768px)
+          state.tableView = isDesktopViewport();
+          updateViewToggleLabel();
+
+          // Attach event listeners
+          elements.searchInput.addEventListener('input', handleSearch);
+          elements.sortSelect.addEventListener('change', render);
+          elements.refreshBtn.addEventListener('click', load);
+          elements.retryBtn.addEventListener('click', load);
+          elements.toggleNumbers.addEventListener('click', handleToggleNumbers);
+          elements.toggleWidth.addEventListener('click', handleToggleWidth);
+          elements.toggleView.addEventListener('click', handleToggleView);
+          elements.toggleTheme.addEventListener('click', toggleTheme);
+          elements.backToTop.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+
+          window.addEventListener('scroll', debounce(handleScroll, 100));
+
+          // Initial load
+          load();
+        };
+
+        // Start the application when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', init);
+        } else {
+          init();
+        }
+
+      })();
+  </script>
+
+</body>
+
+</html>
