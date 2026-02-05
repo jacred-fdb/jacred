@@ -377,6 +377,8 @@ namespace JacRed.Controllers
                 {
                     return Json(new { error = "invalid magnet" });
                 }
+                if (string.IsNullOrEmpty(infohash) || infohash.Length != 40)
+                    return Json(new { error = "invalid magnet: infohash must be 40 chars" });
             }
             else
                 return Json(new { error = "pass magnet= or hash=" });
