@@ -256,7 +256,14 @@ namespace JacRed.Controllers.CRON
                 else if (u is "tb" or "тб") size *= 1048576;
                 return size * 1048576;
             }
-            catch { return 0; }
+            catch (FormatException)
+            {
+                return 0;
+            }
+            catch (OverflowException)
+            {
+                return 0;
+            }
         }
 
         static int ParseQuality(string title)
