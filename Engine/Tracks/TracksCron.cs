@@ -161,7 +161,10 @@ namespace JacRed.Engine
                 {
                     await TracksDB.Add(t.magnet);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"tracks: RunOnce failed to add magnet '{t.magnet}': {ex}");
+                }
             }
             Console.WriteLine($"tracks: RunOnce window={windowDays}d finished");
         }
