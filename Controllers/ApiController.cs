@@ -35,18 +35,25 @@ namespace JacRed.Controllers
         }
 
         [Route("version")]
-        public ActionResult Version()
+        public IActionResult Version()
         {
-            return Content("11", contentType: "text/plain; charset=utf-8");
+            return Json(new Dictionary<string, string>
+            {
+                ["version"] = "2.0.0"
+            });
         }
 
         [Route("lastupdatedb")]
-        public ActionResult LastUpdateDB()
+        public IActionResult LastUpdateDB()
         {
-            if (FileDB.masterDb == null || FileDB.masterDb.Count == 0)
-                return Content("01.01.2000 01:01", contentType: "text/plain; charset=utf-8");
+            string lastUpdate = "01.01.2000 01:01";
+            if (FileDB.masterDb != null && FileDB.masterDb.Count > 0)
+                lastUpdate = FileDB.masterDb.OrderByDescending(i => i.Value.updateTime).First().Value.updateTime.ToString("dd.MM.yyyy HH:mm");
 
-            return Content(FileDB.masterDb.OrderByDescending(i => i.Value.updateTime).First().Value.updateTime.ToString("dd.MM.yyyy HH:mm"), contentType: "text/plain; charset=utf-8");
+            return Json(new Dictionary<string, string>
+            {
+                ["lastupdatedb"] = lastUpdate
+            });
         }
 
         [Route("api/v1.0/conf")]
@@ -675,7 +682,7 @@ namespace JacRed.Controllers
                     if (search.StartsWith("kp"))
                         uri = $"&kp={search.Remove(0, 2)}";
 
-                    var root = await HttpClient.Get<JObject>("https://api.alloha.tv/?token=04941a9a3ca3ac16e2b4327347bbc1" + uri, timeoutSeconds: 8);
+                    var root = await HttpClient.Get<JObject>("https://api.apbugall.org/?token=04941a9a3ca3ac16e2b4327347bbc1" + uri, timeoutSeconds: 8);
                     cache.original_name = root?.Value<JObject>("data")?.Value<string>("original_name");
                     cache.name = root?.Value<JObject>("data")?.Value<string>("name");
 
