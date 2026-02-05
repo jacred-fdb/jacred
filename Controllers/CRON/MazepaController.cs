@@ -18,61 +18,95 @@ namespace JacRed.Controllers.CRON
     public class MazepaController : BaseController
     {
         static readonly Dictionary<string, string[]> Categories = new()
-    {
-        // Українські фільми
-        { "37",  new[] { "movie" } },
-        { "7",   new[] { "movie" } },
+        {
+            // Українські фільми
+            { "37",  new[] { "movie" } },
+            { "7",   new[] { "movie" } },
 
-        // Фільми
-        { "175", new[] { "movie" } },
-        { "147", new[] { "movie" } },
-        { "12",  new[] { "movie" } },
-        { "13",  new[] { "movie" } },
-        { "174", new[] { "movie" } },
+            // Фільми
+            { "175", new[] { "movie" } },
+            { "147", new[] { "movie" } },
+            { "12",  new[] { "movie" } },
+            { "13",  new[] { "movie" } },
+            { "174", new[] { "movie" } },
 
-        // Українські серіали
-        { "38",  new[] { "serial" } },
-        { "8",   new[] { "serial" } },
+            // Українські серіали
+            { "38",  new[] { "serial" } },
+            { "8",   new[] { "serial" } },
 
-        // Серіали
-        { "152", new[] { "serial" } },
-        { "44",  new[] { "serial" } },
-        { "14",  new[] { "serial" } },
+            // Серіали
+            { "152", new[] { "serial" } },
+            { "44",  new[] { "serial" } },
+            { "14",  new[] { "serial" } },
 
-        // Українські мультфільми
-        { "35",  new[] { "multfilm" } },
-        { "5",   new[] { "multfilm" } },
+            // Українські мультфільми
+            { "35",  new[] { "multfilm" } },
+            { "5",   new[] { "multfilm" } },
 
-        // Мультфільми
-        { "155", new[] { "multfilm" } },
-        { "41",  new[] { "multfilm" } },
-        { "10",  new[] { "multfilm" } },
+            // Мультфільми
+            { "155", new[] { "multfilm" } },
+            { "41",  new[] { "multfilm" } },
+            { "10",  new[] { "multfilm" } },
 
-        // Українські мультсеріали
-        { "36",  new[] { "multserial" } },
-        { "6",   new[] { "multserial" } },
+            // Українські мультсеріали
+            { "36",  new[] { "multserial" } },
+            { "6",   new[] { "multserial" } },
 
-        // Мультсеріали
-        { "43",  new[] { "multserial" } },
-        { "11",  new[] { "multserial" } },
+            // Мультсеріали
+            { "43",  new[] { "multserial" } },
+            { "11",  new[] { "multserial" } },
 
-        // Аніме
-        { "16",  new[] { "anime" } },
+            // Аніме
+            { "16",  new[] { "anime" } },
 
-        // Українські документальні
-        { "39",  new[] { "documovie" } },
-        { "9",   new[] { "documovie" } },
+            // Українські документальні
+            { "39",  new[] { "documovie" } },
+            { "9",   new[] { "documovie" } },
 
-        // Документальні
-        { "157", new[] { "documovie" } },
-        { "42",  new[] { "documovie" } },
-        { "15",  new[] { "documovie" } },
-    };
+            // Документальні
+            { "157", new[] { "documovie" } },
+            { "42",  new[] { "documovie" } },
+            { "15",  new[] { "documovie" } },
+        };
 
         static bool _workParse = false;
 
         static string Cookie(IMemoryCache memoryCache)
             => memoryCache.TryGetValue("cron:MazepaController:Cookie", out string cookie) ? cookie : null;
+
+        static string CleanTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return null;
+
+            string t = title;
+
+            if (t.Contains(" / "))
+                t = t.Split(" / ")[0];
+
+            t = Regex.Replace(t, @"\s*\((19|20)\d{2}\)", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(S\d{1,2}|E\d{1,2}|S\d{1,2}E\d{1,2})\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(2160p|1080p|720p|480p)\b", "", RegexOptions.IgnoreCase);
+
+            t = Regex.Replace(
+                t,
+                @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|HDRip|BluRay|BRRip|DVDRip|HDTV)\b",
+                "",
+                RegexOptions.IgnoreCase
+            );
+
+            t = Regex.Replace(
+                t,
+                @"\b(x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|ddp?\d\.\d)\b",
+                "",
+                RegexOptions.IgnoreCase
+            );
+
+            t = Regex.Replace(t, @"[\[\]\|]", " ");
+            t = Regex.Replace(t, @"\s{2,}", " ").Trim();
+
+            return t;
+        }
 
         async Task<bool> CheckLogin()
         {
@@ -195,7 +229,6 @@ namespace JacRed.Controllers.CRON
             return $"magnet:?xt=urn:btih:{m.Groups[1].Value}";
         }
 
-        /// <summary>Extract size string (e.g. "5.5 GB") from topic row HTML. Tries strict then fallback regex.</summary>
         static string ParseSizeName(string block)
         {
             var m = Regex.Match(block, @">([\d\.,]+)\s*&nbsp;(GB|MB|TB)<", RegexOptions.IgnoreCase);
@@ -209,7 +242,6 @@ namespace JacRed.Controllers.CRON
             return null;
         }
 
-        /// <summary>Parse size string (e.g. "5.5 GB") to size in bytes. Matches FileDB getSizeInfo logic.</summary>
         static double ParseSizeBytes(string sizeName)
         {
             if (string.IsNullOrWhiteSpace(sizeName)) return 0;
@@ -217,7 +249,7 @@ namespace JacRed.Controllers.CRON
             {
                 var g = Regex.Match(sizeName, "([0-9\\.,]+)\\s*(Mb|МБ|GB|ГБ|TB|ТБ)", RegexOptions.IgnoreCase).Groups;
                 if (string.IsNullOrWhiteSpace(g[2].Value)) return 0;
-                if (!double.TryParse(g[1].Value.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double size) || size == 0)
+                if (!double.TryParse(g[1].Value.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out double size))
                     return 0;
                 string u = g[2].Value.ToLowerInvariant();
                 if (u is "gb" or "гб") size *= 1024;
@@ -285,8 +317,10 @@ namespace JacRed.Controllers.CRON
                 int.TryParse(_sid, out int sid);
                 int.TryParse(_pir, out int pir);
 
-                var name = tParse.ReplaceBadNames(title) ?? title.Trim();
                 var titleTrim = title.Trim();
+                var clean = CleanTitle(titleTrim);
+                var name = tParse.ReplaceBadNames(clean) ?? clean ?? titleTrim;
+
                 var details = new TorrentDetails()
                 {
                     trackerName = "mazepa",
@@ -294,7 +328,7 @@ namespace JacRed.Controllers.CRON
                     url = $"{host}/viewtopic.php?t={tid}",
                     title = titleTrim,
                     name = name,
-                    originalname = titleTrim,
+                    originalname = name,
                     magnet = NormalizeMagnet(magnet),
                     sizeName = sizeName,
                     size = ParseSizeBytes(sizeName),

@@ -16,7 +16,7 @@ namespace JacRed
     {
         private static readonly HashSet<string> SensitiveKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "apikey", "cookie", "u", "p", "username", "password"
+            "apikey", "devkey", "cookie", "u", "p", "username", "password"
         };
 
         /// <summary>
@@ -183,6 +183,9 @@ namespace JacRed
         public int listenport = 9117;
 
         public string apikey = null;
+
+        /// <summary>Если задан — доступ к /dev/, /cron/, /jsondb только с заголовком X-Dev-Key или параметром devkey (нужно за туннелем/прокси, когда все запросы выглядят локальными).</summary>
+        public string devkey = null;
 
         public bool mergeduplicates = true;
 

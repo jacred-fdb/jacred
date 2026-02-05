@@ -10,6 +10,16 @@ namespace JacRed.Engine.Middlewares
     public class ModHeaders
     {
         private readonly RequestDelegate _next;
+
+        /// <summary>Пути, доступные только из локальной/приватной сети (по IP клиента).</summary>
+        private static bool IsLocalOnlyPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            return path.StartsWith("/cron/", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/jsondb", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/dev/", StringComparison.OrdinalIgnoreCase);
+        }
+
         public ModHeaders(RequestDelegate next)
         {
             _next = next;
@@ -37,27 +47,28 @@ namespace JacRed.Engine.Middlewares
             return false;
         }
 
+        private static bool DevKeyMatches(HttpContext httpContext)
+        {
+            var key = AppInit.conf.devkey;
+            if (string.IsNullOrEmpty(key)) return true;
+            if (httpContext.Request.Headers.TryGetValue("X-Dev-Key", out var h) && h == key) return true;
+            var match = Regex.Match(httpContext.Request.QueryString.Value ?? "", "(\\?|&)devkey=([^&]+)");
+            return match.Success && match.Groups[2].Value == key;
+        }
+
         public async Task Invoke(HttpContext httpContext)
         {
-            httpContext.Response.Headers["Access-Control-Allow-Credentials"] = "true";
-            httpContext.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
-            httpContext.Response.Headers["Access-Control-Allow-Headers"] = "Accept, Origin, Content-Type";
-            httpContext.Response.Headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS";
-
-            if (httpContext.Request.Headers.TryGetValue("origin", out var origin))
-                httpContext.Response.Headers["Access-Control-Allow-Origin"] = origin.ToString();
-            else if (httpContext.Request.Headers.TryGetValue("referer", out var referer))
-                httpContext.Response.Headers["Access-Control-Allow-Origin"] = referer.ToString();
-            else
-                httpContext.Response.Headers["Access-Control-Allow-Origin"] = "*";
-
             bool fromLocalNetwork = IsLocalOrPrivate(httpContext.Connection.RemoteIpAddress);
+            string path = httpContext.Request.Path.Value ?? "";
 
             if (!fromLocalNetwork)
             {
-                // External: restrict /cron/, /jsondb, /dev/ to local only
-                if (httpContext.Request.Path.Value.StartsWith("/cron/") || httpContext.Request.Path.Value.StartsWith("/jsondb") || httpContext.Request.Path.Value.StartsWith("/dev/"))
+                // Внешние запросы: /cron/, /jsondb, /dev/ — только из локальной сети (запрет для lampa.mx и т.п.)
+                if (IsLocalOnlyPath(path))
+                {
+                    httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 403;
                     return;
+                }
 
                 // External: require API key when configured
                 if (!string.IsNullOrEmpty(AppInit.conf.apikey))
@@ -70,11 +81,27 @@ namespace JacRed.Engine.Middlewares
 
                     var match = Regex.Match(httpContext.Request.QueryString.Value ?? "", "(\\?|&)apikey=([^&]+)");
                     if (!match.Success || AppInit.conf.apikey != match.Groups[2].Value)
+                    {
+                        httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 401;
                         return;
+                    }
+                }
+            }
+            else
+            {
+                // За туннелем / прокси все запросы выглядят локальными — ограничиваем /dev/, /cron/, /jsondb по devkey
+                if (IsLocalOnlyPath(path) && !string.IsNullOrEmpty(AppInit.conf.devkey) && !DevKeyMatches(httpContext))
+                {
+                    httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 401;
+                    return;
                 }
             }
 
-            bool isCron = httpContext.Request.Path.Value?.StartsWith("/cron/", StringComparison.OrdinalIgnoreCase) == true;
+            // Access-Control-Allow-Private-Network — не ставим для ответов 403/401 по локальным путям
+            if (fromLocalNetwork || !IsLocalOnlyPath(path))
+                httpContext.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
+
+            bool isCron = path.StartsWith("/cron/", StringComparison.OrdinalIgnoreCase);
             var cronStopwatch = isCron ? Stopwatch.StartNew() : null;
 
             await _next(httpContext);
@@ -82,7 +109,6 @@ namespace JacRed.Engine.Middlewares
             if (isCron && cronStopwatch != null)
             {
                 cronStopwatch.Stop();
-                var path = httpContext.Request.Path.Value ?? "";
                 var label = path.Length > 6 && path.StartsWith("/cron/", StringComparison.OrdinalIgnoreCase) ? path.Substring(6) : path.TrimStart('/');
                 var elapsed = cronStopwatch.ElapsedMilliseconds >= 1000
                     ? $"{cronStopwatch.Elapsed.TotalSeconds:F1}s"
