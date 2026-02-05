@@ -7,6 +7,7 @@ using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using Microsoft.AspNetCore.Mvc;
+using MonoTorrent;
 
 namespace JacRed.Controllers
 {
@@ -296,5 +297,202 @@ namespace JacRed.Controllers
             FileDB.SaveChangesToFile();
             return Json(new { ok = true, removed = totalRemoved, affectedFiles });
         }
+
+        #region Tracks / Torrserver API test endpoints
+
+        /// <summary>Current tracks configuration: workers, time windows, tservers count. Metadata = video/audio/subtitle streams from ffprobe.</summary>
+        public IActionResult TracksConfig()
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            var c = AppInit.conf;
+            var serverList = AppInit.GetTorrserverList();
+            return Json(new
+            {
+                ok = true,
+                enabled = c.tracks,
+                onlyNew = c.tracksOnlyNew,
+                mod = c.tracksmod,
+                windows = new
+                {
+                    dayDays = c.tracksDayWindowDays,
+                    monthDays = c.tracksMonthWindowDays,
+                    yearMonths = c.tracksYearWindowMonths,
+                    updatesDays = c.tracksUpdatesWindowDays
+                },
+                workers = new
+                {
+                    day = c.tracksWorkersDay,
+                    month = c.tracksWorkersMonth,
+                    year = c.tracksWorkersYear,
+                    older = c.tracksWorkersOlder,
+                    updates = c.tracksWorkersUpdates
+                },
+                tserversCount = serverList?.Count ?? 0,
+                timeoutMinutes = c.tracksFfpTimeoutMinutes,
+                metadataPollMs = c.tracksMetadataPollMs,
+                metadataMaxAttempts = c.tracksMetadataMaxAttempts
+            });
+        }
+
+        /// <summary>Queue one-time metadata run for torrents without metadata in last N days. window=1 (day), 7 (week), 30 (month). Only from localhost.</summary>
+        public IActionResult TracksRunOnce(int window = 7)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
+                return Json(new { error = "tservers not configured or empty" });
+
+            int windowDays = Math.Max(1, Math.Min(365, window));
+            _ = System.Threading.Tasks.Task.Run(() => TracksCron.RunOnce(windowDays));
+            return Json(new { ok = true, queued = true, windowDays, message = "One-time metadata run queued for torrents (no metadata yet) created in last " + windowDays + " days." });
+        }
+
+        /// <summary>Run full track pipeline: add → wait metadata → ffp → rem. Use magnet= or hash= (hash = infohash, then magnet must be in DB or pass magnet).</summary>
+        public async System.Threading.Tasks.Task<IActionResult> TracksTest(string magnet, string hash)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            string infohash = null;
+            string magnetToUse = magnet;
+            if (!string.IsNullOrWhiteSpace(hash))
+            {
+                infohash = hash.Trim().ToLowerInvariant();
+                if (infohash.Length != 40)
+                    return Json(new { error = "hash must be 40-char infohash" });
+                if (string.IsNullOrWhiteSpace(magnetToUse))
+                    magnetToUse = "magnet:?xt=urn:btih:" + infohash;
+            }
+            else if (!string.IsNullOrWhiteSpace(magnetToUse))
+            {
+                try
+                {
+                    infohash = MagnetLink.Parse(magnetToUse).InfoHashes.V1OrV2.ToHex();
+                }
+                catch
+                {
+                    return Json(new { error = "invalid magnet" });
+                }
+            }
+            else
+                return Json(new { error = "pass magnet= or hash=" });
+
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
+                return Json(new { error = "tservers not configured or empty" });
+
+            var (tsuri, tsuser, tspass) = serverList[new Random().Next(0, serverList.Count)];
+            string addResp = await TorrserverClient.AddTorrent(tsuri, magnetToUse, 120, tsuser, tspass);
+            if (string.IsNullOrEmpty(addResp))
+                return Json(new { ok = false, step = "add", error = "add failed" });
+
+            int pollMs = Math.Max(500, Math.Min(30000, AppInit.conf.tracksMetadataPollMs));
+            int maxAttempts = Math.Max(5, Math.Min(300, AppInit.conf.tracksMetadataMaxAttempts));
+            Models.Tracks.TorrserverTorrentStatus status = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                await System.Threading.Tasks.Task.Delay(pollMs);
+                status = await TorrserverClient.GetTorrent(tsuri, infohash, 20, tsuser, tspass);
+                if (TorrserverClient.HasMetadata(status))
+                    break;
+            }
+
+            if (!TorrserverClient.HasMetadata(status))
+            {
+                await TorrserverClient.RemTorrent(tsuri, infohash, 15, tsuser, tspass);
+                return Json(new { ok = false, step = "metadata", error = "metadata timeout" });
+            }
+
+            var ffp = await TorrserverClient.Ffp(tsuri, infohash, 1, 180, tsuser, tspass);
+            await TorrserverClient.RemTorrent(tsuri, infohash, 15, tsuser, tspass);
+
+            return Json(new
+            {
+                ok = true,
+                infohash,
+                tsuri,
+                streams_count = ffp?.streams?.Count ?? 0,
+                streams = ffp?.streams
+            });
+        }
+
+        /// <summary>GET /ffp/{hash}/{index} from a configured Torrserver. Torrent must already be on server.</summary>
+        public async System.Threading.Tasks.Task<IActionResult> TracksFfp(string hash, int index = 1)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            string infohash = (hash ?? "").Trim().ToLowerInvariant();
+            if (infohash.Length != 40)
+                return Json(new { error = "hash must be 40-char infohash" });
+
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
+                return Json(new { error = "tservers not configured or empty" });
+
+            var (tsuri, tsuser, tspass) = serverList[0];
+            var ffp = await TorrserverClient.Ffp(tsuri, infohash, index, 120, tsuser, tspass);
+            if (ffp?.streams == null)
+                return Json(new { ok = false, error = "ffp failed or no streams" });
+            return Json(new { ok = true, streams_count = ffp.streams.Count, streams = ffp.streams });
+        }
+
+        /// <summary>Add torrent to first Torrserver. POST body or query: link (magnet).</summary>
+        public async System.Threading.Tasks.Task<IActionResult> TracksTorrentAdd(string link)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
+                return Json(new { error = "tservers not configured or empty" });
+            string magnet = link?.Trim();
+            if (string.IsNullOrEmpty(magnet))
+                return Json(new { error = "link (magnet) required" });
+            var (tsuri, tsuser, tspass) = serverList[0];
+            string resp = await TorrserverClient.AddTorrent(tsuri, magnet, 120, tsuser, tspass);
+            if (string.IsNullOrEmpty(resp))
+                return Json(new { ok = false, error = "add failed" });
+            return Json(new { ok = true, response = resp });
+        }
+
+        /// <summary>Get torrent status from first Torrserver. hash = infohash.</summary>
+        public async System.Threading.Tasks.Task<IActionResult> TracksTorrentGet(string hash)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+            string infohash = (hash ?? "").Trim().ToLowerInvariant();
+            if (infohash.Length != 40)
+                return Json(new { error = "hash must be 40-char infohash" });
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
+                return Json(new { error = "tservers not configured or empty" });
+            var (tsuri, tsuser, tspass) = serverList[0];
+            var status = await TorrserverClient.GetTorrent(tsuri, infohash, 20, tsuser, tspass);
+            if (status == null)
+                return Json(new { ok = false, error = "not found" });
+            return Json(new { ok = true, has_metadata = TorrserverClient.HasMetadata(status), status });
+        }
+
+        /// <summary>Remove torrent from first Torrserver. hash = infohash.</summary>
+        public async System.Threading.Tasks.Task<IActionResult> TracksTorrentRem(string hash)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+            string infohash = (hash ?? "").Trim().ToLowerInvariant();
+            if (infohash.Length != 40)
+                return Json(new { error = "hash must be 40-char infohash" });
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
+                return Json(new { error = "tservers not configured or empty" });
+            var (tsuri, tsuser, tspass) = serverList[0];
+            await TorrserverClient.RemTorrent(tsuri, infohash, 15, tsuser, tspass);
+            return Json(new { ok = true });
+        }
+
+        #endregion
     }
 }

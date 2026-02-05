@@ -201,15 +201,72 @@ namespace JacRed
 
         public bool web = true;
 
-        /// <summary>
-        /// 0 - все
-        /// 1 - день, месяц
-        /// </summary>
+        /// <summary>0 = all tasks (day, month, year, older, updates); 1 = only day and month.</summary>
         public int tracksmod = 0;
+
+        /// <summary>When true, only "recent" task runs (tracksDayWindowDays). Use for "only new" / recent torrents.</summary>
+        public bool tracksOnlyNew = false;
+
+        /// <summary>Recent window: torrents created in last N days (task 1). 7 = last week.</summary>
+        public int tracksDayWindowDays = 1;
+
+        /// <summary>Month window: torrents created between 1 and N days ago (task 2).</summary>
+        public int tracksMonthWindowDays = 30;
+
+        /// <summary>Year window: torrents created between tracksMonthWindowDays and N months ago (task 3).</summary>
+        public int tracksYearWindowMonths = 12;
+
+        /// <summary>Updates window: torrents updated in last N days (task 5).</summary>
+        public int tracksUpdatesWindowDays = 30;
 
         public int tracksdelay = 20_000;
 
-        public string[] tsuri = new string[] { "http://127.0.0.1:8090" };
+        /// <summary>Torrserver list: each entry has url and optional username/password. Tracks use random server per request. Add with save_to_db: false.</summary>
+        public TorrserverEntry[] tservers = new TorrserverEntry[] { new TorrserverEntry { url = "http://127.0.0.1:8090" } };
+
+        /// <summary>Returns list of (url, username, password). Only entries with non-empty url. Empty if tservers null or no valid entries.</summary>
+        public static List<(string url, string username, string password)> GetTorrserverList()
+        {
+            var c = conf;
+            if (c?.tservers == null || c.tservers.Length == 0)
+                return new List<(string, string, string)>();
+
+            var list = new List<(string, string, string)>();
+            foreach (var t in c.tservers)
+            {
+                if (string.IsNullOrWhiteSpace(t?.url)) continue;
+                list.Add((
+                    t.url.Trim(),
+                    string.IsNullOrWhiteSpace(t.username) ? null : t.username?.Trim(),
+                    string.IsNullOrWhiteSpace(t.password) ? null : t.password
+                ));
+            }
+            return list;
+        }
+
+        /// <summary>Timeout in minutes for a single track ffprobe run (add → metadata → ffp → rem).</summary>
+        public int tracksFfpTimeoutMinutes = 3;
+
+        /// <summary>Poll interval in ms when waiting for Torrserver metadata.</summary>
+        public int tracksMetadataPollMs = 2000;
+
+        /// <summary>Max attempts when waiting for metadata (attempts * poll ≈ wait time).</summary>
+        public int tracksMetadataMaxAttempts = 90;
+
+        /// <summary>Number of workers for "recent" task (createTime in last tracksDayWindowDays). Min 1, max 20.</summary>
+        public int tracksWorkersDay = 1;
+
+        /// <summary>Workers for "month" task (created 1..tracksMonthWindowDays days ago).</summary>
+        public int tracksWorkersMonth = 1;
+
+        /// <summary>Workers for "year" task.</summary>
+        public int tracksWorkersYear = 1;
+
+        /// <summary>Workers for "older" task (created &gt; tracksYearWindowMonths ago).</summary>
+        public int tracksWorkersOlder = 1;
+
+        /// <summary>Workers for "updates" task (updateTime in last tracksUpdatesWindowDays).</summary>
+        public int tracksWorkersUpdates = 1;
 
         // Deprecated: use logFdb and logParsers. When true, enables both fdb and parser logs for backward compatibility.
         public bool log = false;

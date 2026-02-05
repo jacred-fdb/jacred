@@ -25,14 +25,27 @@ namespace JacRed.Engine
                 if (AppInit.conf.tracks == false)
                     continue;
 
+                var serverList = AppInit.GetTorrserverList();
+                if (serverList == null || serverList.Count == 0)
+                    continue;
+
                 if (AppInit.conf.tracksmod == 1 && (typetask == 3 || typetask == 4))
                     continue;
 
+                if (AppInit.conf.tracksOnlyNew && typetask != 1)
+                    continue;
+
+                int dayDays = Math.Max(1, Math.Min(365, AppInit.conf.tracksDayWindowDays));
+                int monthDays = Math.Max(2, Math.Min(365, AppInit.conf.tracksMonthWindowDays));
+                int yearMonths = Math.Max(1, Math.Min(120, AppInit.conf.tracksYearWindowMonths));
+                int updatesDays = Math.Max(1, Math.Min(365, AppInit.conf.tracksUpdatesWindowDays));
+
                 try
                 {
-                    Console.WriteLine($"tracks: start typetask={typetask} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    Console.WriteLine($"tracks: start typetask={typetask} servers={serverList.Count} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     var starttime = DateTime.Now;
                     var torrents = new List<TorrentDetails>();
+                    var now = DateTime.UtcNow;
 
                     foreach (var item in FileDB.masterDb.ToArray())
                     {
@@ -46,37 +59,26 @@ namespace JacRed.Engine
                             switch (typetask)
                             {
                                 case 1:
-                                    isok = t.createTime >= DateTime.UtcNow.AddDays(-1);
+                                    isok = t.createTime >= now.AddDays(-dayDays);
                                     break;
                                 case 2:
-                                    {
-                                        if (t.createTime >= DateTime.UtcNow.AddDays(-1))
-                                            break;
-
-                                        isok = t.createTime >= DateTime.UtcNow.AddMonths(-1);
+                                    if (t.createTime >= now.AddDays(-1))
                                         break;
-                                    }
+                                    isok = t.createTime >= now.AddDays(-monthDays);
+                                    break;
                                 case 3:
-                                    {
-                                        if (t.createTime >= DateTime.UtcNow.AddMonths(-1))
-                                            break;
-
-                                        isok = t.createTime >= DateTime.UtcNow.AddYears(-1);
+                                    if (t.createTime >= now.AddDays(-monthDays))
                                         break;
-                                    }
+                                    isok = t.createTime >= now.AddMonths(-yearMonths);
+                                    break;
                                 case 4:
-                                    {
-                                        if (t.createTime >= DateTime.UtcNow.AddYears(-1))
-                                            break;
-
-                                        isok = true;
+                                    if (t.createTime >= now.AddMonths(-yearMonths))
                                         break;
-                                    }
+                                    isok = true;
+                                    break;
                                 case 5:
-                                    {
-                                        isok = t.updateTime >= DateTime.UtcNow.AddMonths(-1);
-                                        break;
-                                    }
+                                    isok = t.updateTime >= now.AddDays(-updatesDays);
+                                    break;
                                 default:
                                     break;
                             }
@@ -129,6 +131,39 @@ namespace JacRed.Engine
                 }
                 catch (Exception ex) { Console.WriteLine($"tracks: error typetask={typetask} / {ex.Message}"); }
             }
+        }
+
+        /// <summary>One-time pass: collect torrents without metadata created in last windowDays, process each. Used by /dev/TracksRunOnce.</summary>
+        public static async Task RunOnce(int windowDays)
+        {
+            if (AppInit.conf?.tracks == false) return;
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0) return;
+
+            var now = DateTime.UtcNow;
+            var torrents = new List<TorrentDetails>();
+            foreach (var item in FileDB.masterDb.ToArray())
+            {
+                foreach (var t in FileDB.OpenRead(item.Key, cache: false).Values)
+                {
+                    if (string.IsNullOrEmpty(t.magnet)) continue;
+                    if (t.createTime < now.AddDays(-windowDays)) continue;
+                    if (TracksDB.theBad(t.types) || t.ffprobe != null) continue;
+                    if (TracksDB.Get(t.magnet) != null) continue;
+                    torrents.Add(t);
+                }
+            }
+
+            Console.WriteLine($"tracks: RunOnce window={windowDays}d collected {torrents.Count} torrents without metadata");
+            foreach (var t in torrents.OrderByDescending(i => i.updateTime))
+            {
+                try
+                {
+                    await TracksDB.Add(t.magnet);
+                }
+                catch { }
+            }
+            Console.WriteLine($"tracks: RunOnce window={windowDays}d finished");
         }
     }
 }

@@ -8,10 +8,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace JacRed.Engine
 {
@@ -41,7 +39,8 @@ namespace JacRed.Engine
             }
         }
 
-        static Random random = new Random();
+        static readonly object _serverPickLock = new object();
+        static Random _random = new Random();
 
         static ConcurrentDictionary<string, FfprobeModel> Database = new ConcurrentDictionary<string, FfprobeModel>();
 
@@ -97,50 +96,72 @@ namespace JacRed.Engine
             if (types != null && theBad(types))
                 return;
 
-            if (AppInit.conf.tsuri == null || AppInit.conf.tsuri.Length == 0)
+            var serverList = AppInit.GetTorrserverList();
+            if (serverList == null || serverList.Count == 0)
                 return;
 
-            string infohash = MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex();
-            if (string.IsNullOrEmpty(infohash))
-                return;
-
-            FfprobeModel res = null;
-            string tsuri = AppInit.conf.tsuri[random.Next(0, AppInit.conf.tsuri.Length)];
-
-            #region ffprobe
+            string infohash;
             try
             {
-                var timeOut = TimeSpan.FromMinutes(3);
-                var cancellationTokenSource = new CancellationTokenSource(timeOut);
-                var token = cancellationTokenSource.Token;
+                infohash = MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex();
+            }
+            catch { return; }
 
-                string media = $"{tsuri}/stream/file?link={HttpUtility.UrlEncode(magnet)}&index=1&play";
+            if (string.IsNullOrEmpty(infohash) || infohash.Length != 40)
+                return;
 
-                using (var process = new System.Diagnostics.Process())
+            int serverIndex;
+            lock (_serverPickLock)
+            {
+                serverIndex = _random.Next(0, serverList.Count);
+            }
+            var (tsuri, tsuser, tspass) = serverList[serverIndex];
+
+            int timeoutMinutes = Math.Max(1, Math.Min(15, AppInit.conf.tracksFfpTimeoutMinutes));
+            int pollMs = Math.Max(500, Math.Min(30_000, AppInit.conf.tracksMetadataPollMs));
+            int maxAttempts = Math.Max(5, Math.Min(300, AppInit.conf.tracksMetadataMaxAttempts));
+            FfprobeModel res = null;
+
+            try
+            {
+                var existing = await TorrserverClient.GetTorrent(tsuri, infohash, timeoutSeconds: 20, tsuser, tspass);
+
+                if (TorrserverClient.HasMetadata(existing))
                 {
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                    process.StartInfo.FileName = "ffprobe";
-                    process.StartInfo.Arguments = $"-v quiet -print_format json -show_format -show_streams \"{media}\"";
-                    process.Start();
+                    res = await TorrserverClient.Ffp(tsuri, infohash, fileIndex: 1, timeoutSeconds: Math.Max(60, (timeoutMinutes - 1) * 60), tsuser, tspass);
+                }
+                else
+                {
+                    if (existing == null)
+                    {
+                        string addResp = await TorrserverClient.AddTorrent(tsuri, magnet, timeoutSeconds: 120, tsuser, tspass);
+                        if (string.IsNullOrEmpty(addResp))
+                            return;
+                    }
 
-                    await process.WaitForExitAsync(token);
+                    for (int attempt = 0; attempt < maxAttempts; attempt++)
+                    {
+                        await Task.Delay(pollMs);
+                        var status = await TorrserverClient.GetTorrent(tsuri, infohash, timeoutSeconds: 20, tsuser, tspass);
+                        if (TorrserverClient.HasMetadata(status))
+                            break;
+                        if (attempt == maxAttempts - 1)
+                            return;
+                    }
 
-                    string outPut = await process.StandardOutput.ReadToEndAsync();
-                    res = JsonConvert.DeserializeObject<FfprobeModel>(outPut);
+                    res = await TorrserverClient.Ffp(tsuri, infohash, fileIndex: 1, timeoutSeconds: Math.Max(60, (timeoutMinutes - 1) * 60), tsuser, tspass);
                 }
             }
             catch { }
-
-            await HttpClient.Post($"{tsuri}/torrents", "{\"action\":\"rem\",\"hash\":\"" + infohash + "\"}");
+            finally
+            {
+                await TorrserverClient.RemTorrent(tsuri, infohash, 15, tsuser, tspass);
+            }
 
             if (res?.streams == null || res.streams.Count == 0)
                 return;
-            #endregion
 
             Database.AddOrUpdate(infohash, res, (k, v) => res);
-
             try
             {
                 string path = pathDb(infohash, createfolder: true);
