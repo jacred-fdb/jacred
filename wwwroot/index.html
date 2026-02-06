@@ -7,7 +7,7 @@
   <meta name="description"
     content="JacRed - Торрент агрегатор. Поиск торрентов по нескольким трекерам в BDRip и HDRip качестве" />
   <meta name="theme-color" content="#0a0a0f" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Поиск торрентов | JacRed</title>
   <link rel="icon" type="image/png" href="./img/jacred.png" />
@@ -15,8 +15,6 @@
   <link rel="apple-touch-icon" href="./img/icon-192.png" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="search" type="application/opensearchdescription+xml" title="Torlook" href="/opensearch.xml" />
-
-  <!-- Preconnect for fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
@@ -204,7 +202,6 @@
       line-clamp: 2;
     }
 
-    /* Result card action buttons: unified look + click feedback */
     #resultsDiv .webResult .h2 .magneto,
     #resultsDiv .webResult .h2 .btn-copy-magnet,
     #resultsDiv .webResult .h2 .btn-copy-hash,
@@ -220,7 +217,6 @@
       transform: scale(0.92);
     }
 
-    /* Magnet link: primary button with clear border and inner shadow when active */
     #resultsDiv .webResult .h2 .magneto {
       border-color: rgba(255, 255, 255, 0.25);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
@@ -235,7 +231,6 @@
       box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
-    /* Inactive action buttons: subtle border, hover lift, click press */
     #resultsDiv .webResult .h2 .btn-copy-magnet,
     #resultsDiv .webResult .h2 .btn-copy-hash,
     #resultsDiv .webResult .h2 .btn-send-to-tor {
@@ -267,7 +262,6 @@
       box-shadow: none;
     }
 
-    /* TorrServer button: loading and success states */
     #resultsDiv .webResult .h2 .btn-send-to-tor.is-loading {
       cursor: wait;
     }
@@ -287,7 +281,6 @@
 <body class="text-gray-100 font-sans min-h-screen antialiased">
   <div id="app" class="container mx-auto px-3 sm:px-4 py-3 sm:py-5 max-w-5xl">
 
-    <!-- Header (aligned with stats.html) -->
     <header class="mb-4 sm:mb-6 animate-slide-up">
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -354,11 +347,9 @@
       </div>
     </header>
 
-    <!-- Search Form (card style like stats.html toolbar) -->
     <form id="searchForm"
       class="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-800 shadow-sm mb-5 animate-slide-up toolbar-field">
 
-      <!-- Search Input -->
       <div class="mb-4">
         <div class="relative">
           <input type="text" id="s" name="s"
@@ -380,7 +371,6 @@
         <div id="validateError" class="text-red-500 dark:text-red-400 text-sm mt-2 text-center blink hidden"></div>
       </div>
 
-      <!-- Filters Toggle -->
       <div class="mb-3">
         <button type="button" id="filterToggle" aria-expanded="false" aria-controls="filterContainer"
           class="tap-target w-full flex items-center justify-between px-4 py-3 min-h-[44px] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-gray-900 dark:text-gray-100 font-medium transition-all">
@@ -399,7 +389,6 @@
         </button>
       </div>
 
-      <!-- Filters Container (Collapsible): 1 col mobile, 2 tablet, 3 desktop -->
       <div id="filterContainer" class="collapse-content" aria-hidden="true">
         <div
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
@@ -473,7 +462,6 @@
         </div>
       </div>
 
-      <!-- Search Options: sort (sid/size/date) + exact search -->
       <div class="flex flex-wrap items-center gap-3 sm:gap-5 mb-4">
         <div class="flex flex-wrap items-center gap-3 sm:gap-4">
           <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
@@ -506,7 +494,6 @@
         </label>
       </div>
 
-      <!-- Submit and Reset -->
       <div class="flex gap-3 flex-wrap sm:flex-nowrap">
         <button type="submit" id="submitButton"
           class="flex-1 min-h-[48px] py-3.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/30 transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed tap-target">
@@ -521,7 +508,6 @@
 
     </form>
 
-    <!-- Loading State -->
     <div id="loading" class="hidden text-center py-16 animate-fade-in">
       <div class="inline-flex flex-col items-center gap-4">
         <div class="relative">
@@ -532,10 +518,8 @@
       </div>
     </div>
 
-    <!-- Results Container -->
     <div id="resultsDiv" class="animate-slide-up">
 
-      <!-- Initial Help Message -->
       <div class="webResult help">
         <div
           class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-2xl p-8 border border-blue-200 dark:border-blue-900/30 text-center">
@@ -549,12 +533,10 @@
         </div>
       </div>
 
-      <!-- Example Result (Hidden by default - shown via JS) -->
       <div class="webResult hidden mb-6">
         <div
           class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-lg shadow-gray-200/50 dark:shadow-black/20">
 
-          <!-- Title -->
           <div
             class="h2 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-850 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-start justify-between gap-4">
@@ -575,14 +557,11 @@
             </div>
           </div>
 
-          <!-- Content -->
           <div class="p-6">
-            <!-- Description -->
             <div class="desc text-gray-700 dark:text-gray-300 mb-4 text-center">
               Описание релиза
             </div>
 
-            <!-- Tags -->
             <div class="tags flex flex-wrap justify-center gap-2 mb-4">
               <span
                 class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm">Качество</span>
@@ -590,7 +569,6 @@
                 class="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">Озвучка</span>
             </div>
 
-            <!-- Stats -->
             <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -632,7 +610,6 @@
         </div>
       </div>
 
-      <!-- Not Found Message -->
       <div class="webResult notfound hidden">
         <div class="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
           <svg class="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor"
@@ -648,7 +625,6 @@
 
     </div>
 
-    <!-- Load more (sibling to resultsDiv so it survives innerHTML replace) -->
     <div id="loadMoreWrap" class="hidden text-center mt-5">
       <button type="button" id="loadMoreBtn"
         class="tap-target min-h-[48px] px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium rounded-xl transition-all duration-150">
@@ -656,11 +632,9 @@
       </button>
     </div>
 
-    <!-- Footer -->
     <footer class="mt-16 bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800">
       <div class="flex flex-wrap items-center justify-between gap-4">
 
-        <!-- Social Links -->
         <div class="social flex items-center gap-3">
           <a href="https://github.com/jacred-fdb/jacred" target="_blank" rel="noopener"
             class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -674,26 +648,16 @@
           </a>
         </div>
 
-        <!-- Copyright -->
         <div class="text-sm text-gray-600 dark:text-gray-400">
           Работает на <a href="https://github.com/jacred-fdb/jacred" target="_blank" rel="noopener"
             class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Jacred</a>
         </div>
-
-        <!-- Language
-        <div class="lang flex items-center gap-2">
-          <span class="text-sm text-gray-600 dark:text-gray-400">Lang:</span>
-          <button class="opacity-50 hover:opacity-100 transition-opacity">
-            <img src="https://flagcdn.com/w20/ru.png" alt="RU" class="w-5 h-auto" />
-          </button>
-        </div> -->
 
       </div>
     </footer>
 
   </div>
 
-  <!-- Back to Top Button (respects safe area on iPhone) -->
   <button id="backToTop"
     class="fixed p-3 sm:p-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-full shadow-2xl shadow-red-900/50 opacity-0 pointer-events-none transition-all duration-150 z-50 group hover:scale-110 active:scale-95 tap-target"
     style="bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); right: calc(1rem + env(safe-area-inset-right, 0px));"
@@ -704,7 +668,6 @@
     </svg>
   </button>
 
-  <!-- API Key Modal -->
   <div id="apiKeyModal" class="fixed inset-0 z-[100] hidden" aria-modal="true" aria-labelledby="apiKeyModalTitle"
     role="dialog">
     <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="apiKeyModalBackdrop"></div>
@@ -733,7 +696,6 @@
     </div>
   </div>
 
-  <!-- Tor server settings modal -->
   <div id="torServerModal" class="fixed inset-0 z-[100] hidden" aria-modal="true" aria-labelledby="torServerModalTitle"
     role="dialog">
     <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="torServerModalBackdrop"></div>
@@ -852,7 +814,6 @@
           try { localStorage.setItem(key, encrypted); } catch (e) { }
         }
 
-        // DOM Elements cache
         const elements = {
           searchForm: null,
           searchInput: null,
@@ -875,9 +836,7 @@
         };
 
         const PAGE_SIZE = 20;
-        // API returns up to 2000 items; no take/skip. We paginate client-side.
 
-        // State
         const state = {
           isLoading: false,
           filtersVisible: false,
@@ -889,7 +848,6 @@
           filterExclude: ''
         };
 
-        // Utility: Debounce
         const debounce = (func, wait) => {
           let timeout;
           return function executedFunction(...args) {
@@ -902,7 +860,6 @@
           };
         };
 
-        // Theme management
         const updateThemeIcons = (isDark) => {
           if (isDark) {
             elements.iconMoon.classList.remove('hidden');
@@ -937,7 +894,6 @@
           }
         };
 
-        // Clear button visibility
         const updateClearButton = () => {
           if (elements.searchInput.value.length > 0) {
             elements.clear.classList.remove('hidden');
@@ -946,7 +902,6 @@
           }
         };
 
-        // Clear search input
         const handleClear = () => {
           elements.searchInput.value = '';
           elements.searchInput.focus();
@@ -954,7 +909,6 @@
           elements.validateError.classList.add('hidden');
         };
 
-        // Count active filters (selects with non-empty value + refine/exclude)
         const getActiveFilterCount = () => {
           let n = 0;
           document.querySelectorAll('#filterContainer select.filter-input').forEach(function (el) {
@@ -980,7 +934,6 @@
           }
         };
 
-        // Toggle filters (with localStorage persistence)
         const toggleFilters = () => {
           state.filtersVisible = !state.filtersVisible;
           if (state.filtersVisible) {
@@ -997,7 +950,6 @@
           try { localStorage.setItem('jacredFiltersOpen', state.filtersVisible ? '1' : '0'); } catch (e) { }
         };
 
-        // Disable/Enable results
         const setResultsDisabled = (disabled) => {
           if (disabled) {
             elements.resultsDiv.style.opacity = '0.4';
@@ -1008,7 +960,6 @@
           }
         };
 
-        // Escape HTML for safe insertion
         const escapeHtml = (str) => {
           if (str == null) return '';
           const div = document.createElement('div');
@@ -1016,7 +967,6 @@
           return div.innerHTML;
         };
 
-        // Format date from API (ISO string or timestamp)
         const formatDate = (createTime) => {
           if (createTime == null) return '—';
           const d = new Date(createTime);
@@ -1027,7 +977,6 @@
           return `${y}-${m}-${day}`;
         };
 
-        // Escape for HTML attribute (for magnet in data-magnet and href)
         const escapeAttr = (str) => {
           if (str == null) return '';
           return String(str)
@@ -1042,7 +991,6 @@
           return (sel && sel.value) ? sel.value.trim() : '';
         };
 
-        // Build one result card HTML
         const buildCardHtml = (elem, activeTracker) => {
           const title = escapeHtml(elem.title || elem.name || '');
           const url = elem.url ? escapeAttr(elem.url) : '#';
@@ -1123,7 +1071,6 @@
           updateFilterCountBadge();
         };
 
-        // Build results HTML. items = array or null. limit = show first N (client-side pagination).
         const buildResultsFromJson = (items, limit) => {
           if (items == null || !Array.isArray(items)) return { html: helpHtml, hasMore: false };
           if (items.length === 0) return { html: notfoundHtml, hasMore: false };
@@ -1133,7 +1080,6 @@
           return { html, hasMore: limit ? items.length > limit : false };
         };
 
-        // Build API URL (no take/skip — API returns up to 2000). Sort: sid | size | create.
         const buildApiUrl = (query) => {
           const sortVal = (document.querySelector('input[name="sort"]:checked') || {}).value || 'sid';
           const sortMap = { sid: 'sid', size: 'size', date: 'create' };
@@ -1163,7 +1109,6 @@
           return url;
         };
 
-        // Populate filter selects from results; preserve current selection even if not in new result set
         const initFilter = (items) => {
           const $c = $('#filterContainer');
           if (!items || !items.length) return;
@@ -1193,7 +1138,6 @@
           fillSelect('type', types, 'Любая');
         };
 
-        // Apply client-side refine/exclude and return filtered items
         const applyClientFilters = (items) => {
           const refine = (state.filterRefine || '').trim().toLowerCase();
           const exclude = (state.filterExclude || '').trim().toLowerCase();
@@ -1206,7 +1150,6 @@
           });
         };
 
-        // Check API key (like original getKey/checkKey)
         const ensureApiKey = () => {
           return new Promise((resolve, reject) => {
             const tryKey = (k) => {
@@ -1230,7 +1173,6 @@
           });
         };
 
-        // Handle form submit — use API like original index.html
         const handleSubmit = async (e) => {
           e.preventDefault();
 
@@ -1319,7 +1261,6 @@
           }
         };
 
-        // Load more: show next PAGE_SIZE from state.filteredItems (client-side, no API call)
         const loadMore = () => {
           if (!state.filteredItems.length || state.displayCount >= state.filteredItems.length) return;
           state.displayCount += PAGE_SIZE;
@@ -1379,7 +1320,6 @@
           document.body.removeChild(ta);
         };
 
-        // Back to top functionality
         const handleScroll = debounce(() => {
           const scrolled = window.pageYOffset || document.documentElement.scrollTop;
 
@@ -1392,9 +1332,7 @@
           }
         }, 100);
 
-        // Initialize
         const init = () => {
-          // Cache DOM elements
           elements.searchForm = document.getElementById('searchForm');
           elements.searchInput = document.getElementById('s');
           elements.clear = document.getElementById('clear');
@@ -1414,10 +1352,8 @@
           elements.iconSun = document.getElementById('iconSun');
           elements.backToTop = document.getElementById('backToTop');
 
-          // Initialize theme
           initTheme();
 
-          // Event listeners
           elements.searchForm.addEventListener('submit', handleSubmit);
           elements.searchInput.addEventListener('input', () => {
             updateClearButton();
@@ -1426,7 +1362,6 @@
           elements.clear.addEventListener('click', handleClear);
           elements.filterToggle.addEventListener('click', toggleFilters);
 
-          // Restore filters panel state from localStorage
           try {
             if (localStorage.getItem('jacredFiltersOpen') === '1') {
               state.filtersVisible = true;
@@ -1542,18 +1477,15 @@
             if (e.key === 'Escape' && torServerModal && !torServerModal.classList.contains('hidden')) closeTorServerModal();
           });
 
-          // Load more (client-side pagination)
           const loadMoreBtn = document.getElementById('loadMoreBtn');
           if (loadMoreBtn) loadMoreBtn.addEventListener('click', loadMore);
 
-          // Copy magnet (delegated)
           $(document).on('click', '.btn-copy-magnet', function (e) {
             e.preventDefault();
             e.stopPropagation();
             copyMagnetToClipboard($(this).attr('data-magnet'));
           });
 
-          // Copy info hash from magnet (delegated)
           $(document).on('click', '.btn-copy-hash', function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1562,7 +1494,6 @@
             if (hash) copyToClipboardWithFeedback(hash, '.btn-copy-hash', '<i class="fas fa-check text-green-600 text-sm"></i>');
           });
 
-          // Send to Tor server (delegated): POST with action=add, link=magnet, save_to_db=true; optional Basic Auth from localStorage
           const torBtnDefaultHtml = '<svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>';
           const torBtnSpinnerHtml = '<span class="spinner inline-block w-4 h-4 sm:w-5 sm:h-5 border-2 border-current border-t-transparent rounded-full shrink-0" aria-hidden="true"></span>';
           const torBtnSuccessHtml = '<svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
@@ -1631,7 +1562,6 @@
             }
           });
 
-          // Tracker filter button: click = search only this tracker; click again = clear tracker filter (show all trackers)
           $(document).on('click', '.btn-filter-tracker', function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1641,7 +1571,6 @@
             const current = (sel.value || '').trim();
             const isSameTracker = current && tracker && current.toLowerCase() === tracker.toLowerCase();
             if (isSameTracker) {
-              // Toggle off: clear tracker filter so search runs on all trackers
               sel.value = '';
             } else {
               const opt = Array.from(sel.options).find(o => (o.value || '').trim().toLowerCase() === tracker.toLowerCase());
@@ -1653,7 +1582,6 @@
             }
           });
 
-          // Filter: refine/exclude — client-side re-filter and re-render (debounced), auto-update
           const applyRefineExclude = () => {
             const fc = document.getElementById('filterContainer');
             if (fc) {
@@ -1677,7 +1605,6 @@
               el.addEventListener('input', debounce(applyRefineExclude, 200));
             });
           }
-          // Filter: other selects — refetch (API supports them), update badge
           document.querySelectorAll('#filterContainer select.filter-input').forEach(sel => {
             sel.addEventListener('change', function () {
               updateFilterCountBadge();
@@ -1685,7 +1612,6 @@
             });
           });
 
-          // Filter reset
           const resetBtn = document.getElementById('filterReset');
           if (resetBtn) {
             resetBtn.addEventListener('click', function () {
@@ -1703,7 +1629,6 @@
             });
           }
 
-          // Sort radios: save sid/size/date and trigger search
           document.querySelectorAll('input[type=radio][name=sort]').forEach(radio => {
             radio.addEventListener('change', function () {
               try { localStorage.setItem('sort', this.value); } catch (e) { }
@@ -1711,7 +1636,6 @@
             });
           });
 
-          // Exact search: save and trigger search (like original)
           if (elements.forcedSearch) {
             elements.forcedSearch.addEventListener('change', function () {
               try { localStorage.setItem('exact', this.checked ? '1' : '0'); } catch (e) { }
@@ -1723,10 +1647,8 @@
 
           window.addEventListener('scroll', handleScroll);
 
-          // Initial clear button state
           updateClearButton();
 
-          // Restore sort and exact from localStorage
           try {
             const savedSort = localStorage.getItem('sort');
             if (savedSort) {
@@ -1738,7 +1660,6 @@
             }
           } catch (err) { }
 
-          // Restore search only from localStorage (no URL path)
           const savedSearch = (localStorage.getItem('search') || '').trim();
           if (savedSearch) {
             elements.searchInput.value = savedSearch;
@@ -1747,7 +1668,6 @@
           }
         };
 
-        // Start when DOM is ready
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', init);
         } else {
