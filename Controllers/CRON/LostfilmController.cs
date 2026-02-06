@@ -314,6 +314,11 @@ namespace JacRed.Controllers.CRON
                     t.magnet = cached.magnet;
                     t.title = cached.title;
                     t.sizeName = cached.sizeName ?? t.sizeName;
+                    // Сохраняем единое имя/originalname из кэша, чтобы бакет не разъезжался (Пони / Ponies, а не Ponies / Ponies).
+                    if (!string.IsNullOrEmpty(cached.name))
+                        t.name = cached.name;
+                    if (!string.IsNullOrEmpty(cached.originalname))
+                        t.originalname = cached.originalname;
                     return true;
                 }
 
@@ -345,7 +350,7 @@ namespace JacRed.Controllers.CRON
             return false;
         }
 
-        /// <summary>Строит по HTML карту urlPath сериала (series/.../season_N/episode_M/) -> (name ru, originalname) из блоков hor-breaker, чтобы подставлять русское название в episode_links и избегать дубликатов бакетов.</summary>
+        /// <summary>Строит по HTML карту urlPath сериала (series/.../season_N/episode_M/) -> (name ru, originalname) из блоков hor-breaker, чтобы подставлять русское название в episode_links и избегать дубликатов бакетов. Добавляется и ключ по сериалу (series/Slug), чтобы все эпизоды одного сериала получали одно русское имя (Пони, а не Ponies).</summary>
         static Dictionary<string, (string name, string originalname)> BuildHorBreakerNameMap(string html)
         {
             var map = new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase);
@@ -359,8 +364,17 @@ namespace JacRed.Controllers.CRON
                 if (string.IsNullOrEmpty(url) || !url.StartsWith("series/") || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(originalname))
                     continue;
                 string key = url.TrimEnd('/');
+                var pair = (HttpUtility.HtmlDecode(name), HttpUtility.HtmlDecode(originalname));
                 if (!map.ContainsKey(key))
-                    map[key] = (HttpUtility.HtmlDecode(name), HttpUtility.HtmlDecode(originalname));
+                    map[key] = pair;
+                // Ключ по сериалу (series/Slug), чтобы эпизоды, которых нет в hor-breaker на этой странице, тоже получили русское имя (например Пони вместо Ponies).
+                var seriesMatch = Regex.Match(url, @"^series/([^/]+)(?:/|$)", RegexOptions.IgnoreCase);
+                if (seriesMatch.Success)
+                {
+                    string seriesKey = "series/" + seriesMatch.Groups[1].Value.TrimEnd('/');
+                    if (!map.ContainsKey(seriesKey))
+                        map[seriesKey] = pair;
+                }
             }
             return map;
         }
@@ -419,10 +433,14 @@ namespace JacRed.Controllers.CRON
                 string sinfo = HttpUtility.HtmlDecode(Regex.Replace(sm.Value, @"[\s]+", " ").Trim());
                 string originalname = serieName.Replace("_", " ");
                 string name = originalname;
-                if (horBreakerNameMap != null && horBreakerNameMap.TryGetValue(urlPath.TrimEnd('/'), out var ruNames))
+                if (horBreakerNameMap != null)
                 {
-                    name = ruNames.name;
-                    originalname = ruNames.originalname;
+                    if (horBreakerNameMap.TryGetValue(urlPath.TrimEnd('/'), out var ruNames)
+                        || horBreakerNameMap.TryGetValue("series/" + serieName, out ruNames))
+                    {
+                        name = ruNames.name;
+                        originalname = ruNames.originalname;
+                    }
                 }
                 list.Add(new TorrentDetails
                 {
