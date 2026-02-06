@@ -180,6 +180,40 @@
       }
     }
 
+    @media (max-width: 480px) {
+      #app {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.75rem;
+      }
+
+      input,
+      select,
+      button {
+        min-height: 44px;
+        font-size: 16px;
+      }
+
+      #statsTable {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+      }
+
+      #statsTable table {
+        font-size: 0.75rem;
+      }
+
+      #statsTable th,
+      #statsTable td {
+        padding: 0.5rem 0.25rem;
+      }
+
+      .stat-card {
+        padding: 1rem;
+      }
+    }
+
     @media (min-width: 768px) {
       #statsTable {
         border-radius: 0.75rem;
@@ -706,7 +740,10 @@
         const fetchWithRetry = async (url, attempts = CONFIG.RETRY_ATTEMPTS) => {
           for (let i = 0; i < attempts; i++) {
             try {
-              const response = await fetch(url);
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 10000);
+              const response = await fetch(url, { signal: controller.signal });
+              clearTimeout(timeoutId);
               if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
               return await response.text();
             } catch (error) {
@@ -718,7 +755,10 @@
 
         const loadLastUpdate = async () => {
           try {
-            const response = await fetch(CONFIG.LAST_UPDATE_URL);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(CONFIG.LAST_UPDATE_URL, { signal: controller.signal });
+            clearTimeout(timeoutId);
             if (!response.ok) throw new Error('Failed to fetch last update');
 
             const data = await response.json();

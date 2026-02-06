@@ -301,8 +301,9 @@ namespace JacRed.Controllers
         /// <summary>
         /// Find duplicate keys X:X (name == originalname after normalization), for example ponies:ponies. Only localhost.
         /// ?tracker=lostfilm — only buckets with torrents of this tracker.
+        /// ?excludeNumeric=false — include keys that are purely numeric (1899:1899, 911:911); by default they are excluded, as they are usually valid same-name series.
         /// </summary>
-        public JsonResult FindDuplicateKeys(string tracker = null)
+        public JsonResult FindDuplicateKeys(string tracker = null, bool excludeNumeric = true)
         {
             if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
                 return Json(new { badip = true });
@@ -317,6 +318,8 @@ namespace JacRed.Controllers
                 string part1 = key.Substring(0, colon);
                 string part2 = key.Substring(colon + 1);
                 if (!string.Equals(part1, part2, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (excludeNumeric && part1.Length > 0 && part1.All(char.IsDigit))
                     continue;
 
                 int count = 0;

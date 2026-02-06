@@ -144,6 +144,24 @@
       }
     }
 
+    @media (max-width: 480px) {
+      #app {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+      }
+
+      input,
+      select,
+      button {
+        min-height: 44px;
+        font-size: 16px;
+      }
+
+      #filterContainer label {
+        font-size: 0.875rem;
+      }
+    }
+
     .tap-target {
       min-height: 44px;
       min-width: 44px;
@@ -632,6 +650,14 @@
       </button>
     </div>
 
+    <div id="loadMoreSentinel" class="text-center py-8">
+      <div id="loadMoreIndicator" class="hidden inline-flex flex-col items-center gap-3">
+        <div class="w-10 h-10 border-2 border-gray-300 dark:border-gray-700 border-t-red-600 rounded-full spinner">
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Загрузка результатов...</p>
+      </div>
+    </div>
+
     <footer class="mt-16 bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800">
       <div class="flex flex-wrap items-center justify-between gap-4">
 
@@ -840,6 +866,7 @@
 
         const state = {
           isLoading: false,
+          isLoadingMore: false,
           filtersVisible: false,
           allItems: [],
           filteredItems: [],
@@ -1062,8 +1089,6 @@
           if (sidRadio) sidRadio.checked = true;
           if (elements.forcedSearch) elements.forcedSearch.checked = false;
           elements.resultsDiv.innerHTML = helpHtml;
-          const loadMoreWrap = document.getElementById('loadMoreWrap');
-          if (loadMoreWrap) loadMoreWrap.classList.add('hidden');
           state.allItems = [];
           state.filteredItems = [];
           state.displayCount = 0;
@@ -1155,19 +1180,39 @@
           return new Promise((resolve, reject) => {
             const tryKey = (k) => {
               const url = '/api/v1.0/conf' + (k ? '?apikey=' + encodeURIComponent(k) : '');
-              fetch(url)
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+              fetch(url, { signal: controller.signal })
                 .then(r => r.json())
                 .then(json => {
+                  clearTimeout(timeoutId);
                   if (json.apikey) {
                     if (k) localStorage.setItem('api_key', k);
                     resolve();
                   } else {
-                    const entered = prompt(k ? 'Ключ неверный. Введите ключ API:' : 'Введите ключ API:');
-                    if (entered) tryKey(entered);
-                    else reject(new Error('Требуется ключ API'));
+                    if (k) {
+                      elements.validateError.textContent = 'API ключ неверный. Введите правильный ключ.';
+                      elements.validateError.classList.remove('hidden');
+                      reject(new Error('Неверный API ключ'));
+                    } else {
+                      const apiKeyModal = document.getElementById('apiKeyModal');
+                      if (apiKeyModal && apiKeyModal.classList.contains('hidden')) {
+                        const apiKeyBtn = document.getElementById('apiKeyBtn');
+                        if (apiKeyBtn) apiKeyBtn.click();
+                      }
+                      reject(new Error('Требуется API ключ'));
+                    }
                   }
                 })
-                .catch(() => reject(new Error('Требуется ключ API')));
+                .catch((err) => {
+                  clearTimeout(timeoutId);
+                  if (err.name === 'AbortError') {
+                    reject(new Error('Истекло время ожидания ответа сервера'));
+                  } else {
+                    reject(new Error('Ошибка проверки API ключа'));
+                  }
+                });
             };
             const key = localStorage.getItem('api_key');
             tryKey(key || '');
@@ -1213,16 +1258,35 @@
 
           try {
             const url = buildApiUrl(query);
-            const response = await fetch(url);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
 
             if (response.status === 401) {
-              elements.validateError.textContent = 'Требуется ключ API. Введите ключ при следующем поиске.';
+              elements.validateError.textContent = 'Требуется API ключ. Проверьте введённый ключ.';
               elements.validateError.classList.remove('hidden');
               const r = buildResultsFromJson([]);
               elements.resultsDiv.innerHTML = r.html;
-              document.getElementById('loadMoreWrap').classList.add('hidden');
               document.title = `Скачать торрент - ${query} | JacRed`;
               try { history.replaceState({}, document.title, '/'); } catch (e) { }
+              return;
+            }
+
+            if (response.status === 403) {
+              elements.validateError.textContent = 'Доступ запрещён (403). Проверьте ключ API.';
+              elements.validateError.classList.remove('hidden');
+              const r = buildResultsFromJson([]);
+              elements.resultsDiv.innerHTML = r.html;
+              return;
+            }
+
+            if (response.status === 429) {
+              elements.validateError.textContent = 'Слишком много запросов. Подождите несколько секунд.';
+              elements.validateError.classList.remove('hidden');
+              const r = buildResultsFromJson([]);
+              elements.resultsDiv.innerHTML = r.html;
               return;
             }
 
@@ -1240,19 +1304,20 @@
             state.displayCount = PAGE_SIZE;
             const res = buildResultsFromJson(state.filteredItems, PAGE_SIZE);
             elements.resultsDiv.innerHTML = res.html;
-            const loadMoreWrap = document.getElementById('loadMoreWrap');
-            if (res.hasMore) loadMoreWrap.classList.remove('hidden'); else loadMoreWrap.classList.add('hidden');
 
             document.title = `Скачать торрент - ${query} | JacRed`;
             try { history.replaceState({}, document.title, '/'); } catch (e) { }
 
           } catch (error) {
             console.error('Search failed:', error);
-            elements.validateError.textContent = 'Ошибка выполнения поиска';
+            if (error.name === 'AbortError') {
+              elements.validateError.textContent = 'Истекло время ожидания ответа. Попробуйте снова.';
+            } else {
+              elements.validateError.textContent = error.message === 'Failed to fetch' ? 'Ошибка сети. Проверьте соединение.' : 'Ошибка выполнения поиска';
+            }
             elements.validateError.classList.remove('hidden');
             const r = buildResultsFromJson([]);
             elements.resultsDiv.innerHTML = r.html;
-            document.getElementById('loadMoreWrap').classList.add('hidden');
           } finally {
             elements.loading.classList.add('hidden');
             elements.submitButton.disabled = false;
@@ -1264,11 +1329,26 @@
 
         const loadMore = () => {
           if (!state.filteredItems.length || state.displayCount >= state.filteredItems.length) return;
-          state.displayCount += PAGE_SIZE;
-          const res = buildResultsFromJson(state.filteredItems, state.displayCount);
-          elements.resultsDiv.innerHTML = res.html;
-          const loadMoreWrap = document.getElementById('loadMoreWrap');
-          if (res.hasMore) loadMoreWrap.classList.remove('hidden'); else loadMoreWrap.classList.add('hidden');
+          if (state.isLoadingMore) return;
+          state.isLoadingMore = true;
+
+          const loadMoreIndicator = document.getElementById('loadMoreIndicator');
+          if (loadMoreIndicator) loadMoreIndicator.classList.remove('hidden');
+
+          setTimeout(() => {
+            state.displayCount += PAGE_SIZE;
+            const newItems = state.filteredItems.slice(state.displayCount - PAGE_SIZE, state.displayCount);
+            const activeTracker = getCurrentTrackerFilter();
+            const newHtml = newItems.map(e => buildCardHtml(e, activeTracker)).join('');
+            elements.resultsDiv.innerHTML += newHtml;
+            state.isLoadingMore = false;
+
+            if (loadMoreIndicator) loadMoreIndicator.classList.add('hidden');
+
+            if (state.displayCount >= state.filteredItems.length && loadMoreIndicator) {
+              loadMoreIndicator.classList.add('hidden');
+            }
+          }, 300);
         };
 
         const extractInfoHashFromMagnet = (magnet) => {
@@ -1478,8 +1558,18 @@
             if (e.key === 'Escape' && torServerModal && !torServerModal.classList.contains('hidden')) closeTorServerModal();
           });
 
-          const loadMoreBtn = document.getElementById('loadMoreBtn');
-          if (loadMoreBtn) loadMoreBtn.addEventListener('click', loadMore);
+          // Setup infinite scroll for load more
+          const loadMoreSentinel = document.getElementById('loadMoreSentinel');
+          if (loadMoreSentinel && 'IntersectionObserver' in window) {
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting && state.filteredItems.length > 0 && state.displayCount < state.filteredItems.length && !state.isLoadingMore && !state.isLoading) {
+                  loadMore();
+                }
+              });
+            }, { rootMargin: '500px', threshold: 0 });
+            observer.observe(loadMoreSentinel);
+          }
 
           $(document).on('click', '.btn-copy-magnet', function (e) {
             e.preventDefault();
@@ -1597,8 +1687,6 @@
             state.displayCount = PAGE_SIZE;
             const res = buildResultsFromJson(state.filteredItems, PAGE_SIZE);
             elements.resultsDiv.innerHTML = res.html;
-            const loadMoreWrap = document.getElementById('loadMoreWrap');
-            if (res.hasMore) loadMoreWrap.classList.remove('hidden'); else loadMoreWrap.classList.add('hidden');
           };
           const fc = document.getElementById('filterContainer');
           if (fc) {
