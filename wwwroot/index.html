@@ -776,6 +776,82 @@
       (function () {
         'use strict';
 
+        const STORAGE_ENC_SESSION_KEY = 'jacredStorageEncKey';
+        const STORAGE_ENC_IV_LEN = 12;
+
+        async function getStorageEncryptionKey() {
+          let keyB64 = sessionStorage.getItem(STORAGE_ENC_SESSION_KEY);
+          if (!keyB64) {
+            const key = await crypto.subtle.generateKey(
+              { name: 'AES-GCM', length: 256 },
+              true,
+              ['encrypt', 'decrypt']
+            );
+            const raw = await crypto.subtle.exportKey('raw', key);
+            keyB64 = btoa(String.fromCharCode.apply(null, new Uint8Array(raw)));
+            sessionStorage.setItem(STORAGE_ENC_SESSION_KEY, keyB64);
+          }
+          const keyBytes = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+          return crypto.subtle.importKey(
+            'raw',
+            keyBytes.buffer,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+          );
+        }
+
+        async function encryptForStorage(plainText) {
+          if (!plainText) return '';
+          const key = await getStorageEncryptionKey();
+          const iv = crypto.getRandomValues(new Uint8Array(STORAGE_ENC_IV_LEN));
+          const encoded = new TextEncoder().encode(plainText);
+          const cipher = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: iv, tagLength: 128 },
+            key,
+            encoded
+          );
+          const combined = new Uint8Array(iv.length + cipher.byteLength);
+          combined.set(iv);
+          combined.set(new Uint8Array(cipher), iv.length);
+          return btoa(String.fromCharCode.apply(null, combined));
+        }
+
+        async function decryptFromStorage(cipherText) {
+          if (!cipherText) return '';
+          try {
+            const combined = Uint8Array.from(atob(cipherText), c => c.charCodeAt(0));
+            if (combined.length < STORAGE_ENC_IV_LEN) return cipherText;
+            const iv = combined.slice(0, STORAGE_ENC_IV_LEN);
+            const cipher = combined.slice(STORAGE_ENC_IV_LEN).buffer;
+            const key = await getStorageEncryptionKey();
+            const dec = await crypto.subtle.decrypt(
+              { name: 'AES-GCM', iv: iv, tagLength: 128 },
+              key,
+              cipher
+            );
+            return new TextDecoder().decode(dec);
+          } catch (e) {
+            return cipherText;
+          }
+        }
+
+        async function getSecureStorage(key) {
+          const raw = localStorage.getItem(key);
+          if (raw == null || raw === '') return '';
+          const decrypted = await decryptFromStorage(raw);
+          return decrypted;
+        }
+
+        async function setSecureStorage(key, value) {
+          if (value == null || value === '') {
+            try { localStorage.removeItem(key); } catch (e) { }
+            return;
+          }
+          const encrypted = await encryptForStorage(value);
+          try { localStorage.setItem(key, encrypted); } catch (e) { }
+        }
+
         // DOM Elements cache
         const elements = {
           searchForm: null,
@@ -1427,10 +1503,10 @@
           const torServerModalSave = document.getElementById('torServerModalSave');
           const torServerModalCancel = document.getElementById('torServerModalCancel');
           const torServerModalBackdrop = document.getElementById('torServerModalBackdrop');
-          const openTorServerModal = () => {
+          const openTorServerModal = async () => {
             if (torServerUrlInput) torServerUrlInput.value = localStorage.getItem('jacredTorServerUrl') || '';
             if (torServerLoginInput) torServerLoginInput.value = localStorage.getItem('jacredTorServerLogin') || '';
-            if (torServerPasswordInput) torServerPasswordInput.value = localStorage.getItem('jacredTorServerPassword') || '';
+            if (torServerPasswordInput) torServerPasswordInput.value = await getSecureStorage('jacredTorServerPassword');
             if (torServerModalError) { torServerModalError.classList.add('hidden'); torServerModalError.textContent = ''; }
             if (torServerModal) torServerModal.classList.remove('hidden');
             setTimeout(() => { if (torServerUrlInput) torServerUrlInput.focus(); }, 100);
@@ -1439,7 +1515,7 @@
           document.getElementById('torServerBtn').addEventListener('click', openTorServerModal);
           if (torServerModalCancel) torServerModalCancel.addEventListener('click', closeTorServerModal);
           if (torServerModalBackdrop) torServerModalBackdrop.addEventListener('click', closeTorServerModal);
-          const saveTorServerFromModal = () => {
+          const saveTorServerFromModal = async () => {
             const url = (torServerUrlInput && torServerUrlInput.value) ? torServerUrlInput.value.trim() : '';
             const login = (torServerLoginInput && torServerLoginInput.value) ? torServerLoginInput.value.trim() : '';
             const password = (torServerPasswordInput && torServerPasswordInput.value) ? torServerPasswordInput.value : '';
@@ -1456,7 +1532,7 @@
             try {
               localStorage.setItem('jacredTorServerUrl', url);
               localStorage.setItem('jacredTorServerLogin', login);
-              localStorage.setItem('jacredTorServerPassword', password);
+              await setSecureStorage('jacredTorServerPassword', password);
             } catch (e) { }
             if (torServerModalError) { torServerModalError.classList.add('hidden'); torServerModalError.textContent = ''; }
             closeTorServerModal();
@@ -1497,7 +1573,7 @@
             if (!magnet) return;
             let baseUrl = (localStorage.getItem('jacredTorServerUrl') || '').trim();
             const login = (localStorage.getItem('jacredTorServerLogin') || '').trim();
-            const password = localStorage.getItem('jacredTorServerPassword') || '';
+            const password = await getSecureStorage('jacredTorServerPassword');
             const $btn = $(this);
             const origTitle = $btn.attr('title');
             const setFeedback = (msg) => {
