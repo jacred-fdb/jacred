@@ -414,7 +414,7 @@ namespace JacRed.Engine
 
                 var jsonContent = JsonConvert.SerializeObject(new
                 {
-                    action = "wipe",
+                    action = "rem",
                     hash = infohash
                 });
 
