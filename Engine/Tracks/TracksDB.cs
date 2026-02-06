@@ -13,6 +13,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 
+
+
+
 namespace JacRed.Engine
 {
     public static class TracksDB
@@ -95,348 +98,381 @@ namespace JacRed.Engine
 
 ///Fix by lexandr0s
 
-		async public static Task Add(string magnet, string[] types = null)
+		public static async Task Add(string magnet, string[] types = null)
 		{
-			// Логирование в файл
-			void LogToFile(string message)
+			// 1. Валидация входных параметров
+			if (string.IsNullOrWhiteSpace(magnet))
 			{
-				try
-				{
-					/*
-					// Безопасная проверка конфигурации
-					if (AppInit.conf == null)
-						return;
-						
-					// Проверяем свойство trackslog безопасным способом
-					bool tracksLogEnabled = false;
-					try
-					{
-						var prop = AppInit.conf.GetType().GetProperty("trackslog");
-						if (prop != null && prop.PropertyType == typeof(bool))
-						{
-							var value = prop.GetValue(AppInit.conf);
-							if (value != null)
-								tracksLogEnabled = (bool)value;
-						}
-					}
-					catch
-					{
-						// Если свойство не найдено или не bool, выходим
-						return;
-					}
-					*/
-					
-					//if (!tracksLogEnabled)
-					if (!AppInit.conf.trackslog)
-						return;
-					
-					string logDir = "Data/log";  // Изменено с Data/temp на Data/log
-					string logFile = Path.Combine(logDir, "tracks.log");
-					
-					try
-					{
-						// Создаем директорию если не существует
-						if (!Directory.Exists(logDir))
-						{
-							Directory.CreateDirectory(logDir);
-							// Даем время на создание директории
-							Thread.Sleep(10);
-						}
-						
-						// Форматируем сообщение в формате tracks: [время] сообщение
-						string timeNow = DateTime.Now.ToString("HH:mm:ss");
-						string logMessage = $"tracks: [{timeNow}] {message}{Environment.NewLine}";
-						
-						// Записываем в файл с безопасной обработкой блокировок
-						for (int i = 0; i < 3; i++) // 3 попытки
-						{
-							try
-							{
-								File.AppendAllText(logFile, logMessage, Encoding.UTF8);
-								break; // Успешно, выходим
-							}
-							catch (IOException) when (i < 2) // Если файл заблокирован
-							{
-								Thread.Sleep(50); // Ждем немного перед повторной попыткой
-							}
-						}
-					}
-					catch (Exception ex)
-					{
-						// Для ошибок записи в лог также используем формат tracks:
-						string timeNow = DateTime.Now.ToString("HH:mm:ss");
-						Console.WriteLine($"tracks: [{timeNow}] Ошибка записи в лог файл: {ex.Message}");
-					}
-				}
-				catch (Exception ex)
-				{
-					// Абсолютно безопасный вывод
-					try 
-					{ 
-						string timeNow = DateTime.Now.ToString("HH:mm:ss");
-						Console.WriteLine($"tracks: [{timeNow}] Критическая ошибка в LogToFile: {ex.Message}"); 
-					} 
-					catch { }
-				}
-			}
-
-			// Функция для логирования с префиксом tracks: и временем в квадратных скобках
-			void Log(string message)
-			{
-				string timeNow = DateTime.Now.ToString("HH:mm:ss");
-				string fullMessage = $"tracks: [{timeNow}] {message}";
-				Console.WriteLine(fullMessage);
-				LogToFile(message);
+				Log("Ошибка: magnet-ссылка не может быть пустой");
+				return;
 			}
 
 			if (types != null && theBad(types))
 			{
-				string msg = $"Пропуск добавления треков: недопустимый тип контента [{string.Join(",", types)}]";
+				string msg = $"Пропуск добавления треков: недопустимый тип контента [{string.Join(", ", types)}]";
 				Log(msg);
 				return;
 			}
 
 			if (AppInit.conf?.tsuri == null || AppInit.conf.tsuri.Length == 0)
 			{
-				string msg = "Ошибка: не настроены tsuri серверы";
-				Log(msg);
+				Log("Ошибка: не настроены tsuri серверы");
 				return;
 			}
 
-			string infohash = MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex();
-			if (string.IsNullOrEmpty(infohash))
+			// 2. Извлечение инфохаша
+			string infohash;
+			try
 			{
-				string msg = "Ошибка: не удалось извлечь infohash из magnet-ссылки";
-				Log(msg);
+				infohash = MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex();
+				if (string.IsNullOrEmpty(infohash))
+				{
+					Log("Ошибка: не удалось извлечь infohash из magnet-ссылки");
+					return;
+				}
+			}
+			catch (Exception ex)
+			{
+				Log($"Ошибка парсинга magnet-ссылки: {ex.Message}");
 				return;
 			}
 
-			string msgStart = $"Начало анализа треков для инфохаша: {infohash}";
-			Log(msgStart);
+			// 3. Логирование начала операции
+			Log($"Начало анализа треков для инфохаша: {infohash}");
 			
 			FfprobeModel res = null;
 			string tsuri = AppInit.conf.tsuri[random.Next(0, AppInit.conf.tsuri.Length)];
-			//string msgTsuri = $"Используется tsuri сервер: {tsuri}";
-			//Log(msgTsuri);
 
-			// Флаг для отслеживания, нужно ли делать очистку
-			bool cleanupRequired = true;
-			
-			#region ffprobe
-			using (var cancellationTokenSource = new CancellationTokenSource())
+			try
 			{
-				cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(3));
-				var token = cancellationTokenSource.Token;
-
-				System.Diagnostics.Process process = null;
-				
-				try
+				using (var cancellationTokenSource = new CancellationTokenSource())
 				{
-					string media = $"{tsuri}/stream/file?link={HttpUtility.UrlEncode(magnet)}&index=1&play";
-					string msgFfprobe = $"Запуск ffprobe для: {infohash}";
-					Log(msgFfprobe);
+					cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(3));
+					var token = cancellationTokenSource.Token;
+
+					// 4. Сначала добавляем торрент на сервер
+					bool torrentAdded = await AddTorrentToServer(tsuri, magnet, infohash, token);
 					
-					process = new System.Diagnostics.Process();
-					process.StartInfo.UseShellExecute = false;
-					process.StartInfo.RedirectStandardOutput = true;
-					process.StartInfo.RedirectStandardError = true;
-					process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-					process.StartInfo.FileName = "ffprobe";
-					process.StartInfo.Arguments = $"-v quiet -print_format json -show_format -show_streams \"{media}\"";
-					
-					var outputBuilder = new StringBuilder();
-					var errorBuilder = new StringBuilder();
-					
-					process.OutputDataReceived += (sender, e) => {
-						if (!string.IsNullOrEmpty(e.Data))
-							outputBuilder.AppendLine(e.Data);
-					};
-					
-					process.ErrorDataReceived += (sender, e) => {
-						if (!string.IsNullOrEmpty(e.Data))
-							errorBuilder.AppendLine(e.Data);
-					};
-					
-					if (!process.Start())
+					if (!torrentAdded)
 					{
-						string msg = "Ошибка: не удалось запустить процесс ffprobe";
-						Log(msg);
-						return;
-					}
-					
-					string msgPid = $"Процесс ffprobe запущен (PID: {process.Id})";
-					Log(msgPid);
-					
-					process.BeginOutputReadLine();
-					process.BeginErrorReadLine();
-					
-					// Создаем задачу завершения процесса
-					var processExitTask = process.WaitForExitAsync(token);
-					
-					// Ожидаем завершение процесса или таймаут
-					await processExitTask;
-					
-					// Если процесс еще не завершился, убиваем его
-					if (!process.HasExited)
-					{
-						string msg = $"Таймаут анализа. Завершение процесса ffprobe (PID: {process.Id})...";
-						Log(msg);
-						try
-						{
-							KillProcessTree(process);
-							string msgKilled = "Процесс ffprobe завершен принудительно";
-							Log(msgKilled);
-						}
-						catch (Exception killEx)
-						{
-							string msgError = $"Ошибка при завершении процесса ffprobe: {killEx.Message}";
-							Log(msgError);
-						}
-						// Продолжаем выполнение для очистки
-					}
-					else if (token.IsCancellationRequested)
-					{
-						string msg = "Операция анализа отменена";
-						Log(msg);
-						// Продолжаем выполнение для очистки
-					}
-					else if (process.ExitCode != 0)
-					{
-						string errorOutput = errorBuilder.ToString();
-						string msgExitCode = $"ffprobe завершился с ошибкой (код: {process.ExitCode})";
-						Log(msgExitCode);
-						
-						if (!string.IsNullOrEmpty(errorOutput))
-						{
-							// Для вывода ошибок ffprobe тоже используем формат tracks:
-							string timeNow = DateTime.Now.ToString("HH:mm:ss");
-							string msgError = $"tracks: [{timeNow}] Вывод ошибки: {errorOutput}";
-							Console.WriteLine(msgError);
-							
-							// Обрезаем длинные сообщения об ошибках для лога
-							if (errorOutput.Length > 500)
-								errorOutput = errorOutput.Substring(0, 500) + "...";
-							Log($"Вывод ошибки ffprobe: {errorOutput}");
-						}
-						// Продолжаем выполнение для очистки
+						Log($"Не удалось добавить торрент {infohash} на сервер. Завершение.");
+						// Очистка всё равно будет выполнена
 					}
 					else
 					{
-						string msgSuccess = "ffprobe успешно завершился";
-						Log(msgSuccess);
+						// 5. Небольшая пауза для инициализации торрента
+						await Task.Delay(TimeSpan.FromSeconds(3), token);
 						
-						string outPut = outputBuilder.ToString();
-						if (!string.IsNullOrEmpty(outPut))
+						// 6. Вызов внешнего API для анализа
+						res = await AnalyzeWithExternalApi(tsuri, infohash, token);
+						
+						if (res?.streams == null || res.streams.Count == 0)
 						{
-							res = JsonConvert.DeserializeObject<FfprobeModel>(outPut);
-							string msgStreams = $"Получено {res?.streams?.Count ?? 0} треков";
-							Log(msgStreams);
-						}
-						else
-						{
-							string msg = "Предупреждение: ffprobe не вернул данных";
-							Log(msg);
+							Log($"Нет данных о треков для инфохаша {infohash}");
 						}
 					}
 				}
-				catch (OperationCanceledException)
+			}
+			catch (OperationCanceledException)
+			{
+				Log("Анализ треков отменен по таймауту (3 минуты)");
+			}
+			catch (System.Net.Http.HttpRequestException ex)
+			{
+				Log($"Ошибка HTTP при анализе треков: {ex.Message}");
+			}
+			catch (JsonException ex)
+			{
+				Log($"Ошибка обработки JSON ответа: {ex.Message}");
+			}
+			catch (Exception ex)
+			{
+				Log($"Критическая ошибка при анализе треков: {ex.Message}");
+				LogToFile($"StackTrace: {ex.StackTrace}");
+			}
+			finally
+			{
+				// 7. Очистка торрента на сервере (ВСЕГДА)
+				await CleanupTorrent(tsuri, infohash);
+			}
+
+			// 8. Сохранение результатов (только если анализ успешен)
+			if (res?.streams != null && res.streams.Count > 0)
+			{
+				await SaveTrackResults(res, infohash);
+				Log($"Анализ треков для {infohash} успешно завершен!");
+			}
+			else
+			{
+				Log($"Анализ треков для {infohash} завершен (без результатов)");
+			}
+		}
+
+		/// <summary>
+		/// Добавляет Basic Authentication заголовок в HttpClient
+		/// </summary>
+		private static void AddBasicAuthHeader(System.Net.Http.HttpClient client, string url)
+		{
+			try
+			{
+				var uri = new Uri(url);
+				if (!string.IsNullOrEmpty(uri.UserInfo))
 				{
-					string msg = "Анализ треков отменен по таймауту (3 минуты)";
-					Log(msg);
-				}
-				catch (Exception ex)
-				{
-					string msg = $"Критическая ошибка при анализе треков: {ex.Message}";
-					Log(msg);
-					
-					// StackTrace также с форматом tracks:
-					string timeNow = DateTime.Now.ToString("HH:mm:ss");
-					string stackTraceMsg = $"tracks: [{timeNow}] StackTrace: {ex.StackTrace}";
-					Console.WriteLine(stackTraceMsg);
-					LogToFile($"StackTrace: {ex.StackTrace}");
-				}
-				finally
-				{
-					// Всегда освобождаем ресурсы процесса
-					if (process != null)
+					// Разделяем логин:пароль
+					var credentials = uri.UserInfo.Split(':');
+					if (credentials.Length == 2)
 					{
-						// Дополнительная проверка, что процесс мертв
-						if (!process.HasExited)
-						{
-							try
-							{
-								string msg = $"Принудительное завершение процесса в finally (PID: {process.Id})...";
-								Log(msg);
-								KillProcessTree(process);
-							}
-							catch { }
-						}
+						string username = credentials[0];
+						string password = credentials[1];
 						
-						process.Dispose();
+						// Создаем Basic Auth заголовок
+						var byteArray = Encoding.ASCII.GetBytes($"{username}:{password}");
+						var base64String = Convert.ToBase64String(byteArray);
+						client.DefaultRequestHeaders.Authorization = 
+							new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", base64String);
+						
+						// Также добавляем заголовок Accept для JSON
+						client.DefaultRequestHeaders.Accept.Clear();
+						client.DefaultRequestHeaders.Accept.Add(
+							new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				// Если не удалось распарсить URL, логируем ошибку
+				Log($"Ошибка при добавлении Basic Auth: {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// Маскирует пароль в URL для безопасного логирования
+		/// </summary>
+		private static string MaskPasswordInUrl(string url)
+		{
+			try
+			{
+				var uri = new Uri(url);
+				if (!string.IsNullOrEmpty(uri.UserInfo))
+				{
+					var credentials = uri.UserInfo.Split(':');
+					if (credentials.Length == 2)
+					{
+						// Маскируем пароль, но оставляем логин
+						string maskedUrl = url.Replace(
+							$"{credentials[0]}:{credentials[1]}",
+							$"{credentials[0]}:***");
+						return maskedUrl;
+					}
+				}
+			}
+			catch
+			{
+				// В случае ошибки возвращаем оригинальный URL
+			}
+			return url;
+		}
+
+		/// <summary>
+		/// Добавляет торрент на сервер с потоковым чтением
+		/// </summary>
+		private static async Task<bool> AddTorrentToServer(string tsuri, string magnet, string infohash, CancellationToken token)
+		{
+			try
+			{
+				Log($"Добавление торрента {infohash} на сервер...");
+				
+				//Используем простое добавление торрента, вместо вызова плеера
+				
+				using var client = new System.Net.Http.HttpClient();
+				client.Timeout = TimeSpan.FromSeconds(30);
+				
+				// Добавляем Basic Authentication заголовок
+				AddBasicAuthHeader(client, tsuri);
+				
+				var jsonContent = JsonConvert.SerializeObject(new 
+				{ 
+					action = "add", 
+					link = magnet 
+				});
+				
+				var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+				
+				// Для POST запроса также можно использовать потоковое чтение если ожидается большой ответ
+				using var response = await client.PostAsync($"{tsuri}/torrents", content);
+				
+				
+				if (response.IsSuccessStatusCode)
+				{
+					// Читаем ответ потоком порциями
+					using var stream = await response.Content.ReadAsStreamAsync();
+					
+					// Буфер для чтения
+					byte[] buffer = new byte[8192]; // 8KB
+					long totalBytes = 0;
+					int bytesRead;
+					
+					// Читаем порциями, чтобы не загружать всю память
+					while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+					{
+						totalBytes += bytesRead;
+						// Просто продолжаем чтение чтобы освободить поток
+						// Если нужна обработка данных, можно добавить её здесь
 					}
 					
-					cancellationTokenSource.Dispose();
+					Log($"Торрент {infohash} успешно добавлен на сервер (получено {totalBytes} байт)");
+					return true;
 				}
-			}
-			#endregion
-
-			// Очистка на сервере - ВСЕГДА после завершения ffprobe
-			try
-			{
-				if (cleanupRequired)
+				else
 				{
-					string msgClean = "Очистка торрента на сервере...";
-					Log(msgClean);
-					
-					await HttpClient.Post($"{tsuri}/torrents", 
-						"{\"action\":\"wipe\",\"hash\":\"" + infohash + "\"}");
-					string msgSuccess = $"Торрент {infohash} успешно удален с сервера";
-					Log(msgSuccess);
+					Log($"Ошибка при добавлении торрента ({(int)response.StatusCode})");
+					return false;
+				}
+			}
+			catch (TaskCanceledException)
+			{
+				Log("Таймаут при добавлении торрента на сервер");
+				return false;
+			}
+			catch (Exception ex)
+			{
+				Log($"Ошибка при добавлении торрента на сервер: {ex.Message}");
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Вызов внешнего API для анализа медиа-файла
+		/// </summary>
+		private static async Task<FfprobeModel> AnalyzeWithExternalApi(string tsuri, string infohash, CancellationToken token)
+		{
+			string apiUrl = $"{tsuri}/ffp/{infohash.ToUpper()}/1";
+			
+			// Логируем с маскировкой пароля
+			Log($"Вызов API анализа: {MaskPasswordInUrl(apiUrl)}");
+
+			using var client = new System.Net.Http.HttpClient();
+			client.Timeout = TimeSpan.FromMinutes(2);
+			
+			// Добавляем Basic Authentication заголовок
+			AddBasicAuthHeader(client, tsuri);
+			
+			// Для API тоже используем потоковое чтение
+			using var response = await client.GetAsync(apiUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, token);
+			
+			if (!response.IsSuccessStatusCode)
+			{
+				throw new System.Net.Http.HttpRequestException($"API вернул ошибку: {(int)response.StatusCode}");
+			}
+
+			// Читаем JSON ответ потоком
+			using var stream = await response.Content.ReadAsStreamAsync();
+			using var reader = new StreamReader(stream, Encoding.UTF8);
+			
+			// Используем StringBuilder для накопления данных
+			var jsonBuilder = new StringBuilder();
+			char[] buffer = new char[8192];
+			int charsRead;
+			
+			while ((charsRead = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+			{
+				jsonBuilder.Append(buffer, 0, charsRead);
+			}
+			
+			string jsonResponse = jsonBuilder.ToString();
+			
+			if (string.IsNullOrWhiteSpace(jsonResponse))
+			{
+				throw new InvalidDataException("API вернул пустой ответ");
+			}
+
+			var result = JsonConvert.DeserializeObject<FfprobeModel>(jsonResponse);
+			
+			if (result == null)
+			{
+				throw new InvalidDataException("Не удалось десериализовать ответ API");
+			}
+
+			Log($"API успешно вернул {result.streams?.Count ?? 0} треков");
+			return result;
+		}
+
+		/// <summary>
+		/// Очистка торрента на сервере (ВСЕГДА выполняется)
+		/// </summary>
+		private static async Task CleanupTorrent(string tsuri, string infohash)
+		{
+			try
+			{
+				Log($"Очистка торрента {infohash} на сервере...");
+				
+				using var client = new System.Net.Http.HttpClient();
+				client.Timeout = TimeSpan.FromSeconds(30);
+				
+				// Добавляем Basic Authentication заголовок
+				AddBasicAuthHeader(client, tsuri);
+				
+				var jsonContent = JsonConvert.SerializeObject(new 
+				{ 
+					action = "wipe", 
+					hash = infohash 
+				});
+				
+				var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+				
+				// Для POST запроса также можно использовать потоковое чтение если ожидается большой ответ
+				using var response = await client.PostAsync($"{tsuri}/torrents", content);
+				
+				if (response.IsSuccessStatusCode)
+				{
+					Log($"Торрент {infohash} успешно удален с сервера");
+				}
+				else
+				{
+					Log($"Ошибка при очистке торрента ({(int)response.StatusCode})");
 				}
 			}
 			catch (Exception ex)
 			{
-				string msg = $"Ошибка при очистке торрента на сервере: {ex.Message}";
-				Log(msg);
-				// Не прерываем выполнение, продолжаем сохранение данных
+				Log($"Ошибка при очистке торрента {infohash} на сервере: {ex.Message}");
 			}
+		}
 
-			// Если нет данных о треках, завершаем
-			if (res?.streams == null || res.streams.Count == 0)
-			{
-				string msg = $"Нет данных о треках для инфохаша {infohash}. Завершение.";
-				Log(msg);
+		/// <summary>
+		/// Сохраняет результаты анализа треков
+		/// </summary>
+		private static async Task SaveTrackResults(FfprobeModel result, string infohash)
+		{
+			if (result?.streams == null || result.streams.Count == 0)
 				return;
-			}
 
-			// Сохранение данных треков
-			int audioCount = res.streams.Count(s => s.codec_type == "audio");
-			int videoCount = res.streams.Count(s => s.codec_type == "video");
-			string msgStats = $"Сохранение данных треков в базу. Найдено аудио дорожек: {audioCount}, видео: {videoCount}";
-			Log(msgStats);
+			int audioCount = result.streams.Count(s => s.codec_type == "audio");
+			int videoCount = result.streams.Count(s => s.codec_type == "video");
+			
+			Log($"Сохранение данных треков для {infohash}. Аудио: {audioCount}, видео: {videoCount}");
 
+			// Сохранение в памяти
 			try
 			{
-				Database.AddOrUpdate(infohash, res, (k, v) => res);
-				string msg = $"Данные треков для {infohash} обновлены в памяти";
-				Log(msg);
+				Database.AddOrUpdate(infohash, result, (k, v) => result);
+				Log($"Данные треков для {infohash} обновлены в памяти");
 			}
 			catch (Exception ex)
 			{
-				string msg = $"Ошибка при обновлении данных в памяти: {ex.Message}";
-				Log(msg);
+				Log($"Ошибка при обновлении данных в памяти: {ex.Message}");
 			}
 
+			// Сохранение в файл
 			try
 			{
 				string path = pathDb(infohash, createfolder: true);
-				await File.WriteAllTextAsync(path, 
-					JsonConvert.SerializeObject(res, Formatting.Indented));
-				string msg = $"Данные треков сохранены в файл: {path}";
-				Log(msg);
+				string json = JsonConvert.SerializeObject(result, Formatting.Indented);
+				await File.WriteAllTextAsync(path, json, Encoding.UTF8);
 				
-				// Дополнительная информация о сохраненных языках
-				var audioLanguages = res.streams
+				Log($"Данные треков для {infohash} сохранены в файл: {path}");
+				
+				// Логирование информации о языках
+				var audioLanguages = result.streams
 					.Where(s => s.codec_type == "audio" && s.tags?.language != null)
 					.Select(s => s.tags.language)
 					.Distinct()
@@ -444,111 +480,75 @@ namespace JacRed.Engine
 					
 				if (audioLanguages.Any())
 				{
-					string msgLang = $"Обнаружены аудио дорожки на языках: {string.Join(", ", audioLanguages)}";
-					Log(msgLang);
+					Log($"Обнаружены аудио дорожки на языках: {string.Join(", ", audioLanguages)}");
 				}
 			}
 			catch (Exception ex)
 			{
-				string msg = $"Ошибка при сохранении данных в файл: {ex.Message}";
-				Log(msg);
-				
-				// StackTrace также с форматом tracks:
-				string timeNow = DateTime.Now.ToString("HH:mm:ss");
-				string stackTraceMsg = $"tracks: [{timeNow}] StackTrace: {ex.StackTrace}";
-				Console.WriteLine(stackTraceMsg);
+				Log($"Ошибка при сохранении данных в файл: {ex.Message}");
 				LogToFile($"StackTrace: {ex.StackTrace}");
 			}
-
-			string msgFinal = $"Анализ треков для {infohash} успешно завершен!";
-			Log(msgFinal);
 		}
 
-		// Метод для корректного убийства процесса и его дочерних процессов
-		private static void KillProcessTree(System.Diagnostics.Process process)
+		/// <summary>
+		/// Логирование в консоль и файл
+		/// </summary>
+		private static void Log(string message)
 		{
-			if (process == null || process.HasExited)
-				return;
-
-			int processId = process.Id;
+			string timeNow = DateTime.Now.ToString("HH:mm:ss");
+			string fullMessage = $"tracks: [{timeNow}] {message}";
 			
+			Console.WriteLine(fullMessage);
+			
+			if (AppInit.conf?.trackslog == true)
+			{
+				LogToFile(message);
+			}
+		}
+
+		/// <summary>
+		/// Логирование в файл
+		/// </summary>
+		private static void LogToFile(string message)
+		{
 			try
 			{
-				// Сначала пробуем штатное завершение
-				process.CloseMainWindow();
+				string logDir = "Data/log";
+				string logFile = Path.Combine(logDir, "tracks.log");
 				
-				// Ждем немного
-				if (process.WaitForExit(500))
-					return;
-					
-				// Если не вышло, пробуем Kill с entireProcessTree
-				try
+				Directory.CreateDirectory(logDir);
+				
+				string timeNow = DateTime.Now.ToString("HH:mm:ss");
+				string logMessage = $"tracks: [{timeNow}] {message}{Environment.NewLine}";
+				
+				// Используем FileStream с FileShare.ReadWrite для избежания блокировок
+				for (int i = 0; i < 3; i++)
 				{
-					// Для .NET Core 3.0+ и .NET 5+
-					process.Kill(entireProcessTree: true);
-				}
-				catch
-				{
-					// Для старых версий или если не поддерживается
-					process.Kill();
-					
-					// На Linux пытаемся убить дерево процессов через pkill
-					if (Environment.OSVersion.Platform == PlatformID.Unix || 
-						Environment.OSVersion.Platform == PlatformID.MacOSX)
+					try
 					{
-						try
+						using (var stream = new FileStream(
+							logFile, 
+							FileMode.Append, 
+							FileAccess.Write, 
+							FileShare.ReadWrite))
+						using (var writer = new StreamWriter(stream, Encoding.UTF8))
 						{
-							using var pkillProcess = new System.Diagnostics.Process();
-							pkillProcess.StartInfo.FileName = "pkill";
-							pkillProcess.StartInfo.Arguments = $"-9 -P {processId}";
-							pkillProcess.StartInfo.UseShellExecute = false;
-							pkillProcess.StartInfo.CreateNoWindow = true;
-							pkillProcess.Start();
-							pkillProcess.WaitForExit(1000);
+							writer.Write(logMessage);
 						}
-						catch { }
+						break;
+					}
+					catch (IOException) when (i < 2)
+					{
+						Thread.Sleep(50);
 					}
 				}
-				
-				// Ждем завершения
-				if (!process.WaitForExit(2000))
-				{
-					// Последняя попытка - если процесс все еще жив
-					try { process.Kill(); } catch { }
-				}
-			}
-			catch (InvalidOperationException)
-			{
-				// Процесс уже завершился
 			}
 			catch (Exception ex)
 			{
-				// Логируем ошибку убийства процесса с форматом tracks:
 				try
 				{
 					string timeNow = DateTime.Now.ToString("HH:mm:ss");
-					string errorMsg = $"Ошибка в KillProcessTree для PID {processId}: {ex.Message}";
-					string logMessage = $"tracks: [{timeNow}] {errorMsg}";
-					Console.WriteLine(logMessage);
-					
-					if (AppInit.conf != null)
-					{
-						var prop = AppInit.conf.GetType().GetProperty("trackslog");
-						if (prop != null && prop.PropertyType == typeof(bool))
-						{
-							var value = prop.GetValue(AppInit.conf);
-							if (value != null && (bool)value)
-							{
-								string logDir = "Data/log";  // Изменено с Data/temp на Data/log
-								string logFile = Path.Combine(logDir, "tracks.log");
-								
-								if (!Directory.Exists(logDir))
-									Directory.CreateDirectory(logDir);
-								
-								File.AppendAllText(logFile, $"{logMessage}{Environment.NewLine}", Encoding.UTF8);
-							}
-						}
-					}
+					Console.WriteLine($"tracks: [{timeNow}] Ошибка записи в лог файл: {ex.Message}");
 				}
 				catch { }
 			}
