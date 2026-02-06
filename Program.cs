@@ -42,11 +42,22 @@ namespace JacRed
             ThreadPool.QueueUserWorkItem(async _ => await FileDB.Cron());
             ThreadPool.QueueUserWorkItem(async _ => await FileDB.CronFast());
 
-            ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(1));
-            ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(2));
-            ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(3));
-            ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(4));
-            ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(5));
+            int w(int min, int max, int val) => Math.Max(min, Math.Min(max, val));
+            int dayW = w(1, 20, AppInit.conf.tracksWorkersDay);
+            int monthW = w(1, 20, AppInit.conf.tracksWorkersMonth);
+            int yearW = w(1, 20, AppInit.conf.tracksWorkersYear);
+            int olderW = w(1, 20, AppInit.conf.tracksWorkersOlder);
+            int updatesW = w(1, 20, AppInit.conf.tracksWorkersUpdates);
+            for (int i = 0; i < dayW; i++)
+                ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(1));
+            for (int i = 0; i < monthW; i++)
+                ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(2));
+            for (int i = 0; i < yearW; i++)
+                ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(3));
+            for (int i = 0; i < olderW; i++)
+                ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(4));
+            for (int i = 0; i < updatesW; i++)
+                ThreadPool.QueueUserWorkItem(async _ => await TracksCron.Run(5));
 
             CultureInfo.CurrentCulture = new CultureInfo("ru-RU");
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);

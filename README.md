@@ -125,10 +125,20 @@ sudo -u myservice ./jacred.sh --remove
 | Параметр | Описание | По умолчанию |
 |----------|----------|--------------|
 | `timeStatsUpdate` | Интервал обновления статистики, мин | `90` |
-| `tracks` | Включить сбор метаданных треков (tsuri) | `false` |
-| `tracksmod` | Режим треков: 0 — все, 1 — день/месяц | `0` |
-| `tracksdelay` | Задержка между запросами к tsuri, мс | `20000` |
-| `tsuri` | URL сервиса анализа треков | `["http://127.0.0.1:8090"]` |
+| `tracks` | Включить сбор метаданных (video/audio/subtitle) через Torrserver API | `false` |
+| `tracksmod` | 0 — все задачи (день, месяц, год, старые, обновления); 1 — только день и месяц | `0` |
+| `tracksOnlyNew` | true — только «свежие» (задача по tracksDayWindowDays), без месяца/года/обновлений | `false` |
+| `tracksDayWindowDays` | Окно «день»: торренты за последние N дней (7 = неделя) | `1` |
+| `tracksMonthWindowDays` | Окно «месяц»: торренты созданные 1..N дней назад | `30` |
+| `tracksYearWindowMonths` | Окно «год»: торренты созданные N месяцев назад | `12` |
+| `tracksUpdatesWindowDays` | Окно «обновления»: торренты обновлённые за N дней | `30` |
+| `tracksWorkersDay` … `tracksWorkersUpdates` | Число воркеров по задачам (1..20) | `1` |
+| `tracksdelay` | Задержка перед стартом воркеров треков, мс | `20000` |
+| `tservers` | Список Torrserver: `url`, опционально `username`/`password`. Добавление с `save_to_db: false` | `[{ "url": "http://127.0.0.1:8090" }]` |
+| Эндпоинты (localhost) | `GET /dev/TracksConfig` — конфиг; `GET /dev/TracksRunOnce?window=7` — разовый прогон за N дней | — |
+
+**Сбор метаданных (треки):** примеры настроек — **[Data/README-tracks.md](Data/README-tracks.md)**.  
+**Рекомендуемый вариант для большинства** — метаданные только для новых торрентов (то, что парсер подтянул с трекеров): готовые файлы **[Data/example-tracks-new-only.yaml](Data/example-tracks-new-only.yaml)** и **[Data/example-tracks-new-only.conf](Data/example-tracks-new-only.conf)** (скопируйте нужные поля в свой init.yaml / init.conf).
 
 ### Трекеры (блоки в конфиге)
 

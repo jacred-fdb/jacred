@@ -1,0 +1,19 @@
+# Рекомендуемый вариант: метаданные только для новых торрентов
+# Скопируйте этот блок в свой init.yaml или подставьте свои значения.
+#
+# Смысл: обрабатываются только торренты без метаданных, которые парсер
+# получил за последние сутки (созданные за tracksDayWindowDays дней).
+# Старый каталог не трогаем — только свежие раздачи с трекеров.
+#
+# Требуется: запущенный Torrserver (tservers[].url).
+
+tracks: true
+tracksOnlyNew: true
+tracksDayWindowDays: 1
+tracksWorkersDay: 2
+tservers:
+  - url: http://127.0.0.1:8090
+# С авторизацией на Torrserver:
+#  - url: https://ts.example.com
+#    username: user
+#    password: pass

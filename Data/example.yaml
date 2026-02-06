@@ -39,8 +39,26 @@ syncspidr: true
 maxreadfile: 250
 tracks: false
 tracksdelay: 20000
-tsuri:
-  - http://127.0.0.1:8090
+# Torrserver list: url + optional username/password per server. Add uses save_to_db: false.
+tservers:
+  - url: http://127.0.0.1:8090
+  # - url: https://ts2.example.com
+  #   username: user2
+  #   password: pass2
+# tracksmod: 0
+# tracksOnlyNew: false
+# tracksDayWindowDays: 1
+# tracksMonthWindowDays: 30
+# tracksYearWindowMonths: 12
+# tracksUpdatesWindowDays: 30
+# tracksFfpTimeoutMinutes: 3
+# tracksMetadataPollMs: 2000
+# tracksMetadataMaxAttempts: 90
+# tracksWorkersDay: 1
+# tracksWorkersMonth: 1
+# tracksWorkersYear: 1
+# tracksWorkersOlder: 1
+# tracksWorkersUpdates: 1
 timeStatsUpdate: 15
 timeSync: 30
 timeSyncSpidr: 60
