@@ -203,6 +203,84 @@
       -webkit-line-clamp: 2;
       line-clamp: 2;
     }
+
+    /* Result card action buttons: unified look + click feedback */
+    #resultsDiv .webResult .h2 .magneto,
+    #resultsDiv .webResult .h2 .btn-copy-magnet,
+    #resultsDiv .webResult .h2 .btn-copy-hash,
+    #resultsDiv .webResult .h2 .btn-send-to-tor {
+      border: 1px solid transparent;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    #resultsDiv .webResult .h2 .magneto:active,
+    #resultsDiv .webResult .h2 .btn-copy-magnet:active,
+    #resultsDiv .webResult .h2 .btn-copy-hash:active,
+    #resultsDiv .webResult .h2 .btn-send-to-tor:active {
+      transform: scale(0.92);
+    }
+
+    /* Magnet link: primary button with clear border and inner shadow when active */
+    #resultsDiv .webResult .h2 .magneto {
+      border-color: rgba(255, 255, 255, 0.25);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    }
+
+    #resultsDiv .webResult .h2 .magneto:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.35);
+    }
+
+    #resultsDiv .webResult .h2 .magneto:active {
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Inactive action buttons: subtle border, hover lift, click press */
+    #resultsDiv .webResult .h2 .btn-copy-magnet,
+    #resultsDiv .webResult .h2 .btn-copy-hash,
+    #resultsDiv .webResult .h2 .btn-send-to-tor {
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    .dark #resultsDiv .webResult .h2 .btn-copy-magnet,
+    .dark #resultsDiv .webResult .h2 .btn-copy-hash,
+    .dark #resultsDiv .webResult .h2 .btn-send-to-tor {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    #resultsDiv .webResult .h2 .btn-copy-magnet:hover,
+    #resultsDiv .webResult .h2 .btn-copy-hash:hover,
+    #resultsDiv .webResult .h2 .btn-send-to-tor:hover {
+      border-color: transparent;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .dark #resultsDiv .webResult .h2 .btn-copy-magnet:hover,
+    .dark #resultsDiv .webResult .h2 .btn-copy-hash:hover,
+    .dark #resultsDiv .webResult .h2 .btn-send-to-tor:hover {
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    #resultsDiv .webResult .h2 .btn-copy-magnet:active,
+    #resultsDiv .webResult .h2 .btn-copy-hash:active,
+    #resultsDiv .webResult .h2 .btn-send-to-tor:active {
+      box-shadow: none;
+    }
+
+    /* TorrServer button: loading and success states */
+    #resultsDiv .webResult .h2 .btn-send-to-tor.is-loading {
+      cursor: wait;
+    }
+
+    #resultsDiv .webResult .h2 .btn-send-to-tor.is-sent {
+      background-color: rgb(16 185 129) !important;
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .dark #resultsDiv .webResult .h2 .btn-send-to-tor.is-sent {
+      background-color: rgb(16 185 129) !important;
+    }
   </style>
 </head>
 
@@ -665,8 +743,8 @@
         <h2 id="torServerModalTitle" class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Настройки
           TorrServer</h2>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">URL TorrServer. При отправке с карточки
-          торрента браузер отправляет POST с <strong>save_to_db: true</strong>. Данные авторизации хранятся только в
-          этом браузере (localStorage).</p>
+          торрента браузер отправляет POST с <strong>save_to_db: true</strong>. Настройки сохраняются в браузере
+          (localStorage) и хранятся до тех пор, пока вы не очистите данные сайта или кэш.</p>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL сервера</label>
         <input type="url" id="torServerUrlInput" autocomplete="off"
           class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
@@ -910,29 +988,32 @@
             <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow shadow-gray-200/50 dark:shadow-black/20">
               <div class="h2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  <button type="button" class="btn-filter-tracker tap-target flex items-center gap-1.5 px-2 py-1.5 rounded-md border text-xs font-medium flex-shrink-0 transition-all ${trackerBtnClass}" data-tracker="${escapeAttr(trackerName)}" title="${isTrackerActive ? 'Сбросить фильтр по трекеру' : 'Искать только на этом трекере'}" aria-label="Фильтр по трекеру ${escapeHtml(trackerName)}">
-                    <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" onerror="this.style.display='none'">
-                    <span>${escapeHtml(trackerName)}</span>
+                  <button type="button" class="btn-filter-tracker tap-target flex items-center justify-center w-8 h-8 rounded-md border flex-shrink-0 transition-all ${trackerBtnClass}" data-tracker="${escapeAttr(trackerName)}" title="${isTrackerActive ? 'Сбросить фильтр по трекеру' : 'Искать только на этом трекере'}" aria-label="Фильтр по трекеру ${escapeHtml(trackerName)}">
+                    <img src="${icoSrc}" alt="" class="w-4 h-4 object-contain" onerror="this.style.display='none'">
                   </button>
                   <a href="${url}" target="_blank" rel="noopener noreferrer"
                     class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words min-w-0 line-clamp-2 sm:line-clamp-1">${title}</a>
                 </div>
-                <div class="flex flex-row gap-1.5 flex-shrink-0">
-                  <a href="${magnetAttr}" rel="noopener noreferrer" class="magneto tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow transition-all hover:shadow-inner" title="Открыть в торрент-клиенте" aria-label="Открыть магнит">
+                <div class="flex flex-row gap-2 flex-shrink-0">
+                  <a href="${magnetAttr}" rel="noopener noreferrer" class="magneto tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white" title="Открыть в торрент-клиенте" aria-label="Открыть магнит">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                   </a>
-                  <button type="button" class="btn-copy-magnet tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-amber-500/90 dark:hover:bg-amber-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Копировать магнит-ссылку" aria-label="Копировать магнит">
+                  <button type="button" class="btn-copy-magnet tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-amber-500 dark:hover:bg-amber-500/90 text-gray-600 dark:text-gray-400 hover:text-white active:bg-amber-600 dark:active:bg-amber-600" data-magnet="${magnetAttr}" title="Копировать магнит-ссылку" aria-label="Копировать магнит">
                     <i class="far fa-copy text-sm sm:text-base"></i>
                   </button>
-                  <button type="button" class="btn-copy-hash tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-emerald-500/90 dark:hover:bg-emerald-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Копировать хеш торрента" aria-label="Копировать хеш">
+                  <button type="button" class="btn-copy-hash tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-emerald-500 dark:hover:bg-emerald-500/90 text-gray-600 dark:text-gray-400 hover:text-white active:bg-emerald-600 dark:active:bg-emerald-600" data-magnet="${magnetAttr}" title="Копировать хеш торрента" aria-label="Копировать хеш">
                     <svg class="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
                   </button>
-                  <button type="button" class="btn-send-to-tor tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-violet-500/90 dark:hover:bg-violet-500/80 text-gray-600 dark:text-gray-400 hover:text-white transition-all" data-magnet="${magnetAttr}" title="Отправить на TorrServer" aria-label="Отправить на TorrServer">
+                  <button type="button" class="btn-send-to-tor tap-target flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-violet-500 dark:hover:bg-violet-500/90 text-gray-600 dark:text-gray-400 hover:text-white active:bg-violet-600 dark:active:bg-violet-600" data-magnet="${magnetAttr}" title="Отправить на TorrServer" aria-label="Отправить на TorrServer">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
                   </button>
                 </div>
               </div>
               <div class="px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                <span class="flex items-center gap-1.5 flex-shrink-0">
+                  <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" onerror="this.style.display='none'">
+                  <span class="font-medium text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
+                </span>
                 <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg><span class="size font-medium text-cyan-600 dark:text-cyan-400">${sizeName}</span></span>
                 <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="date font-medium text-purple-600 dark:text-purple-400">${dateStr}</span></span>
                 <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg><span class="seeders font-semibold text-green-600 dark:text-green-400">${sid}</span></span>
@@ -1406,6 +1487,9 @@
           });
 
           // Send to Tor server (delegated): POST with action=add, link=magnet, save_to_db=true; optional Basic Auth from localStorage
+          const torBtnDefaultHtml = '<svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>';
+          const torBtnSpinnerHtml = '<span class="spinner inline-block w-4 h-4 sm:w-5 sm:h-5 border-2 border-current border-t-transparent rounded-full shrink-0" aria-hidden="true"></span>';
+          const torBtnSuccessHtml = '<svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
           $(document).on('click', '.btn-send-to-tor', async function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1420,10 +1504,25 @@
               $btn.attr('title', msg);
               setTimeout(() => { $btn.attr('title', origTitle); }, 3000);
             };
+            const setButtonState = (state) => {
+              if (state === 'loading') {
+                $btn.prop('disabled', true).addClass('pointer-events-none is-loading').attr('aria-busy', 'true').attr('title', 'Отправка…');
+                $btn.html(torBtnSpinnerHtml);
+              } else if (state === 'success') {
+                $btn.removeClass('pointer-events-none is-loading').prop('disabled', false).attr('aria-busy', 'false');
+                $btn.addClass('is-sent').html(torBtnSuccessHtml);
+                setTimeout(() => {
+                  $btn.removeClass('is-sent').html(torBtnDefaultHtml).attr('title', origTitle);
+                }, 1800);
+              } else {
+                $btn.prop('disabled', false).removeClass('pointer-events-none is-loading').attr('aria-busy', 'false').html(torBtnDefaultHtml);
+              }
+            };
             if (!baseUrl) {
               openTorServerModal();
               return;
             }
+            setButtonState('loading');
             let torUrl = baseUrl.replace(/\/$/, '') + '/torrents';
             let authHeader = null;
             try {
@@ -1442,14 +1541,17 @@
               const res = await fetch(torUrl, { method: 'POST', headers, body: JSON.stringify(body) });
               if (res.ok) {
                 setFeedback('Торрент отправлен на TorrServer (save_to_db: true)');
+                setButtonState('success');
               } else {
                 const text = await res.text();
                 setFeedback('Ошибка ' + res.status + (text ? ': ' + text.slice(0, 80) : ''));
                 if (res.status === 401) setFeedback('Ошибка авторизации: проверьте логин и пароль');
                 if (res.status === 403 || (text && text.toLowerCase().includes('cors'))) setFeedback('CORS: разрешите запросы с этого сайта в настройках TorrServer');
+                setButtonState('idle');
               }
             } catch (err) {
               setFeedback(err.message || 'Ошибка сети. Проверьте URL и CORS на TorrServerе.');
+              setButtonState('idle');
             }
           });
 
