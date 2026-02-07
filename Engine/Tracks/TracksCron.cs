@@ -116,16 +116,9 @@ namespace JacRed.Engine
                         {
                             if (typetask == 2 && DateTime.Now > starttime.AddDays(10))
                                 break;
-							
-							 //Для второй задачи (месяц), если уже было 30 неудачных попыток, пропускаем.
-							//if (typetask == 2 && t.ffprobe_tryingdata >= 30)
-                            //    continue;
 
                             if ((typetask == 3 || typetask == 4) && DateTime.Now > starttime.AddMonths(2))
                                 break;
-							
-                            //if ((typetask == 3 || typetask == 4 || typetask == 5) && t.ffprobe_tryingdata >= 3)
-                            //    continue;
 							
 							if (( t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
 								continue;
