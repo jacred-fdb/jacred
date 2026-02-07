@@ -21,12 +21,11 @@ namespace JacRed.Engine
 
             bool firstRun = (typetask == 1); // Для задачи 1 сразу выполняем первый запуск
 
-
             while (true)
             {
                 if (!firstRun)
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? 60 : 180));
+					await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? AppInit.conf.TracksInterval.task1 : AppInit.conf.TracksInterval.task0));
                 }
                 firstRun = false;
 
@@ -118,15 +117,18 @@ namespace JacRed.Engine
                             if (typetask == 2 && DateTime.Now > starttime.AddDays(10))
                                 break;
 							
-							 //Для второй задачи (месяц), если уже было 10 неудачных попыток, пропускаем.
-							if (typetask == 2 && t.ffprobe_tryingdata >= 10)
-                                continue;
+							 //Для второй задачи (месяц), если уже было 30 неудачных попыток, пропускаем.
+							//if (typetask == 2 && t.ffprobe_tryingdata >= 30)
+                            //    continue;
 
                             if ((typetask == 3 || typetask == 4) && DateTime.Now > starttime.AddMonths(2))
                                 break;
 							
-                            if ((typetask == 3 || typetask == 4 || typetask == 5) && t.ffprobe_tryingdata >= 3)
-                                continue;
+                            //if ((typetask == 3 || typetask == 4 || typetask == 5) && t.ffprobe_tryingdata >= 3)
+                            //    continue;
+							
+							if (( t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
+								continue;
 
                             if (TracksDB.Get(t.magnet) == null)
                             {

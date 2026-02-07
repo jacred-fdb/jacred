@@ -39,6 +39,11 @@ syncspidr: true
 maxreadfile: 250
 tracks: false
 tracksdelay: 20000
+tracksatempt: 20
+tracksmod: 0
+tracksinterval:
+  task1: 60
+  task0: 180
 tsuri:
   - http://127.0.0.1:8090
 timeStatsUpdate: 15

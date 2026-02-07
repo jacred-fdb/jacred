@@ -197,8 +197,6 @@ namespace JacRed
 
         public bool opensync_v1 = false;
 
-        public bool trackslog = false;
-
         public bool tracks = false;
 
         public bool web = true;
@@ -210,6 +208,25 @@ namespace JacRed
         public int tracksmod = 0;
 
         public int tracksdelay = 20_000;
+		
+		public bool trackslog = false;
+		
+		public int tracksatempt = 20;
+		
+		public class TracksIntervalConfig
+        {
+            public int task0 { get; set; } = 180;
+            public int task1 { get; set; } = 60;
+        }
+
+        [JsonProperty("tracksinterval")]
+        public TracksIntervalConfig TracksInterval { get; set; } = new TracksIntervalConfig();
+
+        public static class TracksIntervalStatic
+        {
+            public static int task0 => conf?.TracksInterval?.task0 ?? 180;
+            public static int task1 => conf?.TracksInterval?.task1 ?? 60;
+        }
 
         public string[] tsuri = new string[] { "http://127.0.0.1:8090" };
 
