@@ -120,13 +120,15 @@ namespace JacRed.Engine
                             if ((typetask == 3 || typetask == 4) && DateTime.Now > starttime.AddMonths(2))
                                 break;
 							
-							if (( typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
+							if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
 								continue;
 
                             if (TracksDB.Get(t.magnet) == null)
                             {
-                                t.ffprobe_tryingdata++;
-                                await TracksDB.Add(t.magnet);
+                                if (typetask != 1)
+									t.ffprobe_tryingdata++;
+                                
+								await TracksDB.Add(t.magnet);
                             }
                         }
                         catch { }
