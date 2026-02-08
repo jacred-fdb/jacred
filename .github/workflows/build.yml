@@ -107,27 +107,35 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag_latest: ${{ steps.version.outputs.tag_latest }}
     steps:
       - name: Get release tag (workflow_run)
         if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
         id: tag_api
         run: |
-          TAG=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          RELEASE=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=1" | jq -r '.[0]')
+          echo "tag=$(echo "$RELEASE" | jq -r '.tag_name')" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(echo "$RELEASE" | jq -r '.prerelease')" >> "$GITHUB_OUTPUT"
 
       - name: Set version
         id: version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             v="${{ github.event.release.tag_name }}"
+            prerelease="${{ github.event.release.prerelease }}"
           elif [ "${{ github.event_name }}" = "workflow_run" ]; then
             v="${{ steps.tag_api.outputs.tag }}"
+            prerelease="${{ steps.tag_api.outputs.prerelease }}"
           else
             v=""
+            prerelease="true"
           fi
-          v="${v#v}"
+          # Strip only leading 'v' so 2.0.0-dev2 and v2.0.0-dev2 both become 2.0.0-dev2
+          [ -n "$v" ] && v="${v#v}" || true
           echo "version=$v" >> "$GITHUB_OUTPUT"
+          # Tag as 'latest' only for full releases (not pre-releases)
+          [ "$prerelease" = "false" ] && echo "tag_latest=true" >> "$GITHUB_OUTPUT" || echo "tag_latest=false" >> "$GITHUB_OUTPUT"
 
   build-docker-image:
     name: Build and push Docker image
@@ -143,6 +151,7 @@ jobs:
     with:
       image: ${{ vars.IMAGE_NAME || 'jacred' }}
       version: ${{ needs.extract-docker-version.outputs.version }}
+      tag_latest: ${{ needs.extract-docker-version.outputs.tag_latest }}
       push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
       attest_github: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
       sbom: true

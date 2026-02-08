@@ -81,6 +81,12 @@ on:
         required: false
         default: 14
 
+      tag_latest:
+        description: "Add 'latest' tag (use only for full releases, not pre-releases)"
+        type: boolean
+        required: false
+        default: false
+
     outputs:
       tags:
         value: ${{ jobs.build.outputs.tags }}
@@ -127,10 +133,12 @@ jobs:
           images: ${{ env.GHCR_IMAGE }}
           tags: |
             type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
             type=raw,value=v${{ inputs.version }},enable=${{ inputs.version != '' }}
             type=ref,event=branch,enable=${{ inputs.version == '' }}
             type=sha,enable=${{ inputs.version == '' }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ inputs.tag_latest }}
             ${{ inputs.extra_raw_tags }}
           labels: |
             org.opencontainers.image.title=${{ inputs.image }}
