@@ -99,7 +99,7 @@ jobs:
       artifact-metadata: write
     env:
       GHCR_REGISTRY: ${{ vars.GHCR_REGISTRY || 'ghcr.io' }}
-      GHCR_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ inputs.image }}
+      GHCR_IMAGE: ${{ vars.GHCR_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/${{ inputs.image }}
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build.outputs.digest }}
