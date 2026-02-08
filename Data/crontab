@@ -33,6 +33,8 @@
 */40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parseMagnet"
 
+*/40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/mazepa/parse"
+
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/lostfilm/parse"
 # curl "http://127.0.0.1:9117/cron/lostfilm/ParsePages?pageFrom=1&pageTo=10"
 

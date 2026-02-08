@@ -81,23 +81,21 @@ namespace JacRed.Controllers.CRON
 
             string t = title;
 
-            if (t.Contains(" / "))
-                t = t.Split(" / ")[0];
-
-            t = Regex.Replace(t, @"\s*\((19|20)\d{2}\)", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\s*\((19|20)\d{2}(\-\d{4})?\)", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(Сезон|Season)\s*\d+.*$", "", RegexOptions.IgnoreCase);
             t = Regex.Replace(t, @"\b(S\d{1,2}|E\d{1,2}|S\d{1,2}E\d{1,2})\b", "", RegexOptions.IgnoreCase);
             t = Regex.Replace(t, @"\b(2160p|1080p|720p|480p)\b", "", RegexOptions.IgnoreCase);
 
             t = Regex.Replace(
                 t,
-                @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|HDRip|BluRay|BRRip|DVDRip|HDTV)\b",
+                @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|BDRemux|HDRip|BluRay|BRRip|DVDRip|HDTV)\b",
                 "",
                 RegexOptions.IgnoreCase
             );
 
             t = Regex.Replace(
                 t,
-                @"\b(x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|ddp?\d\.\d)\b",
+                @"\b(x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|ddp?\d\.\d|vc\-?1)\b",
                 "",
                 RegexOptions.IgnoreCase
             );
@@ -106,6 +104,38 @@ namespace JacRed.Controllers.CRON
             t = Regex.Replace(t, @"\s{2,}", " ").Trim();
 
             return t;
+        }
+
+        static (string name, string originalname) ParseNamesAdvanced(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return (null, null);
+
+            var m = Regex.Match(title, @"^(.*?)\s*\((\d{4}|\d{4}-\d{4})\)");
+            string beforeYear = m.Success ? m.Groups[1].Value : title;
+
+            var parts = Regex
+                .Split(beforeYear, @"\s*/\s*")
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .ToList();
+
+            if (parts.Count == 0)
+                return (null, null);
+
+            string original = parts.LastOrDefault(p => Regex.IsMatch(p, @"[A-Za-z]"));
+            string name = parts.FirstOrDefault(p => !Regex.IsMatch(p, @"[A-Za-z]"));
+
+            name ??= parts.First();
+            original ??= name;
+
+            name = CleanTitle(name);
+            original = CleanTitle(original);
+
+            name = tParse.ReplaceBadNames(name) ?? name;
+            original = tParse.ReplaceBadNames(original) ?? original;
+
+            return (name, original);
         }
 
         async Task<bool> CheckLogin()
@@ -256,20 +286,13 @@ namespace JacRed.Controllers.CRON
                 else if (u is "tb" or "тб") size *= 1048576;
                 return size * 1048576;
             }
-            catch (FormatException)
-            {
-                return 0;
-            }
-            catch (OverflowException)
-            {
-                return 0;
-            }
+            catch { return 0; }
         }
 
         static int ParseQuality(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return 480;
-            if (title.Contains("2160p") || Regex.IsMatch(title, "(4k|uhd)( |\\]|,|$)", RegexOptions.IgnoreCase)) return 2160;
+            if (title.Contains("2160p") || Regex.IsMatch(title, "(4k|uhd)", RegexOptions.IgnoreCase)) return 2160;
             if (title.Contains("1080p")) return 1080;
             if (title.Contains("720p")) return 720;
             return 480;
@@ -279,9 +302,7 @@ namespace JacRed.Controllers.CRON
         {
             if (string.IsNullOrWhiteSpace(title)) return "sdr";
             string lower = title.ToLower();
-            if (Regex.IsMatch(lower, "(\\[|,| )sdr( |\\]|,|$)")) return "sdr";
-            if (Regex.IsMatch(lower, "(\\[|,| )hdr(10| |\\]|,|$)") || Regex.IsMatch(lower, "(10-bit|10 bit|10-бит|10 бит|hdr10)"))
-                return "hdr";
+            if (Regex.IsMatch(lower, @"\bhdr\b|hdr10")) return "hdr";
             return "sdr";
         }
 
@@ -290,9 +311,7 @@ namespace JacRed.Controllers.CRON
             string html = await HttpClient.Get(url, cookie: Cookie(memoryCache));
             if (string.IsNullOrEmpty(html)) return (0, 0, null);
 
-            var rows = Regex.Matches(html, @"<tr id=""tr-(\d+)"".*?>.*?</tr>",
-                RegexOptions.Singleline);
-
+            var rows = Regex.Matches(html, @"<tr id=""tr-(\d+)"".*?>.*?</tr>", RegexOptions.Singleline);
             if (rows.Count == 0) return (0, 0, null);
 
             var list = new List<TorrentDetails>();
@@ -304,38 +323,28 @@ namespace JacRed.Controllers.CRON
                 string tid = Regex.Match(block, @"tr-(\d+)").Groups[1].Value;
                 if (string.IsNullOrEmpty(tid)) continue;
 
-                string title = Regex.Match(block,
-                    @"class=""torTopic[^""]*""><b>([^<]+)</b>").Groups[1].Value;
-
-                string magnet = Regex.Match(block,
-                    @"href=""(magnet:\?[^""]+)""").Groups[1].Value;
-
-                string sizeName = ParseSizeName(block);
-
-                string _sid = Regex.Match(block,
-                    @"seedmed[^>]*><b>(\d+)</b>").Groups[1].Value;
-
-                string _pir = Regex.Match(block,
-                    @"leechmed[^>]*><b>(\d+)</b>").Groups[1].Value;
+                string title = Regex.Match(block, @"class=""torTopic[^""]*""><b>([^<]+)</b>").Groups[1].Value;
+                string magnet = Regex.Match(block, @"href=""(magnet:\?[^""]+)""").Groups[1].Value;
 
                 if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(magnet))
                     continue;
 
-                int.TryParse(_sid, out int sid);
-                int.TryParse(_pir, out int pir);
+                string sizeName = ParseSizeName(block);
+
+                int.TryParse(Regex.Match(block, @"seedmed[^>]*><b>(\d+)</b>").Groups[1].Value, out int sid);
+                int.TryParse(Regex.Match(block, @"leechmed[^>]*><b>(\d+)</b>").Groups[1].Value, out int pir);
 
                 var titleTrim = title.Trim();
-                var clean = CleanTitle(titleTrim);
-                var name = tParse.ReplaceBadNames(clean) ?? clean ?? titleTrim;
+                var (name, originalname) = ParseNamesAdvanced(titleTrim);
 
-                var details = new TorrentDetails()
+                list.Add(new TorrentDetails()
                 {
                     trackerName = "mazepa",
                     types = types,
                     url = $"{host}/viewtopic.php?t={tid}",
                     title = titleTrim,
                     name = name,
-                    originalname = name,
+                    originalname = originalname,
                     magnet = NormalizeMagnet(magnet),
                     sizeName = sizeName,
                     size = ParseSizeBytes(sizeName),
@@ -344,20 +353,14 @@ namespace JacRed.Controllers.CRON
                     sid = sid,
                     pir = pir,
                     createTime = DateTime.UtcNow
-                };
-                list.Add(details);
+                });
             }
 
             list = list.GroupBy(x => x.url).Select(g => g.First()).ToList();
             string signature = string.Join(",", list.Take(5).Select(x => x.url));
 
             int added = 0;
-
-            await FileDB.AddOrUpdate(list, (t, db) =>
-            {
-                added++;
-                return Task.FromResult(true);
-            });
+            await FileDB.AddOrUpdate(list, (t, db) => { added++; return Task.FromResult(true); });
 
             return (list.Count, added, signature);
         }
