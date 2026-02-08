@@ -1,0 +1,19 @@
+# Git and IDE
+.git
+.github
+.vscode
+*.md
+.gitignore
+.gitattributes
+
+# Build outputs (we build inside the image)
+**/bin
+**/obj
+
+# Router (separate front-end, not needed for main app runtime)
+router/node_modules
+
+# Local / temp
+**/temp
+*.user
+*.log
