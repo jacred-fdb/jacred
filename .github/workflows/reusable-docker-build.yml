@@ -88,7 +88,7 @@ on:
         value: ${{ jobs.build.outputs.digest }}
 
 jobs:
-  build:
+  build-docker:
     runs-on: ubuntu-latest
     permissions:
       actions: read
