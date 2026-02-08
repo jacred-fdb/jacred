@@ -106,12 +106,13 @@ namespace JacRed.Controllers.CRON
             return t;
         }
 
-        static (string name, string originalname) ParseNamesAdvanced(string title)
+        static (string name, string originalname, int year) ParseNamesAdvanced(string title)
         {
             if (string.IsNullOrWhiteSpace(title))
-                return (null, null);
+                return (null, null, 0);
 
             var m = Regex.Match(title, @"^(.*?)\s*\((\d{4}|\d{4}-\d{4})\)");
+            var yr = Regex.Match(title, @"\((\d{4})\)");
             string beforeYear = m.Success ? m.Groups[1].Value : title;
 
             var parts = Regex
@@ -121,10 +122,11 @@ namespace JacRed.Controllers.CRON
                 .ToList();
 
             if (parts.Count == 0)
-                return (null, null);
+                return (null, null, 0);
 
             string original = parts.LastOrDefault(p => Regex.IsMatch(p, @"[A-Za-z]"));
             string name = parts.FirstOrDefault(p => !Regex.IsMatch(p, @"[A-Za-z]"));
+            int.TryParse(yr.Groups[1].Value, out int year);
 
             name ??= parts.First();
             original ??= name;
@@ -135,7 +137,7 @@ namespace JacRed.Controllers.CRON
             name = tParse.ReplaceBadNames(name) ?? name;
             original = tParse.ReplaceBadNames(original) ?? original;
 
-            return (name, original);
+            return (name, original, year);
         }
 
         async Task<bool> CheckLogin()
@@ -335,7 +337,7 @@ namespace JacRed.Controllers.CRON
                 int.TryParse(Regex.Match(block, @"leechmed[^>]*><b>(\d+)</b>").Groups[1].Value, out int pir);
 
                 var titleTrim = title.Trim();
-                var (name, originalname) = ParseNamesAdvanced(titleTrim);
+                var (name, originalname, year) = ParseNamesAdvanced(titleTrim);
 
                 list.Add(new TorrentDetails()
                 {
@@ -352,7 +354,8 @@ namespace JacRed.Controllers.CRON
                     videotype = ParseVideotype(titleTrim),
                     sid = sid,
                     pir = pir,
-                    createTime = DateTime.UtcNow
+                    createTime = DateTime.UtcNow,
+                    relased = year
                 });
             }
 
