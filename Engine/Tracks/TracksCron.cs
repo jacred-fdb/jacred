@@ -25,7 +25,7 @@ namespace JacRed.Engine
             {
                 if (!firstRun)
                 {
-					await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? AppInit.conf.TracksInterval.task1 : AppInit.conf.TracksInterval.task0));
+					await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? AppInit.conf.TracksInterval.task1 : AppInit.conf.TracksInterval.task0 + typetask));
                 }
                 firstRun = false;
 

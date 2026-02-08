@@ -39,6 +39,7 @@ syncspidr: true
 maxreadfile: 250
 tracks: false
 trackslog: false
+trackscategory: jacred
 tracksdelay: 20000
 tracksatempt: 20
 tracksmod: 0

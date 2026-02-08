@@ -213,6 +213,8 @@ namespace JacRed
 		
 		public int tracksatempt = 20;
 		
+		public string trackscategory = "jacred";
+		
 		public class TracksIntervalConfig
         {
             public int task0 { get; set; } = 180;
