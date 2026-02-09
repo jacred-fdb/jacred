@@ -37,7 +37,7 @@ namespace JacRed.Engine
 
                 try
                 {
-                    Console.WriteLine($"tracks: start typetask={typetask} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    TracksDB.Log($"start typetask={typetask}");
                     var starttime = DateTime.Now;
                     var torrents = new List<TorrentDetails>();
 
@@ -100,6 +100,9 @@ namespace JacRed.Engine
                                     //if (hex == null)
                                     //    continue;
 
+                                    if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
+                                        continue;
+
                                     if (typetask == 1 || (t.sid > 0 && t.updateTime > DateTime.Today.AddDays(-20)))
                                         torrents.Add(t);
                                 }
@@ -108,7 +111,7 @@ namespace JacRed.Engine
                         }
                     }
 
-                    Console.WriteLine($"tracks: typetask={typetask} collected {torrents.Count} torrents to process");
+                    TracksDB.Log($"typetask={typetask} collected {torrents.Count} torrents to process");
 
                     foreach (var t in torrents.OrderByDescending(i => i.updateTime))
                     {
@@ -120,23 +123,25 @@ namespace JacRed.Engine
                             if ((typetask == 3 || typetask == 4) && DateTime.Now > starttime.AddMonths(2))
                                 break;
 
-                            if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
-                                continue;
+                            //if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
+                            //	continue;
 
                             if (TracksDB.Get(t.magnet) == null)
                             {
-                                if (typetask != 1)
-                                    t.ffprobe_tryingdata++;
+                                //if (typetask != 1)
+                                //	t.ffprobe_tryingdata++;
 
-                                await TracksDB.Add(t.magnet);
+                                string torrentKey = FileDB.KeyForTorrent(t.name, t.originalname);
+                                await TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask);
+                                //await TracksDB.Add(t.magnet, t.ffprobe_tryingdata);
                             }
                         }
                         catch { }
                     }
 
-                    Console.WriteLine($"tracks: end typetask={typetask} / {DateTime.Now:yyyy-MM-dd HH:mm:ss} (elapsed {(DateTime.Now - starttime).TotalMinutes:F1}m)");
+                    TracksDB.Log($"end typetask={typetask} (elapsed {(DateTime.Now - starttime).TotalMinutes:F1}m)");
                 }
-                catch (Exception ex) { Console.WriteLine($"tracks: error typetask={typetask} / {ex.Message}"); }
+                catch (Exception ex) { TracksDB.Log($"tracks: error typetask={typetask} / {ex.Message}"); }
             }
         }
     }

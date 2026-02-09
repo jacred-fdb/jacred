@@ -13,9 +13,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 
-
-
-
 namespace JacRed.Engine
 {
     public static class TracksDB
@@ -94,7 +91,14 @@ namespace JacRed.Engine
             return res.streams;
         }
 
-        public static async Task Add(string magnet, string[] types = null)
+        /// <summary>
+        /// Анализ медиа-треков торрента
+        /// </summary>
+        /// <param name="magnet">Magnet-ссылка торрента</param>
+        /// <param name="currentAttempt">Текущая попытка анализа</param>
+        /// <param name="types">Типы контента</param>
+        /// <param name="torrentKey">Ключ торрента в FileDB (search_name:search_originalname)</param>
+        public static async Task Add(string magnet, int currentAttempt, string[] types = null, string torrentKey = null, int typetask = 1)
         {
             // 1. Валидация входных параметров
             if (string.IsNullOrWhiteSpace(magnet))
@@ -141,11 +145,14 @@ namespace JacRed.Engine
             }
 
             // 3. Логирование начала операции
-            Log($"Начало анализа треков для инфохаша: {infohash}");
+            Log($"Начало анализа треков для {infohash}.");
 
             FfprobeModel res = null;
             string tsuri = AppInit.conf.tsuri[random.Next(0, AppInit.conf.tsuri.Length)];
-            string expectedCategory = AppInit.conf.trackscategory; // Получаем категорию из конфигурации
+            string expectedCategory = AppInit.conf.trackscategory;
+
+            bool analysisSuccessful = false;
+            string errorMessage = null;
 
             try
             {
@@ -160,23 +167,29 @@ namespace JacRed.Engine
 
                     if (serverError)
                     {
-                        Log($"Сервер вернул ошибку. Добавление и анализ отменены.");
+                        errorMessage = "Сервер вернул ошибку при получении списка торрентов";
+                        Log($"{errorMessage}. Пауза 1 минута...");
+
+                        // Держим паузу 1 минуту
+                        await Task.Delay(TimeSpan.FromMinutes(1), token);
+
+                        Log("Пауза завершена. Выход.");
                         return;
                     }
 
-                    // Определяем, нужно ли запускать анализ
-                    // Анализ ТОЛЬКО если торрент в правильной категории
                     bool shouldAnalyze = torrentAdded || torrentExistsInCorrectCategory;
 
                     if (!shouldAnalyze)
                     {
                         if (torrentExistsInCorrectCategory == false)
                         {
-                            Log($"Торрент {infohash} не в категории '{expectedCategory}'. Анализ отменен.");
+                            errorMessage = $"Торрент не в категории '{expectedCategory}'";
+                            Log($"{errorMessage}. Анализ отменен.");
                         }
                         else
                         {
-                            Log($"Не удалось добавить торрент {infohash} на сервер и он не существует в категории '{expectedCategory}'. Завершение.");
+                            errorMessage = "Не удалось добавить торрент на сервер";
+                            Log($"{errorMessage} и он не существует в категории '{expectedCategory}'. Завершение.");
                         }
                         return;
                     }
@@ -190,54 +203,146 @@ namespace JacRed.Engine
                         Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...");
                     }
 
-                    // 5. Небольшая пауза для инициализации торрента (только если только что добавили)
+                    // 5. Небольшая пауза для инициализации торрента
                     if (torrentAdded)
                     {
                         await Task.Delay(TimeSpan.FromSeconds(3), token);
                     }
 
-                    // 6. Вызов внешнего API для анализа (ТОЛЬКО если торрент в правильной категории)
+                    // 6. Вызов внешнего API для анализа
                     res = await AnalyzeWithExternalApi(tsuri, infohash, token);
 
-                    if (res?.streams == null || res.streams.Count == 0)
+                    if (res?.streams != null && res.streams.Count > 0)
                     {
-                        Log($"Нет данных о треках для инфохаша {infohash}");
+                        analysisSuccessful = true;
+                        Log($"API успешно вернул {res.streams.Count} треков");
+                    }
+                    else
+                    {
+                        errorMessage = "Нет данных о треках";
+                        Log($"{errorMessage} для инфохаша {infohash}");
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                Log("Анализ треков отменен по таймауту (3 минуты)");
+                errorMessage = "Анализ отменен по таймауту (3 минуты)";
+                Log(errorMessage);
             }
             catch (System.Net.Http.HttpRequestException ex)
             {
-                Log($"Ошибка HTTP при анализе треков: {ex.Message}");
+                errorMessage = $"Ошибка HTTP при анализе треков: {ex.Message}";
+                Log(errorMessage);
             }
             catch (JsonException ex)
             {
-                Log($"Ошибка обработки JSON ответа: {ex.Message}");
+                errorMessage = $"Ошибка обработки JSON ответа: {ex.Message}";
+                Log(errorMessage);
             }
             catch (Exception ex)
             {
-                Log($"Критическая ошибка при анализе треков: {ex.Message}");
+                errorMessage = $"Критическая ошибка при анализе треков: {ex.Message}";
+                Log(errorMessage);
                 LogToFile($"StackTrace: {ex.StackTrace}");
             }
             finally
             {
-                // 7. Очистка торрента на сервере (ВСЕГДА, но только если в указанной категории)
+                // 7. Очистка торрента на сервере
                 await CleanupTorrent(tsuri, infohash, expectedCategory);
             }
 
-            // 8. Сохранение результатов (только если анализ успешен)
-            if (res?.streams != null && res.streams.Count > 0)
+            // 8. Обновление данных в базе
+            UpdateAnalysisResults(magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, errorMessage);
+        }
+
+        /// <summary>
+        /// Обновляет результаты анализа в базе данных
+        /// </summary>
+        private static void UpdateAnalysisResults(string magnet, string torrentKey, string infohash,
+            int currentAttempt, bool analysisSuccessful, FfprobeModel ffprobeResult, int typetask, string errorMessage = null)
+        {
+            try
             {
-                await SaveTrackResults(res, infohash);
-                Log($"Анализ треков для {infohash} успешно завершен!");
+                if (string.IsNullOrEmpty(torrentKey))
+                {
+                    // Пытаемся найти ключ по magnet/инфохашу
+                    torrentKey = FindTorrentKeyByMagnet(magnet);
+                    if (string.IsNullOrEmpty(torrentKey))
+                    {
+                        Log($"Не удалось найти torrentKey для {infohash}. Обновление ffprobe_tryingdata невозможно.");
+                        return;
+                    }
+                }
+
+                if (analysisSuccessful)
+                {
+                    // Анализ успешен - сбрасываем счетчик и сохраняем результаты
+                    // FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, 0, ffprobeResult);
+
+                    // Сохраняем результаты в tracks базу
+                    if (ffprobeResult?.streams != null && ffprobeResult.streams.Count > 0)
+                    {
+                        SaveTrackResults(ffprobeResult, infohash).Wait();
+                    }
+
+                    Log($"Анализ треков для {infohash} успешно завершен!");
+                }
+                else
+                {
+                    // Анализ неуспешен - увеличиваем счетчик попыток
+                    if (typetask != 1)
+                    {
+                        currentAttempt++;
+                        FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, currentAttempt);
+                    }
+
+                    if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        Log($"{errorMessage}.");
+                    }
+                    Log($"Анализ треков для {infohash} без результата. Осталось {AppInit.conf.tracksatempt - currentAttempt} попыток.");
+
+                    //logMessage += $"ffprobe_tryingdata увеличен до {nextAttempt}.";
+
+
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Log($"Анализ треков для {infohash} завершен (без результатов)");
+                Log($"Ошибка при обновлении результатов анализа: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Находит ключ торрента в FileDB по magnet-ссылке
+        /// </summary>
+        private static string FindTorrentKeyByMagnet(string magnet)
+        {
+            try
+            {
+                var infohash = MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex();
+                if (string.IsNullOrEmpty(infohash))
+                    return null;
+
+                // Проверяем все ключи в masterDb
+                foreach (var key in FileDB.masterDb.Keys)
+                {
+                    try
+                    {
+                        var db = FileDB.OpenRead(key, cache: false);
+                        var torrent = db.Values.FirstOrDefault(t =>
+                            !string.IsNullOrEmpty(t.magnet) &&
+                            MagnetLink.Parse(t.magnet).InfoHashes.V1OrV2.ToHex() == infohash);
+
+                        if (torrent != null)
+                            return key;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
+            return null;
         }
 
         /// <summary>
@@ -358,12 +463,8 @@ namespace JacRed.Engine
                     return (false, null, false); // Торрент не найден
                 }
 
-                //Log($"Торрент {infohash} найден в списке сервера ({torrents.Count} торрентов всего)");
-
                 // Всегда возвращаем категорию (даже если null или пустая)
                 string torrentCategory = torrent.category ?? string.Empty;
-
-                //Log($"Торрент {infohash} находится в категории '{torrentCategory}'");
 
                 return (true, torrentCategory, false); // Найден, возвращаем категорию
             }
@@ -402,14 +503,11 @@ namespace JacRed.Engine
         {
             try
             {
-                //Log($"Добавление торрента {infohash} на сервер...");
-
                 // Проверяем существование и категорию торрента
                 (bool exists, string actualCategory, bool serverError) = await CheckTorrentExistsWithCategory(tsuri, infohash, token);
 
                 if (serverError)
                 {
-                    //Log($"Сервер вернул ошибку при запросе списка торрентов. Добавление отменено.");
                     return (false, false, true); // Не добавляем при ошибке сервера
                 }
 
@@ -421,13 +519,11 @@ namespace JacRed.Engine
                     if (isCorrectCategory)
                     {
                         // Торрент существует в правильной категории - не добавляем, но будем анализировать
-                        //Log($"Торрент {infohash} уже существует на сервере в категории '{expectedCategory}'. Пропускаем добавление.");
                         return (false, true, false); // Существует в правильной категории
                     }
                     else
                     {
                         // Торрент существует, но в другой категории - не добавляем и не анализируем
-                        //Log($"Торрент {infohash} существует в категории '{actualCategory}' (не '{expectedCategory}'). Пропускаем добавление и анализ.");
                         return (false, false, false); // Существует, но не в правильной категории
                     }
                 }
@@ -448,7 +544,6 @@ namespace JacRed.Engine
 
                 var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                // Для POST запроса также можно использовать потоковое чтение если ожидается большой ответ
                 using var response = await client.PostAsync($"{tsuri}/torrents", content, token);
 
                 if (response.IsSuccessStatusCode)
@@ -465,16 +560,14 @@ namespace JacRed.Engine
                     while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                     {
                         totalBytes += bytesRead;
-                        // Просто продолжаем чтение чтобы освободить поток
-                        // Если нужна обработка данных, можно добавить её здесь
                     }
 
-                    //Log($"Торрент {infohash} успешно добавлен на сервер в категорию '{expectedCategory}' (получено {totalBytes} байт)");
+                    Log($"Торрент {infohash} успешно добавлен на сервер в категорию '{expectedCategory}'");
                     return (true, false, false); // Успешно добавлен
                 }
                 else
                 {
-                    //Log($"Ошибка при добавлении торрента ({(int)response.StatusCode})");
+                    Log($"Ошибка при добавлении торрента ({(int)response.StatusCode})");
                     return (false, false, false); // Не удалось добавить
                 }
             }
@@ -496,9 +589,6 @@ namespace JacRed.Engine
         private static async Task<FfprobeModel> AnalyzeWithExternalApi(string tsuri, string infohash, CancellationToken token)
         {
             string apiUrl = $"{tsuri}/ffp/{infohash.ToUpper()}/1";
-
-            // Логируем с маскировкой пароля
-            //Log($"Вызов API анализа: {MaskPasswordInUrl(apiUrl)}");
 
             using var client = new System.Net.Http.HttpClient();
             client.Timeout = TimeSpan.FromMinutes(2);
@@ -554,8 +644,6 @@ namespace JacRed.Engine
         {
             try
             {
-                Log($"Начало очистки торрента {infohash} на сервере...");
-
                 // Проверяем существование и категорию торрента
                 (bool exists, string actualCategory, bool serverError) = await CheckTorrentExistsWithCategory(tsuri, infohash, CancellationToken.None);
 
@@ -581,8 +669,6 @@ namespace JacRed.Engine
                 }
 
                 // Торрент существует, в правильной категории и сервер работает - выполняем удаление
-                //Log($"Удаление торрента {infohash} (категория '{expectedCategory}') с сервера...");
-
                 using var client = new System.Net.Http.HttpClient();
                 client.Timeout = TimeSpan.FromSeconds(30);
 
@@ -594,12 +680,10 @@ namespace JacRed.Engine
                 {
                     action = "rem",
                     hash = infohash
-                    // Категория не указывается
                 });
 
                 var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                // Для POST запроса также можно использовать потоковое чтение если ожидается большой ответ
                 using var response = await client.PostAsync($"{tsuri}/torrents", content);
 
                 if (response.IsSuccessStatusCode)
@@ -634,7 +718,6 @@ namespace JacRed.Engine
             try
             {
                 Database.AddOrUpdate(infohash, result, (k, v) => result);
-                //Log($"Данные треков для {infohash} обновлены в памяти");
             }
             catch (Exception ex)
             {
@@ -647,8 +730,6 @@ namespace JacRed.Engine
                 string path = pathDb(infohash, createfolder: true);
                 string json = JsonConvert.SerializeObject(result, Formatting.Indented);
                 await File.WriteAllTextAsync(path, json, Encoding.UTF8);
-
-                //Log($"Данные треков для {infohash} сохранены в файл: {path}");
 
                 // Логирование информации о языках
                 var audioLanguages = result.streams
@@ -672,7 +753,7 @@ namespace JacRed.Engine
         /// <summary>
         /// Логирование в консоль и файл
         /// </summary>
-        private static void Log(string message)
+        public static void Log(string message)
         {
             string timeNow = DateTime.Now.ToString("HH:mm:ss");
             string fullMessage = $"tracks: [{timeNow}] {message}";
@@ -688,7 +769,7 @@ namespace JacRed.Engine
         /// <summary>
         /// Логирование в файл
         /// </summary>
-        private static void LogToFile(string message)
+        public static void LogToFile(string message)
         {
             try
             {
@@ -732,8 +813,6 @@ namespace JacRed.Engine
                 catch { }
             }
         }
-
-        ///////////////////////////////////////////
 
         public static HashSet<string> Languages(TorrentDetails t, List<ffStream> streams)
         {

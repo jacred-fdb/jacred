@@ -292,5 +292,68 @@ namespace JacRed.Engine
             }
         }
         #endregion
+
+        ///by Lexandros
+        /// <summary>
+        /// Обновляет информацию о попытках анализа ffprobe для торрента
+        /// </summary>
+        /// <param name="torrentKey">Ключ торрента в базе (search_name:search_originalname)</param>
+        /// <param name="magnet">Magnet-ссылка торрента для поиска</param>
+        /// <param name="ffprobeTryingData">Новое значение счетчика попыток</param>
+        /// <param name="ffprobeResult">Результаты анализа ffprobe (опционально)</param>
+        public static void UpdateTorrentFfprobeInfo(string torrentKey, string magnet, int ffprobeTryingData, JacRed.Models.Tracks.FfprobeModel ffprobeResult = null)
+        {
+            if (string.IsNullOrEmpty(torrentKey) || string.IsNullOrEmpty(magnet))
+                return;
+
+            try
+            {
+                using (var fdb = OpenWrite(torrentKey))
+                {
+                    // Ищем торрент по magnet ссылке
+                    var torrent = fdb.Database.Values.FirstOrDefault(t =>
+                        !string.IsNullOrEmpty(t.magnet) &&
+                        t.magnet.Equals(magnet, StringComparison.OrdinalIgnoreCase));
+
+                    if (torrent != null)
+                    {
+                        bool updated = false;
+
+                        // Обновляем счетчик попыток
+                        if (torrent.ffprobe_tryingdata != ffprobeTryingData)
+                        {
+                            torrent.ffprobe_tryingdata = ffprobeTryingData;
+                            updated = true;
+                        }
+
+                        // Обновляем результаты анализа (если есть)
+                        if (ffprobeResult != null && ffprobeResult.streams != null && ffprobeResult.streams.Count > 0)
+                        {
+                            torrent.ffprobe = ffprobeResult.streams;  // Преобразуем FfprobeModel в List<ffStream>
+                            updated = true;
+                        }
+
+                        if (updated)
+                        {
+                            // Обновляем время изменения
+                            torrent.updateTime = DateTime.UtcNow;
+
+                            // Помечаем для сохранения при Dispose
+                            fdb.savechanges = true;
+
+                            // Обновляем masterDb
+                            AddOrUpdateMasterDb(torrent);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при обновлении ffprobe информации: {ex.Message}");
+            }
+        }
+
+        ///
+
     }
 }
