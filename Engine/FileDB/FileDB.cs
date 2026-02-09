@@ -90,6 +90,9 @@ namespace JacRed.Engine
 
                 if (torrent.sid != t.sid)
                 {
+					if (t.sid == 0 && torrent.sid >= 2 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt) {
+						t.ffprobe_tryingdata = 0;
+					}
                     t.sid = torrent.sid;
                     upt(updatetime: false);
                 }
