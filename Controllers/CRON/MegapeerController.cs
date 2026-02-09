@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,19 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/megapeer/[action]")]
     public class MegapeerController : BaseController
     {
+        /// <summary>Delay between page/category requests (ms): 30s, 60s, 90s, then repeat. Reduces 429 rate limit.</summary>
+        static readonly int[] ParseDelayCycleMs = new[] { 30_000, 60_000, 90_000 };
+        static int _parseDelayIndex = 0;
+
+        /// <summary>Only one browse request at a time process-wide (Parse, UpdateTasksParse, ParseAllTask can be triggered in parallel by cron).</summary>
+        static readonly SemaphoreSlim _browseLock = new SemaphoreSlim(1, 1);
+
+        static int GetNextParseDelayMs()
+        {
+            int i = Interlocked.Increment(ref _parseDelayIndex) - 1;
+            return ParseDelayCycleMs[Math.Abs(i % ParseDelayCycleMs.Length)];
+        }
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static MegapeerController()
@@ -31,53 +45,48 @@ namespace JacRed.Controllers.CRON
         /// <summary>Маркер валидной страницы browse (при запросе через alias/worker может прийти 200 с телом ошибки).</summary>
         const string BrowsePageValidMarker = "id=\"logo\"";
 
-        /// <summary>Запрос страницы browse с повтором при rate limit. Успех только по контенту: при alias (Cloudflare Worker) часто приходит 200 с телом ошибки, а не 429.</summary>
+        /// <summary>Запрос страницы browse. Один поток на все запросы (_browseLock), задержка 15/30/45 сек перед каждым запросом, при 429/невалидной странице — повтор до maxRetries.</summary>
         async Task<string> GetMegapeerBrowsePage(string url, string cat)
         {
-            var headers = new List<(string name, string val)>()
+            await _browseLock.WaitAsync();
+            try
             {
-                ("dnt", "1"),
-                ("pragma", "no-cache"),
-                ("referer", $"{AppInit.conf.Megapeer.rqHost()}/cat/{cat}"),
-                ("sec-fetch-dest", "document"),
-                ("sec-fetch-mode", "navigate"),
-                ("sec-fetch-site", "same-origin"),
-                ("sec-fetch-user", "?1"),
-                ("upgrade-insecure-requests", "1")
-            };
-            const int maxRetries = 3;
-            const int defaultWaitSec = 60;
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
-            {
-                var (content, response) = await HttpClient.BaseGetAsync(url, encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: headers);
-
-                // Успех только если контент есть и это реальная страница каталога (не страница ошибки/rate limit при 200)
-                if (!string.IsNullOrEmpty(content) && content.Contains(BrowsePageValidMarker))
-                    return content;
-
-                // Пустой ответ или невалидная страница (в т.ч. 200 с телом "подождите") — считаем rate limit, ждём и повторяем
-                int waitSec = defaultWaitSec;
-                var status = response?.StatusCode;
-                if (status == (HttpStatusCode)429)
+                var headers = new List<(string name, string val)>()
                 {
-                    try
+                    ("dnt", "1"),
+                    ("pragma", "no-cache"),
+                    ("referer", $"{AppInit.conf.Megapeer.rqHost()}/cat/{cat}"),
+                    ("sec-fetch-dest", "document"),
+                    ("sec-fetch-mode", "navigate"),
+                    ("sec-fetch-site", "same-origin"),
+                    ("sec-fetch-user", "?1"),
+                    ("upgrade-insecure-requests", "1")
+                };
+                const int maxRetries = 3;
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                {
+                    int delayMs = GetNextParseDelayMs();
+                    await Task.Delay(delayMs);
+
+                    var (content, response) = await HttpClient.BaseGetAsync(url, encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: headers);
+
+                    if (!string.IsNullOrEmpty(content) && content.Contains(BrowsePageValidMarker))
+                        return content;
+
+                    var status = response?.StatusCode;
+                    if (attempt < maxRetries)
                     {
-                        if (response.Headers.RetryAfter?.Delta != null)
-                            waitSec = (int)Math.Max(defaultWaitSec, response.Headers.RetryAfter.Delta.Value.TotalSeconds);
-                        else if (response.Headers.RetryAfter?.Date != null)
-                            waitSec = (int)Math.Max(defaultWaitSec, (response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow).TotalSeconds);
+                        ParserLog.Write("megapeer", $"Rate limit or invalid page (status={(int)(status ?? 0)}), retry {attempt}/{maxRetries} after next cycle delay (15/30/45s)");
+                        continue;
                     }
-                    catch { }
-                }
-                if (attempt < maxRetries)
-                {
-                    ParserLog.Write("megapeer", $"Rate limit or invalid page (status={(int)(status ?? 0)}), waiting {waitSec}s before retry {attempt}/{maxRetries}");
-                    await Task.Delay(TimeSpan.FromSeconds(waitSec));
-                    continue;
+                    return null;
                 }
                 return null;
             }
-            return null;
+            finally
+            {
+                _browseLock.Release();
+            }
         }
 
         #region Parse
@@ -107,7 +116,6 @@ namespace JacRed.Controllers.CRON
                 // 76  - Мультипликация             | Мультфильмы, Мультсериалы
                 foreach (string cat in new List<string>() { "80", "79", "6", "5", "55", "57", "76" })
                 {
-                    await Task.Delay(AppInit.conf.Megapeer.parseDelay);
                     string pageUrl = $"{baseUrl}?cat={cat}&page={page}";
                     ParserLog.Write("megapeer", $"Category {cat}: {pageUrl}");
                     bool res = await parsePage(cat, page);
@@ -135,7 +143,6 @@ namespace JacRed.Controllers.CRON
                 return "disabled";
             foreach (string cat in new List<string>() { "80", "79", "6", "5", "55", "57", "76" })
             {
-                await Task.Delay(AppInit.conf.Megapeer.parseDelay);
                 string html = await GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}", cat);
 
                 if (html == null)
@@ -189,8 +196,6 @@ namespace JacRed.Controllers.CRON
                     {
                         if (DateTime.Today == val.updateTime)
                             continue;
-
-                        await Task.Delay(AppInit.conf.Megapeer.parseDelay);
 
                         bool res = await parsePage(task.Key, val.page);
                         if (res)
