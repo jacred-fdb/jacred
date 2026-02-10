@@ -41,8 +41,8 @@ tracksdelay: 20000
 tsuri:
   - http://127.0.0.1:8090
 timeStatsUpdate: 15
-timeSync: 30
-timeSyncSpidr: 60
+timeSync: 120
+timeSyncSpidr: 360
 evercache:
   enable: false
   validHour: 1
