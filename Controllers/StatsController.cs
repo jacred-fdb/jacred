@@ -52,6 +52,38 @@ namespace JacRed.Controllers
             return Json(list);
         }
 
+        /// <summary>
+        /// Получить новые раздачи для конкретного трекера (созданные сегодня).
+        /// </summary>
+        [Route("/stats/trackers/{trackerName}/new")]
+        public ActionResult NewTorrents(string trackerName, int limit = 200)
+        {
+            if (!AppInit.conf.openstats)
+                return Content("[]", "application/json");
+
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return Content("[]", "application/json");
+
+            var list = CollectTorrents(trackerName, newtoday: 1, updatedtoday: 0, limit);
+            return Json(list);
+        }
+
+        /// <summary>
+        /// Получить обновленные раздачи для конкретного трекера (обновленные сегодня).
+        /// </summary>
+        [Route("/stats/trackers/{trackerName}/updated")]
+        public ActionResult UpdatedTorrents(string trackerName, int limit = 200)
+        {
+            if (!AppInit.conf.openstats)
+                return Content("[]", "application/json");
+
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return Content("[]", "application/json");
+
+            var list = CollectTorrents(trackerName, newtoday: 0, updatedtoday: 1, limit);
+            return Json(list);
+        }
+
         static List<object> CollectTorrents(string trackerName, int newtoday, int updatedtoday, int limit)
         {
             var today = DateTime.Today - (DateTime.Now - DateTime.UtcNow);
