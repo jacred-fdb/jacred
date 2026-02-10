@@ -74,20 +74,21 @@ namespace JacRed.Engine
                 int torrentId = GetTorrentIdFromUrl(torrent.trackerName, torrent.url);
                 if (torrentId > 0)
                 {
-                    foreach (var kv in Database)
+                    var sameTrackerEntries = Database
+                        .Where(kv => string.Equals(kv.Value.trackerName, torrent.trackerName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    foreach (var kv in sameTrackerEntries)
                     {
                         // Check if existing torrent has same tracker and same ID
-                        if (string.Equals(kv.Value.trackerName, torrent.trackerName, StringComparison.OrdinalIgnoreCase))
+                        int existingId = GetTorrentIdFromUrl(torrent.trackerName, kv.Key);
+                        if (existingId == torrentId)
                         {
-                            int existingId = GetTorrentIdFromUrl(torrent.trackerName, kv.Key);
-                            if (existingId == torrentId)
-                            {
-                                Database.Remove(kv.Key);
-                                t = kv.Value;
-                                t.url = torrent.url;
-                                foundById = true;
-                                break;
-                            }
+                            Database.Remove(kv.Key);
+                            t = kv.Value;
+                            t.url = torrent.url;
+                            foundById = true;
+                            break;
                         }
                     }
                 }
