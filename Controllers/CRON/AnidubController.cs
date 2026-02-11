@@ -31,11 +31,11 @@ namespace JacRed.Controllers.CRON
             {
                 var sw = Stopwatch.StartNew();
                 string baseUrl = AppInit.conf.Anidub.host;
-                
+
                 // Determine page range
                 int startPage = parseFrom > 0 ? parseFrom : 1;
                 int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
-                
+
                 // Ensure startPage <= endPage
                 if (startPage > endPage)
                 {
@@ -43,14 +43,14 @@ namespace JacRed.Controllers.CRON
                     startPage = endPage;
                     endPage = temp;
                 }
-                
-                ParserLog.Write("anidub", $"Starting parse", new Dictionary<string, object> 
-                { 
+
+                ParserLog.Write("anidub", $"Starting parse", new Dictionary<string, object>
+                {
                     { "parseFrom", parseFrom },
                     { "parseTo", parseTo },
                     { "startPage", startPage },
                     { "endPage", endPage },
-                    { "baseUrl", baseUrl } 
+                    { "baseUrl", baseUrl }
                 });
 
                 int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
@@ -60,16 +60,16 @@ namespace JacRed.Controllers.CRON
                 {
                     if (page > startPage)
                         await Task.Delay(AppInit.conf.Anidub.parseDelay);
-                    
+
                     if (page > 1)
                     {
-                        ParserLog.Write("anidub", $"Parsing page", new Dictionary<string, object> 
-                        { 
-                            { "page", page }, 
-                            { "url", $"{baseUrl}/page/{page}/" } 
+                        ParserLog.Write("anidub", $"Parsing page", new Dictionary<string, object>
+                        {
+                            { "page", page },
+                            { "url", $"{baseUrl}/page/{page}/" }
                         });
                     }
-                    
+
                     var (parsed, added, updated, skipped, failed) = await parsePage(page);
                     totalParsed += parsed;
                     totalAdded += added;
@@ -78,7 +78,7 @@ namespace JacRed.Controllers.CRON
                     totalFailed += failed;
                 }
 
-                ParserLog.Write("anidub", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)", 
+                ParserLog.Write("anidub", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
                     new Dictionary<string, object>
                     {
                         { "parsed", totalParsed },
@@ -90,8 +90,8 @@ namespace JacRed.Controllers.CRON
             }
             catch (Exception ex)
             {
-                ParserLog.Write("anidub", $"Error", new Dictionary<string, object> 
-                { 
+                ParserLog.Write("anidub", $"Error", new Dictionary<string, object>
+                {
                     { "message", ex.Message },
                     { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
                 });
@@ -111,12 +111,12 @@ namespace JacRed.Controllers.CRON
         {
             string url = page == 1 ? AppInit.conf.Anidub.host : $"{AppInit.conf.Anidub.host}/page/{page}/";
             string html = await HttpClient.Get(url, encoding: Encoding.UTF8, useproxy: AppInit.conf.Anidub.useproxy);
-            
+
             if (html == null || !html.Contains("dle-content"))
             {
-                ParserLog.Write("anidub", $"Page parse failed", new Dictionary<string, object> 
-                { 
-                    { "page", page }, 
+                ParserLog.Write("anidub", $"Page parse failed", new Dictionary<string, object>
+                {
+                    { "page", page },
                     { "url", url },
                     { "reason", html == null ? "null response" : "invalid content" }
                 });
@@ -292,7 +292,7 @@ namespace JacRed.Controllers.CRON
                 {
                     // Check if already exists
                     bool exists = db.TryGetValue(t.url, out TorrentDetails _tcache);
-                    
+
                     // Check if already exists with same title (skip if unchanged)
                     if (exists && _tcache.title == t.title)
                     {
@@ -314,7 +314,7 @@ namespace JacRed.Controllers.CRON
                         {
                             t.magnet = magnet;
                             t.sizeName = sizeName;
-                            
+
                             if (exists)
                             {
                                 updatedCount++;
@@ -379,7 +379,7 @@ namespace JacRed.Controllers.CRON
                                 {
                                     t.magnet = magnet;
                                     t.sizeName = sizeName;
-                                    
+
                                     if (exists)
                                     {
                                         updatedCount++;
@@ -411,7 +411,7 @@ namespace JacRed.Controllers.CRON
 
             if (parsedCount > 0)
             {
-                ParserLog.Write("anidub", $"Page {page} completed", 
+                ParserLog.Write("anidub", $"Page {page} completed",
                     new Dictionary<string, object>
                     {
                         { "parsed", parsedCount },
