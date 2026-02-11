@@ -7,9 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  release:
-    types:
-      - published
   workflow_run:
     workflows:
       - Release
@@ -53,18 +50,48 @@ jobs:
             output_dir: osx-amd64
             artifact_name: jacred-osx-amd64
     steps:
-      - name: Get release tag (when triggered by Release workflow)
-        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
-        id: release_tag
+      - name: Determine checkout ref
+        id: checkout_ref
         run: |
-          TAG=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "Fetching latest release tag from API..."
+            MAX_RETRIES=5
+            RETRY_COUNT=0
+            TAG=""
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              RELEASE=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/releases?per_page=1" | jq -r '.[0]')
+              TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+              if [ -n "$TAG" ] && [ "$TAG" != "null" ]; then
+                break
+              fi
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Retry $RETRY_COUNT/$MAX_RETRIES: Release not yet available, waiting 2 seconds..."
+                sleep 2
+              fi
+            done
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "Error: Could not fetch release tag from API after $MAX_RETRIES attempts"
+              exit 1
+            fi
+            REF="$TAG"
+            echo "Using workflow_run event tag: $REF"
+          else
+            REF="${{ github.ref }}"
+            echo "Using default ref: $REF"
+          fi
+          if [ -z "$REF" ]; then
+            echo "Error: Checkout ref is empty"
+            exit 1
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Checking out ref: $REF"
 
       - name: Checkout
         uses: actions/checkout@v6.0.2
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || (github.event_name == 'workflow_run' && steps.release_tag.outputs.tag) || github.ref }}
+          ref: ${{ steps.checkout_ref.outputs.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5.1.0
@@ -100,7 +127,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/${{ matrix.output_dir }}
-          retention-days: ${{ github.event_name == 'release' && 365 || 7 }}
+          retention-days: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && 30 || 7 }}
 
   extract-docker-version:
     name: Version for Docker
@@ -109,7 +136,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       tag_latest: ${{ steps.version.outputs.tag_latest }}
     steps:
-      - name: Get release tag (workflow_run)
+      - name: Get release tag
         if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
         id: tag_api
         run: |
@@ -121,10 +148,7 @@ jobs:
       - name: Set version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            v="${{ github.event.release.tag_name }}"
-            prerelease="${{ github.event.release.prerelease }}"
-          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
             v="${{ steps.tag_api.outputs.tag }}"
             prerelease="${{ steps.tag_api.outputs.prerelease }}"
           else
@@ -152,23 +176,22 @@ jobs:
       image: ${{ vars.IMAGE_NAME || 'jacred' }}
       version: ${{ needs.extract-docker-version.outputs.version }}
       tag_latest: ${{ needs.extract-docker-version.outputs.tag_latest }}
-      push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
-      attest_github: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+      push: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+      attest_github: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
       sbom: true
       provenance: "mode=max"
       generate_syft_sbom: true
-      sbom_artifact_retention_days: ${{ github.event_name == 'release' && 30 || 14 }}
+      sbom_artifact_retention_days: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && 30 || 14 }}
 
   upload-release-assets:
     name: Attach artifacts to release
     needs: build
-    if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Get release tag
-        if: github.event_name == 'workflow_run'
         id: release_tag
         run: |
           RELEASE=$(curl -sSf -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -179,11 +202,7 @@ jobs:
       - name: Set release tag
         id: set_tag
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "tag=${{ steps.release_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "tag=${{ steps.release_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7.0.0
