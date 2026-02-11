@@ -211,16 +211,15 @@ namespace JacRed.Controllers.CRON
         #endregion
 
         #region ParseLatest
-        static bool _parseLatestWork = false;
+        static readonly SemaphoreSlim _parseLatestSemaphore = new SemaphoreSlim(1, 1);
 
         async public Task<string> ParseLatest(int pages = 5)
         {
             if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains("megapeer", StringComparer.OrdinalIgnoreCase))
                 return "disabled";
-            if (_parseLatestWork)
+            if (!await _parseLatestSemaphore.WaitAsync(0))
                 return "work";
 
-            _parseLatestWork = true;
             string log = "";
 
             try
@@ -250,8 +249,11 @@ namespace JacRed.Controllers.CRON
             {
                 ParserLog.Write("megapeer", $"ParseLatest Error: {ex.Message}");
             }
+            finally
+            {
+                _parseLatestSemaphore.Release();
+            }
 
-            _parseLatestWork = false;
             return string.IsNullOrWhiteSpace(log) ? "ok" : log;
         }
         #endregion

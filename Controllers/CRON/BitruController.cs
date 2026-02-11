@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -141,14 +142,13 @@ namespace JacRed.Controllers.CRON
         #endregion
 
         #region ParseLatest
-        static bool _parseLatestWork = false;
+        static readonly SemaphoreSlim _parseLatestSemaphore = new SemaphoreSlim(1, 1);
 
         async public Task<string> ParseLatest(int pages = 5)
         {
-            if (_parseLatestWork)
+            if (!await _parseLatestSemaphore.WaitAsync(0))
                 return "work";
 
-            _parseLatestWork = true;
             string log = "";
 
             try
@@ -180,8 +180,11 @@ namespace JacRed.Controllers.CRON
             {
                 ParserLog.Write("bitru", $"ParseLatest Error: {ex.Message}");
             }
+            finally
+            {
+                _parseLatestSemaphore.Release();
+            }
 
-            _parseLatestWork = false;
             return string.IsNullOrWhiteSpace(log) ? "ok" : log;
         }
         #endregion
