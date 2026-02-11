@@ -172,6 +172,7 @@ namespace JacRed
                 case "mazepa": return conf.Mazepa.log;
                 case "torrentby": return conf.TorrentBy.log;
                 case "lostfilm": return conf.Lostfilm.log;
+                case "anidub": return conf.Anidub.log;
                 default: return false;
             }
         }
@@ -303,6 +304,8 @@ namespace JacRed
         public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");
 
         public TrackerSettings Lostfilm = new TrackerSettings("https://www.lostfilm.tv");
+
+        public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
 
         public ProxySettings proxy = new ProxySettings();

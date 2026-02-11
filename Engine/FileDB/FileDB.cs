@@ -243,8 +243,11 @@ namespace JacRed.Engine
                 }
 
                 if (updateFull)
+                {
                     updateFullDetails(t);
-
+                    if (AppInit.conf.logFdb || AppInit.conf.log)
+                        AppendFdbLog(torrent, t);
+                }
                 else if (AppInit.conf.logFdb || AppInit.conf.log)
                     AppendFdbLog(torrent, t);
 
@@ -320,6 +323,10 @@ namespace JacRed.Engine
 
                 savechanges = true;
                 updateFullDetails(t);
+                
+                if (AppInit.conf.logFdb || AppInit.conf.log)
+                    AppendFdbLog(torrent, t);
+                
                 Database.TryAdd(t.url, t);
                 AddOrUpdateMasterDb(t);
             }

@@ -29,6 +29,7 @@ synctrackers:
   - torrentby
   - selezen
   - animelayer
+  - anidub
 # RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers:
   - hdrezka
@@ -160,6 +161,13 @@ Animelayer:
   reqMinute: 8
   parseDelay: 7000
   cookie: "layer_hash=layer_hash_value;layer_id=layer_id_value"
+
+Anidub:
+  host: https://tr.anidub.com
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
 
 Anifilm:
   host: https://anifilm.net
