@@ -197,9 +197,11 @@ namespace JacRed.Engine
                     t._so = StringConvert.SearchName(t.originalname);
                     upt();
                 }
-                else if (string.IsNullOrWhiteSpace(t.originalname) && !string.IsNullOrWhiteSpace(torrent.title))
+                else if (string.IsNullOrWhiteSpace(t.originalname))
                 {
-                    t.originalname = torrent.title;
+                    // For Russian content where originalname is null, use name instead of title
+                    // to avoid creating keys with full title (including season/episode info)
+                    t.originalname = !string.IsNullOrWhiteSpace(t.name) ? t.name : (torrent.title ?? "");
                     t._so = StringConvert.SearchName(t.originalname);
                     upt();
                 }
@@ -248,7 +250,9 @@ namespace JacRed.Engine
                     return;
 
                 var name = torrent.name ?? torrent.title ?? "";
-                var originalname = torrent.originalname ?? torrent.title ?? "";
+                // For Russian content where originalname is null, use name instead of title
+                // to avoid creating keys with full title (including season/episode info)
+                var originalname = torrent.originalname ?? name ?? "";
                 t = new TorrentDetails()
                 {
                     url = torrent.url,
