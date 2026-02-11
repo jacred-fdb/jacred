@@ -4,13 +4,11 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*"
   pull_request:
     branches:
       - main
-  release:
-    types:
-      - published
-      - prereleased
   workflow_dispatch:
 
 env:
@@ -49,16 +47,12 @@ jobs:
       - name: Determine checkout ref
         id: checkout_ref
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            REF="${{ github.event.release.tag_name }}"
-            echo "Using release event tag: $REF"
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/* ]]; then
+            TAG_NAME="${REF#refs/tags/}"
+            echo "Using tag push event: $TAG_NAME"
           else
-            REF="${{ github.ref }}"
             echo "Using default ref: $REF"
-          fi
-          if [ -z "$REF" ]; then
-            echo "Error: Checkout ref is empty"
-            exit 1
           fi
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Checking out ref: $REF"
@@ -73,7 +67,7 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Dontet format code
+      - name: Dotnet format code
         run: dotnet format JacRed.csproj --verify-no-changes
         working-directory: ./
         continue-on-error: false
@@ -102,7 +96,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/${{ matrix.output_dir }}
-          retention-days: ${{ github.event_name == 'release' && 365 || 7 }}
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 30 || 7 }}
 
   extract-docker-version:
     name: Version for Docker
@@ -115,14 +109,27 @@ jobs:
       - name: Set version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            v="${{ github.event.release.tag_name }}"
-            prerelease="${{ github.event.release.prerelease }}"
-            checkout_ref="${{ github.event.release.tag_name }}"
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/* ]]; then
+            TAG_NAME="${REF#refs/tags/}"
+            echo "Detected tag push: $TAG_NAME"
+            # Release name equals tag name, so use tag name directly
+            # Check tag name pattern to determine if it's a pre-release
+            # Pre-releases typically contain -dev, -alpha, -beta, -rc, etc.
+            if [[ "$TAG_NAME" =~ -(dev|alpha|beta|rc|pre) ]]; then
+              prerelease="true"
+              echo "Detected pre-release from tag pattern: $TAG_NAME"
+            else
+              prerelease="false"
+              echo "Detected full release from tag pattern: $TAG_NAME"
+            fi
+            v="$TAG_NAME"
+            checkout_ref="$REF"
           else
             v=""
             prerelease="true"
-            checkout_ref="${{ github.ref }}"
+            checkout_ref="$REF"
+            echo "Not a tag push, using default ref"
           fi
           # Strip only leading 'v' so 2.0.0-dev2 and v2.0.0-dev2 both become 2.0.0-dev2
           [ -n "$v" ] && v="${v#v}" || true
@@ -147,25 +154,26 @@ jobs:
       version: ${{ needs.extract-docker-version.outputs.version }}
       tag_latest: ${{ needs.extract-docker-version.outputs.tag_latest }}
       checkout_ref: ${{ needs.extract-docker-version.outputs.checkout_ref }}
-      push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
-      attest_github: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
+      push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
+      attest_github: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
       sbom: true
       provenance: "mode=max"
       generate_syft_sbom: true
-      sbom_artifact_retention_days: ${{ github.event_name == 'release' && 30 || 14 }}
+      sbom_artifact_retention_days: ${{ startsWith(github.ref, 'refs/tags/') && 30 || 7 }}
 
   upload-release-assets:
     name: Attach artifacts to release
     needs: build
-    if: github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'prereleased')
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Set release tag
+      - name: Extract tag name
         id: set_tag
         run: |
-          echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7.0.0

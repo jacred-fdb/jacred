@@ -1,5 +1,7 @@
 name: Release
 
+# This workflow creates a tag and GitHub release (pre-release or full release).
+# When the tag is pushed, it triggers the Build workflow via push event.
 on:
   workflow_dispatch:
     inputs:

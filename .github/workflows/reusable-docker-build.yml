@@ -139,12 +139,14 @@ jobs:
         with:
           images: ${{ env.GHCR_IMAGE }}
           tags: |
+            # Semver pattern (e.g., 2.0.0-dev10)
             type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            # Raw tag without 'v' prefix (e.g., 2.0.0-dev10)
             type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            # Raw tag with 'v' prefix (e.g., v2.0.0-dev10)
             type=raw,value=v${{ inputs.version }},enable=${{ inputs.version != '' }}
             type=ref,event=branch,enable=${{ inputs.version == '' }}
             type=sha,enable=${{ inputs.version == '' }}
-            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=latest,enable=${{ inputs.tag_latest == 'true' }}
             ${{ inputs.extra_raw_tags }}
           labels: |
