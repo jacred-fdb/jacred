@@ -20,7 +20,7 @@ namespace JacRed.Controllers.CRON
         #region Parse
         static bool workParse = false;
 
-        async public Task<string> Parse(int parseTo = 0)
+        async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             if (workParse)
                 return "work";
@@ -31,33 +31,46 @@ namespace JacRed.Controllers.CRON
             {
                 var sw = Stopwatch.StartNew();
                 string baseUrl = AppInit.conf.Anidub.host;
+                
+                // Determine page range
+                int startPage = parseFrom > 0 ? parseFrom : 1;
+                int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
+                
+                // Ensure startPage <= endPage
+                if (startPage > endPage)
+                {
+                    int temp = startPage;
+                    startPage = endPage;
+                    endPage = temp;
+                }
+                
                 ParserLog.Write("anidub", $"Starting parse", new Dictionary<string, object> 
                 { 
-                    { "parseTo", parseTo }, 
+                    { "parseFrom", parseFrom },
+                    { "parseTo", parseTo },
+                    { "startPage", startPage },
+                    { "endPage", endPage },
                     { "baseUrl", baseUrl } 
                 });
 
                 int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
 
-                // Parse main page (page 1)
-                var (parsed, added, updated, skipped, failed) = await parsePage(1);
-                totalParsed += parsed;
-                totalAdded += added;
-                totalUpdated += updated;
-                totalSkipped += skipped;
-                totalFailed += failed;
-                
-                // Parse additional pages if parseTo > 1
-                for (int page = 2; page <= parseTo; page++)
+                // Parse pages from startPage to endPage
+                for (int page = startPage; page <= endPage; page++)
                 {
-                    await Task.Delay(AppInit.conf.Anidub.parseDelay);
-                    ParserLog.Write("anidub", $"Parsing page", new Dictionary<string, object> 
-                    { 
-                        { "page", page }, 
-                        { "url", $"{baseUrl}/page/{page}/" } 
-                    });
+                    if (page > startPage)
+                        await Task.Delay(AppInit.conf.Anidub.parseDelay);
                     
-                    (parsed, added, updated, skipped, failed) = await parsePage(page);
+                    if (page > 1)
+                    {
+                        ParserLog.Write("anidub", $"Parsing page", new Dictionary<string, object> 
+                        { 
+                            { "page", page }, 
+                            { "url", $"{baseUrl}/page/{page}/" } 
+                        });
+                    }
+                    
+                    var (parsed, added, updated, skipped, failed) = await parsePage(page);
                     totalParsed += parsed;
                     totalAdded += added;
                     totalUpdated += updated;
