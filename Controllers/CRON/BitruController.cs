@@ -176,9 +176,21 @@ namespace JacRed.Controllers.CRON
 
                 ParserLog.Write("bitru", $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
             }
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                ParserLog.Write("bitru", $"ParseLatest HTTP Error: {ex.Message}");
+            }
+            catch (System.Threading.Tasks.TaskCanceledException ex)
+            {
+                ParserLog.Write("bitru", $"ParseLatest Cancelled: {ex.Message}");
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                ParserLog.Write("bitru", $"ParseLatest Invalid Operation: {ex.Message}");
+            }
             catch (Exception ex)
             {
-                ParserLog.Write("bitru", $"ParseLatest Error: {ex.Message}");
+                ParserLog.Write("bitru", $"ParseLatest Unexpected Error: {ex.Message}");
             }
             finally
             {
