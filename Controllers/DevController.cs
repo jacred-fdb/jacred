@@ -412,5 +412,221 @@ namespace JacRed.Controllers
                 newKey = doMigrate ? newKey : (string)null
             });
         }
+
+        /// <summary>
+        /// Находит торренты с пустыми _sn или _so полями. Только localhost, read-only.
+        /// ?sampleSize=20 — количество примеров для каждого типа проблемы.
+        /// </summary>
+        public JsonResult FindEmptySearchFields(int sampleSize = 20)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            int totalTorrents = 0;
+            int emptySnCount = 0;
+            int emptySoCount = 0;
+            int emptyBothCount = 0;
+            var emptySnSample = new List<object>();
+            var emptySoSample = new List<object>();
+            var emptyBothSample = new List<object>();
+
+            foreach (var item in FileDB.masterDb.ToArray())
+            {
+                var db = FileDB.OpenRead(item.Key, cache: false);
+                if (db == null)
+                    continue;
+
+                foreach (var kv in db)
+                {
+                    totalTorrents++;
+                    string fdbKey = item.Key;
+                    string url = kv.Key;
+                    var t = kv.Value;
+
+                    if (t == null)
+                        continue;
+
+                    bool hasEmptySn = string.IsNullOrWhiteSpace(t._sn);
+                    bool hasEmptySo = string.IsNullOrWhiteSpace(t._so);
+
+                    if (hasEmptySn && hasEmptySo)
+                    {
+                        emptyBothCount++;
+                        if (emptyBothSample.Count < sampleSize)
+                            emptyBothSample.Add(new { fdbKey, url, title = t.title, name = t.name, originalname = t.originalname });
+                    }
+                    else if (hasEmptySn)
+                    {
+                        emptySnCount++;
+                        if (emptySnSample.Count < sampleSize)
+                            emptySnSample.Add(new { fdbKey, url, title = t.title, name = t.name, originalname = t.originalname });
+                    }
+                    else if (hasEmptySo)
+                    {
+                        emptySoCount++;
+                        if (emptySoSample.Count < sampleSize)
+                            emptySoSample.Add(new { fdbKey, url, title = t.title, name = t.name, originalname = t.originalname });
+                    }
+                }
+            }
+
+            return Json(new
+            {
+                ok = true,
+                totalFdbKeys = FileDB.masterDb.Count,
+                totalTorrents,
+                emptySearchFields = new
+                {
+                    emptySn = new { count = emptySnCount, sample = emptySnSample },
+                    emptySo = new { count = emptySoCount, sample = emptySoSample },
+                    emptyBoth = new { count = emptyBothCount, sample = emptyBothSample },
+                    total = emptySnCount + emptySoCount + emptyBothCount
+                }
+            });
+        }
+
+        /// <summary>
+        /// Исправляет пустые _sn и _so поля, вычисляя их из name/originalname/title. Только localhost.
+        /// Также обновляет ключи бакетов если они изменились после исправления.
+        /// </summary>
+        public JsonResult FixEmptySearchFields()
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            int totalFixed = 0;
+            int snFixed = 0;
+            int soFixed = 0;
+            int migrated = 0;
+            int affectedBuckets = 0;
+
+            foreach (var item in FileDB.masterDb.ToArray())
+            {
+                using (var fdb = FileDB.OpenWrite(item.Key))
+                {
+                    var keysToRemove = new List<string>();
+                    var toMigrate = new List<(string url, TorrentDetails t, string newKey)>();
+                    bool bucketChanged = false;
+
+                    foreach (var torrent in fdb.Database)
+                    {
+                        if (torrent.Value == null)
+                        {
+                            keysToRemove.Add(torrent.Key);
+                            continue;
+                        }
+
+                        var t = torrent.Value;
+                        bool fixedSn = false;
+                        bool fixedSo = false;
+
+                        // Исправляем _sn если пустое
+                        if (string.IsNullOrWhiteSpace(t._sn))
+                        {
+                            if (!string.IsNullOrWhiteSpace(t.name))
+                            {
+                                t._sn = StringConvert.SearchName(t.name);
+                                fixedSn = true;
+                            }
+                            else if (!string.IsNullOrWhiteSpace(t.title))
+                            {
+                                t._sn = StringConvert.SearchName(t.title);
+                                fixedSn = true;
+                            }
+                        }
+
+                        // Исправляем _so если пустое
+                        if (string.IsNullOrWhiteSpace(t._so))
+                        {
+                            if (!string.IsNullOrWhiteSpace(t.originalname))
+                            {
+                                t._so = StringConvert.SearchName(t.originalname);
+                                fixedSo = true;
+                            }
+                            else if (!string.IsNullOrWhiteSpace(t.name))
+                            {
+                                t._so = StringConvert.SearchName(t.name);
+                                fixedSo = true;
+                            }
+                            else if (!string.IsNullOrWhiteSpace(t.title))
+                            {
+                                t._so = StringConvert.SearchName(t.title);
+                                fixedSo = true;
+                            }
+                        }
+
+                        // Убеждаемся, что name и originalname заполнены
+                        if (string.IsNullOrWhiteSpace(t.name))
+                            t.name = t.title ?? "";
+                        if (string.IsNullOrWhiteSpace(t.originalname))
+                            t.originalname = t.name ?? t.title ?? "";
+
+                        // Пересчитываем _sn и _so если они все еще пустые
+                        if (string.IsNullOrWhiteSpace(t._sn) && !string.IsNullOrWhiteSpace(t.name))
+                        {
+                            t._sn = StringConvert.SearchName(t.name);
+                            fixedSn = true;
+                        }
+                        if (string.IsNullOrWhiteSpace(t._so) && !string.IsNullOrWhiteSpace(t.originalname))
+                        {
+                            t._so = StringConvert.SearchName(t.originalname);
+                            fixedSo = true;
+                        }
+
+                        if (fixedSn || fixedSo)
+                        {
+                            totalFixed++;
+                            if (fixedSn) snFixed++;
+                            if (fixedSo) soFixed++;
+
+                            // Проверяем, нужно ли мигрировать в другой бакет
+                            string newKey = FileDB.KeyForTorrent(t.name, t.originalname);
+                            if (!string.IsNullOrEmpty(newKey) && newKey != item.Key && newKey.IndexOf(':') > 0)
+                            {
+                                toMigrate.Add((torrent.Key, t, newKey));
+                                bucketChanged = true;
+                            }
+                        }
+                    }
+
+                    foreach (var k in keysToRemove)
+                        fdb.Database.Remove(k);
+
+                    foreach (var (url, t, newKey) in toMigrate)
+                    {
+                        fdb.Database.Remove(url);
+                        FileDB.MigrateTorrentToNewKey(t, newKey);
+                        migrated++;
+                    }
+
+                    if (fdb.Database.Count == 0)
+                    {
+                        FileDB.RemoveKeyFromMasterDb(item.Key);
+                        bucketChanged = true;
+                    }
+
+                    if (bucketChanged || toMigrate.Count > 0 || keysToRemove.Count > 0)
+                    {
+                        affectedBuckets++;
+                        fdb.savechanges = true;
+                    }
+                }
+            }
+
+            FileDB.SaveChangesToFile();
+
+            // Пересобираем fastdb после исправлений
+            try { Controllers.ApiController.getFastdb(update: true); } catch { }
+
+            return Json(new
+            {
+                ok = true,
+                totalFixed,
+                snFixed,
+                soFixed,
+                migrated,
+                affectedBuckets
+            });
+        }
     }
 }

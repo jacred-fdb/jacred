@@ -197,7 +197,7 @@ namespace JacRed.Engine
                         t._sn = StringConvert.SearchName(t.name);
                     else if (!string.IsNullOrWhiteSpace(torrent.title))
                         t._sn = StringConvert.SearchName(torrent.title);
-                    
+
                     if (!string.IsNullOrWhiteSpace(t._sn))
                         upt();
                 }
@@ -225,7 +225,7 @@ namespace JacRed.Engine
                         t._so = StringConvert.SearchName(t.name);
                     else if (!string.IsNullOrWhiteSpace(torrent.title))
                         t._so = StringConvert.SearchName(torrent.title);
-                    
+
                     if (!string.IsNullOrWhiteSpace(t._so))
                         upt();
                 }
@@ -277,13 +277,13 @@ namespace JacRed.Engine
                 // For Russian content where originalname is null, use name instead of title
                 // to avoid creating keys with full title (including season/episode info)
                 var originalname = torrent.originalname ?? name ?? "";
-                
+
                 // Убеждаемся, что name и originalname не пустые
                 if (string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(torrent.title))
                     name = torrent.title;
                 if (string.IsNullOrWhiteSpace(originalname))
                     originalname = name ?? torrent.title ?? "";
-                
+
                 t = new TorrentDetails()
                 {
                     url = torrent.url,
@@ -301,13 +301,13 @@ namespace JacRed.Engine
                     magnet = torrent.magnet,
                     ffprobe = torrent.ffprobe
                 };
-                
+
                 // Всегда заполняем _sn и _so, даже если name или originalname пустые
                 // Используем fallback на title если нужно
                 t._sn = StringConvert.SearchName(t.name);
                 if (string.IsNullOrWhiteSpace(t._sn) && !string.IsNullOrWhiteSpace(t.title))
                     t._sn = StringConvert.SearchName(t.title);
-                
+
                 t._so = StringConvert.SearchName(t.originalname);
                 if (string.IsNullOrWhiteSpace(t._so))
                 {

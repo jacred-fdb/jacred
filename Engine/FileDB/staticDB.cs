@@ -88,7 +88,7 @@ namespace JacRed.Engine
         {
             string search_name = StringConvert.SearchName(name);
             string search_originalname = StringConvert.SearchName(originalname);
-            
+
             // Если search_name или search_originalname null, используем fallback
             // Это важно для случаев, когда name или originalname пустые после нормализации
             if (string.IsNullOrWhiteSpace(search_name))
@@ -100,7 +100,7 @@ namespace JacRed.Engine
                     // Если оба пустые, используем пустую строку вместо null
                     search_name = "";
             }
-            
+
             if (string.IsNullOrWhiteSpace(search_originalname))
             {
                 // Пробуем использовать name если originalname пустое
@@ -110,7 +110,7 @@ namespace JacRed.Engine
                     // Если оба пустые, используем пустую строку вместо null
                     search_originalname = "";
             }
-            
+
             return $"{search_name}:{search_originalname}";
         }
 
