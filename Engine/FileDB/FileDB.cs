@@ -31,6 +31,7 @@ namespace JacRed.Engine
         #endregion
 
         #region AddOrUpdate
+
         /// <summary>Извлекает числовой ID раздачи из URL трекера. При обновлении раздачи на трекере меняется slug, но ID остаётся — без этого создавались бы дубликаты.</summary>
         static int GetTorrentIdFromUrl(string trackerName, string url)
         {
@@ -222,7 +223,10 @@ namespace JacRed.Engine
                     AppendFdbLog(torrent, t);
 
                 t.checkTime = DateTime.Now;
-                // Только для Lostfilm: при смене name/originalname переносим торрент в бакет с правильным ключом (поиск по русскому названию). Остальные трекеры не трогаем.
+
+                if (foundById)
+                    Database.TryAdd(t.url, t);
+
                 if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase))
                 {
                     string newKey = keyDb(t.name, t.originalname);
@@ -237,8 +241,6 @@ namespace JacRed.Engine
                     }
                 }
                 AddOrUpdateMasterDb(t);
-                if (foundById)
-                    Database.TryAdd(t.url, t);
             }
             else
             {
