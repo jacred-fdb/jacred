@@ -87,6 +87,12 @@ on:
         required: false
         default: "false"
 
+      checkout_ref:
+        description: "Git ref to checkout (tag, branch, or SHA). Empty = use default ref"
+        type: string
+        required: false
+        default: ""
+
     outputs:
       tags:
         value: ${{ jobs.build.outputs.tags }}
@@ -112,6 +118,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
         with:
+          ref: ${{ inputs.checkout_ref != '' && inputs.checkout_ref || github.ref }}
           fetch-depth: 0
 
       - name: Login to GitHub Container Registry
