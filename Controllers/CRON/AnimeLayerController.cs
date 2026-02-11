@@ -25,8 +25,7 @@ namespace JacRed.Controllers.CRON
             #region Авторизация
             if (AppInit.conf.Animelayer.cookie == null)
             {
-                return "Не удалось авторизоваться, укажи правильные cookie: layer_hash, layer_id.";
-                
+                return "Не удалось авторизоваться, укажи правильные cookie: layer_hash, layer_id.";               
             }
             #endregion
 
@@ -59,7 +58,6 @@ namespace JacRed.Controllers.CRON
         #region parsePage
         async Task<bool> parsePage(int page)
         {
-            
             string cookie = AppInit.conf.Animelayer.cookie;
             string html = await HttpClient.Get($"{AppInit.conf.Animelayer.host}/torrents/anime/?page={page}", cookie: cookie, useproxy: AppInit.conf.Animelayer.useproxy, httpversion: 2);
             if (html == null || !html.Contains("id=\"wrapper\""))
@@ -70,9 +68,9 @@ namespace JacRed.Controllers.CRON
             {
                 
                 #region Локальный метод - Match
-                string Match(string pattern, int index = 1)
+				string Match(string pattern, int index = 1)
                 {
-                    string res = new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim();
+					string res = new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim();
                     res = Regex.Replace(res, "[\n\r\t ]+", " ");
                     return res.Trim();
                 }
