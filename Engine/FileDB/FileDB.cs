@@ -190,6 +190,12 @@ namespace JacRed.Engine
                     t._sn = StringConvert.SearchName(t.name);
                     upt();
                 }
+                // Убеждаемся, что _sn всегда заполнен, даже если name не изменился
+                else if (string.IsNullOrWhiteSpace(t._sn) && !string.IsNullOrWhiteSpace(t.name))
+                {
+                    t._sn = StringConvert.SearchName(t.name);
+                    upt();
+                }
 
                 if (!string.IsNullOrWhiteSpace(torrent.originalname) && torrent.originalname != t.originalname)
                 {
@@ -202,6 +208,12 @@ namespace JacRed.Engine
                     // For Russian content where originalname is null, use name instead of title
                     // to avoid creating keys with full title (including season/episode info)
                     t.originalname = !string.IsNullOrWhiteSpace(t.name) ? t.name : (torrent.title ?? "");
+                    t._so = StringConvert.SearchName(t.originalname);
+                    upt();
+                }
+                // Убеждаемся, что _so всегда заполнен, даже если originalname не изменился
+                else if (string.IsNullOrWhiteSpace(t._so) && !string.IsNullOrWhiteSpace(t.originalname))
+                {
                     t._so = StringConvert.SearchName(t.originalname);
                     upt();
                 }
