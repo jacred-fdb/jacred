@@ -42,5 +42,7 @@
 */20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitruapi/parse"
 # Разово подтянуть торренты после даты: curl -s "http://127.0.0.1:9117/cron/bitruapi/ParseFromDate?lastnewtor=23.10.2025"
 
-# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
+#curl "http://127.0.0.1:9117/cron/animelayer/parse?pageTo=7"
+
 # */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animedia/parse"
