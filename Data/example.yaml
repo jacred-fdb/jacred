@@ -158,9 +158,7 @@ Animelayer:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  login:
-    u: ""
-    p: ""
+  cookie: "layer_hash=layer_hash_value;layer_id=layer_id_value"
 
 Anifilm:
   host: https://anifilm.net
