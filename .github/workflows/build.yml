@@ -10,6 +10,16 @@ on:
     branches:
       - main
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag name for release builds"
+        required: false
+        type: string
+      checkout_ref:
+        description: "Git ref to checkout (e.g., refs/tags/1.0.0)"
+        required: false
+        type: string
 
 env:
   DOTNET_VERSION: "9.0.x"
@@ -47,12 +57,18 @@ jobs:
       - name: Determine checkout ref
         id: checkout_ref
         run: |
-          REF="${{ github.ref }}"
-          if [[ "$REF" == refs/tags/* ]]; then
-            TAG_NAME="${REF#refs/tags/}"
-            echo "Using tag push event: $TAG_NAME"
+          # Use input checkout_ref if provided (from workflow_call), otherwise use github.ref
+          if [ -n "${{ inputs.checkout_ref }}" ]; then
+            REF="${{ inputs.checkout_ref }}"
+            echo "Using checkout_ref from workflow_call: $REF"
           else
-            echo "Using default ref: $REF"
+            REF="${{ github.ref }}"
+            if [[ "$REF" == refs/tags/* ]]; then
+              TAG_NAME="${REF#refs/tags/}"
+              echo "Using tag push event: $TAG_NAME"
+            else
+              echo "Using default ref: $REF"
+            fi
           fi
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Checking out ref: $REF"
@@ -96,7 +112,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/${{ matrix.output_dir }}
-          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 30 || 7 }}
+          retention-days: ${{ (inputs.tag != '' || startsWith(github.ref, 'refs/tags/')) && 30 || 7 }}
 
   extract-docker-version:
     name: Version for Docker
@@ -109,10 +125,10 @@ jobs:
       - name: Set version
         id: version
         run: |
-          REF="${{ github.ref }}"
-          if [[ "$REF" == refs/tags/* ]]; then
-            TAG_NAME="${REF#refs/tags/}"
-            echo "Detected tag push: $TAG_NAME"
+          # Use input tag if provided (from workflow_call), otherwise detect from ref
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG_NAME="${{ inputs.tag }}"
+            echo "Using tag from workflow_call: $TAG_NAME"
             # Release name equals tag name, so use tag name directly
             # Check tag name pattern to determine if it's a pre-release
             # Pre-releases typically contain -dev, -alpha, -beta, -rc, etc.
@@ -124,12 +140,36 @@ jobs:
               echo "Detected full release from tag pattern: $TAG_NAME"
             fi
             v="$TAG_NAME"
-            checkout_ref="$REF"
+            # Use input checkout_ref if provided, otherwise construct from tag
+            if [ -n "${{ inputs.checkout_ref }}" ]; then
+              checkout_ref="${{ inputs.checkout_ref }}"
+            else
+              checkout_ref="refs/tags/$TAG_NAME"
+            fi
           else
-            v=""
-            prerelease="true"
-            checkout_ref="$REF"
-            echo "Not a tag push, using default ref"
+            # Fallback to detecting from github.ref (for push/pull_request events)
+            REF="${{ github.ref }}"
+            if [[ "$REF" == refs/tags/* ]]; then
+              TAG_NAME="${REF#refs/tags/}"
+              echo "Detected tag push: $TAG_NAME"
+              # Release name equals tag name, so use tag name directly
+              # Check tag name pattern to determine if it's a pre-release
+              # Pre-releases typically contain -dev, -alpha, -beta, -rc, etc.
+              if [[ "$TAG_NAME" =~ -(dev|alpha|beta|rc|pre) ]]; then
+                prerelease="true"
+                echo "Detected pre-release from tag pattern: $TAG_NAME"
+              else
+                prerelease="false"
+                echo "Detected full release from tag pattern: $TAG_NAME"
+              fi
+              v="$TAG_NAME"
+              checkout_ref="$REF"
+            else
+              v=""
+              prerelease="true"
+              checkout_ref="$REF"
+              echo "Not a tag push, using default ref"
+            fi
           fi
           # Strip only leading 'v' so 2.0.0-dev2 and v2.0.0-dev2 both become 2.0.0-dev2
           [ -n "$v" ] && v="${v#v}" || true
@@ -154,17 +194,17 @@ jobs:
       version: ${{ needs.extract-docker-version.outputs.version }}
       tag_latest: ${{ needs.extract-docker-version.outputs.tag_latest }}
       checkout_ref: ${{ needs.extract-docker-version.outputs.checkout_ref }}
-      push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
-      attest_github: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
+      push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
+      attest_github: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
       sbom: true
       provenance: "mode=max"
       generate_syft_sbom: true
-      sbom_artifact_retention_days: ${{ startsWith(github.ref, 'refs/tags/') && 30 || 7 }}
+      sbom_artifact_retention_days: ${{ (inputs.tag != '' || startsWith(github.ref, 'refs/tags/')) && 30 || 7 }}
 
   upload-release-assets:
     name: Attach artifacts to release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: inputs.tag != '' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -172,7 +212,12 @@ jobs:
       - name: Extract tag name
         id: set_tag
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          # Use input tag if provided (from workflow_call), otherwise extract from GITHUB_REF
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG_NAME="${{ inputs.tag }}"
+          else
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
           echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
