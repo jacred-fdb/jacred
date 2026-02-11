@@ -140,6 +140,52 @@ namespace JacRed.Controllers.CRON
         }
         #endregion
 
+        #region ParseLatest
+        static bool _parseLatestWork = false;
+
+        async public Task<string> ParseLatest(int pages = 5)
+        {
+            if (_parseLatestWork)
+                return "work";
+
+            _parseLatestWork = true;
+            string log = "";
+
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                ParserLog.Write("bitru", $"Starting ParseLatest pages={pages}");
+
+                foreach (var task in taskParse.ToArray())
+                {
+                    // Get first N pages sorted by page number
+                    var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
+
+                    foreach (var val in pagesToParse)
+                    {
+                        await Task.Delay(AppInit.conf.Bitru.parseDelay);
+
+                        bool res = await parsePage(task.Key, val.page);
+                        if (res)
+                        {
+                            val.updateTime = DateTime.Today;
+                            log += $"{task.Key} - {val.page}\n";
+                        }
+                    }
+                }
+
+                ParserLog.Write("bitru", $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+            }
+            catch (Exception ex)
+            {
+                ParserLog.Write("bitru", $"ParseLatest Error: {ex.Message}");
+            }
+
+            _parseLatestWork = false;
+            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+        }
+        #endregion
+
 
         #region parsePage
         async Task<bool> parsePage(string cat, int page)

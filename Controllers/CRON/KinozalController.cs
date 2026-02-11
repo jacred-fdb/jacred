@@ -245,6 +245,55 @@ namespace JacRed.Controllers.CRON
         }
         #endregion
 
+        #region ParseLatest
+        static bool _parseLatestWork = false;
+
+        async public Task<string> ParseLatest(int pages = 5)
+        {
+            if (_parseLatestWork)
+                return "work";
+
+            _parseLatestWork = true;
+            string log = "";
+
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                ParserLog.Write("kinozal", $"Starting ParseLatest pages={pages}");
+
+                foreach (var cat in taskParse.ToArray())
+                {
+                    foreach (var arg in cat.Value.ToArray())
+                    {
+                        // Get first N pages sorted by page number
+                        var pagesToParse = arg.Value.OrderBy(x => x.page).Take(pages).ToArray();
+
+                        foreach (var val in pagesToParse)
+                        {
+                            await Task.Delay(AppInit.conf.Kinozal.parseDelay);
+
+                            bool res = await parsePage(cat.Key, val.page, arg.Key);
+                            if (res)
+                            {
+                                val.updateTime = DateTime.Today;
+                                log += $"{cat.Key} - {arg.Key} - {val.page}\n";
+                            }
+                        }
+                    }
+                }
+
+                ParserLog.Write("kinozal", $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+            }
+            catch (Exception ex)
+            {
+                ParserLog.Write("kinozal", $"ParseLatest Error: {ex.Message}");
+            }
+
+            _parseLatestWork = false;
+            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+        }
+        #endregion
+
 
         #region parsePage
         async Task<bool> parsePage(string cat, int page, string arg = null)
