@@ -29,11 +29,23 @@ jobs:
           fetch-depth: 0
 
       - name: Create and push tag
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "${{ inputs.tag }}" -m "Release ${{ inputs.tag }}"
-          git push origin "${{ inputs.tag }}"
+          # Use PAT token if available to trigger workflows, otherwise use GITHUB_TOKEN
+          # PAT tokens trigger workflows, GITHUB_TOKEN does not
+          if [ -n "$PAT_TOKEN" ]; then
+            echo "Using PAT token to push tag (will trigger workflows)"
+            git remote set-url origin https://${PAT_TOKEN}@github.com/${{ github.repository }}.git
+            git push origin "${{ inputs.tag }}"
+          else
+            echo "Warning: Using GITHUB_TOKEN - tag push may not trigger workflows"
+            echo "Consider adding a PAT_TOKEN secret with 'repo' and 'workflow' permissions"
+            git push origin "${{ inputs.tag }}"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
