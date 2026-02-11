@@ -277,7 +277,7 @@ namespace JacRed.Controllers.CRON
             if (!await _parseLatestSemaphore.WaitAsync(0))
                 return "work";
 
-            string log = "";
+            var log = new System.Text.StringBuilder();
 
             try
             {
@@ -297,7 +297,7 @@ namespace JacRed.Controllers.CRON
                         if (res)
                         {
                             val.updateTime = DateTime.Today;
-                            log += $"{task.Key} - {val.page}\n";
+                            log.AppendLine($"{task.Key} - {val.page}");
                         }
                     }
                 }
@@ -313,7 +313,8 @@ namespace JacRed.Controllers.CRON
                 _parseLatestSemaphore.Release();
             }
 
-            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            var logText = log.ToString();
+            return string.IsNullOrWhiteSpace(logText) ? "ok" : logText;
         }
         #endregion
 
