@@ -20,6 +20,17 @@ namespace JacRed.Controllers.CRON
         static volatile bool workParse = false;
         private static readonly object workParseLock = new object();
 
+        /// <summary>
+        /// Parses torrent releases from Anidub website pages.
+        /// </summary>
+        /// <param name="parseFrom">The starting page number to parse from. If 0 or less, defaults to page 1.</param>
+        /// <param name="parseTo">The ending page number to parse to. If 0 or less, defaults to the same value as parseFrom.</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation. The task result contains a status string:
+        /// - "work" if parsing is already in progress
+        /// - "canceled" if the operation was canceled
+        /// - "ok" if parsing completed successfully
+        /// </returns>
         async public static Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             lock (workParseLock)
@@ -126,6 +137,18 @@ namespace JacRed.Controllers.CRON
 
 
         #region parsePage
+        /// <summary>
+        /// Parses a single page of torrent releases from the Anidub website.
+        /// </summary>
+        /// <param name="page">The page number to parse. Page 1 uses the base URL, other pages use the /page/{page}/ format.</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation. The task result contains a tuple with parsing statistics:
+        /// - parsed: Total number of torrent releases found and processed
+        /// - added: Number of new torrent releases added to the database
+        /// - updated: Number of existing torrent releases that were updated
+        /// - skipped: Number of torrent releases skipped (no changes detected)
+        /// - failed: Number of torrent releases that failed to process
+        /// </returns>
         async static Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
         {
             string url = page == 1 ? AppInit.conf.Anidub.host : $"{AppInit.conf.Anidub.host}/page/{page}/";
