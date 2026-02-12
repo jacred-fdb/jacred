@@ -31,7 +31,7 @@ namespace JacRed.Controllers.CRON
         /// - "canceled" if the operation was canceled
         /// - "ok" if parsing completed successfully
         /// </returns>
-        async public static Task<string> Parse(int parseFrom = 0, int parseTo = 0)
+        async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             lock (workParseLock)
             {
@@ -149,7 +149,7 @@ namespace JacRed.Controllers.CRON
         /// - skipped: Number of torrent releases skipped (no changes detected)
         /// - failed: Number of torrent releases that failed to process
         /// </returns>
-        async static Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
+        async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
         {
             string url = page == 1 ? AppInit.conf.Anidub.host : $"{AppInit.conf.Anidub.host}/page/{page}/";
             string html = await HttpClient.Get(url, encoding: Encoding.UTF8, useproxy: AppInit.conf.Anidub.useproxy);
