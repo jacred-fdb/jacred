@@ -107,7 +107,17 @@ namespace JacRed.Engine
                 string safeTrackerName = SanitizeTrackerName(trackerName);
                 string rawName = string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName;
                 string fileName = Path.GetFileName(rawName) + ".log";
-                string logPath = Path.Combine(LogDir, fileName);
+                if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    fileName = "unknown.log";
+                string logDirSafe = string.IsNullOrWhiteSpace(LogDir) ? Directory.GetCurrentDirectory() : LogDir;
+                if (logDirSafe.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+                    logDirSafe = Directory.GetCurrentDirectory();
+                string logPath = Path.Combine(logDirSafe, fileName);
+                string validatedFileName = Path.GetFileName(logPath);
+                if (string.IsNullOrWhiteSpace(validatedFileName) || validatedFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    validatedFileName = "unknown.log";
+                logPath = Path.Combine(logDirSafe, validatedFileName);
+
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
             catch (IOException ex)
@@ -155,7 +165,16 @@ namespace JacRed.Engine
                 string safeTrackerName = SanitizeTrackerName(trackerName);
                 string rawName = string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName;
                 string fileName = Path.GetFileName(rawName) + ".log";
-                string logPath = Path.Combine(LogDir, fileName);
+                if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    fileName = "unknown.log";
+                string logDirSafe = string.IsNullOrWhiteSpace(LogDir) ? Directory.GetCurrentDirectory() : LogDir;
+                if (logDirSafe.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+                    logDirSafe = Directory.GetCurrentDirectory();
+                string logPath = Path.Combine(logDirSafe, fileName);
+                string validatedFileName = Path.GetFileName(logPath);
+                if (string.IsNullOrWhiteSpace(validatedFileName) || validatedFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    validatedFileName = "unknown.log";
+                logPath = Path.Combine(logDirSafe, validatedFileName);
 
                 var parts = new List<string> { message };
                 if (data != null && data.Count > 0)
