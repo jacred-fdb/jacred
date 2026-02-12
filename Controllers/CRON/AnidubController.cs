@@ -20,7 +20,7 @@ namespace JacRed.Controllers.CRON
         static volatile bool workParse = false;
         private static readonly object workParseLock = new object();
 
-        async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
+        async public static Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             lock (workParseLock)
             {
@@ -73,7 +73,7 @@ namespace JacRed.Controllers.CRON
                         });
                     }
 
-                    var (parsed, added, updated, skipped, failed) = await parsePage(page);
+                    (int parsed, int added, int updated, int skipped, int failed) = await parsePage(page);
                     totalParsed += parsed;
                     totalAdded += added;
                     totalUpdated += updated;
@@ -91,8 +91,21 @@ namespace JacRed.Controllers.CRON
                         { "failed", totalFailed }
                     });
             }
+            catch (OperationCanceledException oce)
+            {
+                ParserLog.Write("anidub", $"Canceled", new Dictionary<string, object>
+                {
+                    { "message", oce.Message },
+                    { "stackTrace", oce.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                });
+                return "canceled";
+            }
             catch (Exception ex)
             {
+                // Rethrow critical exceptions that should never be swallowed
+                if (ex is OutOfMemoryException)
+                    throw;
+
                 ParserLog.Write("anidub", $"Error", new Dictionary<string, object>
                 {
                     { "message", ex.Message },
@@ -101,7 +114,10 @@ namespace JacRed.Controllers.CRON
             }
             finally
             {
-                workParse = false;
+                lock (workParseLock)
+                {
+                    workParse = false;
+                }
             }
 
             return "ok";
@@ -110,7 +126,7 @@ namespace JacRed.Controllers.CRON
 
 
         #region parsePage
-        async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
+        async static Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
         {
             string url = page == 1 ? AppInit.conf.Anidub.host : $"{AppInit.conf.Anidub.host}/page/{page}/";
             string html = await HttpClient.Get(url, encoding: Encoding.UTF8, useproxy: AppInit.conf.Anidub.useproxy);
@@ -138,7 +154,7 @@ namespace JacRed.Controllers.CRON
 
             foreach (string row in rows)
             {
-                #region Локальный метод - Match
+                #region Match
                 string Match(string pattern, int index = 1)
                 {
                     string res = new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim();
@@ -155,7 +171,7 @@ namespace JacRed.Controllers.CRON
                 if (!row.Contains("href=\"") || !row.Contains(".html"))
                     continue;
 
-                #region Дата создания
+                #region createTime
                 DateTime createTime = default;
 
                 // Try to parse date from various formats
@@ -193,7 +209,7 @@ namespace JacRed.Controllers.CRON
                 }
                 #endregion
 
-                #region Данные раздачи
+                #region URL и title
                 // Extract URL and title from article link
                 var gurl = Regex.Match(row, "<a href=\"([^\"]+)\"[^>]*>([^<]+)</a>");
                 if (!gurl.Success)
