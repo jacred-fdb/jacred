@@ -215,10 +215,27 @@ namespace JacRed.Controllers.CRON
                 // Extract quality info from label (e.g., "[WEBRip 1080p][HEVC][1-12]")
                 string qualityInfo = ExtractQualityInfo(apiTorrent.Label);
 
-                // Build title: name.main / name.english / year / quality info
-                string title = !string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(originalname) && name != originalname
-                    ? $"{name} / {originalname}"
-                    : name ?? originalname ?? "Unknown";
+                // Build base title from names: prefer "name / originalname" when both are present and different,
+                // otherwise fall back to the first non-empty name, then to "Unknown" as a last resort.
+                string baseTitle;
+                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(originalname) && !string.Equals(name, originalname, StringComparison.Ordinal))
+                {
+                    baseTitle = $"{name} / {originalname}";
+                }
+                else if (!string.IsNullOrWhiteSpace(name))
+                {
+                    baseTitle = name;
+                }
+                else if (!string.IsNullOrWhiteSpace(originalname))
+                {
+                    baseTitle = originalname;
+                }
+                else
+                {
+                    baseTitle = "Unknown";
+                }
+                // Append year and quality info
+                string title = baseTitle;
 
                 if (release.Year.HasValue)
                     title += $" / {release.Year.Value}";
@@ -231,8 +248,9 @@ namespace JacRed.Controllers.CRON
 
                 // Parse dates
                 DateTime createTime = default;
+                DateTime parsedDate;
                 if (!string.IsNullOrWhiteSpace(apiTorrent.CreatedAt) &&
-                    DateTime.TryParse(apiTorrent.CreatedAt, out DateTime parsedDate))
+                    DateTime.TryParse(apiTorrent.CreatedAt, out parsedDate))
                 {
                     createTime = parsedDate.ToUniversalTime();
                 }
@@ -242,7 +260,7 @@ namespace JacRed.Controllers.CRON
 
                 DateTime updateTime = default;
                 if (!string.IsNullOrWhiteSpace(apiTorrent.UpdatedAt) &&
-                    DateTime.TryParse(apiTorrent.UpdatedAt, out DateTime parsedDate))
+                    DateTime.TryParse(apiTorrent.UpdatedAt, out parsedDate))
                 {
                     updateTime = parsedDate.ToUniversalTime();
                 }
