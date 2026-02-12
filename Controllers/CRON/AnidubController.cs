@@ -401,26 +401,26 @@ namespace JacRed.Controllers.CRON
                                 string currentMagnet = magnetMatch.Groups[1].Value;
                                 // Only skip if magnet link hasn't changed and relased is already set (or both are 0)
                                 bool shouldSkip = string.Equals(_tcache.magnet, currentMagnet, StringComparison.OrdinalIgnoreCase);
-                                
+
                                 // If existing entry has relased = 0 but we found a year, we should update
                                 if (shouldSkip && _tcache.relased == 0 && relased > 0)
                                 {
                                     shouldSkip = false;
                                     t.magnet = currentMagnet;
                                     t.relased = relased;
-                                    
+
                                     // Try to get size from detail page
                                     var sizeMatch = Regex.Match(detailHtml, "Размер[^:]*:\\s*<span[^>]*>([^<]+)</span>", RegexOptions.IgnoreCase);
                                     if (!sizeMatch.Success)
                                         sizeMatch = Regex.Match(detailHtml, "Размер[^:]*:\\s*([^<]+)", RegexOptions.IgnoreCase);
                                     if (sizeMatch.Success)
                                         t.sizeName = HttpUtility.HtmlDecode(sizeMatch.Groups[1].Value).Trim();
-                                    
+
                                     updatedCount++;
                                     ParserLog.WriteUpdated("anidub", t, "relased updated");
                                     return true;
                                 }
-                                
+
                                 if (shouldSkip)
                                 {
                                     skippedCount++;
@@ -429,14 +429,14 @@ namespace JacRed.Controllers.CRON
                                 }
                                 // If magnet changed, process detailHtml immediately to avoid redundant download attempt
                                 t.magnet = currentMagnet;
-                                
+
                                 // Try to get size from detail page
                                 var sizeMatch = Regex.Match(detailHtml, "Размер[^:]*:\\s*<span[^>]*>([^<]+)</span>", RegexOptions.IgnoreCase);
                                 if (!sizeMatch.Success)
                                     sizeMatch = Regex.Match(detailHtml, "Размер[^:]*:\\s*([^<]+)", RegexOptions.IgnoreCase);
                                 if (sizeMatch.Success)
                                     t.sizeName = HttpUtility.HtmlDecode(sizeMatch.Groups[1].Value).Trim();
-                                
+
                                 // Try download.php link if available for accurate sizeName
                                 var downloadMatch = Regex.Match(detailHtml, "href=\"([^\"]*engine/download\\.php\\?id=[0-9]+)\"", RegexOptions.IgnoreCase);
                                 if (downloadMatch.Success)
@@ -444,7 +444,7 @@ namespace JacRed.Controllers.CRON
                                     string downloadUrl = downloadMatch.Groups[1].Value;
                                     if (!downloadUrl.StartsWith("http"))
                                         downloadUrl = $"{AppInit.conf.Anidub.host}/{downloadUrl.TrimStart('/')}";
-                                    
+
                                     byte[] torrentFile = await HttpClient.Download(downloadUrl, referer: t.url, useproxy: AppInit.conf.Anidub.useproxy);
                                     if (torrentFile != null && torrentFile.Length > 0)
                                     {
@@ -453,7 +453,7 @@ namespace JacRed.Controllers.CRON
                                             t.sizeName = sizeName;
                                     }
                                 }
-                                
+
                                 // Update with changed magnet
                                 updatedCount++;
                                 ParserLog.WriteUpdated("anidub", t, "magnet changed");
@@ -470,7 +470,7 @@ namespace JacRed.Controllers.CRON
                     if (detailHtml == null)
                     {
                         byte[] torrent = await HttpClient.Download(t.downloadUri, referer: AppInit.conf.Anidub.host);
-                        
+
                         if (torrent != null && torrent.Length > 0)
                         {
                             string magnet = BencodeTo.Magnet(torrent);
@@ -502,7 +502,7 @@ namespace JacRed.Controllers.CRON
                     {
                         detailHtml = await HttpClient.Get(t.url, encoding: Encoding.UTF8, useproxy: AppInit.conf.Anidub.useproxy);
                     }
-                    
+
                     if (detailHtml != null)
                     {
                         // Extract relased from detail page
@@ -552,31 +552,31 @@ namespace JacRed.Controllers.CRON
                                 string magnet = BencodeTo.Magnet(torrentFile);
                                 string sizeName = BencodeTo.SizeName(torrentFile);
 
-                            if (!string.IsNullOrWhiteSpace(magnet) && !string.IsNullOrWhiteSpace(sizeName))
-                            {
-                                t.magnet = magnet;
-                                t.sizeName = sizeName;
+                                if (!string.IsNullOrWhiteSpace(magnet) && !string.IsNullOrWhiteSpace(sizeName))
+                                {
+                                    t.magnet = magnet;
+                                    t.sizeName = sizeName;
 
-                                // Extract relased from detail page if not already set
-                                if (t.relased == 0)
-                                {
-                                    int relased = ExtractRelased(detailHtml);
-                                    if (relased > 0)
-                                        t.relased = relased;
-                                }
+                                    // Extract relased from detail page if not already set
+                                    if (t.relased == 0)
+                                    {
+                                        int relased = ExtractRelased(detailHtml);
+                                        if (relased > 0)
+                                            t.relased = relased;
+                                    }
 
-                                if (exists)
-                                {
-                                    updatedCount++;
-                                    ParserLog.WriteUpdated("anidub", t, "magnet from torrent file");
+                                    if (exists)
+                                    {
+                                        updatedCount++;
+                                        ParserLog.WriteUpdated("anidub", t, "magnet from torrent file");
+                                    }
+                                    else
+                                    {
+                                        addedCount++;
+                                        ParserLog.WriteAdded("anidub", t);
+                                    }
+                                    return true;
                                 }
-                                else
-                                {
-                                    addedCount++;
-                                    ParserLog.WriteAdded("anidub", t);
-                                }
-                                return true;
-                            }
                             }
 
                             // If torrent download failed, try to get size from HTML
