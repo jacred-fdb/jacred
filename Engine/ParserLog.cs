@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using JacRed.Models.Details;
 
 namespace JacRed.Engine
@@ -95,14 +96,31 @@ namespace JacRed.Engine
                     Directory.CreateDirectory(LogDir);
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
-                string logPath = Path.Combine(LogDir, $"{safeTrackerName}.log");
+                string fileName = Path.GetFileName(string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName) + ".log";
+                string logPath = Path.Combine(LogDir, fileName);
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
             catch (IOException ex)
             {
                 Console.Error.WriteLine($"[ParserLog] I/O error while writing tracker log for '{trackerName}': {ex}");
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (SecurityException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (NotSupportedException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (ArgumentNullException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (ArgumentException ex)
             {
                 Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
             }
@@ -122,7 +140,8 @@ namespace JacRed.Engine
                     Directory.CreateDirectory(LogDir);
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
-                string logPath = Path.Combine(LogDir, $"{safeTrackerName}.log");
+                string fileName = Path.GetFileName(string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName) + ".log";
+                string logPath = Path.Combine(LogDir, fileName);
 
                 var parts = new List<string> { message };
                 if (data != null && data.Count > 0)
@@ -137,7 +156,23 @@ namespace JacRed.Engine
             {
                 Console.Error.WriteLine($"[ParserLog] I/O error while writing tracker log for '{trackerName}': {ex}");
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (SecurityException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (NotSupportedException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (ArgumentNullException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
+            }
+            catch (ArgumentException ex)
             {
                 Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
             }
