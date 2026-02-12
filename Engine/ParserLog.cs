@@ -9,6 +9,8 @@ namespace JacRed.Engine
     public static class ParserLog
     {
         const string LogDir = "Data/log";
+        const int MaxNameLength = 50;
+        const int MaxTitleLength = 60;
 
         /// <summary>
         /// Sanitize tracker name to ensure it's safe for use as a filename
@@ -28,7 +30,17 @@ namespace JacRed.Engine
             sanitized = sanitized.Replace('/', '_').Replace('\\', '_');
             sanitized = sanitized.TrimStart('.', '/', '\\');
 
-            return string.IsNullOrWhiteSpace(sanitized) ? "unknown" : sanitized;
+            if (string.IsNullOrWhiteSpace(sanitized))
+                return "unknown";
+
+            if (Path.IsPathRooted(sanitized))
+            {
+                sanitized = Path.GetFileName(sanitized);
+                if (string.IsNullOrWhiteSpace(sanitized))
+                    return "unknown";
+            }
+
+            return sanitized;
         }
 
         /// <summary>
@@ -39,10 +51,10 @@ namespace JacRed.Engine
             var data = new Dictionary<string, object>();
 
             if (!string.IsNullOrWhiteSpace(t.name))
-                data["name"] = t.name.Length > 50 ? t.name.Substring(0, 50) + "..." : t.name;
+                data["name"] = t.name.Length > MaxNameLength ? t.name.Substring(0, MaxNameLength) + "..." : t.name;
 
             if (!string.IsNullOrWhiteSpace(t.originalname))
-                data["originalname"] = t.originalname.Length > 50 ? t.originalname.Substring(0, 50) + "..." : t.originalname;
+                data["originalname"] = t.originalname.Length > MaxNameLength ? t.originalname.Substring(0, MaxNameLength) + "..." : t.originalname;
 
             if (!string.IsNullOrWhiteSpace(t._sn))
                 data["_sn"] = t._sn;
@@ -86,15 +98,13 @@ namespace JacRed.Engine
                 string logPath = Path.Combine(LogDir, $"{safeTrackerName}.log");
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
+            catch (IOException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] I/O error while writing tracker log for '{trackerName}': {ex}");
+            }
             catch (Exception ex)
             {
-                try
-                {
-                    Console.Error.WriteLine($"[ParserLog] Failed to write log for {trackerName}: {ex.Message}");
-                }
-                catch
-                {
-                }
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
             }
         }
 
@@ -123,15 +133,13 @@ namespace JacRed.Engine
 
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {string.Join("", parts)}\n");
             }
+            catch (IOException ex)
+            {
+                Console.Error.WriteLine($"[ParserLog] I/O error while writing tracker log for '{trackerName}': {ex}");
+            }
             catch (Exception ex)
             {
-                try
-                {
-                    Console.Error.WriteLine($"[ParserLog] Failed to write log for {trackerName}: {ex.Message}");
-                }
-                catch
-                {
-                }
+                Console.Error.WriteLine($"[ParserLog] Unexpected error while writing tracker log for '{trackerName}': {ex}");
             }
         }
 
@@ -150,19 +158,41 @@ namespace JacRed.Engine
         }
 
         /// <summary>
+        /// Helper method to build log data for torrent operations
+        /// </summary>
+        private static Dictionary<string, object> BuildTorrentLogData(string action, TorrentBaseDetails t, string reason = null)
+        {
+            var data = new Dictionary<string, object> { { "action", action } };
+
+            if (t != null && !string.IsNullOrWhiteSpace(t.url))
+                data["url"] = t.url;
+
+            if (t != null && !string.IsNullOrWhiteSpace(t.title))
+                data["title"] = t.title.Length > MaxTitleLength ? t.title.Substring(0, MaxTitleLength) + "..." : t.title;
+
+            if (!string.IsNullOrWhiteSpace(reason))
+                data["reason"] = reason;
+
+            // Merge important database keys
+            if (t != null)
+            {
+                var keys = ExtractTorrentKeys(t);
+                foreach (var kv in keys)
+                    data[kv.Key] = kv.Value;
+            }
+
+            return data;
+        }
+
+        /// <summary>
         /// Log when a torrent is added (new entry) with full database keys
         /// </summary>
         public static void WriteAdded(string trackerName, TorrentBaseDetails t)
         {
-            var data = new Dictionary<string, object> { { "action", "added" }, { "url", t.url } };
-            if (!string.IsNullOrWhiteSpace(t.title))
-                data["title"] = t.title.Length > 60 ? t.title.Substring(0, 60) + "..." : t.title;
+            if (t == null)
+                return;
 
-            // Merge important database keys
-            var keys = ExtractTorrentKeys(t);
-            foreach (var kv in keys)
-                data[kv.Key] = kv.Value;
-
+            var data = BuildTorrentLogData("added", t);
             Write(trackerName, "Torrent added", data);
         }
 
@@ -171,17 +201,10 @@ namespace JacRed.Engine
         /// </summary>
         public static void WriteUpdated(string trackerName, TorrentBaseDetails t, string reason = null)
         {
-            var data = new Dictionary<string, object> { { "action", "updated" }, { "url", t.url } };
-            if (!string.IsNullOrWhiteSpace(t.title))
-                data["title"] = t.title.Length > 60 ? t.title.Substring(0, 60) + "..." : t.title;
-            if (!string.IsNullOrWhiteSpace(reason))
-                data["reason"] = reason;
+            if (t == null)
+                return;
 
-            // Merge important database keys
-            var keys = ExtractTorrentKeys(t);
-            foreach (var kv in keys)
-                data[kv.Key] = kv.Value;
-
+            var data = BuildTorrentLogData("updated", t, reason);
             Write(trackerName, "Torrent updated", data);
         }
 
@@ -190,17 +213,10 @@ namespace JacRed.Engine
         /// </summary>
         public static void WriteSkipped(string trackerName, TorrentBaseDetails t, string reason = null)
         {
-            var data = new Dictionary<string, object> { { "action", "skipped" }, { "url", t.url } };
-            if (!string.IsNullOrWhiteSpace(t.title))
-                data["title"] = t.title.Length > 60 ? t.title.Substring(0, 60) + "..." : t.title;
-            if (!string.IsNullOrWhiteSpace(reason))
-                data["reason"] = reason;
+            if (t == null)
+                return;
 
-            // Merge important database keys
-            var keys = ExtractTorrentKeys(t);
-            foreach (var kv in keys)
-                data[kv.Key] = kv.Value;
-
+            var data = BuildTorrentLogData("skipped", t, reason);
             Write(trackerName, "Torrent skipped", data);
         }
 
@@ -209,17 +225,10 @@ namespace JacRed.Engine
         /// </summary>
         public static void WriteFailed(string trackerName, TorrentBaseDetails t, string reason = null)
         {
-            var data = new Dictionary<string, object> { { "action", "failed" }, { "url", t.url } };
-            if (!string.IsNullOrWhiteSpace(t.title))
-                data["title"] = t.title.Length > 60 ? t.title.Substring(0, 60) + "..." : t.title;
-            if (!string.IsNullOrWhiteSpace(reason))
-                data["reason"] = reason;
+            if (t == null)
+                return;
 
-            // Merge important database keys (even if incomplete)
-            var keys = ExtractTorrentKeys(t);
-            foreach (var kv in keys)
-                data[kv.Key] = kv.Value;
-
+            var data = BuildTorrentLogData("failed", t, reason);
             Write(trackerName, "Torrent failed", data);
         }
     }
