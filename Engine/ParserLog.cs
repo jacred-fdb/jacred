@@ -109,14 +109,17 @@ namespace JacRed.Engine
                 string fileName = Path.GetFileName(rawName) + ".log";
                 if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                     fileName = "unknown.log";
+                // Ensure fileName is not rooted (absolute path) to prevent Path.Combine from ignoring logDirSafe
+                if (Path.IsPathRooted(fileName))
+                    fileName = "unknown.log";
+                // Normalize to file name only to remove any directory separators
+                fileName = Path.GetFileName(fileName);
+                if (string.IsNullOrWhiteSpace(fileName))
+                    fileName = "unknown.log";
                 string logDirSafe = string.IsNullOrWhiteSpace(LogDir) ? Directory.GetCurrentDirectory() : LogDir;
                 if (logDirSafe.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                     logDirSafe = Directory.GetCurrentDirectory();
                 string logPath = Path.Combine(logDirSafe, fileName);
-                string validatedFileName = Path.GetFileName(logPath);
-                if (string.IsNullOrWhiteSpace(validatedFileName) || validatedFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                    validatedFileName = "unknown.log";
-                logPath = Path.Combine(logDirSafe, validatedFileName);
 
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
@@ -167,14 +170,17 @@ namespace JacRed.Engine
                 string fileName = Path.GetFileName(rawName) + ".log";
                 if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                     fileName = "unknown.log";
+                // Ensure fileName is not rooted (absolute path) to prevent Path.Combine from ignoring logDirSafe
+                if (Path.IsPathRooted(fileName))
+                    fileName = "unknown.log";
+                // Normalize to file name only to remove any directory separators
+                fileName = Path.GetFileName(fileName);
+                if (string.IsNullOrWhiteSpace(fileName))
+                    fileName = "unknown.log";
                 string logDirSafe = string.IsNullOrWhiteSpace(LogDir) ? Directory.GetCurrentDirectory() : LogDir;
                 if (logDirSafe.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                     logDirSafe = Directory.GetCurrentDirectory();
                 string logPath = Path.Combine(logDirSafe, fileName);
-                string validatedFileName = Path.GetFileName(logPath);
-                if (string.IsNullOrWhiteSpace(validatedFileName) || validatedFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                    validatedFileName = "unknown.log";
-                logPath = Path.Combine(logDirSafe, validatedFileName);
 
                 var parts = new List<string> { message };
                 if (data != null && data.Count > 0)
