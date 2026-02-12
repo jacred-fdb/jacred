@@ -212,16 +212,25 @@ namespace JacRed.Controllers.CRON
                     continue;
                 }
 
-                // Build title
-                string title = apiTorrent.Label?.Trim();
-                if (string.IsNullOrWhiteSpace(title))
+                // Extract quality info from label (e.g., "[WEBRip 1080p][HEVC][1-12]")
+                string qualityInfo = ExtractQualityInfo(apiTorrent.Label);
+
+                // Build title: name.main / name.english / year / quality info
+                string title;
+                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(originalname) && name != originalname)
                 {
-                    title = name ?? originalname;
-                    if (!string.IsNullOrWhiteSpace(originalname) && name != originalname)
-                        title = $"{name} / {originalname}";
-                    if (release.Year.HasValue)
-                        title += $" ({release.Year.Value})";
+                    title = $"{name} / {originalname}";
                 }
+                else
+                {
+                    title = name ?? originalname ?? "Unknown";
+                }
+
+                if (release.Year.HasValue)
+                    title += $" / {release.Year.Value}";
+
+                if (!string.IsNullOrWhiteSpace(qualityInfo))
+                    title += $" / {qualityInfo}";
 
                 // Determine types
                 string[] types = DetermineTypes(release.Type?.Value);
@@ -247,8 +256,17 @@ namespace JacRed.Controllers.CRON
                 if (updateTime == default)
                     updateTime = createTime;
 
-                // Build URL - use torrent hash/id for uniqueness
-                string torrentUrl = $"{AppInit.conf.Aniliberty.host}/api/v1/anime/torrents/{apiTorrent.Hash}";
+                // Build URL - use release alias to point to the actual site page
+                string torrentUrl;
+                if (!string.IsNullOrWhiteSpace(release.Alias))
+                {
+                    torrentUrl = $"{AppInit.conf.Aniliberty.host}/anime/releases/release/{release.Alias}";
+                }
+                else
+                {
+                    // Fallback to API endpoint if alias is missing
+                    torrentUrl = $"{AppInit.conf.Aniliberty.host}/api/v1/anime/torrents/{apiTorrent.Hash}";
+                }
 
                 // Format size - FileDB expects format: "Mb|МБ|GB|ГБ|TB|ТБ"
                 string sizeName = FormatSize(apiTorrent.Size);
@@ -289,7 +307,7 @@ namespace JacRed.Controllers.CRON
             // If we found torrents, process them
             if (torrents.Count > 0)
             {
-                await FileDB.AddOrUpdate(torrents, async (t, db) =>
+                await FileDB.AddOrUpdate(torrents, (t, db) =>
                 {
                     // Check if already exists
                     bool exists = db.TryGetValue(t.url, out TorrentDetails _tcache);
@@ -299,7 +317,7 @@ namespace JacRed.Controllers.CRON
                     {
                         skippedCount++;
                         ParserLog.WriteSkipped("aniliberty", _tcache, "no changes");
-                        return false; // Skip processing this torrent
+                        return Task.FromResult(false); // Skip processing this torrent
                     }
 
                     // If magnet changed or new torrent, update/add
@@ -314,7 +332,7 @@ namespace JacRed.Controllers.CRON
                         ParserLog.WriteAdded("aniliberty", t);
                     }
 
-                    return true;
+                    return Task.FromResult(true);
                 });
             }
 
@@ -416,6 +434,29 @@ namespace JacRed.Controllers.CRON
             }
 
             return 480; // Default
+        }
+
+        /// <summary>
+        /// Extracts quality information from label string.
+        /// Example: "Tensei Kizoku - AniLibria.TOP [WEBRip 1080p][HEVC][1-12]" -> "[WEBRip 1080p][HEVC][1-12]"
+        /// </summary>
+        /// <param name="label">The label string from API</param>
+        /// <returns>Quality info string with brackets, or empty string if not found</returns>
+        private string ExtractQualityInfo(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label))
+                return string.Empty;
+
+            // Match pattern: [something] [something] ... at the end of the string
+            // Example: "Title - AniLibria.TOP [WEBRip 1080p][HEVC][1-12]"
+            // The pattern matches one or more bracket groups at the end
+            var match = System.Text.RegularExpressions.Regex.Match(label, @"(\[[^\]]+\](?:\s*\[[^\]]+\])*)\s*$");
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim();
+            }
+
+            return string.Empty;
         }
         #endregion
     }

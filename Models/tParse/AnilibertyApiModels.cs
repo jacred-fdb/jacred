@@ -137,6 +137,9 @@ namespace JacRed.Models.tParse
 
         [JsonProperty("type")]
         public AnilibertyReleaseType Type { get; set; }
+
+        [JsonProperty("alias")]
+        public string Alias { get; set; }
     }
 
     public class AnilibertyReleaseName
