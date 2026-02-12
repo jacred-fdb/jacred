@@ -106,19 +106,23 @@ namespace JacRed.Engine
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
                 string rawName = string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName;
+                // Derive fileName and normalize to just the file name component immediately
                 string fileName = Path.GetFileName(rawName) + ".log";
+                fileName = Path.GetFileName(fileName); // Normalize to remove any directory separators
+                // Validate: ensure fileName is non-empty and contains no invalid file-name characters
                 if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                     fileName = "unknown.log";
-                // Ensure fileName is not rooted (absolute path) to prevent Path.Combine from ignoring logDirSafe
+                // Guard against rooted paths: ensure fileName cannot be an absolute path
                 if (Path.IsPathRooted(fileName))
-                    fileName = "unknown.log";
-                // Normalize to file name only to remove any directory separators
-                fileName = Path.GetFileName(fileName);
-                if (string.IsNullOrWhiteSpace(fileName))
-                    fileName = "unknown.log";
+                {
+                    fileName = Path.GetFileName("unknown.log"); // Normalize fallback as well
+                    if (string.IsNullOrWhiteSpace(fileName))
+                        fileName = "unknown.log";
+                }
                 string logDirSafe = string.IsNullOrWhiteSpace(LogDir) ? Directory.GetCurrentDirectory() : LogDir;
                 if (logDirSafe.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                     logDirSafe = Directory.GetCurrentDirectory();
+                // fileName is now guaranteed to be a non-rooted, simple file name
                 string logPath = Path.Combine(logDirSafe, fileName);
 
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
@@ -167,19 +171,23 @@ namespace JacRed.Engine
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
                 string rawName = string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName;
+                // Derive fileName and normalize to just the file name component immediately
                 string fileName = Path.GetFileName(rawName) + ".log";
+                fileName = Path.GetFileName(fileName); // Normalize to remove any directory separators
+                // Validate: ensure fileName is non-empty and contains no invalid file-name characters
                 if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                     fileName = "unknown.log";
-                // Ensure fileName is not rooted (absolute path) to prevent Path.Combine from ignoring logDirSafe
+                // Guard against rooted paths: ensure fileName cannot be an absolute path
                 if (Path.IsPathRooted(fileName))
-                    fileName = "unknown.log";
-                // Normalize to file name only to remove any directory separators
-                fileName = Path.GetFileName(fileName);
-                if (string.IsNullOrWhiteSpace(fileName))
-                    fileName = "unknown.log";
+                {
+                    fileName = Path.GetFileName("unknown.log"); // Normalize fallback as well
+                    if (string.IsNullOrWhiteSpace(fileName))
+                        fileName = "unknown.log";
+                }
                 string logDirSafe = string.IsNullOrWhiteSpace(LogDir) ? Directory.GetCurrentDirectory() : LogDir;
                 if (logDirSafe.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                     logDirSafe = Directory.GetCurrentDirectory();
+                // fileName is now guaranteed to be a non-rooted, simple file name
                 string logPath = Path.Combine(logDirSafe, fileName);
 
                 var parts = new List<string> { message };
