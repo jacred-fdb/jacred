@@ -30,6 +30,7 @@ synctrackers:
   - selezen
   - animelayer
   - anidub
+  - aniliberty
 # RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers:
   - hdrezka
@@ -164,6 +165,13 @@ Animelayer:
 
 Anidub:
   host: https://tr.anidub.com
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+Aniliberty:
+  host: https://aniliberty.top
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
