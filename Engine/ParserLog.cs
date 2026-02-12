@@ -14,8 +14,10 @@ namespace JacRed.Engine
         const int MaxTitleLength = 60;
 
         /// <summary>
-        /// Sanitize tracker name to ensure it's safe for use as a filename
+        /// Sanitizes the tracker name to ensure it's safe for use as a filename.
         /// </summary>
+        /// <param name="trackerName">The tracker name to sanitize.</param>
+        /// <returns>A sanitized tracker name safe for use as a filename, or "unknown" if the input is invalid or empty.</returns>
         static string SanitizeTrackerName(string trackerName)
         {
             if (string.IsNullOrWhiteSpace(trackerName))
@@ -45,8 +47,10 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Extract important database keys from torrent for logging
+        /// Extracts important database keys from a torrent for logging purposes.
         /// </summary>
+        /// <param name="t">The torrent details to extract keys from.</param>
+        /// <returns>A dictionary containing the extracted torrent keys and their values.</returns>
         static Dictionary<string, object> ExtractTorrentKeys(TorrentBaseDetails t)
         {
             var data = new Dictionary<string, object>();
@@ -85,6 +89,11 @@ namespace JacRed.Engine
             return data;
         }
 
+        /// <summary>
+        /// Writes a log entry with the specified message to the tracker's log file.
+        /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="message">The message to write to the log.</param>
         public static void Write(string trackerName, string message)
         {
             if (!AppInit.TrackerLogEnabled(trackerName))
@@ -96,9 +105,8 @@ namespace JacRed.Engine
                     Directory.CreateDirectory(LogDir);
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
-                string fileName = Path.GetFileName(string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName) + ".log";
-                if (Path.IsPathRooted(fileName))
-                    fileName = Path.GetFileName(fileName);
+                string rawName = string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName;
+                string fileName = Path.GetFileName(rawName) + ".log";
                 string logPath = Path.Combine(LogDir, fileName);
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
@@ -129,8 +137,11 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Write structured log with key-value pairs for better debugging
+        /// Writes a structured log entry with key-value pairs for better debugging.
         /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="message">The message to write to the log.</param>
+        /// <param name="data">A dictionary containing key-value pairs to include in the log entry.</param>
         public static void Write(string trackerName, string message, Dictionary<string, object> data)
         {
             if (!AppInit.TrackerLogEnabled(trackerName))
@@ -142,9 +153,8 @@ namespace JacRed.Engine
                     Directory.CreateDirectory(LogDir);
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
-                string fileName = Path.GetFileName(string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName) + ".log";
-                if (Path.IsPathRooted(fileName))
-                    fileName = Path.GetFileName(fileName);
+                string rawName = string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName;
+                string fileName = Path.GetFileName(rawName) + ".log";
                 string logPath = Path.Combine(LogDir, fileName);
 
                 var parts = new List<string> { message };
@@ -183,8 +193,14 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Write log with statistics (parsed, processed, updated, failed counts)
+        /// Writes a log entry with statistics including parsed, processed, updated, and failed counts.
         /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="message">The message to write to the log.</param>
+        /// <param name="parsed">The number of items parsed. Only included if greater than 0.</param>
+        /// <param name="processed">The number of items processed. Only included if greater than 0.</param>
+        /// <param name="updated">The number of items updated. Only included if greater than 0.</param>
+        /// <param name="failed">The number of items that failed. Only included if greater than 0.</param>
         public static void WriteStats(string trackerName, string message, int parsed = 0, int processed = 0, int updated = 0, int failed = 0)
         {
             var data = new Dictionary<string, object>();
@@ -197,8 +213,12 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Helper method to build log data for torrent operations
+        /// Builds log data dictionary for torrent operations.
         /// </summary>
+        /// <param name="action">The action being performed (e.g., "added", "updated", "skipped", "failed").</param>
+        /// <param name="t">The torrent details to include in the log data.</param>
+        /// <param name="reason">An optional reason for the action.</param>
+        /// <returns>A dictionary containing the log data with action, torrent keys, and optional reason.</returns>
         private static Dictionary<string, object> BuildTorrentLogData(string action, TorrentBaseDetails t, string reason = null)
         {
             var data = new Dictionary<string, object> { { "action", action } };
@@ -224,8 +244,10 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Log when a torrent is added (new entry) with full database keys
+        /// Logs when a torrent is added as a new entry with full database keys.
         /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="t">The torrent details that were added.</param>
         public static void WriteAdded(string trackerName, TorrentBaseDetails t)
         {
             if (t == null)
@@ -236,8 +258,11 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Log when a torrent is updated (existing entry changed) with full database keys
+        /// Logs when a torrent is updated (existing entry changed) with full database keys.
         /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="t">The torrent details that were updated.</param>
+        /// <param name="reason">An optional reason for the update.</param>
         public static void WriteUpdated(string trackerName, TorrentBaseDetails t, string reason = null)
         {
             if (t == null)
@@ -248,8 +273,11 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Log when a torrent is skipped (no changes needed) with full database keys
+        /// Logs when a torrent is skipped (no changes needed) with full database keys.
         /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="t">The torrent details that were skipped.</param>
+        /// <param name="reason">An optional reason for skipping the torrent.</param>
         public static void WriteSkipped(string trackerName, TorrentBaseDetails t, string reason = null)
         {
             if (t == null)
@@ -260,8 +288,11 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Log when a torrent operation failed with full database keys
+        /// Logs when a torrent operation failed with full database keys.
         /// </summary>
+        /// <param name="trackerName">The name of the tracker to log for.</param>
+        /// <param name="t">The torrent details for which the operation failed.</param>
+        /// <param name="reason">An optional reason describing why the operation failed.</param>
         public static void WriteFailed(string trackerName, TorrentBaseDetails t, string reason = null)
         {
             if (t == null)
