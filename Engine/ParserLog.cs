@@ -97,6 +97,8 @@ namespace JacRed.Engine
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
                 string fileName = Path.GetFileName(string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName) + ".log";
+                if (Path.IsPathRooted(fileName))
+                    fileName = Path.GetFileName(fileName);
                 string logPath = Path.Combine(LogDir, fileName);
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
@@ -141,6 +143,8 @@ namespace JacRed.Engine
 
                 string safeTrackerName = SanitizeTrackerName(trackerName);
                 string fileName = Path.GetFileName(string.IsNullOrWhiteSpace(safeTrackerName) ? "tracker" : safeTrackerName) + ".log";
+                if (Path.IsPathRooted(fileName))
+                    fileName = Path.GetFileName(fileName);
                 string logPath = Path.Combine(LogDir, fileName);
 
                 var parts = new List<string> { message };
