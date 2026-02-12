@@ -1,51 +1,63 @@
+# Save JSON DB
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/jsondb/save"
 
+# Rutor
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/ParseAllTask"
 
+# Rutracker
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/ParseAllTask"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/parseMagnet"
 
+# Kinozal
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/ParseAllTask"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/parseMagnet"
 
+# Nnmclub
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/ParseAllTask"
 
+# Selezen
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/ParseAllTask"
 
+# Megapeer
 0   *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/parse"
 5   */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/UpdateTasksParse"
 30  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/ParseAllTask"
 
+# Torrentby
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse"
 */5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/ParseAllTask"
 
+# Toloka
 */40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parseMagnet"
 
+# Mazepa
 */40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/mazepa/parse"
 
+# Lostfilm
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/lostfilm/parse"
 # curl "http://127.0.0.1:9117/cron/lostfilm/ParsePages?pageFrom=1&pageTo=10"
 
-# Bitru: официальный API (5 req/sec), movie+serial
+# BitruApi: официальный API (5 req/sec), movie+serial
 */20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitruapi/parse"
 # Разово подтянуть торренты после даты: curl -s "http://127.0.0.1:9117/cron/bitruapi/ParseFromDate?lastnewtor=23.10.2025"
 
+# Animelayer
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
 #curl "http://127.0.0.1:9117/cron/animelayer/parse?pageTo=7"
 
+# Anidub
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anidub/parse"
-#curl "http://127.0.0.1:9117/cron/anidub/parse?parseTo=5"
+# curl "http://127.0.0.1:9117/cron/anidub/parse?parseTo=5"
+# curl "http://127.0.0.1:9117/cron/anidub/parse?parseFrom=1&parseTo=5"
 
+# Animedia
 # */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animedia/parse"
