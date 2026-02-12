@@ -26,7 +26,7 @@ namespace JacRed.Controllers.CRON
             {
                 if (workParse)
                     return "work";
-                
+
                 workParse = true;
             }
 

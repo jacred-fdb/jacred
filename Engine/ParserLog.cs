@@ -11,6 +11,27 @@ namespace JacRed.Engine
         const string LogDir = "Data/log";
 
         /// <summary>
+        /// Sanitize tracker name to ensure it's safe for use as a filename
+        /// </summary>
+        static string SanitizeTrackerName(string trackerName)
+        {
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return "unknown";
+
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var sanitized = trackerName;
+            foreach (var c in invalidChars)
+            {
+                sanitized = sanitized.Replace(c, '_');
+            }
+
+            sanitized = sanitized.Replace('/', '_').Replace('\\', '_');
+            sanitized = sanitized.TrimStart('.', '/', '\\');
+
+            return string.IsNullOrWhiteSpace(sanitized) ? "unknown" : sanitized;
+        }
+
+        /// <summary>
         /// Extract important database keys from torrent for logging
         /// </summary>
         static Dictionary<string, object> ExtractTorrentKeys(TorrentBaseDetails t)
@@ -33,10 +54,7 @@ namespace JacRed.Engine
             {
                 // Extract the full hash from magnet link
                 var hashMatch = System.Text.RegularExpressions.Regex.Match(t.magnet, "btih:([a-fA-F0-9]{40})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                if (hashMatch.Success)
-                    data["magnet"] = hashMatch.Groups[1].Value;
-                else
-                    data["magnet"] = "yes";
+                data["magnet"] = hashMatch.Success ? hashMatch.Groups[1].Value : "yes";
             }
 
             if (t.createTime != default)
@@ -64,10 +82,20 @@ namespace JacRed.Engine
                 if (!Directory.Exists(LogDir))
                     Directory.CreateDirectory(LogDir);
 
-                string logPath = Path.Combine(LogDir, $"{trackerName}.log");
+                string safeTrackerName = SanitizeTrackerName(trackerName);
+                string logPath = Path.Combine(LogDir, $"{safeTrackerName}.log");
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                try
+                {
+                    Console.Error.WriteLine($"[ParserLog] Failed to write log for {trackerName}: {ex.Message}");
+                }
+                catch
+                {
+                }
+            }
         }
 
         /// <summary>
@@ -83,7 +111,8 @@ namespace JacRed.Engine
                 if (!Directory.Exists(LogDir))
                     Directory.CreateDirectory(LogDir);
 
-                string logPath = Path.Combine(LogDir, $"{trackerName}.log");
+                string safeTrackerName = SanitizeTrackerName(trackerName);
+                string logPath = Path.Combine(LogDir, $"{safeTrackerName}.log");
 
                 var parts = new List<string> { message };
                 if (data != null && data.Count > 0)
@@ -94,7 +123,16 @@ namespace JacRed.Engine
 
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {string.Join("", parts)}\n");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                try
+                {
+                    Console.Error.WriteLine($"[ParserLog] Failed to write log for {trackerName}: {ex.Message}");
+                }
+                catch
+                {
+                }
+            }
         }
 
         /// <summary>
