@@ -6,4 +6,7 @@
     "init.yaml": "yaml",
     "init.conf": "json",
   },
+  "[csharp]": {
+    "editor.tabSize": 4
+  },
 }
