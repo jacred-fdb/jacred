@@ -216,15 +216,9 @@ namespace JacRed.Controllers.CRON
                 string qualityInfo = ExtractQualityInfo(apiTorrent.Label);
 
                 // Build title: name.main / name.english / year / quality info
-                string title;
-                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(originalname) && name != originalname)
-                {
-                    title = $"{name} / {originalname}";
-                }
-                else
-                {
-                    title = name ?? originalname ?? "Unknown";
-                }
+                string title = !string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(originalname) && name != originalname
+                    ? $"{name} / {originalname}"
+                    : name ?? originalname ?? "Unknown";
 
                 if (release.Year.HasValue)
                     title += $" / {release.Year.Value}";
@@ -256,17 +250,10 @@ namespace JacRed.Controllers.CRON
                 if (updateTime == default)
                     updateTime = createTime;
 
-                // Build URL - use release alias to point to the actual site page
-                string torrentUrl;
-                if (!string.IsNullOrWhiteSpace(release.Alias))
-                {
-                    torrentUrl = $"{AppInit.conf.Aniliberty.host}/anime/releases/release/{release.Alias}";
-                }
-                else
-                {
-                    // Fallback to API endpoint if alias is missing
-                    torrentUrl = $"{AppInit.conf.Aniliberty.host}/api/v1/anime/torrents/{apiTorrent.Hash}";
-                }
+                // Fallback to API endpoint if alias is missing
+                string torrentUrl = !string.IsNullOrWhiteSpace(release.Alias)
+                    ? $"{AppInit.conf.Aniliberty.host}/anime/releases/release/{release.Alias}"
+                    : $"{AppInit.conf.Aniliberty.host}/api/v1/anime/torrents/{apiTorrent.Hash}";
 
                 // Format size - FileDB expects format: "Mb|МБ|GB|ГБ|TB|ТБ"
                 string sizeName = FormatSize(apiTorrent.Size);
