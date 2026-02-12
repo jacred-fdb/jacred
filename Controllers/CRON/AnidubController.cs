@@ -405,7 +405,6 @@ namespace JacRed.Controllers.CRON
                                 // If existing entry has relased = 0 but we found a year, we should update
                                 if (shouldSkip && _tcache.relased == 0 && relased > 0)
                                 {
-                                    shouldSkip = false;
                                     t.magnet = currentMagnet;
                                     t.relased = relased;
 
