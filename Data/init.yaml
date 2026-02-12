@@ -30,6 +30,7 @@ synctrackers:
   - selezen
   - animelayer
   - anidub
+  - aniliberty
 disable_trackers:
   - hdrezka
   - anifilm

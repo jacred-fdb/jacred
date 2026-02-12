@@ -173,6 +173,7 @@ namespace JacRed
                 case "torrentby": return conf.TorrentBy.log;
                 case "lostfilm": return conf.Lostfilm.log;
                 case "anidub": return conf.Anidub.log;
+                case "aniliberty": return conf.Aniliberty.log;
                 default: return false;
             }
         }
@@ -306,6 +307,8 @@ namespace JacRed
         public TrackerSettings Lostfilm = new TrackerSettings("https://www.lostfilm.tv");
 
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
+
+        public TrackerSettings Aniliberty = new TrackerSettings("https://aniliberty.top");
 
 
         public ProxySettings proxy = new ProxySettings();
