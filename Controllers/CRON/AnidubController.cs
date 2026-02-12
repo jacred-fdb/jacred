@@ -10,7 +10,6 @@ using JacRed.Engine.CORE;
 using System.Collections.Generic;
 using JacRed.Engine;
 using JacRed.Models.Details;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
@@ -18,14 +17,18 @@ namespace JacRed.Controllers.CRON
     public class AnidubController : BaseController
     {
         #region Parse
-        static bool workParse = false;
+        static volatile bool workParse = false;
+        private static readonly object workParseLock = new object();
 
         async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
-            if (workParse)
-                return "work";
-
-            workParse = true;
+            lock (workParseLock)
+            {
+                if (workParse)
+                    return "work";
+                
+                workParse = true;
+            }
 
             try
             {
