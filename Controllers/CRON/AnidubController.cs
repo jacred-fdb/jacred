@@ -410,11 +410,11 @@ namespace JacRed.Controllers.CRON
                                     t.relased = relased;
 
                                     // Try to get size from detail page
-                                    var sizeMatch = Regex.Match(detailHtml, "Размер[^:]*:\\s*<span[^>]*>([^<]+)</span>", RegexOptions.IgnoreCase);
-                                    if (!sizeMatch.Success)
-                                        sizeMatch = Regex.Match(detailHtml, "Размер[^:]*:\\s*([^<]+)", RegexOptions.IgnoreCase);
-                                    if (sizeMatch.Success)
-                                        t.sizeName = HttpUtility.HtmlDecode(sizeMatch.Groups[1].Value).Trim();
+                                    var sizeMatchLocal = Regex.Match(detailHtml, "Размер[^:]*:\\s*<span[^>]*>([^<]+)</span>", RegexOptions.IgnoreCase);
+                                    if (!sizeMatchLocal.Success)
+                                        sizeMatchLocal = Regex.Match(detailHtml, "Размер[^:]*:\\s*([^<]+)", RegexOptions.IgnoreCase);
+                                    if (sizeMatchLocal.Success)
+                                        t.sizeName = HttpUtility.HtmlDecode(sizeMatchLocal.Groups[1].Value).Trim();
 
                                     updatedCount++;
                                     ParserLog.WriteUpdated("anidub", t, "relased updated");
@@ -557,12 +557,10 @@ namespace JacRed.Controllers.CRON
                                     t.magnet = magnet;
                                     t.sizeName = sizeName;
 
-                                    // Extract relased from detail page if not already set
-                                    if (t.relased == 0)
+                                    // Use relased extracted earlier if not already set
+                                    if (t.relased == 0 && relased > 0)
                                     {
-                                        int relased = ExtractRelased(detailHtml);
-                                        if (relased > 0)
-                                            t.relased = relased;
+                                        t.relased = relased;
                                     }
 
                                     if (exists)
