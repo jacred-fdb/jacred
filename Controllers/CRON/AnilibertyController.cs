@@ -237,20 +237,20 @@ namespace JacRed.Controllers.CRON
 
                 // Parse dates
                 DateTime createTime = default;
-                if (!string.IsNullOrWhiteSpace(apiTorrent.CreatedAt))
+                if (!string.IsNullOrWhiteSpace(apiTorrent.CreatedAt) &&
+                    DateTime.TryParse(apiTorrent.CreatedAt, out DateTime parsedDate))
                 {
-                    if (DateTime.TryParse(apiTorrent.CreatedAt, out DateTime parsedDate))
-                        createTime = parsedDate.ToUniversalTime();
+                    createTime = parsedDate.ToUniversalTime();
                 }
 
                 if (createTime == default)
                     createTime = DateTime.UtcNow;
 
                 DateTime updateTime = default;
-                if (!string.IsNullOrWhiteSpace(apiTorrent.UpdatedAt))
+                if (!string.IsNullOrWhiteSpace(apiTorrent.UpdatedAt) &&
+                    DateTime.TryParse(apiTorrent.UpdatedAt, out DateTime parsedDate))
                 {
-                    if (DateTime.TryParse(apiTorrent.UpdatedAt, out DateTime parsedDate))
-                        updateTime = parsedDate.ToUniversalTime();
+                    updateTime = parsedDate.ToUniversalTime();
                 }
 
                 if (updateTime == default)
