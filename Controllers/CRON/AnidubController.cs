@@ -21,6 +21,33 @@ namespace JacRed.Controllers.CRON
         private static readonly object workParseLock = new object();
 
         /// <summary>
+        /// Attempts to start a parse operation. Returns true if successful, false if parsing is already in progress.
+        /// </summary>
+        /// <returns>True if parse was started, false if already running.</returns>
+        private static bool TryStartParse()
+        {
+            lock (workParseLock)
+            {
+                if (workParse)
+                    return false;
+
+                workParse = true;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Ends the parse operation, allowing a new parse to start.
+        /// </summary>
+        private static void EndParse()
+        {
+            lock (workParseLock)
+            {
+                workParse = false;
+            }
+        }
+
+        /// <summary>
         /// Parses torrent releases from Anidub website pages.
         /// </summary>
         /// <param name="parseFrom">The starting page number to parse from. If 0 or less, defaults to page 1.</param>
@@ -33,13 +60,8 @@ namespace JacRed.Controllers.CRON
         /// </returns>
         async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
-            lock (workParseLock)
-            {
-                if (workParse)
-                    return "work";
-
-                workParse = true;
-            }
+            if (!TryStartParse())
+                return "work";
 
             try
             {
@@ -125,10 +147,7 @@ namespace JacRed.Controllers.CRON
             }
             finally
             {
-                lock (workParseLock)
-                {
-                    workParse = false;
-                }
+                EndParse();
             }
 
             return "ok";
