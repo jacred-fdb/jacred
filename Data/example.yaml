@@ -156,7 +156,7 @@ Anilibria:
   parseDelay: 7000
 
 Animelayer:
-  host: http://animelayer.ru
+  host: https://animelayer.ru
   useproxy: false
   reqMinute: 8
   parseDelay: 7000

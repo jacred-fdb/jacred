@@ -52,7 +52,8 @@
 
 # Animelayer
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
-#curl "http://127.0.0.1:9117/cron/animelayer/parse?pageTo=7"
+# curl "http://127.0.0.1:9117/cron/animelayer/parse?pageTo=7"
+# curl "http://127.0.0.1:9117/cron/animelayer/parse?parseFrom=1&parseTo=5"
 
 # Anidub
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anidub/parse"

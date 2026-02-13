@@ -57,6 +57,7 @@ namespace JacRed.Controllers.CRON
         /// - "canceled" if the operation was canceled
         /// - "ok" if parsing completed successfully
         /// </returns>
+        [HttpGet]
         async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             #region Authorization
@@ -322,13 +323,13 @@ namespace JacRed.Controllers.CRON
                     // Check if already exists
                     bool exists = db.TryGetValue(t.url, out TorrentDetails _tcache);
 
-                    // Check if already exists with same title (skip if unchanged)
-                    if (exists && _tcache.title == t.title)
+                    // Check if already exists with same title and has magnet link (skip if unchanged)
+                    if (exists && _tcache.title == t.title && !string.IsNullOrWhiteSpace(_tcache.magnet))
                     {
                         skippedCount++;
                         // Use existing cache data for logging
                         ParserLog.WriteSkipped("animelayer", _tcache, "no changes");
-                        return true;
+                        return false; // Skip processing this torrent
                     }
 
                     // Try to download torrent file

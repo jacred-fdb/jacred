@@ -173,6 +173,7 @@ namespace JacRed
                 case "torrentby": return conf.TorrentBy.log;
                 case "lostfilm": return conf.Lostfilm.log;
                 case "anidub": return conf.Anidub.log;
+                case "animelayer": return conf.Animelayer.log;
                 default: return false;
             }
         }
