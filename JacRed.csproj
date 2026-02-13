@@ -12,16 +12,22 @@
     <Content Remove="Data\**" />
     <Content Remove="temp\**" />
     <Content Remove="router\**" />
+    <Content Remove="dist\**" />
     <EmbeddedResource Remove="Data\**" />
     <EmbeddedResource Remove="temp\**" />
     <EmbeddedResource Remove="router\**" />
+    <EmbeddedResource Remove="dist\**" />
     <None Remove="Data\**" />
     <None Remove="temp\**" />
     <None Remove="router\**" />
+    <None Remove="dist\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Exclude large test data files from being copied during publish -->
+    <Content Remove="Data\fdb\**" />
+    <Content Remove="Data\masterDb.bz" />
   </ItemGroup>
 
   <ItemGroup>
