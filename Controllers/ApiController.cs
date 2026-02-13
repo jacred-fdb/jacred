@@ -796,6 +796,9 @@ namespace JacRed.Controllers
                 case "create":
                     query = query.OrderByDescending(i => i.createTime);
                     break;
+                case "update":
+                    query = query.OrderByDescending(i => i.updateTime);
+                    break;
             }
             #endregion
 
@@ -826,6 +829,7 @@ namespace JacRed.Controllers
                 i.size,
                 i.sizeName,
                 i.createTime,
+                i.updateTime,
                 i.sid,
                 i.pir,
                 i.magnet,

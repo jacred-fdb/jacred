@@ -503,6 +503,13 @@
               class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
               дате</span>
           </label>
+          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+            <input type="radio" name="sort" value="update" id="sortUpdate"
+              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" />
+            <span
+              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              обновлению</span>
+          </label>
         </div>
         <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
           <input type="checkbox" id="forcedSearch" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 shrink-0" />
@@ -855,6 +862,7 @@
           filterContainer: null,
           sortSize: null,
           sortDate: null,
+          sortUpdate: null,
           forcedSearch: null,
           toggleTheme: null,
           iconMoon: null,
@@ -1026,6 +1034,7 @@
           const magnetAttr = escapeAttr(magnetRaw) || '#';
           const sizeName = escapeHtml(elem.sizeName || '—');
           const dateStr = formatDate(elem.createTime);
+          const updateDateStr = elem.updateTime ? formatDate(elem.updateTime) : null;
           const sid = elem.sid != null ? elem.sid : 0;
           const pir = elem.pir != null ? elem.pir : 0;
           const tracker = (elem.tracker || '').toLowerCase();
@@ -1067,7 +1076,8 @@
                   <span class="font-medium text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
                 </span>
                 <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg><span class="size font-medium text-cyan-600 dark:text-cyan-400">${sizeName}</span></span>
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="date font-medium text-purple-600 dark:text-purple-400">${dateStr}</span></span>
+                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="date font-medium text-purple-600 dark:text-purple-400" title="Дата создания">${dateStr}</span></span>
+                ${updateDateStr && updateDateStr !== dateStr ? `<span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="update-date font-medium text-orange-600 dark:text-orange-400" title="Дата обновления">${updateDateStr}</span></span>` : ''}
                 <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg><span class="seeders font-semibold text-green-600 dark:text-green-400">${sid}</span></span>
                 <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg><span class="leechers font-semibold text-red-600 dark:text-red-400">${pir}</span></span>
               </div>
@@ -1108,7 +1118,7 @@
 
         const buildApiUrl = (query) => {
           const sortVal = (document.querySelector('input[name="sort"]:checked') || {}).value || 'sid';
-          const sortMap = { sid: 'sid', size: 'size', date: 'create' };
+          const sortMap = { sid: 'sid', size: 'size', date: 'create', update: 'update' };
           const forcedSearch = elements.forcedSearch && elements.forcedSearch.checked;
           let url = '/api/v1.0/torrents?search=' + encodeURIComponent(query) + '&sort=' + (sortMap[sortVal] || 'sid');
           if (forcedSearch) url += '&exact=true';
@@ -1427,6 +1437,7 @@
           elements.filterContainer = document.getElementById('filterContainer');
           elements.sortSize = document.getElementById('sortSize');
           elements.sortDate = document.getElementById('sortDate');
+          elements.sortUpdate = document.getElementById('sortUpdate');
           elements.forcedSearch = document.getElementById('forcedSearch');
           elements.toggleTheme = document.getElementById('toggleTheme');
           elements.iconMoon = document.getElementById('iconMoon');
