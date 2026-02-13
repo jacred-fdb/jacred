@@ -16,6 +16,17 @@ namespace JacRed
     {
         public static void Main(string[] args)
         {
+            // Display version information on startup
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  JacRed - Torrent Aggregator & File Database");
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine($"  Version:     {VersionInfo.Version}");
+            Console.WriteLine($"  Git SHA:     {VersionInfo.GitSha}");
+            Console.WriteLine($"  Git Branch:  {VersionInfo.GitBranch}");
+            Console.WriteLine($"  Build Date:  {VersionInfo.BuildDate}");
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine();
+
             Directory.CreateDirectory("Data/fdb");
             Directory.CreateDirectory("Data/temp");
             Directory.CreateDirectory("Data/log");

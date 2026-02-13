@@ -401,3 +401,6 @@ publish/*
 
 # Temporary files
 temp/*
+
+# Version info file
+VersionInfo.g.cs

@@ -48,4 +48,24 @@
     <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>-->
 
+  <!-- Version generation from Git -->
+  <PropertyGroup>
+    <VersionInfoFile>$(IntermediateOutputPath)VersionInfo.g.cs</VersionInfoFile>
+    <GenerateVersionScript>$(MSBuildProjectDirectory)/generate-version.sh</GenerateVersionScript>
+  </PropertyGroup>
+
+  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeCompile">
+    <!-- Ensure intermediate output directory exists -->
+    <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
+    
+    <!-- Generate version info file using bash script -->
+    <Exec Command="bash &quot;$(GenerateVersionScript)&quot; &quot;$(VersionInfoFile)&quot;" 
+          IgnoreExitCode="false"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+
+    <ItemGroup>
+      <Compile Include="$(VersionInfoFile)" />
+    </ItemGroup>
+  </Target>
+
 </Project>
