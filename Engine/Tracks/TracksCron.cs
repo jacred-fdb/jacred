@@ -2,7 +2,9 @@ using JacRed.Models.Details;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace JacRed.Engine
 {
@@ -15,6 +17,15 @@ namespace JacRed.Engine
         /// 4 - остальное
         /// 5 - обновления
         /// </param>
+
+        private static readonly ThreadLocal<Random> _random =
+            new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
+
+        public static int GetRandomDelay()
+        {
+            return _random.Value.Next(2000, 5001);
+        }
+
         async public static Task Run(int typetask)
         {
             await Task.Delay(20_000);
@@ -53,8 +64,10 @@ namespace JacRed.Engine
                             switch (typetask)
                             {
                                 case 1:
-                                    isok = t.createTime >= DateTime.UtcNow.AddDays(-1);
-                                    break;
+                                    {
+                                        isok = t.createTime >= DateTime.UtcNow.AddDays(-1);
+                                        break;
+                                    }
                                 case 2:
                                     {
                                         if (t.createTime >= DateTime.UtcNow.AddDays(-1))
@@ -73,7 +86,7 @@ namespace JacRed.Engine
                                     }
                                 case 4:
                                     {
-                                        if (t.createTime >= DateTime.UtcNow.AddYears(-1))
+                                        if (t.createTime >= DateTime.UtcNow.AddYears(-1) || t.updateTime >= DateTime.UtcNow.AddMonths(-1))
                                             break;
 
                                         isok = true;
@@ -81,6 +94,9 @@ namespace JacRed.Engine
                                     }
                                 case 5:
                                     {
+                                        if (t.createTime >= DateTime.UtcNow.AddYears(-1))
+                                            break;
+
                                         isok = t.updateTime >= DateTime.UtcNow.AddMonths(-1);
                                         break;
                                     }
@@ -100,11 +116,22 @@ namespace JacRed.Engine
                                     //if (hex == null)
                                     //    continue;
 
-                                    if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
+                                    if (t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
                                         continue;
 
-                                    if (typetask == 1 || (t.sid > 0 && t.updateTime > DateTime.Today.AddDays(-20)))
+                                    if (typetask == 1 || typetask == 2 || t.sid > 0)
                                         torrents.Add(t);
+
+                                    /*
+									if (typetask == 3 && t.sid > 0 && t.updateTime >= DateTime.UtcNow.AddMonths(-1))
+										torrents.Add(t);
+									
+									if (typetask == 4 && t.sid > 0 && t.updateTime >= DateTime.UtcNow.AddMonths(-2))
+										torrents.Add(t);
+									
+									if (typetask == 5 && t.sid > 0)
+										torrents.Add(t);
+									*/
                                 }
                                 catch { }
                             }
@@ -117,10 +144,15 @@ namespace JacRed.Engine
                     {
                         try
                         {
+                            if (!AppInit.conf.tracks)
+                            {
+                                TracksDB.Log($"end typetask={typetask} Tracks off in settings");
+                                break;
+                            }
                             if (typetask == 2 && DateTime.Now > starttime.AddDays(10))
                                 break;
 
-                            if ((typetask == 3 || typetask == 4) && DateTime.Now > starttime.AddMonths(2))
+                            if ((typetask == 3 || typetask == 4 || typetask == 5) && DateTime.Now > starttime.AddMonths(1))
                                 break;
 
                             //if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
@@ -132,6 +164,10 @@ namespace JacRed.Engine
                                 //	t.ffprobe_tryingdata++;
 
                                 string torrentKey = FileDB.KeyForTorrent(t.name, t.originalname);
+
+                                int delay = GetRandomDelay();
+                                await Task.Delay(delay);
+
                                 await TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask);
                                 //await TracksDB.Add(t.magnet, t.ffprobe_tryingdata);
                             }
