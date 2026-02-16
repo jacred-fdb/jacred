@@ -9,6 +9,9 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-al
 ARG TARGETARCH
 ARG JACRED_VERSION=dev
 
+# Install bash and git for version generation script
+RUN apk add --no-cache bash git
+
 # Create output directory
 RUN mkdir -p /dist
 
