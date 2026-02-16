@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Globalization;
 using System.Text;
@@ -16,6 +17,17 @@ namespace JacRed
     {
         public static void Main(string[] args)
         {
+            // Display version information on startup
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  JacRed - Torrent Aggregator & File Database");
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine($"  Version:     {VersionInfo.Version}");
+            Console.WriteLine($"  Git SHA:     {VersionInfo.GitSha}");
+            Console.WriteLine($"  Git Branch:  {VersionInfo.GitBranch}");
+            Console.WriteLine($"  Build Date:  {VersionInfo.BuildDate}");
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine();
+
             Directory.CreateDirectory("Data/fdb");
             Directory.CreateDirectory("Data/temp");
             Directory.CreateDirectory("Data/log");
@@ -56,6 +68,10 @@ namespace JacRed
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .ConfigureLogging(logging =>
+                {
+                    logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Warning);
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseKestrel(op => op.Listen((AppInit.conf.listenip == "any" ? IPAddress.Any : IPAddress.Parse(AppInit.conf.listenip)), AppInit.conf.listenport))

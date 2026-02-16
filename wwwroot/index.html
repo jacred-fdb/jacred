@@ -313,13 +313,14 @@
           <div class="min-w-0">
             <h1
               class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent truncate">
-              Поиск торрентов</h1>
+              <span class="sm:hidden">Поиск</span><span class="hidden sm:inline">Поиск торрентов</span>
+            </h1>
             <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 hidden sm:block">По названию, КП или
               IMDB</p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <a href="/stats.html"
+          <a href="/stats"
             class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium no-underline transition-colors"
             aria-label="Статистика трекеров">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,16 +392,16 @@
 
       <div class="mb-3">
         <button type="button" id="filterToggle" aria-expanded="false" aria-controls="filterContainer"
-          class="tap-target w-full flex items-center justify-between px-4 py-3 min-h-[44px] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-gray-900 dark:text-gray-100 font-medium transition-all">
+          class="tap-target w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-gray-900 dark:text-gray-100 font-medium transition-all">
           <span class="flex items-center gap-2">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <span id="filterToggleLabel">Дополнительные фильтры</span>
+            <span id="filterToggleLabel" class="text-sm sm:text-base">Дополнительные фильтры</span>
             <span id="filterCountBadge" class="hidden text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full"></span>
           </span>
-          <svg id="filterToggleIcon" class="w-5 h-5 shrink-0 transition-transform duration-150" fill="none"
+          <svg id="filterToggleIcon" class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 transition-transform duration-150" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
@@ -408,72 +409,75 @@
       </div>
 
       <div id="filterContainer" class="collapse-content" aria-hidden="true">
-        <div
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Уточнить</label>
-            <input name="refine" type="text" placeholder="Например BDRip, WEB-DL, США"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+        <div class="mb-3 sm:mb-4 p-2.5 sm:p-3 lg:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-2.5 sm:space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 lg:gap-3">
+            <div>
+              <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Уточнить</label>
+              <input name="refine" type="text" placeholder="Например BDRip, WEB-DL, США"
+                class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Исключить</label>
+              <input name="exclude" type="text" placeholder="Например HEVC"
+                class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+            </div>
           </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Исключить</label>
-            <input name="exclude" type="text" placeholder="Например HEVC"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
-          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5 lg:gap-3">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Качество</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Качество</label>
             <select name="quality" aria-label="Качество"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любое</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Тип видео</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Тип видео</label>
             <select name="videotype" aria-label="Тип видео"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любое</option>
               <option value="sdr">SDR</option>
               <option value="hdr">HDR</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Озвучка</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Озвучка</label>
             <select name="voice" aria-label="Озвучка"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любая</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Сезон</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Сезон</label>
             <select name="season" aria-label="Сезон"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любой</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Категория</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Категория</label>
             <select name="type" aria-label="Категория"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любая</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Трекер</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Трекер</label>
             <select name="tracker" aria-label="Трекер"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любой</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Год</label>
+            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Год</label>
             <select name="year" aria-label="Год"
-              class="filter-input w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
               <option value="">Любой</option>
             </select>
           </div>
-          <div class="md:col-span-2 lg:col-span-3">
+          </div>
+          <div class="flex justify-end sm:justify-start pt-1">
             <button type="button" id="filterReset"
-              class="px-4 py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-all">
+              class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-all">
               Сбросить фильтры
             </button>
           </div>
@@ -481,33 +485,47 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3 sm:gap-5 mb-4">
-        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
-          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+        <div class="flex flex-wrap items-center gap-2.5 sm:gap-4">
+          <label
+            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
             <input type="radio" name="sort" value="sid" id="sortSid"
-              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" checked />
+              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer"
+              checked />
             <span
-              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
               сидам</span>
           </label>
-          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+          <label
+            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
             <input type="radio" name="sort" value="size" id="sortSize"
-              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" />
+              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
             <span
-              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
               размеру</span>
           </label>
-          <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
+          <label
+            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
             <input type="radio" name="sort" value="date" id="sortDate"
-              class="w-4 h-4 text-blue-600 focus:ring-blue-500 shrink-0" />
+              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
             <span
-              class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">по
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
               дате</span>
           </label>
+          <label
+            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+            <input type="radio" name="sort" value="update" id="sortUpdate"
+              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
+            <span
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
+              обновлению</span>
+          </label>
         </div>
-        <label class="flex items-center gap-2 cursor-pointer group min-h-[44px] sm:min-h-0">
-          <input type="checkbox" id="forcedSearch" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 shrink-0" />
+        <label
+          class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+          <input type="checkbox" id="forcedSearch"
+            class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
           <span
-            class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">Точный
+            class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">Точный
             поиск</span>
         </label>
       </div>
@@ -855,6 +873,7 @@
           filterContainer: null,
           sortSize: null,
           sortDate: null,
+          sortUpdate: null,
           forcedSearch: null,
           toggleTheme: null,
           iconMoon: null,
@@ -1026,6 +1045,7 @@
           const magnetAttr = escapeAttr(magnetRaw) || '#';
           const sizeName = escapeHtml(elem.sizeName || '—');
           const dateStr = formatDate(elem.createTime);
+          const updateDateStr = elem.updateTime ? formatDate(elem.updateTime) : null;
           const sid = elem.sid != null ? elem.sid : 0;
           const pir = elem.pir != null ? elem.pir : 0;
           const tracker = (elem.tracker || '').toLowerCase();
@@ -1061,15 +1081,59 @@
                   </button>
                 </div>
               </div>
-              <div class="px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                <span class="flex items-center gap-1.5 flex-shrink-0">
-                  <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" onerror="this.style.display='none'">
-                  <span class="font-medium text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
-                </span>
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg><span class="size font-medium text-cyan-600 dark:text-cyan-400">${sizeName}</span></span>
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="date font-medium text-purple-600 dark:text-purple-400">${dateStr}</span></span>
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg><span class="seeders font-semibold text-green-600 dark:text-green-400">${sid}</span></span>
-                <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg><span class="leechers font-semibold text-red-600 dark:text-red-400">${pir}</span></span>
+              <div class="px-3 sm:px-4 py-2 sm:py-3">
+                <!-- Mobile: Two lines layout -->
+                <div class="flex flex-col gap-2.5 sm:hidden text-xs text-gray-600 dark:text-gray-400">
+                  <div class="flex flex-wrap items-center gap-2.5">
+                    <span class="flex items-center gap-1.5 flex-shrink-0">
+                      <img src="${icoSrc}" alt="" class="w-4 h-4 object-contain" onerror="this.style.display='none'">
+                      <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                      <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      <span class="size font-semibold text-cyan-600 dark:text-cyan-400">${sizeName}</span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                      <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                      <span class="seeders font-bold text-green-600 dark:text-green-400">${sid}</span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                      <svg class="w-4 h-4 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                      <span class="leechers font-bold text-red-600 dark:text-red-400">${pir}</span>
+                    </span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2.5">
+                    <span class="flex items-center gap-1.5">
+                      <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <span class="date font-semibold text-purple-600 dark:text-purple-400" title="Дата создания">${dateStr}</span>
+                    </span>
+                    ${updateDateStr && updateDateStr !== dateStr ? `<span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="update-date font-semibold text-orange-600 dark:text-orange-400" title="Дата обновления">${updateDateStr}</span></span>` : ''}
+                  </div>
+                </div>
+                <!-- Desktop/Tablet: One line layout -->
+                <div class="hidden sm:flex sm:flex-wrap sm:items-center sm:gap-3 md:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  <span class="flex items-center gap-1.5 flex-shrink-0">
+                    <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" onerror="this.style.display='none'">
+                    <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span class="size font-semibold text-cyan-600 dark:text-cyan-400">${sizeName}</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                    <span class="seeders font-bold text-green-600 dark:text-green-400">${sid}</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                    <span class="leechers font-bold text-red-600 dark:text-red-400">${pir}</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span class="date font-semibold text-purple-600 dark:text-purple-400" title="Дата создания">${dateStr}</span>
+                  </span>
+                  ${updateDateStr && updateDateStr !== dateStr ? `<span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="update-date font-semibold text-orange-600 dark:text-orange-400" title="Дата обновления">${updateDateStr}</span></span>` : ''}
+                </div>
               </div>
             </div>
           </div>`;
@@ -1108,7 +1172,7 @@
 
         const buildApiUrl = (query) => {
           const sortVal = (document.querySelector('input[name="sort"]:checked') || {}).value || 'sid';
-          const sortMap = { sid: 'sid', size: 'size', date: 'create' };
+          const sortMap = { sid: 'sid', size: 'size', date: 'create', update: 'update' };
           const forcedSearch = elements.forcedSearch && elements.forcedSearch.checked;
           let url = '/api/v1.0/torrents?search=' + encodeURIComponent(query) + '&sort=' + (sortMap[sortVal] || 'sid');
           if (forcedSearch) url += '&exact=true';
@@ -1427,6 +1491,7 @@
           elements.filterContainer = document.getElementById('filterContainer');
           elements.sortSize = document.getElementById('sortSize');
           elements.sortDate = document.getElementById('sortDate');
+          elements.sortUpdate = document.getElementById('sortUpdate');
           elements.forcedSearch = document.getElementById('forcedSearch');
           elements.toggleTheme = document.getElementById('toggleTheme');
           elements.iconMoon = document.getElementById('iconMoon');

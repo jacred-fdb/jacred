@@ -9,19 +9,26 @@
 
   <ItemGroup>
     <Compile Remove="Data\**" />
+    <Compile Remove="VersionInfo.g.cs" />
     <Content Remove="Data\**" />
     <Content Remove="temp\**" />
     <Content Remove="router\**" />
+    <Content Remove="dist\**" />
     <EmbeddedResource Remove="Data\**" />
     <EmbeddedResource Remove="temp\**" />
     <EmbeddedResource Remove="router\**" />
+    <EmbeddedResource Remove="dist\**" />
     <None Remove="Data\**" />
     <None Remove="temp\**" />
     <None Remove="router\**" />
+    <None Remove="dist\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Exclude large test data files from being copied during publish -->
+    <Content Remove="Data\fdb\**" />
+    <Content Remove="Data\masterDb.bz" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,5 +48,25 @@
   <!--<PropertyGroup>
     <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>-->
+
+  <!-- Version generation from Git -->
+  <PropertyGroup>
+    <VersionInfoFile>$(IntermediateOutputPath)VersionInfo.g.cs</VersionInfoFile>
+    <GenerateVersionScript>$(MSBuildProjectDirectory)/generate-version.sh</GenerateVersionScript>
+  </PropertyGroup>
+
+  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeCompile">
+    <!-- Ensure intermediate output directory exists -->
+    <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
+    
+    <!-- Generate version info file using bash script -->
+    <Exec Command="bash &quot;$(GenerateVersionScript)&quot; &quot;$(VersionInfoFile)&quot;" 
+          IgnoreExitCode="false"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+
+    <ItemGroup>
+      <Compile Include="$(VersionInfoFile)" />
+    </ItemGroup>
+  </Target>
 
 </Project>
