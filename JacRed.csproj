@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Remove="Data\**" />
+    <Compile Remove="VersionInfo.g.cs" />
     <Content Remove="Data\**" />
     <Content Remove="temp\**" />
     <Content Remove="router\**" />
