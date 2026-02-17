@@ -15,6 +15,18 @@
 
 ---
 
+## 📥 Поддержать проект
+
+💲 **YooMoney (RUB):** [https://yoomoney.ru/fundraise/1FRDH2NBCE3.260210](https://yoomoney.ru/fundraise/1FRDH2NBCE3.260210)
+
+💰 **TON / USDT:** `UQAFGIN19ZDeUQFC4SpHMg2dhjliSXq_vzUWYZMDJ8w_zSqo`
+
+💴 **MIR (RUB):** `2204120115029460`
+
+💸 **YooMoney (прямой перевод):** [https://yoomoney.ru/to/410015186713710](https://yoomoney.ru/to/410015186713710)
+
+---
+
 ## Требования
 
 - **.NET 9.0** (для запуска из исходников)
