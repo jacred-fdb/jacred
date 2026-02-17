@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -120,7 +119,7 @@ namespace JacRed.Controllers.CRON
                 // Let cancellation propagate to higher-level handlers (covers TaskCanceledException too)
                 throw;
             }
-            catch (HttpRequestException ex)
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 ParserLog.Write("animelayer", "Cookie validation error", new Dictionary<string, object>
                 {
@@ -326,15 +325,6 @@ namespace JacRed.Controllers.CRON
                                         responseBody = responseBody.Substring(0, 500) + "...";
                                 }
                                 catch (OperationCanceledException ex)
-                                {
-                                    ParserLog.Write("animelayer", "Failed to read response body", new Dictionary<string, object>
-                                    {
-                                        { "statusCode", statusCode },
-                                        { "message", ex.Message },
-                                        { "type", ex.GetType().Name }
-                                    });
-                                }
-                                catch (TaskCanceledException ex)
                                 {
                                     ParserLog.Write("animelayer", "Failed to read response body", new Dictionary<string, object>
                                     {
