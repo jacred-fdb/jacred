@@ -325,7 +325,7 @@ namespace JacRed.Controllers.CRON
                                     if (responseBody.Length > 500)
                                         responseBody = responseBody.Substring(0, 500) + "...";
                                 }
-                                catch (Exception ex)
+                                catch (OperationCanceledException ex)
                                 {
                                     ParserLog.Write("animelayer", "Failed to read response body", new Dictionary<string, object>
                                     {
@@ -333,6 +333,26 @@ namespace JacRed.Controllers.CRON
                                         { "message", ex.Message },
                                         { "type", ex.GetType().Name }
                                     });
+                                }
+                                catch (TaskCanceledException ex)
+                                {
+                                    ParserLog.Write("animelayer", "Failed to read response body", new Dictionary<string, object>
+                                    {
+                                        { "statusCode", statusCode },
+                                        { "message", ex.Message },
+                                        { "type", ex.GetType().Name }
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Log and rethrow unexpected exceptions to avoid silently swallowing bugs
+                                    ParserLog.Write("animelayer", "Failed to read response body", new Dictionary<string, object>
+                                    {
+                                        { "statusCode", statusCode },
+                                        { "message", ex.Message },
+                                        { "type", ex.GetType().Name }
+                                    });
+                                    throw;
                                 }
 
                                 ParserLog.Write("animelayer", "TakeLogin failed - no cookies in response", new Dictionary<string, object>
