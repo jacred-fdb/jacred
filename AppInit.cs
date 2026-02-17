@@ -297,7 +297,7 @@ namespace JacRed
 
         public TrackerSettings Lostfilm = new TrackerSettings("https://www.lostfilm.tv");
 
-        public TrackerSettings Animelayer = new TrackerSettings("http://animelayer.ru");
+        public TrackerSettings Animelayer = new TrackerSettings("https://animelayer.ru");
 
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
