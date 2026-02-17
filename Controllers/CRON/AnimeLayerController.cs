@@ -108,7 +108,9 @@ namespace JacRed.Controllers.CRON
                     { "reason", "no valid cookies received" }
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException
+                                       && ex is not StackOverflowException
+                                       && ex is not System.Threading.ThreadAbortException)
             {
                 ParserLog.Write("animelayer", "TakeLogin error", new Dictionary<string, object>
                 {
