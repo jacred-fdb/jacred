@@ -72,11 +72,8 @@ namespace JacRed.Controllers.CRON
                             if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
                             {
                                 string layerHash = null, layerId = null, phpsessid = null;
-                                foreach (string line in cookies)
+                                foreach (string line in cookies.Where(line => !string.IsNullOrWhiteSpace(line)))
                                 {
-                                    if (string.IsNullOrWhiteSpace(line))
-                                        continue;
-
                                     if (line.Contains("layer_hash="))
                                         layerHash = new Regex("layer_hash=([^;]+)(;|$)").Match(line).Groups[1].Value;
 
