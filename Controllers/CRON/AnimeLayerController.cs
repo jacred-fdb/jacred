@@ -59,14 +59,13 @@ namespace JacRed.Controllers.CRON
 
                     var postParams = new Dictionary<string, string>
                     {
-                        { "username", AppInit.conf.Animelayer.login.u },
-                        { "password", AppInit.conf.Animelayer.login.p },
-                        { "login", "1" }
+                        { "login", AppInit.conf.Animelayer.login.u },
+                        { "password", AppInit.conf.Animelayer.login.p }
                     };
 
                     using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
                     {
-                        string loginUrl = $"{AppInit.conf.Animelayer.host}/login/";
+                        string loginUrl = $"{AppInit.conf.Animelayer.host}/auth/login/";
                         using (var response = await client.PostAsync(loginUrl, postContent))
                         {
                             if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
