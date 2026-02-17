@@ -30,6 +30,18 @@ namespace JacRed.Controllers.CRON
         }
 
         /// <summary>
+        /// Invalidates the cached cookie (e.g., when it expires during parsing).
+        /// </summary>
+        private void InvalidateCookie()
+        {
+            memoryCache.Remove("animelayer:cookie");
+            ParserLog.Write("animelayer", "Cookie invalidated", new Dictionary<string, object>
+            {
+                { "reason", "likely expired during parsing" }
+            });
+        }
+
+        /// <summary>
         /// Attempts to login to Animelayer using configured credentials and cache the authentication cookie.
         /// </summary>
         /// <returns>True if login was successful and cookie was cached, false otherwise.</returns>
@@ -252,12 +264,75 @@ namespace JacRed.Controllers.CRON
                         });
                     }
 
-                    (int parsed, int added, int updated, int skipped, int failed) = await parsePage(page, cookie);
-                    totalParsed += parsed;
-                    totalAdded += added;
-                    totalUpdated += updated;
-                    totalSkipped += skipped;
-                    totalFailed += failed;
+                    // Retry logic for expired cookies
+                    (int parsed, int added, int updated, int skipped, int failed) result = (0, 0, 0, 0, 0);
+                    int retryCount = 0;
+                    const int maxRetries = 1;
+
+                    while (retryCount <= maxRetries)
+                    {
+                        result = await parsePage(page, cookie);
+
+                        // If we got results, page parsed successfully
+                        if (result.parsed > 0)
+                            break;
+
+                        // If parsing failed (returned zeros), might be due to expired cookie
+                        if (retryCount < maxRetries)
+                        {
+                            ParserLog.Write("animelayer", $"Page parse returned zeros, attempting cookie refresh", new Dictionary<string, object>
+                            {
+                                { "page", page },
+                                { "retryAttempt", retryCount + 1 }
+                            });
+
+                            // Invalidate cached cookie and try to get a fresh one
+                            InvalidateCookie();
+
+                            // Try to refresh cookie
+                            if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
+                            {
+                                // Use static cookie from config
+                                cookie = AppInit.conf.Animelayer.cookie;
+                                ParserLog.Write("animelayer", "Using static cookie from config", null);
+                            }
+                            else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
+                                     !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
+                            {
+                                // Attempt re-login
+                                if (await TakeLogin())
+                                {
+                                    cookie = Cookie();
+                                    ParserLog.Write("animelayer", "Re-login successful", null);
+                                }
+                                else
+                                {
+                                    ParserLog.Write("animelayer", "Re-login failed, aborting page parse", new Dictionary<string, object>
+                                    {
+                                        { "page", page }
+                                    });
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                ParserLog.Write("animelayer", "No way to refresh cookie, aborting", null);
+                                break;
+                            }
+
+                            retryCount++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    totalParsed += result.parsed;
+                    totalAdded += result.added;
+                    totalUpdated += result.updated;
+                    totalSkipped += result.skipped;
+                    totalFailed += result.failed;
                 }
 
                 ParserLog.Write("animelayer", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
@@ -320,13 +395,29 @@ namespace JacRed.Controllers.CRON
             string url = $"{AppInit.conf.Animelayer.host}/torrents/anime/" + (page > 1 ? $"?page={page}" : "");
             string html = await HttpClient.Get(url, cookie: cookie, useproxy: AppInit.conf.Animelayer.useproxy, httpversion: 2);
 
-            if (html == null || !html.Contains("id=\"wrapper\""))
+            if (html == null)
             {
                 ParserLog.Write("animelayer", $"Page parse failed", new Dictionary<string, object>
                 {
                     { "page", page },
                     { "url", url },
-                    { "reason", html == null ? "null response" : "invalid content" }
+                    { "reason", "null response" }
+                });
+                return (0, 0, 0, 0, 0);
+            }
+
+            // Check if we have valid content or got redirected/logged out
+            if (!html.Contains("id=\"wrapper\""))
+            {
+                // Additional check: if response contains login form, cookie likely expired
+                bool isLoginForm = html.Contains("id=\"loginForm\"") || html.Contains("/auth/login/");
+
+                ParserLog.Write("animelayer", $"Page parse failed", new Dictionary<string, object>
+                {
+                    { "page", page },
+                    { "url", url },
+                    { "reason", "invalid content" },
+                    { "likelyExpiredCookie", isLoginForm }
                 });
                 return (0, 0, 0, 0, 0);
             }
