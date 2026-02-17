@@ -294,7 +294,7 @@ namespace JacRed.Controllers.CRON
                             {
                                 // Use static cookie from config
                                 cookie = AppInit.conf.Animelayer.cookie;
-                                ParserLog.Write("animelayer", "Using static cookie from config", null);
+                                ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
                             }
                             else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
                                      !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
@@ -303,7 +303,7 @@ namespace JacRed.Controllers.CRON
                                 if (await TakeLogin())
                                 {
                                     cookie = Cookie();
-                                    ParserLog.Write("animelayer", "Re-login successful", null);
+                                    ParserLog.Write("animelayer", "Re-login successful", new Dictionary<string, object>());
                                 }
                                 else
                                 {
@@ -316,7 +316,7 @@ namespace JacRed.Controllers.CRON
                             }
                             else
                             {
-                                ParserLog.Write("animelayer", "No way to refresh cookie, aborting", null);
+                                ParserLog.Write("animelayer", "No way to refresh cookie, aborting", new Dictionary<string, object>());
                                 break;
                             }
 
