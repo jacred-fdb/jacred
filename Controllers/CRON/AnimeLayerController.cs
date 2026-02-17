@@ -114,11 +114,17 @@ namespace JacRed.Controllers.CRON
 
                 return isValid;
             }
+            catch (OperationCanceledException)
+            {
+                // Let cancellation propagate to higher-level handlers (covers TaskCanceledException too)
+                throw;
+            }
             catch (Exception ex)
             {
                 ParserLog.Write("animelayer", "Cookie validation error", new Dictionary<string, object>
                 {
-                    { "message", ex.Message }
+                    { "message", ex.Message },
+                    { "type", ex.GetType().Name }
                 });
                 return false;
             }
@@ -201,34 +207,21 @@ namespace JacRed.Controllers.CRON
                             var allCookies = new List<string>();
                             if (response.Headers.TryGetValues("Set-Cookie", out var headerCookies))
                             {
-                                foreach (var cookieHeader in headerCookies)
-                                {
-                                    // Split by comma, but be careful - cookie values might contain commas
-                                    // Look for pattern: "cookie_name=value; attribute" followed by comma and space
-                                    // Simple approach: split by ", " (comma-space) which is the standard separator
-                                    var cookieParts = cookieHeader.Split(new[] { ", " }, StringSplitOptions.None);
-                                    foreach (var part in cookieParts)
-                                    {
-                                        var trimmed = part.Trim();
-                                        if (!string.IsNullOrWhiteSpace(trimmed))
-                                            allCookies.Add(trimmed);
-                                    }
-                                }
+                                allCookies.AddRange(
+                                    headerCookies
+                                        .SelectMany(cookieHeader => cookieHeader.Split(new[] { ", " }, StringSplitOptions.None))
+                                        .Select(part => part.Trim())
+                                        .Where(trimmed => !string.IsNullOrWhiteSpace(trimmed)));
                             }
 
                             // Also check content headers (some servers put cookies there)
                             if (response.Content?.Headers != null && response.Content.Headers.TryGetValues("Set-Cookie", out var contentCookies))
                             {
-                                foreach (var cookieHeader in contentCookies)
-                                {
-                                    var cookieParts = cookieHeader.Split(new[] { ", " }, StringSplitOptions.None);
-                                    foreach (var part in cookieParts)
-                                    {
-                                        var trimmed = part.Trim();
-                                        if (!string.IsNullOrWhiteSpace(trimmed))
-                                            allCookies.Add(trimmed);
-                                    }
-                                }
+                                allCookies.AddRange(
+                                    contentCookies
+                                        .SelectMany(cookieHeader => cookieHeader.Split(new[] { ", " }, StringSplitOptions.None))
+                                        .Select(part => part.Trim())
+                                        .Where(trimmed => !string.IsNullOrWhiteSpace(trimmed)));
                             }
 
                             // Note: Cookies are typically in the initial response (302), not in redirect follow-up
@@ -251,11 +244,8 @@ namespace JacRed.Controllers.CRON
                                 });
 
                                 string layerHash = null, layerId = null, phpsessid = null;
-                                foreach (string cookieLine in allCookies)
+                                foreach (string cookieLine in allCookies.Where(c => !string.IsNullOrWhiteSpace(c)))
                                 {
-                                    if (string.IsNullOrWhiteSpace(cookieLine))
-                                        continue;
-
                                     if (cookieLine.Contains("layer_hash="))
                                     {
                                         var match = new Regex("layer_hash=([^;]+)(;|$)").Match(cookieLine);
@@ -316,7 +306,15 @@ namespace JacRed.Controllers.CRON
                                     if (responseBody.Length > 500)
                                         responseBody = responseBody.Substring(0, 500) + "...";
                                 }
-                                catch { }
+                                catch (Exception ex)
+                                {
+                                    ParserLog.Write("animelayer", "Failed to read response body", new Dictionary<string, object>
+                                    {
+                                        { "statusCode", statusCode },
+                                        { "message", ex.Message },
+                                        { "type", ex.GetType().Name }
+                                    });
+                                }
 
                                 ParserLog.Write("animelayer", "TakeLogin failed - no cookies in response", new Dictionary<string, object>
                                 {
@@ -404,14 +402,14 @@ namespace JacRed.Controllers.CRON
             if (string.IsNullOrWhiteSpace(cookie))
             {
                 // Try to use configured cookie first
-                if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
+                if (string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
                 {
-                    cookie = AppInit.conf.Animelayer.cookie;
-                    ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
+                    needLogin = true;
                 }
                 else
                 {
-                    needLogin = true;
+                    ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
+                    cookie = AppInit.conf.Animelayer.cookie;
                 }
             }
             else
@@ -422,7 +420,6 @@ namespace JacRed.Controllers.CRON
                 {
                     ParserLog.Write("animelayer", "Cached cookie is invalid, will re-login", new Dictionary<string, object>());
                     InvalidateCookie();
-                    cookie = null;
                     needLogin = true;
                 }
                 else
