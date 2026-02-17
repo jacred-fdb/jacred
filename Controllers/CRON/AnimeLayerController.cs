@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using JacRed.Engine;
@@ -17,40 +18,57 @@ namespace JacRed.Controllers.CRON
     public class AnimeLayerController : BaseController
     {
         #region Cookie synchronization
-        private static readonly object cookieLock = new object();
-        private static volatile bool isLoggingIn = false;
+        // Use SemaphoreSlim for async-safe synchronization (lock doesn't work well with async/await)
+        // IMemoryCache is thread-safe, so we only need semaphore for login operations
+        private static readonly SemaphoreSlim loginSemaphore = new SemaphoreSlim(1, 1);
+
+        /// <summary>
+        /// Ensures the host URL uses HTTPS. Automatically converts HTTP to HTTPS.
+        /// Assumes hosts support both HTTP and HTTPS protocols.
+        /// </summary>
+        private static string EnsureHttps(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+                return host;
+
+            // Convert HTTP to HTTPS
+            if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                return "https://" + host.Substring(7);
+
+            // If no protocol specified, add HTTPS
+            if (!host.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                return "https://" + host;
+
+            return host;
+        }
         #endregion
 
         #region TakeLogin
         /// <summary>
         /// Retrieves cached cookie for Animelayer authentication.
-        /// Thread-safe: uses lock to prevent race conditions.
+        /// Thread-safe: memoryCache is thread-safe, no additional locking needed for reads.
         /// </summary>
         /// <returns>Cached cookie string if available, null otherwise.</returns>
         private string Cookie()
         {
-            lock (cookieLock)
+            // IMemoryCache is thread-safe for reads, no lock needed
+            if (memoryCache.TryGetValue("animelayer:cookie", out string cookie))
             {
-                if (memoryCache.TryGetValue("animelayer:cookie", out string cookie))
-                {
-                    // Strings are immutable in C#, so returning the reference is safe
-                    return cookie;
-                }
-
-                return null;
+                // Strings are immutable in C#, so returning the reference is safe
+                return cookie;
             }
+
+            return null;
         }
 
         /// <summary>
         /// Invalidates the cached cookie (e.g., when it expires during parsing).
-        /// Thread-safe: uses lock to prevent race conditions.
+        /// Thread-safe: memoryCache is thread-safe.
         /// </summary>
         private void InvalidateCookie()
         {
-            lock (cookieLock)
-            {
-                memoryCache.Remove("animelayer:cookie");
-            }
+            // IMemoryCache is thread-safe, no lock needed
+            memoryCache.Remove("animelayer:cookie");
             ParserLog.Write("animelayer", "Cookie invalidated", new Dictionary<string, object>
             {
                 { "reason", "likely expired during parsing" }
@@ -58,24 +76,70 @@ namespace JacRed.Controllers.CRON
         }
 
         /// <summary>
-        /// Attempts to login to Animelayer using configured credentials and cache the authentication cookie.
-        /// Thread-safe: prevents concurrent login attempts.
+        /// Validates if the cached cookie is still valid by making a test request.
+        /// Thread-safe: cookie parameter is immutable string, no synchronization needed.
         /// </summary>
-        /// <returns>True if login was successful and cookie was cached, false otherwise.</returns>
-        async public Task<bool> TakeLogin()
+        /// <param name="cookie">The cookie string to validate.</param>
+        /// <returns>True if cookie is valid, false otherwise.</returns>
+        async Task<bool> ValidateCookie(string cookie)
         {
-            // Prevent concurrent login attempts
-            lock (cookieLock)
+            if (string.IsNullOrWhiteSpace(cookie))
+                return false;
+
+            try
             {
-                if (isLoggingIn)
+                // Make a test request to check if cookie is valid
+                string baseHost = EnsureHttps(AppInit.conf.Animelayer.host);
+                string testUrl = $"{baseHost}/torrents/anime/";
+                string html = await HttpClient.Get(testUrl, cookie: cookie, useproxy: AppInit.conf.Animelayer.useproxy, httpversion: 2);
+
+                if (html == null)
                 {
-                    ParserLog.Write("animelayer", "TakeLogin skipped", new Dictionary<string, object>
+                    ParserLog.Write("animelayer", "Cookie validation failed", new Dictionary<string, object>
                     {
-                        { "reason", "login already in progress" }
+                        { "reason", "null response" }
                     });
                     return false;
                 }
-                isLoggingIn = true;
+
+                // Check if we got valid content (not login page)
+                bool isValid = html.Contains("id=\"wrapper\"") && !html.Contains("id=\"loginForm\"") && !html.Contains("/auth/login/");
+
+                ParserLog.Write("animelayer", "Cookie validation", new Dictionary<string, object>
+                {
+                    { "isValid", isValid },
+                    { "hasWrapper", html.Contains("id=\"wrapper\"") },
+                    { "hasLoginForm", html.Contains("id=\"loginForm\"") || html.Contains("/auth/login/") }
+                });
+
+                return isValid;
+            }
+            catch (Exception ex)
+            {
+                ParserLog.Write("animelayer", "Cookie validation error", new Dictionary<string, object>
+                {
+                    { "message", ex.Message }
+                });
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Attempts to login to Animelayer using configured credentials and cache the authentication cookie.
+        /// Thread-safe: uses SemaphoreSlim to prevent concurrent login attempts (async-safe).
+        /// </summary>
+        /// <returns>True if login was successful and cookie was cached, false otherwise.</returns>
+        [HttpGet]
+        async public Task<bool> TakeLogin()
+        {
+            // Prevent concurrent login attempts using async-safe semaphore
+            if (!await loginSemaphore.WaitAsync(0))
+            {
+                ParserLog.Write("animelayer", "TakeLogin skipped", new Dictionary<string, object>
+                {
+                    { "reason", "login already in progress" }
+                });
+                return false;
             }
 
             try
@@ -92,13 +156,16 @@ namespace JacRed.Controllers.CRON
 
                 var clientHandler = new System.Net.Http.HttpClientHandler()
                 {
-                    AllowAutoRedirect = false
+                    AllowAutoRedirect = false,
+                    UseCookies = false
                 };
 
                 using (var client = new System.Net.Http.HttpClient(clientHandler))
                 {
                     client.MaxResponseContentBufferSize = 2000000; // 2MB
                     client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+                    client.DefaultRequestHeaders.Add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                    client.DefaultRequestHeaders.Add("accept-language", "en-US,en;q=0.5");
 
                     var postParams = new Dictionary<string, string>
                     {
@@ -108,22 +175,107 @@ namespace JacRed.Controllers.CRON
 
                     using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
                     {
-                        string loginUrl = $"{AppInit.conf.Animelayer.host}/auth/login/";
+                        // Use HTTPS and trailing slash as Python script shows
+                        string configHost = AppInit.conf.Animelayer.host;
+                        string baseHost = EnsureHttps(configHost);
+                        string loginUrl = $"{baseHost}/auth/login/";
+                        ParserLog.Write("animelayer", "Attempting login", new Dictionary<string, object>
+                        {
+                            { "url", loginUrl },
+                            { "configHost", configHost },
+                            { "resolvedHost", baseHost },
+                            { "user", AppInit.conf.Animelayer.login.u }
+                        });
+
                         using (var response = await client.PostAsync(loginUrl, postContent))
                         {
-                            if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
+                            var statusCode = (int)response.StatusCode;
+                            ParserLog.Write("animelayer", "Login response received", new Dictionary<string, object>
                             {
-                                string layerHash = null, layerId = null, phpsessid = null;
-                                foreach (string line in cookies.Where(line => !string.IsNullOrWhiteSpace(line)))
+                                { "statusCode", statusCode },
+                                { "status", response.StatusCode.ToString() }
+                            });
+
+                            // Collect cookies from initial response
+                            // Some servers return multiple Set-Cookie headers, some return one header with comma-separated values
+                            var allCookies = new List<string>();
+                            if (response.Headers.TryGetValues("Set-Cookie", out var headerCookies))
+                            {
+                                foreach (var cookieHeader in headerCookies)
                                 {
-                                    if (line.Contains("layer_hash="))
-                                        layerHash = new Regex("layer_hash=([^;]+)(;|$)").Match(line).Groups[1].Value;
+                                    // Split by comma, but be careful - cookie values might contain commas
+                                    // Look for pattern: "cookie_name=value; attribute" followed by comma and space
+                                    // Simple approach: split by ", " (comma-space) which is the standard separator
+                                    var cookieParts = cookieHeader.Split(new[] { ", " }, StringSplitOptions.None);
+                                    foreach (var part in cookieParts)
+                                    {
+                                        var trimmed = part.Trim();
+                                        if (!string.IsNullOrWhiteSpace(trimmed))
+                                            allCookies.Add(trimmed);
+                                    }
+                                }
+                            }
 
-                                    if (line.Contains("layer_id="))
-                                        layerId = new Regex("layer_id=([^;]+)(;|$)").Match(line).Groups[1].Value;
+                            // Also check content headers (some servers put cookies there)
+                            if (response.Content?.Headers != null && response.Content.Headers.TryGetValues("Set-Cookie", out var contentCookies))
+                            {
+                                foreach (var cookieHeader in contentCookies)
+                                {
+                                    var cookieParts = cookieHeader.Split(new[] { ", " }, StringSplitOptions.None);
+                                    foreach (var part in cookieParts)
+                                    {
+                                        var trimmed = part.Trim();
+                                        if (!string.IsNullOrWhiteSpace(trimmed))
+                                            allCookies.Add(trimmed);
+                                    }
+                                }
+                            }
 
-                                    if (line.Contains("PHPSESSID="))
-                                        phpsessid = new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value;
+                            // Note: Cookies are typically in the initial response (302), not in redirect follow-up
+                            // According to Python test, cookies are in the 302 response Set-Cookie header
+                            if ((statusCode >= 300 && statusCode < 400) && allCookies.Count == 0)
+                            {
+                                ParserLog.Write("animelayer", "Redirect response but no cookies found", new Dictionary<string, object>
+                                {
+                                    { "statusCode", statusCode },
+                                    { "location", response.Headers.Location?.ToString() ?? "none" }
+                                });
+                            }
+
+                            if (allCookies.Count > 0)
+                            {
+                                ParserLog.Write("animelayer", "Cookies found in response", new Dictionary<string, object>
+                                {
+                                    { "cookieCount", allCookies.Count },
+                                    { "cookies", string.Join(" | ", allCookies.Take(3)) }
+                                });
+
+                                string layerHash = null, layerId = null, phpsessid = null;
+                                foreach (string cookieLine in allCookies)
+                                {
+                                    if (string.IsNullOrWhiteSpace(cookieLine))
+                                        continue;
+
+                                    if (cookieLine.Contains("layer_hash="))
+                                    {
+                                        var match = new Regex("layer_hash=([^;]+)(;|$)").Match(cookieLine);
+                                        if (match.Success)
+                                            layerHash = match.Groups[1].Value;
+                                    }
+
+                                    if (cookieLine.Contains("layer_id="))
+                                    {
+                                        var match = new Regex("layer_id=([^;]+)(;|$)").Match(cookieLine);
+                                        if (match.Success)
+                                            layerId = match.Groups[1].Value;
+                                    }
+
+                                    if (cookieLine.Contains("PHPSESSID="))
+                                    {
+                                        var match = new Regex("PHPSESSID=([^;]+)(;|$)").Match(cookieLine);
+                                        if (match.Success)
+                                            phpsessid = match.Groups[1].Value;
+                                    }
                                 }
 
                                 if (!string.IsNullOrWhiteSpace(layerHash) && !string.IsNullOrWhiteSpace(layerId))
@@ -132,27 +284,50 @@ namespace JacRed.Controllers.CRON
                                     if (!string.IsNullOrWhiteSpace(phpsessid))
                                         cookieValue += $";PHPSESSID={phpsessid}";
 
-                                    // Thread-safe cookie update
-                                    lock (cookieLock)
-                                    {
-                                        memoryCache.Set("animelayer:cookie", cookieValue, DateTime.Now.AddDays(1));
-                                    }
+                                    // IMemoryCache.Set is thread-safe, no lock needed
+                                    memoryCache.Set("animelayer:cookie", cookieValue, DateTime.Now.AddDays(1));
 
                                     ParserLog.Write("animelayer", "TakeLogin successful", new Dictionary<string, object>
                                     {
-                                        { "user", AppInit.conf.Animelayer.login.u }
+                                        { "user", AppInit.conf.Animelayer.login.u },
+                                        { "hasLayerHash", !string.IsNullOrWhiteSpace(layerHash) },
+                                        { "hasLayerId", !string.IsNullOrWhiteSpace(layerId) },
+                                        { "hasPhpSessId", !string.IsNullOrWhiteSpace(phpsessid) }
                                     });
                                     return true;
                                 }
+                                else
+                                {
+                                    ParserLog.Write("animelayer", "TakeLogin failed - missing required cookies", new Dictionary<string, object>
+                                    {
+                                        { "hasLayerHash", !string.IsNullOrWhiteSpace(layerHash) },
+                                        { "hasLayerId", !string.IsNullOrWhiteSpace(layerId) },
+                                        { "cookieLines", string.Join(" | ", allCookies) }
+                                    });
+                                }
+                            }
+                            else
+                            {
+                                // Read response body to check for error messages
+                                string responseBody = null;
+                                try
+                                {
+                                    responseBody = await response.Content.ReadAsStringAsync();
+                                    if (responseBody.Length > 500)
+                                        responseBody = responseBody.Substring(0, 500) + "...";
+                                }
+                                catch { }
+
+                                ParserLog.Write("animelayer", "TakeLogin failed - no cookies in response", new Dictionary<string, object>
+                                {
+                                    { "statusCode", statusCode },
+                                    { "hasResponseBody", !string.IsNullOrWhiteSpace(responseBody) },
+                                    { "responsePreview", responseBody }
+                                });
                             }
                         }
                     }
                 }
-
-                ParserLog.Write("animelayer", "TakeLogin failed", new Dictionary<string, object>
-                {
-                    { "reason", "no valid cookies received" }
-                });
             }
             catch (Exception ex) when (ex is not OutOfMemoryException
                                        && ex is not StackOverflowException
@@ -161,15 +336,14 @@ namespace JacRed.Controllers.CRON
                 ParserLog.Write("animelayer", "TakeLogin error", new Dictionary<string, object>
                 {
                     { "message", ex.Message },
+                    { "type", ex.GetType().Name },
                     { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
                 });
             }
             finally
             {
-                lock (cookieLock)
-                {
-                    isLoggingIn = false;
-                }
+                // Release semaphore to allow next login attempt
+                loginSemaphore.Release();
             }
 
             return false;
@@ -219,11 +393,13 @@ namespace JacRed.Controllers.CRON
         /// - "canceled" if the operation was canceled
         /// - "ok" if parsing completed successfully
         /// </returns>
+        [HttpGet]
         async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             #region Authorization
             // Check if we need to get a cookie from login
             string cookie = Cookie();
+            bool needLogin = false;
 
             if (string.IsNullOrWhiteSpace(cookie))
             {
@@ -231,14 +407,58 @@ namespace JacRed.Controllers.CRON
                 if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
                 {
                     cookie = AppInit.conf.Animelayer.cookie;
+                    ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
                 }
-                // If no static cookie and we have credentials, try login
-                else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
-                         !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
+                else
+                {
+                    needLogin = true;
+                }
+            }
+            else
+            {
+                // Validate existing cookie
+                ParserLog.Write("animelayer", "Validating cached cookie", new Dictionary<string, object>());
+                if (!await ValidateCookie(cookie))
+                {
+                    ParserLog.Write("animelayer", "Cached cookie is invalid, will re-login", new Dictionary<string, object>());
+                    InvalidateCookie();
+                    cookie = null;
+                    needLogin = true;
+                }
+                else
+                {
+                    ParserLog.Write("animelayer", "Cached cookie is valid", new Dictionary<string, object>());
+                }
+            }
+
+            // If we need to login, attempt it
+            if (needLogin)
+            {
+                if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
+                    !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
                 {
                     if (await TakeLogin())
                     {
                         cookie = Cookie();
+                        if (string.IsNullOrWhiteSpace(cookie))
+                        {
+                            ParserLog.Write("animelayer", "Authorization failed", new Dictionary<string, object>
+                            {
+                                { "reason", "login succeeded but no cookie retrieved" }
+                            });
+                            return "work_login";
+                        }
+
+                        // Validate the newly obtained cookie
+                        if (!await ValidateCookie(cookie))
+                        {
+                            ParserLog.Write("animelayer", "Authorization failed", new Dictionary<string, object>
+                            {
+                                { "reason", "login cookie validation failed" }
+                            });
+                            InvalidateCookie();
+                            return "work_login";
+                        }
                     }
                     else
                     {
@@ -266,7 +486,7 @@ namespace JacRed.Controllers.CRON
             try
             {
                 var sw = Stopwatch.StartNew();
-                string baseUrl = AppInit.conf.Animelayer.host;
+                string baseUrl = EnsureHttps(AppInit.conf.Animelayer.host);
 
                 // Determine page range
                 int startPage = parseFrom > 0 ? parseFrom : 1;
@@ -454,7 +674,8 @@ namespace JacRed.Controllers.CRON
         /// </returns>
         async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page, string cookie)
         {
-            string url = $"{AppInit.conf.Animelayer.host}/torrents/anime/" + (page > 1 ? $"?page={page}" : "");
+            string baseHost = EnsureHttps(AppInit.conf.Animelayer.host);
+            string url = $"{baseHost}/torrents/anime/" + (page > 1 ? $"?page={page}" : "");
             string html = await HttpClient.Get(url, cookie: cookie, useproxy: AppInit.conf.Animelayer.useproxy, httpversion: 2);
 
             if (html == null)
@@ -544,7 +765,7 @@ namespace JacRed.Controllers.CRON
                 else if (Regex.IsMatch(row, "Разрешение: ?</strong>1280x720"))
                     title += " [720p]";
 
-                string fullUrl = $"{AppInit.conf.Animelayer.host}/{urlPath}/";
+                string fullUrl = $"{baseHost}/{urlPath}/";
                 #endregion
 
                 #region name / originalname
