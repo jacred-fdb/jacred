@@ -396,7 +396,7 @@ namespace JacRed.Controllers.CRON
         {
             #region Authorization
             // Check if we need to get a cookie from login
-            string cookie = Cookie();
+            string cookie = null;
             bool needLogin = false;
 
             if (string.IsNullOrWhiteSpace(cookie))
@@ -409,7 +409,6 @@ namespace JacRed.Controllers.CRON
                 else
                 {
                     ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
-                    cookie = AppInit.conf.Animelayer.cookie;
                 }
             }
             else
