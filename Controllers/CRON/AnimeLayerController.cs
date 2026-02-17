@@ -9,12 +9,121 @@ using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/animelayer/[action]")]
     public class AnimeLayerController : BaseController
     {
+        #region TakeLogin
+        /// <summary>
+        /// Retrieves cached cookie for Animelayer authentication.
+        /// </summary>
+        /// <returns>Cached cookie string if available, null otherwise.</returns>
+        private string Cookie()
+        {
+            if (memoryCache.TryGetValue("animelayer:cookie", out string cookie))
+                return cookie;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Attempts to login to Animelayer using configured credentials and cache the authentication cookie.
+        /// </summary>
+        /// <returns>True if login was successful and cookie was cached, false otherwise.</returns>
+        async public Task<bool> TakeLogin()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) ||
+                    string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
+                {
+                    ParserLog.Write("animelayer", "TakeLogin failed", new Dictionary<string, object>
+                    {
+                        { "reason", "credentials not configured" }
+                    });
+                    return false;
+                }
+
+                var clientHandler = new System.Net.Http.HttpClientHandler()
+                {
+                    AllowAutoRedirect = false
+                };
+
+                using (var client = new System.Net.Http.HttpClient(clientHandler))
+                {
+                    client.MaxResponseContentBufferSize = 2000000; // 2MB
+                    client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+                    var postParams = new Dictionary<string, string>
+                    {
+                        { "username", AppInit.conf.Animelayer.login.u },
+                        { "password", AppInit.conf.Animelayer.login.p },
+                        { "login", "1" }
+                    };
+
+                    using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
+                    {
+                        string loginUrl = $"{AppInit.conf.Animelayer.host}/login/";
+                        using (var response = await client.PostAsync(loginUrl, postContent))
+                        {
+                            if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
+                            {
+                                string layerHash = null, layerId = null, phpsessid = null;
+                                foreach (string line in cookies)
+                                {
+                                    if (string.IsNullOrWhiteSpace(line))
+                                        continue;
+
+                                    if (line.Contains("layer_hash="))
+                                        layerHash = new Regex("layer_hash=([^;]+)(;|$)").Match(line).Groups[1].Value;
+
+                                    if (line.Contains("layer_id="))
+                                        layerId = new Regex("layer_id=([^;]+)(;|$)").Match(line).Groups[1].Value;
+
+                                    if (line.Contains("PHPSESSID="))
+                                        phpsessid = new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value;
+                                }
+
+                                if (!string.IsNullOrWhiteSpace(layerHash) && !string.IsNullOrWhiteSpace(layerId))
+                                {
+                                    string cookieValue = $"layer_hash={layerHash};layer_id={layerId}";
+                                    if (!string.IsNullOrWhiteSpace(phpsessid))
+                                        cookieValue += $";PHPSESSID={phpsessid}";
+
+                                    memoryCache.Set("animelayer:cookie", cookieValue, DateTime.Now.AddDays(1));
+
+                                    ParserLog.Write("animelayer", "TakeLogin successful", new Dictionary<string, object>
+                                    {
+                                        { "user", AppInit.conf.Animelayer.login.u }
+                                    });
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ParserLog.Write("animelayer", "TakeLogin failed", new Dictionary<string, object>
+                {
+                    { "reason", "no valid cookies received" }
+                });
+            }
+            catch (Exception ex)
+            {
+                ParserLog.Write("animelayer", "TakeLogin error", new Dictionary<string, object>
+                {
+                    { "message", ex.Message },
+                    { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                });
+            }
+
+            return false;
+        }
+        #endregion
+
         #region Parse
         static volatile bool workParse = false;
         private static readonly object workParseLock = new object();
@@ -54,20 +163,48 @@ namespace JacRed.Controllers.CRON
         /// <returns>
         /// A task that represents the asynchronous operation. The task result contains a status string:
         /// - "work" if parsing is already in progress
+        /// - "work_login" if cookie needs to be refreshed
         /// - "canceled" if the operation was canceled
         /// - "ok" if parsing completed successfully
         /// </returns>
-        [HttpGet]
         async public Task<string> Parse(int parseFrom = 0, int parseTo = 0)
         {
             #region Authorization
-            if (AppInit.conf.Animelayer.cookie == null)
+            // Check if we need to get a cookie from login
+            string cookie = Cookie();
+
+            if (string.IsNullOrWhiteSpace(cookie))
             {
-                ParserLog.Write("animelayer", "Authorization failed", new Dictionary<string, object>
+                // Try to use configured cookie first
+                if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
                 {
-                    { "reason", "cookie is null" }
-                });
-                return "Failed to authorize, please provide correct cookies: layer_hash, layer_id.";
+                    cookie = AppInit.conf.Animelayer.cookie;
+                }
+                // If no static cookie and we have credentials, try login
+                else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
+                         !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
+                {
+                    if (await TakeLogin())
+                    {
+                        cookie = Cookie();
+                    }
+                    else
+                    {
+                        ParserLog.Write("animelayer", "Authorization failed", new Dictionary<string, object>
+                        {
+                            { "reason", "login failed" }
+                        });
+                        return "work_login";
+                    }
+                }
+                else
+                {
+                    ParserLog.Write("animelayer", "Authorization failed", new Dictionary<string, object>
+                    {
+                        { "reason", "no cookie or credentials provided" }
+                    });
+                    return "Failed to authorize, please provide either cookie or credentials";
+                }
             }
             #endregion
 
@@ -117,7 +254,7 @@ namespace JacRed.Controllers.CRON
                         });
                     }
 
-                    (int parsed, int added, int updated, int skipped, int failed) = await parsePage(page);
+                    (int parsed, int added, int updated, int skipped, int failed) = await parsePage(page, cookie);
                     totalParsed += parsed;
                     totalAdded += added;
                     totalUpdated += updated;
@@ -171,6 +308,7 @@ namespace JacRed.Controllers.CRON
         /// Parses a single page of torrent releases from the Animelayer website.
         /// </summary>
         /// <param name="page">The page number to parse.</param>
+        /// <param name="cookie">The authentication cookie to use for the request.</param>
         /// <returns>
         /// A task that represents the asynchronous operation. The task result contains a tuple with parsing statistics:
         /// - parsed: Total number of torrent releases found and processed
@@ -179,10 +317,9 @@ namespace JacRed.Controllers.CRON
         /// - skipped: Number of torrent releases skipped (no changes detected)
         /// - failed: Number of torrent releases that failed to process
         /// </returns>
-        async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
+        async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page, string cookie)
         {
-            string cookie = AppInit.conf.Animelayer.cookie;
-            string url = $"{AppInit.conf.Animelayer.host}/torrents/anime/?page={page}";
+            string url = $"{AppInit.conf.Animelayer.host}/torrents/anime/" + (page > 1 ? $"?page={page}" : "");
             string html = await HttpClient.Get(url, cookie: cookie, useproxy: AppInit.conf.Animelayer.useproxy, httpversion: 2);
 
             if (html == null || !html.Contains("id=\"wrapper\""))
@@ -323,13 +460,13 @@ namespace JacRed.Controllers.CRON
                     // Check if already exists
                     bool exists = db.TryGetValue(t.url, out TorrentDetails _tcache);
 
-                    // Check if already exists with same title and has magnet link (skip if unchanged)
-                    if (exists && _tcache.title == t.title && !string.IsNullOrWhiteSpace(_tcache.magnet))
+                    // Check if already exists with same title (skip if unchanged)
+                    if (exists && _tcache.title == t.title)
                     {
                         skippedCount++;
                         // Use existing cache data for logging
                         ParserLog.WriteSkipped("animelayer", _tcache, "no changes");
-                        return false; // Skip processing this torrent
+                        return true;
                     }
 
                     // Try to download torrent file
