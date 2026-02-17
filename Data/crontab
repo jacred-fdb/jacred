@@ -52,7 +52,6 @@
 
 # Animelayer
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
-# curl "http://127.0.0.1:9117/cron/animelayer/parse?pageTo=7"
 # curl "http://127.0.0.1:9117/cron/animelayer/parse?parseFrom=1&parseTo=5"
 
 # Anidub
@@ -60,5 +59,8 @@
 # curl "http://127.0.0.1:9117/cron/anidub/parse?parseTo=5"
 # curl "http://127.0.0.1:9117/cron/anidub/parse?parseFrom=1&parseTo=5"
 
-# Animedia
-# */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animedia/parse"
+# Aniliberty
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/aniliberty/parse"
+# curl "http://127.0.0.1:9117/cron/aniliberty/parse?parseTo=5"
+# curl "http://127.0.0.1:9117/cron/aniliberty/parse?parseFrom=1&parseTo=5"
+# https://aniliberty.top/api/v1/anime/torrents?limit=50&page=60

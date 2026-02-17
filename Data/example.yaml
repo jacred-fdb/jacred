@@ -30,11 +30,9 @@ synctrackers:
   - selezen
   - animelayer
   - anidub
+  - aniliberty
 # RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
-disable_trackers:
-  - hdrezka
-  - anifilm
-  - anilibria
+disable_trackers: []
 syncsport: true
 syncspidr: true
 maxreadfile: 250
@@ -148,13 +146,6 @@ Selezen:
     u: ""
     p: ""
 
-Anilibria:
-  host: https://api.anilibria.tv
-  alias: ""
-  useproxy: false
-  reqMinute: 8
-  parseDelay: 7000
-
 Animelayer:
   host: https://animelayer.ru
   useproxy: false
@@ -169,19 +160,12 @@ Anidub:
   parseDelay: 7000
   log: false
 
-Anifilm:
-  host: https://anifilm.net
-  alias: ""
+Aniliberty:
+  host: https://aniliberty.top
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-
-Rezka:
-  host: https://rezka.cc
-  alias: ""
-  useproxy: false
-  reqMinute: 8
-  parseDelay: 7000
+  log: false
 
 Baibako:
   host: http://baibako.tv

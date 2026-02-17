@@ -104,7 +104,10 @@ namespace JacRed.Engine
                     savechanges = true;
 
                     if (updatetime)
+                    {
                         t.updateTime = DateTime.UtcNow;
+                        t.ffprobe_tryingdata = 0;
+                    }
 
                     if (uptfull)
                         updateFull = true;
@@ -407,27 +410,14 @@ namespace JacRed.Engine
         #region Dispose
         public void Dispose()
         {
-            // Всегда сохраняем изменения на диск, если они есть
-            // Это важно даже при evercache, чтобы данные не терялись при перезапуске
             if (Database.Count > 0 && savechanges)
-            {
-                try
-                {
-                    JsonStream.Write(pathDb(fdbkey), Database);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"FileDB.Dispose: ошибка сохранения файла {fdbkey}: {ex.Message}");
-                }
-            }
+                JsonStream.Write(pathDb(fdbkey), Database);
 
             if (openWriteTask.TryGetValue(fdbkey, out WriteTaskModel val))
             {
                 val.openconnection -= 1;
                 if (0 >= val.openconnection)
                 {
-                    // Если evercache выключен или validHour > 0, удаляем из кэша
-                    // Если evercache включен и validHour == 0, файл остается в кэше для быстрого доступа
                     if (!AppInit.conf.evercache.enable || (AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour > 0))
                         openWriteTask.TryRemove(fdbkey, out _);
                 }

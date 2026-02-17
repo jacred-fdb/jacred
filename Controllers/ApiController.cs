@@ -25,6 +25,12 @@ namespace JacRed.Controllers
             return File(System.IO.File.OpenRead("wwwroot/index.html"), "text/html");
         }
 
+        [Route("/stats")]
+        public ActionResult Stats()
+        {
+            return File(System.IO.File.OpenRead("wwwroot/stats.html"), "text/html");
+        }
+
         [Route("health")]
         public IActionResult Health()
         {
@@ -39,7 +45,10 @@ namespace JacRed.Controllers
         {
             return Json(new Dictionary<string, string>
             {
-                ["version"] = "2.0.0"
+                ["version"] = VersionInfo.Version,
+                ["gitSha"] = VersionInfo.GitSha,
+                ["gitBranch"] = VersionInfo.GitBranch,
+                ["buildDate"] = VersionInfo.BuildDate
             });
         }
 
@@ -409,96 +418,12 @@ namespace JacRed.Controllers
                     torrentsSearch(exact: false, exactdb: true);
                     if (torrents.Count == 0)
                         torrentsSearch(exact: false, exactdb: false);
-                    // Fallback: если fastdb не дал результатов или дал мало результатов, ищем напрямую в masterDb
-                    // Также проверяем masterDb для точных совпадений, чтобы найти новые торренты, которые еще не попали в fastdb
-                    if (torrents.Count == 0 || torrents.Count < 10)
-                    {
-                        var mdb = FileDB.masterDb.Where(i => i.Key.Contains(_s));
-                        if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
-                            mdb = mdb.Take(AppInit.conf.maxreadfile);
-
-                        foreach (var val in mdb)
-                        {
-                            foreach (var t in FileDB.OpenRead(val.Key, true).Values)
-                            {
-                                if (t.types == null || t.title.Contains(" КПК"))
-                                    continue;
-
-                                // Проверяем точное совпадение для новых торрентов
-                                string _n = t._sn ?? StringConvert.SearchName(t.name);
-                                string _o = t._so ?? StringConvert.SearchName(t.originalname);
-                                if (_n == _s || _o == _s || (_n != null && _n.Contains(_s)) || (_o != null && _o.Contains(_s)))
-                                    AddTorrents(t);
-                            }
-                        }
-                    }
                 }
                 else
                 {
                     torrentsSearch(exact: true, exactdb: true);
                     if (torrents.Count == 0)
                         torrentsSearch(exact: false, exactdb: false);
-                    // Fallback: если fastdb не дал результатов или дал мало результатов, ищем напрямую в masterDb
-                    // Также проверяем masterDb для точных совпадений, чтобы найти новые торренты, которые еще не попали в fastdb
-                    if (torrents.Count == 0 || torrents.Count < 10)
-                    {
-                        var mdb = FileDB.masterDb.Where(i => i.Key.Contains(_s));
-                        if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
-                            mdb = mdb.Take(AppInit.conf.maxreadfile);
-
-                        foreach (var val in mdb)
-                        {
-                            foreach (var t in FileDB.OpenRead(val.Key, true).Values)
-                            {
-                                if (t.types == null || t.title.Contains(" КПК"))
-                                    continue;
-
-                                string _n = t._sn ?? StringConvert.SearchName(t.name);
-                                string _o = t._so ?? StringConvert.SearchName(t.originalname);
-
-                                if (is_serial == 1)
-                                {
-                                    if (t.types.Contains("movie") || t.types.Contains("multfilm") || t.types.Contains("anime") || t.types.Contains("documovie"))
-                                    {
-                                        if ((_n == _s || _o == _s))
-                                            AddTorrents(t);
-                                    }
-                                }
-                                else if (is_serial == 2)
-                                {
-                                    if (t.types.Contains("serial") || t.types.Contains("multserial") || t.types.Contains("anime") || t.types.Contains("docuserial") || t.types.Contains("tvshow"))
-                                    {
-                                        if ((_n == _s || _o == _s))
-                                            AddTorrents(t);
-                                    }
-                                }
-                                else if (is_serial == 3)
-                                {
-                                    if (t.types.Contains("tvshow"))
-                                    {
-                                        if ((_n == _s || _o == _s))
-                                            AddTorrents(t);
-                                    }
-                                }
-                                else if (is_serial == 4)
-                                {
-                                    if (t.types.Contains("docuserial") || t.types.Contains("documovie"))
-                                    {
-                                        if ((_n == _s || _o == _s))
-                                            AddTorrents(t);
-                                    }
-                                }
-                                else if (is_serial == 5)
-                                {
-                                    if (t.types.Contains("anime"))
-                                    {
-                                        if ((_n == _s || _o == _s))
-                                            AddTorrents(t);
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
                 #endregion
             }
@@ -880,6 +805,9 @@ namespace JacRed.Controllers
                 case "create":
                     query = query.OrderByDescending(i => i.createTime);
                     break;
+                case "update":
+                    query = query.OrderByDescending(i => i.updateTime);
+                    break;
             }
             #endregion
 
@@ -910,6 +838,7 @@ namespace JacRed.Controllers
                 i.size,
                 i.sizeName,
                 i.createTime,
+                i.updateTime,
                 i.sid,
                 i.pir,
                 i.magnet,
@@ -929,6 +858,12 @@ namespace JacRed.Controllers
         [Route("/api/v1.0/qualitys")]
         public JsonResult Qualitys(string name, string originalname, string type, int page = 1, int take = 1000)
         {
+            string _s = StringConvert.SearchName(name);
+            string _so = StringConvert.SearchName(originalname);
+
+            if (string.IsNullOrEmpty(_s) && string.IsNullOrEmpty(_so))
+                return Json(new Dictionary<string, Dictionary<int, Models.TorrentQuality>>());
+
             var torrents = new Dictionary<string, Dictionary<int, Models.TorrentQuality>>();
 
             #region AddTorrents
@@ -1001,14 +936,29 @@ namespace JacRed.Controllers
             }
             #endregion
 
-            string _s = StringConvert.SearchName(name);
-            string _so = StringConvert.SearchName(originalname);
+            IEnumerable<KeyValuePair<string, Models.TorrentInfo>> mdb = FileDB.masterDb;
 
-            var mdb = FileDB.masterDb.OrderByDescending(i => i.Value.updateTime).Where(i => (_s == null && _so == null) || (_s != null && i.Key.Contains(_s)) || (_so != null && i.Key.Contains(_so)));
+            if (!string.IsNullOrEmpty(_s) && !string.IsNullOrEmpty(_so))
+            {
+                mdb = mdb.Where(i => i.Key.Contains(_s) || i.Key.Contains(_so));
+            }
+            else if (!string.IsNullOrEmpty(_s))
+            {
+                mdb = mdb.Where(i => i.Key.Contains(_s));
+            }
+            else if (!string.IsNullOrEmpty(_so))
+            {
+                mdb = mdb.Where(i => i.Key.Contains(_so));
+            }
+
+            mdb = mdb.OrderByDescending(i => i.Value.updateTime);
+
             if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
                 mdb = mdb.Take(AppInit.conf.maxreadfile);
 
-            foreach (var val in mdb)
+            var mdbList = mdb.ToList();
+
+            foreach (var val in mdbList)
             {
                 foreach (var t in FileDB.OpenRead(val.Key, true).Values)
                     AddTorrents(t);
@@ -1016,35 +966,27 @@ namespace JacRed.Controllers
 
             if (take == -1)
                 return Json(torrents);
+            var orderedTorrents = torrents.OrderByDescending(kvp =>
+                kvp.Value.Values.Max(v => v.updateTime)).ToList();
 
-            return Json(torrents.Skip((page * take) - take).Take(take));
+            int skip = (page - 1) * take;
+            if (skip < 0) skip = 0;
+
+            var paginated = orderedTorrents.Skip(skip).Take(take);
+            var result = paginated.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            return Json(result);
         }
         #endregion
 
-
         #region getFastdb
         static Dictionary<string, List<string>> _fastdb = null;
-        static DateTime _fastdbLastRebuild = DateTime.MinValue;
-        const int MasterDbUpdatesBeforeRebuild = 100; // Пересобираем fastdb после каждых 100 обновлений masterDb
-        const int MinRebuildIntervalSeconds = 30; // Минимальный интервал между пересборками (30 секунд)
 
         public static Dictionary<string, List<string>> getFastdb(bool update = false)
         {
-            // Автоматическая пересборка если прошло достаточно времени или было много обновлений
-            bool shouldAutoRebuild = false;
-            if (_fastdb != null && !update)
+            if (_fastdb == null || update)
             {
-                var timeSinceRebuild = DateTime.Now - _fastdbLastRebuild;
-                int updateCount = FileDB.GetAndResetMasterDbUpdateCount();
-                if (updateCount >= MasterDbUpdatesBeforeRebuild && timeSinceRebuild.TotalSeconds >= MinRebuildIntervalSeconds)
-                {
-                    shouldAutoRebuild = true;
-                }
-            }
-
-            if (_fastdb == null || update || shouldAutoRebuild)
-            {
-                if (update || shouldAutoRebuild)
+                if (update)
                     Console.WriteLine($"fastdb: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 var fastdb = new Dictionary<string, List<string>>();
 
@@ -1067,8 +1009,7 @@ namespace JacRed.Controllers
                 }
 
                 _fastdb = fastdb;
-                _fastdbLastRebuild = DateTime.Now;
-                if (update || shouldAutoRebuild)
+                if (update)
                     Console.WriteLine($"fastdb: rebuild end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} keys={fastdb.Count}");
             }
 

@@ -30,10 +30,8 @@ synctrackers:
   - selezen
   - animelayer
   - anidub
-disable_trackers:
-  - hdrezka
-  - anifilm
-  - anilibria
+  - aniliberty
+disable_trackers: []
 syncsport: true
 syncspidr: true
 maxreadfile: 250

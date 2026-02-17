@@ -160,20 +160,21 @@ namespace JacRed
                 return false;
             switch (trackerName.ToLowerInvariant())
             {
+                case "anidub": return conf.Anidub.log;
+                case "aniliberty": return conf.Aniliberty.log;
+                case "animelayer": return conf.Animelayer.log;
                 case "baibako": return conf.Baibako.log;
                 case "bitru": return conf.Bitru.log;
                 case "kinozal": return conf.Kinozal.log;
+                case "lostfilm": return conf.Lostfilm.log;
+                case "mazepa": return conf.Mazepa.log;
                 case "megapeer": return conf.Megapeer.log;
                 case "nnmclub": return conf.NNMClub.log;
                 case "rutor": return conf.Rutor.log;
                 case "rutracker": return conf.Rutracker.log;
                 case "selezen": return conf.Selezen.log;
                 case "toloka": return conf.Toloka.log;
-                case "mazepa": return conf.Mazepa.log;
                 case "torrentby": return conf.TorrentBy.log;
-                case "lostfilm": return conf.Lostfilm.log;
-                case "anidub": return conf.Anidub.log;
-                case "animelayer": return conf.Animelayer.log;
                 default: return false;
             }
         }
@@ -256,7 +257,7 @@ namespace JacRed
 
         public string[] synctrackers = null;
 
-        public string[] disable_trackers = new string[] { "hdrezka", "anifilm", "anilibria" };
+        public string[] disable_trackers = new string[] { };
 
         public bool syncsport = true;
 
@@ -294,20 +295,16 @@ namespace JacRed
 
         public TrackerSettings Selezen = new TrackerSettings("https://open.selezen.org");
 
-        public TrackerSettings Anilibria = new TrackerSettings("https://api.anilibria.tv");
+        public TrackerSettings Lostfilm = new TrackerSettings("https://www.lostfilm.tv");
 
         public TrackerSettings Animelayer = new TrackerSettings("http://animelayer.ru");
 
-        public TrackerSettings Anifilm = new TrackerSettings("https://anifilm.net");
-
-        public TrackerSettings Rezka = new TrackerSettings("https://rezka.cc");
-
-        public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");
-
-        public TrackerSettings Lostfilm = new TrackerSettings("https://www.lostfilm.tv");
-
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
+        public TrackerSettings Aniliberty = new TrackerSettings("https://aniliberty.top");
+
+        // TODO: fix parser
+        public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");
 
         public ProxySettings proxy = new ProxySettings();
 

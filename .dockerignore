@@ -1,5 +1,5 @@
 # Git and IDE
-.git
+# Note: .git is needed for version generation during build
 .github
 .vscode
 *.md

@@ -137,47 +137,21 @@ namespace JacRed.Engine
         }
 
         #region AddOrUpdateMasterDb
-        static int _masterDbUpdateCount = 0;
-        static DateTime _masterDbLastUpdate = DateTime.MinValue;
-
         static void AddOrUpdateMasterDb(TorrentDetails torrent)
         {
             string key = keyDb(torrent.name, torrent.originalname);
             var md = new TorrentInfo() { updateTime = torrent.updateTime, fileTime = torrent.updateTime.ToFileTimeUtc() };
 
-            bool wasNew = false;
             if (masterDb.TryGetValue(key, out TorrentInfo info))
             {
                 if (torrent.updateTime > info.updateTime)
-                {
                     masterDb[key] = md;
-                    wasNew = true;
-                }
             }
             else
             {
                 masterDb.TryAdd(key, md);
-                wasNew = true;
-            }
-
-            // Отслеживаем обновления для возможной пересборки fastdb
-            if (wasNew)
-            {
-                _masterDbUpdateCount++;
-                _masterDbLastUpdate = DateTime.Now;
             }
         }
-
-        /// <summary>Возвращает количество обновлений masterDb с момента последней проверки и сбрасывает счетчик.</summary>
-        public static int GetAndResetMasterDbUpdateCount()
-        {
-            int count = _masterDbUpdateCount;
-            _masterDbUpdateCount = 0;
-            return count;
-        }
-
-        /// <summary>Возвращает время последнего обновления masterDb.</summary>
-        public static DateTime GetMasterDbLastUpdate() => _masterDbLastUpdate;
         #endregion
 
         #region OpenRead / OpenWrite
