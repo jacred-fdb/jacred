@@ -264,75 +264,14 @@ namespace JacRed.Controllers.CRON
                         });
                     }
 
-                    // Retry logic for expired cookies
-                    (int parsed, int added, int updated, int skipped, int failed) result = (0, 0, 0, 0, 0);
-                    int retryCount = 0;
-                    const int maxRetries = 1;
+                    // Parse page (with automatic retry on cookie expiration)
+                    var pageResult = await ParsePageWithRetry(page, baseUrl);
 
-                    while (retryCount <= maxRetries)
-                    {
-                        result = await parsePage(page, cookie);
-
-                        // If we got results, page parsed successfully
-                        if (result.parsed > 0)
-                            break;
-
-                        // If parsing failed (returned zeros), might be due to expired cookie
-                        if (retryCount < maxRetries)
-                        {
-                            ParserLog.Write("animelayer", $"Page parse returned zeros, attempting cookie refresh", new Dictionary<string, object>
-                            {
-                                { "page", page },
-                                { "retryAttempt", retryCount + 1 }
-                            });
-
-                            // Invalidate cached cookie and try to get a fresh one
-                            InvalidateCookie();
-
-                            // Try to refresh cookie
-                            if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
-                            {
-                                // Use static cookie from config
-                                cookie = AppInit.conf.Animelayer.cookie;
-                                ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
-                            }
-                            else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
-                                     !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
-                            {
-                                // Attempt re-login
-                                if (await TakeLogin())
-                                {
-                                    cookie = Cookie();
-                                    ParserLog.Write("animelayer", "Re-login successful", new Dictionary<string, object>());
-                                }
-                                else
-                                {
-                                    ParserLog.Write("animelayer", "Re-login failed, aborting page parse", new Dictionary<string, object>
-                                    {
-                                        { "page", page }
-                                    });
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                ParserLog.Write("animelayer", "No way to refresh cookie, aborting", new Dictionary<string, object>());
-                                break;
-                            }
-
-                            retryCount++;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-
-                    totalParsed += result.parsed;
-                    totalAdded += result.added;
-                    totalUpdated += result.updated;
-                    totalSkipped += result.skipped;
-                    totalFailed += result.failed;
+                    totalParsed += pageResult.parsed;
+                    totalAdded += pageResult.added;
+                    totalUpdated += pageResult.updated;
+                    totalSkipped += pageResult.skipped;
+                    totalFailed += pageResult.failed;
                 }
 
                 ParserLog.Write("animelayer", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
@@ -372,6 +311,75 @@ namespace JacRed.Controllers.CRON
             }
 
             return "ok";
+        }
+        #endregion
+
+
+        #region ParsePageWithRetry
+        /// <summary>
+        /// Parses a single page with automatic retry if cookie expires during parsing.
+        /// </summary>
+        /// <param name="page">The page number to parse.</param>
+        /// <param name="baseUrl">The base URL for the tracker.</param>
+        /// <returns>A task that represents the asynchronous operation with parsing statistics.</returns>
+        async Task<(int parsed, int added, int updated, int skipped, int failed)> ParsePageWithRetry(int page, string baseUrl)
+        {
+            var result = await parsePage(page, Cookie());
+
+            // If we got results, success
+            if (result.parsed > 0)
+                return result;
+
+            // If parsing failed (no results), might be due to expired cookie - try once more
+            ParserLog.Write("animelayer", $"Page parse returned zeros, attempting cookie refresh", new Dictionary<string, object>
+            {
+                { "page", page },
+                { "retryAttempt", 1 }
+            });
+
+            // Invalidate cached cookie and try to get a fresh one
+            InvalidateCookie();
+
+            string newCookie = null;
+
+            // Try to refresh cookie
+            if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
+            {
+                // Use static cookie from config
+                newCookie = AppInit.conf.Animelayer.cookie;
+                ParserLog.Write("animelayer", "Using static cookie from config", new Dictionary<string, object>());
+            }
+            else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
+                     !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
+            {
+                // Attempt re-login
+                if (await TakeLogin())
+                {
+                    newCookie = Cookie();
+                    ParserLog.Write("animelayer", "Re-login successful", new Dictionary<string, object>());
+                }
+                else
+                {
+                    ParserLog.Write("animelayer", "Re-login failed, aborting page parse", new Dictionary<string, object>
+                    {
+                        { "page", page }
+                    });
+                    return (0, 0, 0, 0, 0);
+                }
+            }
+            else
+            {
+                ParserLog.Write("animelayer", "No way to refresh cookie, aborting", new Dictionary<string, object>());
+                return (0, 0, 0, 0, 0);
+            }
+
+            // Retry the page with new cookie
+            if (!string.IsNullOrWhiteSpace(newCookie))
+            {
+                return await parsePage(page, newCookie);
+            }
+
+            return (0, 0, 0, 0, 0);
         }
         #endregion
 
