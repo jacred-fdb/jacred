@@ -16,25 +16,41 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/animelayer/[action]")]
     public class AnimeLayerController : BaseController
     {
+        #region Cookie synchronization
+        private static readonly object cookieLock = new object();
+        private static volatile bool isLoggingIn = false;
+        #endregion
+
         #region TakeLogin
         /// <summary>
         /// Retrieves cached cookie for Animelayer authentication.
+        /// Thread-safe: uses lock to prevent race conditions.
         /// </summary>
         /// <returns>Cached cookie string if available, null otherwise.</returns>
         private string Cookie()
         {
-            if (memoryCache.TryGetValue("animelayer:cookie", out string cookie))
-                return cookie;
+            lock (cookieLock)
+            {
+                if (memoryCache.TryGetValue("animelayer:cookie", out string cookie))
+                {
+                    // Strings are immutable in C#, so returning the reference is safe
+                    return cookie;
+                }
 
-            return null;
+                return null;
+            }
         }
 
         /// <summary>
         /// Invalidates the cached cookie (e.g., when it expires during parsing).
+        /// Thread-safe: uses lock to prevent race conditions.
         /// </summary>
         private void InvalidateCookie()
         {
-            memoryCache.Remove("animelayer:cookie");
+            lock (cookieLock)
+            {
+                memoryCache.Remove("animelayer:cookie");
+            }
             ParserLog.Write("animelayer", "Cookie invalidated", new Dictionary<string, object>
             {
                 { "reason", "likely expired during parsing" }
@@ -43,10 +59,25 @@ namespace JacRed.Controllers.CRON
 
         /// <summary>
         /// Attempts to login to Animelayer using configured credentials and cache the authentication cookie.
+        /// Thread-safe: prevents concurrent login attempts.
         /// </summary>
         /// <returns>True if login was successful and cookie was cached, false otherwise.</returns>
         async public Task<bool> TakeLogin()
         {
+            // Prevent concurrent login attempts
+            lock (cookieLock)
+            {
+                if (isLoggingIn)
+                {
+                    ParserLog.Write("animelayer", "TakeLogin skipped", new Dictionary<string, object>
+                    {
+                        { "reason", "login already in progress" }
+                    });
+                    return false;
+                }
+                isLoggingIn = true;
+            }
+
             try
             {
                 if (string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) ||
@@ -101,7 +132,11 @@ namespace JacRed.Controllers.CRON
                                     if (!string.IsNullOrWhiteSpace(phpsessid))
                                         cookieValue += $";PHPSESSID={phpsessid}";
 
-                                    memoryCache.Set("animelayer:cookie", cookieValue, DateTime.Now.AddDays(1));
+                                    // Thread-safe cookie update
+                                    lock (cookieLock)
+                                    {
+                                        memoryCache.Set("animelayer:cookie", cookieValue, DateTime.Now.AddDays(1));
+                                    }
 
                                     ParserLog.Write("animelayer", "TakeLogin successful", new Dictionary<string, object>
                                     {
@@ -128,6 +163,13 @@ namespace JacRed.Controllers.CRON
                     { "message", ex.Message },
                     { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
                 });
+            }
+            finally
+            {
+                lock (cookieLock)
+                {
+                    isLoggingIn = false;
+                }
             }
 
             return false;
@@ -318,13 +360,25 @@ namespace JacRed.Controllers.CRON
         #region ParsePageWithRetry
         /// <summary>
         /// Parses a single page with automatic retry if cookie expires during parsing.
+        /// Thread-safe: ensures cookie is retrieved and copied before async operations.
         /// </summary>
         /// <param name="page">The page number to parse.</param>
         /// <param name="baseUrl">The base URL for the tracker.</param>
         /// <returns>A task that represents the asynchronous operation with parsing statistics.</returns>
         async Task<(int parsed, int added, int updated, int skipped, int failed)> ParsePageWithRetry(int page, string baseUrl)
         {
-            var result = await parsePage(page, Cookie());
+            // Get cookie copy before async operations to prevent race conditions
+            string cookie = Cookie();
+            if (string.IsNullOrWhiteSpace(cookie))
+            {
+                ParserLog.Write("animelayer", $"Page parse failed - no cookie", new Dictionary<string, object>
+                {
+                    { "page", page }
+                });
+                return (0, 0, 0, 0, 0);
+            }
+
+            var result = await parsePage(page, cookie);
 
             // If we got results, success
             if (result.parsed > 0)
@@ -373,7 +427,7 @@ namespace JacRed.Controllers.CRON
                 return (0, 0, 0, 0, 0);
             }
 
-            // Retry the page with new cookie
+            // Retry the page with new cookie (already a local copy, safe for async)
             if (!string.IsNullOrWhiteSpace(newCookie))
             {
                 return await parsePage(page, newCookie);
