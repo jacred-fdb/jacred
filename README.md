@@ -5,6 +5,7 @@
 # <img src="wwwroot/img/jacred.png" width="32" height="32" alt=""> JacRed
 
 [![Build](https://github.com/jacred-fdb/jacred/actions/workflows/build.yml/badge.svg)](https://github.com/jacred-fdb/jacred/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Агрегатор торрент-трекеров с API в формате Jackett. Хранит данные в файловой БД (fdb), поддерживает синхронизацию с удалённой базой и самостоятельный парсинг трекеров по cron.
 
@@ -308,6 +309,6 @@ volumes:
 
 ---
 
-## Лицензия и репозиторий
+## Лицензия
 
-Исходный код: [github.com/jacred-fdb/jacred](https://github.com/jacred-fdb/jacred).
+MIT License. См. файл [LICENSE](LICENSE) для подробностей.
