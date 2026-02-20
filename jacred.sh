@@ -12,7 +12,7 @@ readonly JACRED_USER="jacred"
 readonly SERVICE_NAME="jacred"
 readonly SYSTEMD_UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly RELEASE_BASE="https://github.com/jacred-fdb/jacred/releases/latest/download"
-readonly DB_URL="https://jacred.torrservera.net/latest.zip"
+readonly DB_URL="https://sync.jacred.stream/latest.zip"
 readonly CRON_JACRED_MARKER="127.0.0.1:9117"
 readonly SAVE_URL="http://127.0.0.1:9117/jsondb/save"
 

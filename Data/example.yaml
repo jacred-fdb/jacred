@@ -14,7 +14,7 @@ logFdbRetentionDays: 7
 logFdbMaxSizeMb: 0
 logFdbMaxFiles: 0
 logParsers: false
-syncapi: https://jacred.torrservera.net
+syncapi: https://sync.jacred.stream
 synctrackers:
   - rutracker
   - rutor
