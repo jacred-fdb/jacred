@@ -173,6 +173,7 @@ Baibako:
   reqMinute: 8
   parseDelay: 7000
   log: false
+  cookie: "PHPSESSID=your_session_id; uid=your_user_id; pass=your_pass_hash"
   login:
     u: ""
     p: ""
