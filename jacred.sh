@@ -17,7 +17,7 @@ readonly CRON_JACRED_MARKER="127.0.0.1:9117"
 readonly SAVE_URL="http://127.0.0.1:9117/jsondb/save"
 
 CRON_USER="${SUDO_USER:-root}"
-DOWNLOAD_DB=0   # 0 = skip DB download (use --no-download-db)
+DOWNLOAD_DB=1   # 1 = download DB by default (use --no-download-db to skip)
 REMOVE=0
 UPDATE=0
 PRE_RELEASE=0
