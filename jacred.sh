@@ -306,14 +306,14 @@ install_database() {
   fi
   log_info "Downloading database..."
   cd "$INSTALL_ROOT"
-  if ! wget -q "$DB_URL" -O latest.tar.zst.zip || [[ ! -s latest.tar.zst.zip ]]; then
+  if ! wget -q "$DB_URL" -O latest.tar.zst || [[ ! -s latest.tar.zst ]]; then
     log_err "Database download failed: $DB_URL"
     exit 1
   fi
   log_info "Unpacking database..."
   mkdir -p Data
-  zstd -d latest.tar.zst.zip -c | tar -xf - -C Data
-  rm -f latest.tar.zst.zip
+  zstd -d latest.tar.zst -c | tar -xf - -C Data
+  rm -f latest.tar.zst
   log_info "Database installed"
 }
 
