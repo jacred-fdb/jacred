@@ -742,10 +742,35 @@
               const timeoutId = setTimeout(() => controller.abort(), 10000);
               const response = await fetch(url, { signal: controller.signal });
               clearTimeout(timeoutId);
-              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              if (!response.ok) {
+                // Differentiate between client and server HTTP errors
+                const status = response.status;
+                const isServerError = status >= 500 && status < 600;
+                const isClientError = status >= 400 && status < 500;
+                let message;
+                if (isServerError) {
+                  message = `Серверная ошибка при запросе ${url}: статус ${status}. Пожалуйста, попробуйте позже.`;
+                } else if (isClientError) {
+                  message = `Ошибка запроса при обращении к ${url}: статус ${status}. Проверьте корректность запроса.`;
+                } else {
+                  message = `Неожиданный HTTP-ответ при запросе ${url}: статус ${status}.`;
+                }
+                throw new Error(message);
+              }
               return await response.text();
             } catch (error) {
-              if (i === attempts - 1) throw error;
+              if (i === attempts - 1) {
+                // Последняя попытка: возвращаем более подробное описание ошибки
+                if (error.name === 'AbortError') {
+                  throw new Error(`Превышено время ожидания ответа от ${url}. Проверьте подключение к сети и попробуйте снова.`);
+                }
+                // Network-related errors from fetch are often reported as TypeError
+                if (error instanceof TypeError) {
+                  throw new Error(`Ошибка сети при обращении к ${url}. Проверьте подключение к интернету и доступность сервера.`);
+                }
+                // Fallback: unknown or unclassified error
+                throw new Error(`Не удалось загрузить данные с ${url}: ${error.message || 'неизвестная ошибка'}.`);
+              }
               await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * (i + 1)));
             }
           }
