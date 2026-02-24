@@ -448,7 +448,7 @@
 
         const VIEW_BREAKPOINT = 768;
 
-        const isDesktopViewport = () => typeof window !== 'undefined' && window.matchMedia(`(min-width: ${VIEW_BREAKPOINT}px)`).matches;
+        const isDesktopViewport = () => window.matchMedia(`(min-width: ${VIEW_BREAKPOINT}px)`).matches;
 
         const state = {
           data: [],
