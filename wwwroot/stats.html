@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
 
-  <link rel="stylesheet" href="./css/tailwind.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -47,19 +47,6 @@
       height: 10px;
     }
 
-    .dark ::-webkit-scrollbar-track {
-      background: #1f2937;
-    }
-
-    .dark ::-webkit-scrollbar-thumb {
-      background: #4b5563;
-      border-radius: 5px;
-    }
-
-    .dark ::-webkit-scrollbar-thumb:hover {
-      background: #6b7280;
-    }
-
     ::-webkit-scrollbar-track {
       background: #f3f4f6;
     }
@@ -73,24 +60,17 @@
       background: #9ca3af;
     }
 
-    @keyframes skeleton-loading {
-      0% {
-        background-position: -200px 0;
-      }
-
-      100% {
-        background-position: calc(200px + 100%) 0;
-      }
+    .dark ::-webkit-scrollbar-track {
+      background: #1f2937;
     }
 
-    .skeleton {
-      background: linear-gradient(90deg, #e5e7eb 0px, #f3f4f6 40px, #e5e7eb 80px);
-      background-size: 200px 100%;
-      animation: skeleton-loading 1.5s ease-in-out infinite;
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 5px;
     }
 
-    .dark .skeleton {
-      background: linear-gradient(90deg, #374151 0px, #4b5563 40px, #374151 80px);
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
     }
 
     * {
@@ -380,7 +360,8 @@
           d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <h3 class="text-lg font-semibold text-red-400 mb-2">Ошибка загрузки данных</h3>
-      <p class="text-red-300/80 text-sm mb-4">Не удалось получить данные с сервера</p>
+      <p class="text-red-300/80 text-sm mb-2">Не удалось получить данные с сервера.</p>
+      <p id="errorMessage" class="text-red-200/90 text-sm mb-4 font-medium" aria-live="polite"></p>
       <button id="retryBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-medium">
         Попробовать снова
       </button>
@@ -398,18 +379,32 @@
         <table class="w-full text-sm">
           <thead class="bg-gray-100 dark:bg-gray-900 sticky top-0 z-10">
             <tr class="border-b border-gray-300 dark:border-gray-800">
-              <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Трекер</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Последний новый</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Новые</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Обновлено</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Всего</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Подтверждено</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Ожидает</th>
-              <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Пропущено</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Трекер</th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Последний
+                новый</th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Новые</th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Обновлено</th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Всего</th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Подтверждено
+              </th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Ожидает</th>
+              <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Пропущено</th>
             </tr>
           </thead>
           <tbody id="statsTableBody" class="bg-white/50 dark:bg-gray-900/50"></tbody>
         </table>
+        <div id="tablePagination"
+          class="hidden flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-600 dark:text-gray-400">
+          <span id="paginationInfo" aria-live="polite"></span>
+          <div class="flex items-center gap-2">
+            <button id="paginationPrev" type="button"
+              class="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-800 dark:text-gray-200 text-sm font-medium"
+              aria-label="Предыдущая страница">Назад</button>
+            <button id="paginationNext" type="button"
+              class="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-800 dark:text-gray-200 text-sm font-medium"
+              aria-label="Следующая страница">Вперёд</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -443,7 +438,8 @@
           LAST_UPDATE_URL: '/lastupdatedb',
           DEBOUNCE_DELAY: 300,
           RETRY_ATTEMPTS: 3,
-          RETRY_DELAY: 1000
+          RETRY_DELAY: 1000,
+          PAGE_SIZE: 50
         };
 
         const VIEW_BREAKPOINT = 768;
@@ -455,7 +451,8 @@
           fullNumbers: true,
           wideMode: false,
           tableView: true,
-          isLoading: false
+          isLoading: false,
+          page: 1
         };
 
         const elements = {
@@ -464,11 +461,16 @@
           cardsCounter: null,
           loading: null,
           error: null,
+          errorMessage: null,
           retryBtn: null,
           aggregateHost: null,
           statsGrid: null,
           statsTable: null,
           statsTableBody: null,
+          tablePagination: null,
+          paginationInfo: null,
+          paginationPrev: null,
+          paginationNext: null,
           emptyState: null,
           refreshBtn: null,
           refreshBtnText: null,
@@ -494,8 +496,27 @@
           };
         };
 
+        const pluralize = (n, one, few, many) => {
+          const num = Math.abs(Number(n));
+          const mod10 = num % 10;
+          const mod100 = num % 100;
+          if (mod10 === 1 && mod100 !== 11) return one;
+          if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+          return many;
+        };
+
+        const escapeHtml = (str) => {
+          if (str == null) return '';
+          const s = String(str);
+          return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        };
+
         const formatNumber = (n) => {
-          if (n == null) return '0';
+          if (n == null || Number.isNaN(Number(n))) return '0';
           n = Number(n);
           if (state.fullNumbers) return n.toLocaleString('ru-RU');
           if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
@@ -537,43 +558,44 @@
           const tracks = getTracksData(item);
           const ico = `./img/ico/${(item.trackerName || '').toLowerCase()}.ico`;
           const name = item.trackerName || '—';
+          const nameSafe = escapeHtml(name);
 
           return `
-          <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-300 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-700 hover:shadow-xl hover:shadow-blue-900/10 transition-all duration-200 group" data-name="${name.replace(/"/g, '&quot;')}">
+          <div class="stat-card bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-300 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-700 hover:shadow-xl hover:shadow-blue-900/10 transition-all duration-200 group" data-name="${nameSafe}">
             <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-800">
               <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                <img src="${ico}" onerror="this.style.display='none'" alt="" class="w-5 h-5 object-contain" loading="lazy" />
+                <img src="${escapeHtml(ico)}" onerror="this.style.display='none'" alt="" class="w-5 h-5 object-contain" />
               </div>
-              <span class="font-semibold text-base text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">${name}</span>
+              <span class="font-semibold text-base text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">${nameSafe}</span>
             </div>
             <div class="space-y-2.5">
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Последний новый</span>
-                <span class="text-gray-700 dark:text-gray-300 font-medium">${item.lastnewtor || '—'}</span>
+                <span class="text-gray-700 dark:text-gray-300 font-medium">${escapeHtml(item.lastnewtor || '—')}</span>
               </div>
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Новые за сегодня</span>
-                <span class="stat-number text-blue-600 dark:text-blue-400 font-semibold">${formatNum(item.newtor)}</span>
+                <span class="stat-number text-blue-600 dark:text-blue-400 font-semibold">${formatNumber(item.newtor)}</span>
               </div>
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Обновлено за сегодня</span>
-                <span class="stat-number text-cyan-600 dark:text-cyan-400 font-semibold">${formatNum(item.update)}</span>
+                <span class="stat-number text-cyan-600 dark:text-cyan-400 font-semibold">${formatNumber(item.update)}</span>
               </div>
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Всего торрентов</span>
-                <span class="stat-number text-gray-700 dark:text-gray-200 font-semibold">${formatNum(item.alltorrents)}</span>
+                <span class="stat-number text-gray-700 dark:text-gray-200 font-semibold">${formatNumber(item.alltorrents)}</span>
               </div>
               <div class="flex justify-between items-center text-sm pt-2 border-t border-gray-200/50 dark:border-gray-800/50">
                 <span class="text-gray-500 dark:text-gray-400">Подтверждено</span>
-                <span class="stat-number text-green-600 dark:text-green-400 font-medium">${formatNum(tracks.confirm)}</span>
+                <span class="stat-number text-green-600 dark:text-green-400 font-medium">${formatNumber(tracks.confirm)}</span>
               </div>
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Ожидает</span>
-                <span class="stat-number text-yellow-600 dark:text-yellow-400 font-medium">${formatNum(tracks.wait)}</span>
+                <span class="stat-number text-yellow-600 dark:text-yellow-400 font-medium">${formatNumber(tracks.wait)}</span>
               </div>
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Пропущено</span>
-                <span class="stat-number text-red-600 dark:text-red-400 font-medium">${formatNum(tracks.skip)}</span>
+                <span class="stat-number text-red-600 dark:text-red-400 font-medium">${formatNumber(tracks.skip)}</span>
               </div>
             </div>
           </div>
@@ -584,25 +606,35 @@
           const tracks = getTracksData(item);
           const ico = `./img/ico/${(item.trackerName || '').toLowerCase()}.ico`;
           const name = item.trackerName || '—';
+          const nameSafe = escapeHtml(name);
 
           return `
-          <tr class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" data-name="${name.replace(/"/g, '&quot;')}">
+          <tr class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" data-name="${nameSafe}">
             <td class="px-4 py-3">
               <div class="flex items-center gap-3">
-                <img src="${ico}" onerror="this.style.display='none'" alt="" class="w-5 h-5 object-contain" loading="lazy" />
-                <span class="font-medium text-gray-900 dark:text-gray-200">${name}</span>
+                <img src="${escapeHtml(ico)}" onerror="this.style.display='none'" alt="" class="w-5 h-5 object-contain" />
+                <span class="font-medium text-gray-900 dark:text-gray-200">${nameSafe}</span>
               </div>
             </td>
-            <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">${item.lastnewtor || '—'}</td>
-            <td class="px-4 py-3 text-right stat-number text-blue-600 dark:text-blue-400 font-semibold">${formatNum(item.newtor)}</td>
-            <td class="px-4 py-3 text-right stat-number text-cyan-600 dark:text-cyan-400 font-semibold">${formatNum(item.update)}</td>
-            <td class="px-4 py-3 text-right stat-number text-gray-700 dark:text-gray-200 font-semibold">${formatNum(item.alltorrents)}</td>
-            <td class="px-4 py-3 text-right stat-number text-green-600 dark:text-green-400">${formatNum(tracks.confirm)}</td>
-            <td class="px-4 py-3 text-right stat-number text-yellow-600 dark:text-yellow-400">${formatNum(tracks.wait)}</td>
-            <td class="px-4 py-3 text-right stat-number text-red-600 dark:text-red-400">${formatNum(tracks.skip)}</td>
+            <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">${escapeHtml(item.lastnewtor || '—')}</td>
+            <td class="px-4 py-3 text-right stat-number text-blue-600 dark:text-blue-400 font-semibold">${formatNumber(item.newtor)}</td>
+            <td class="px-4 py-3 text-right stat-number text-cyan-600 dark:text-cyan-400 font-semibold">${formatNumber(item.update)}</td>
+            <td class="px-4 py-3 text-right stat-number text-gray-700 dark:text-gray-200 font-semibold">${formatNumber(item.alltorrents)}</td>
+            <td class="px-4 py-3 text-right stat-number text-green-600 dark:text-green-400">${formatNumber(tracks.confirm)}</td>
+            <td class="px-4 py-3 text-right stat-number text-yellow-600 dark:text-yellow-400">${formatNumber(tracks.wait)}</td>
+            <td class="px-4 py-3 text-right stat-number text-red-600 dark:text-red-400">${formatNumber(tracks.skip)}</td>
           </tr>
         `;
         };
+
+        const AGGREGATE_STATS = [
+          { key: 'newtor', label: 'Новые за сегодня', boxClass: 'bg-blue-100/60 dark:bg-blue-950/40 rounded-xl p-4 border border-blue-200 dark:border-blue-900/30', labelClass: 'text-xs text-blue-700 dark:text-blue-300 mb-2 font-medium', valueClass: 'stat-number text-2xl font-bold text-blue-900 dark:text-blue-200' },
+          { key: 'update', label: 'Обновлено за сегодня', boxClass: 'bg-cyan-100/60 dark:bg-cyan-950/40 rounded-xl p-4 border border-cyan-200 dark:border-cyan-900/30', labelClass: 'text-xs text-cyan-700 dark:text-cyan-300 mb-2 font-medium', valueClass: 'stat-number text-2xl font-bold text-cyan-900 dark:text-cyan-200' },
+          { key: 'alltorrents', label: 'Всего торрентов', boxClass: 'bg-gray-100/80 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-300 dark:border-gray-700/50', labelClass: 'text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium', valueClass: 'stat-number text-2xl font-bold text-gray-900 dark:text-gray-100' },
+          { key: 'confirm', label: 'Подтверждено', boxClass: 'bg-green-100/60 dark:bg-green-950/40 rounded-xl p-4 border border-green-200 dark:border-green-900/30', labelClass: 'text-xs text-green-700 dark:text-green-300 mb-2 font-medium', valueClass: 'stat-number text-2xl font-bold text-green-900 dark:text-green-200' },
+          { key: 'wait', label: 'Ожидает', boxClass: 'bg-yellow-100/60 dark:bg-yellow-950/40 rounded-xl p-4 border border-yellow-200 dark:border-yellow-900/30', labelClass: 'text-xs text-yellow-700 dark:text-yellow-300 mb-2 font-medium', valueClass: 'stat-number text-2xl font-bold text-yellow-900 dark:text-yellow-200' },
+          { key: 'skip', label: 'Пропущено', boxClass: 'bg-red-100/60 dark:bg-red-950/40 rounded-xl p-4 border border-red-200 dark:border-red-900/30', labelClass: 'text-xs text-red-700 dark:text-red-300 mb-2 font-medium', valueClass: 'stat-number text-2xl font-bold text-red-900 dark:text-red-200' }
+        ];
 
         const renderAggregate = (list) => {
           const sum = list.reduce((acc, item) => {
@@ -617,6 +649,13 @@
             };
           }, { newtor: 0, update: 0, alltorrents: 0, confirm: 0, wait: 0, skip: 0 });
 
+          const statBoxes = AGGREGATE_STATS.map(({ key, label, boxClass, labelClass, valueClass }) =>
+            `<div class="${boxClass}">
+                <div class="${labelClass}">${escapeHtml(label)}</div>
+                <div class="${valueClass}">${formatNumber(sum[key])}</div>
+              </div>`
+          ).join('');
+
           return `
           <div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/80 dark:via-gray-900 dark:to-cyan-950/80 rounded-2xl p-6 border border-blue-200 dark:border-blue-900/30 shadow-xl shadow-blue-100/50 dark:shadow-blue-900/20 backdrop-blur-sm">
             <div class="flex items-center gap-3 mb-6">
@@ -628,30 +667,7 @@
               <h2 class="font-bold text-lg text-blue-900 dark:text-blue-100">Сводка по всем трекерам</h2>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div class="bg-blue-100/60 dark:bg-blue-950/40 rounded-xl p-4 border border-blue-200 dark:border-blue-900/30">
-                <div class="text-xs text-blue-700 dark:text-blue-300 mb-2 font-medium">Новые за сегодня</div>
-                <div class="stat-number text-2xl font-bold text-blue-900 dark:text-blue-200">${formatNum(sum.newtor)}</div>
-              </div>
-              <div class="bg-cyan-100/60 dark:bg-cyan-950/40 rounded-xl p-4 border border-cyan-200 dark:border-cyan-900/30">
-                <div class="text-xs text-cyan-700 dark:text-cyan-300 mb-2 font-medium">Обновлено за сегодня</div>
-                <div class="stat-number text-2xl font-bold text-cyan-900 dark:text-cyan-200">${formatNum(sum.update)}</div>
-              </div>
-              <div class="bg-gray-100/80 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-300 dark:border-gray-700/50">
-                <div class="text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium">Всего торрентов</div>
-                <div class="stat-number text-2xl font-bold text-gray-900 dark:text-gray-100">${formatNum(sum.alltorrents)}</div>
-              </div>
-              <div class="bg-green-100/60 dark:bg-green-950/40 rounded-xl p-4 border border-green-200 dark:border-green-900/30">
-                <div class="text-xs text-green-700 dark:text-green-300 mb-2 font-medium">Подтверждено</div>
-                <div class="stat-number text-2xl font-bold text-green-900 dark:text-green-200">${formatNum(sum.confirm)}</div>
-              </div>
-              <div class="bg-yellow-100/60 dark:bg-yellow-950/40 rounded-xl p-4 border border-yellow-200 dark:border-yellow-900/30">
-                <div class="text-xs text-yellow-700 dark:text-yellow-300 mb-2 font-medium">Ожидает</div>
-                <div class="stat-number text-2xl font-bold text-yellow-900 dark:text-yellow-200">${formatNum(sum.wait)}</div>
-              </div>
-              <div class="bg-red-100/60 dark:bg-red-950/40 rounded-xl p-4 border border-red-200 dark:border-red-900/30">
-                <div class="text-xs text-red-700 dark:text-red-300 mb-2 font-medium">Пропущено</div>
-                <div class="stat-number text-2xl font-bold text-red-900 dark:text-red-200">${formatNum(sum.skip)}</div>
-              </div>
+              ${statBoxes}
             </div>
           </div>
         `;
@@ -694,15 +710,9 @@
         const render = () => {
           const list = applyFilterAndSort();
 
-          elements.statsGrid.className = 'stats-grid';
-          let gridClasses;
-
-          if (state.wideMode) {
-            gridClasses = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4';
-          } else {
-            gridClasses = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
-          }
-
+          const gridClasses = state.wideMode
+            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4'
+            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
           elements.statsGrid.className = `stats-grid ${gridClasses}`;
 
           if (state.tableView) {
@@ -714,27 +724,45 @@
           }
 
           if (list.length === 0) {
+            state.page = 1;
             elements.aggregateHost.innerHTML = '';
             elements.statsGrid.innerHTML = '';
             elements.statsTableBody.innerHTML = '';
-            elements.cardsCounter.textContent = '0 трекеров';
+            elements.tablePagination.classList.add('hidden');
+            elements.cardsCounter.textContent = `0 ${pluralize(0, 'трекер', 'трекера', 'трекеров')}`;
             elements.emptyState.classList.remove('hidden');
             return;
           }
 
           elements.emptyState.classList.add('hidden');
-          elements.cardsCounter.textContent = `${list.length} ${list.length === 1 ? 'трекер' : list.length < 5 ? 'трекера' : 'трекеров'}`;
+          elements.cardsCounter.textContent = `${list.length} ${pluralize(list.length, 'трекер', 'трекера', 'трекеров')}`;
 
           elements.aggregateHost.innerHTML = renderAggregate(list);
 
           if (state.tableView) {
-            elements.statsTableBody.innerHTML = list.map(renderTableRow).join('');
+            const total = list.length;
+            const pageSize = CONFIG.PAGE_SIZE;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            state.page = Math.min(Math.max(1, state.page), totalPages);
+            const start = (state.page - 1) * pageSize;
+            const pageList = list.slice(start, start + pageSize);
+            elements.statsTableBody.innerHTML = pageList.map(renderTableRow).join('');
+
+            if (total > pageSize) {
+              elements.tablePagination.classList.remove('hidden');
+              const end = Math.min(start + pageSize, total);
+              elements.paginationInfo.textContent = `${start + 1}—${end} из ${total}`;
+              elements.paginationPrev.disabled = state.page <= 1;
+              elements.paginationNext.disabled = state.page >= totalPages;
+            } else {
+              elements.tablePagination.classList.add('hidden');
+            }
           } else {
             elements.statsGrid.innerHTML = list.map(renderCard).join('');
+            elements.tablePagination.classList.add('hidden');
           }
         };
 
-        // API functions
         const fetchWithRetry = async (url, attempts = CONFIG.RETRY_ATTEMPTS) => {
           for (let i = 0; i < attempts; i++) {
             try {
@@ -743,7 +771,6 @@
               const response = await fetch(url, { signal: controller.signal });
               clearTimeout(timeoutId);
               if (!response.ok) {
-                // Differentiate between client and server HTTP errors
                 const status = response.status;
                 const isServerError = status >= 500 && status < 600;
                 const isClientError = status >= 400 && status < 500;
@@ -760,20 +787,18 @@
               return await response.text();
             } catch (error) {
               if (i === attempts - 1) {
-                // Последняя попытка: возвращаем более подробное описание ошибки
                 if (error.name === 'AbortError') {
                   throw new Error(`Превышено время ожидания ответа от ${url}. Проверьте подключение к сети и попробуйте снова.`);
                 }
-                // Network-related errors from fetch are often reported as TypeError
                 if (error instanceof TypeError) {
                   throw new Error(`Ошибка сети при обращении к ${url}. Проверьте подключение к интернету и доступность сервера.`);
                 }
-                // Fallback: unknown or unclassified error
                 throw new Error(`Не удалось загрузить данные с ${url}: ${error.message || 'неизвестная ошибка'}.`);
               }
               await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * (i + 1)));
             }
           }
+          throw new Error(`Не удалось загрузить данные с ${url} после ${attempts} попыток.`);
         };
 
         const loadLastUpdate = async () => {
@@ -792,7 +817,7 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>${formattedDate}</span>
+              <span>${escapeHtml(formattedDate)}</span>
             `;
             }
           } catch (error) {
@@ -830,6 +855,7 @@
 
           } catch (error) {
             console.error('Failed to load data:', error);
+            elements.errorMessage.textContent = error.message || 'Неизвестная ошибка';
             elements.error.classList.remove('hidden');
           } finally {
             elements.loading.classList.add('hidden');
@@ -924,11 +950,16 @@
           elements.cardsCounter = document.getElementById('cardsCounter');
           elements.loading = document.getElementById('loading');
           elements.error = document.getElementById('error');
+          elements.errorMessage = document.getElementById('errorMessage');
           elements.retryBtn = document.getElementById('retryBtn');
           elements.aggregateHost = document.getElementById('aggregateHost');
           elements.statsGrid = document.getElementById('statsGrid');
           elements.statsTable = document.getElementById('statsTable');
           elements.statsTableBody = document.getElementById('statsTableBody');
+          elements.tablePagination = document.getElementById('tablePagination');
+          elements.paginationInfo = document.getElementById('paginationInfo');
+          elements.paginationPrev = document.getElementById('paginationPrev');
+          elements.paginationNext = document.getElementById('paginationNext');
           elements.emptyState = document.getElementById('emptyState');
           elements.refreshBtn = document.getElementById('refreshBtn');
           elements.refreshBtnText = document.getElementById('refreshBtnText');
@@ -940,6 +971,12 @@
           elements.iconMoon = document.getElementById('iconMoon');
           elements.iconSun = document.getElementById('iconSun');
           elements.backToTop = document.getElementById('backToTop');
+
+          const REQUIRED_IDS = ['searchTracker', 'sortSelect', 'cardsCounter', 'loading', 'error', 'errorMessage', 'retryBtn', 'aggregateHost', 'statsGrid', 'statsTable', 'statsTableBody', 'tablePagination', 'paginationInfo', 'paginationPrev', 'paginationNext', 'emptyState', 'refreshBtn', 'refreshBtnText', 'lastUpdate', 'toggleNumbers', 'toggleWidth', 'toggleView', 'toggleTheme', 'iconMoon', 'iconSun', 'backToTop'];
+          const missing = REQUIRED_IDS.filter(id => !document.getElementById(id));
+          if (missing.length) {
+            throw new Error('Отсутствуют обязательные элементы: ' + missing.join(', '));
+          }
 
           initTheme();
 
@@ -958,8 +995,22 @@
             e.preventDefault();
             window.scrollTo({ top: 0, behavior: 'smooth' });
           });
+          elements.paginationPrev.addEventListener('click', () => {
+            if (state.page > 1) {
+              state.page--;
+              render();
+            }
+          });
+          elements.paginationNext.addEventListener('click', () => {
+            const list = applyFilterAndSort();
+            const totalPages = Math.max(1, Math.ceil(list.length / CONFIG.PAGE_SIZE));
+            if (state.page < totalPages) {
+              state.page++;
+              render();
+            }
+          });
 
-          window.addEventListener('scroll', debounce(handleScroll, 100));
+          window.addEventListener('scroll', debounce(handleScroll, 100), { passive: true });
 
           load();
         };
