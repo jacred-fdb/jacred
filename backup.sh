@@ -82,10 +82,10 @@ check_user() {
   fi
   if [[ "$current_user" == "root" ]]; then
     log_info "Running as root, switching to $JACRED_USER..."
-    exec su -s /bin/bash "$JACRED_USER" -c "$0"
+    exec su -s /bin/bash "$JACRED_USER" -c "$(printf '%q ' "$0" "$@")"
   fi
   log_info "Running as $current_user, switching to $JACRED_USER via sudo..."
-  exec sudo -u "$JACRED_USER" "$0"
+  exec sudo -u "$JACRED_USER" "$0" "$@"
 }
 
 validate_paths() {
@@ -125,7 +125,7 @@ create_archive() {
 
 main() {
   parse_args "$@"
-  check_user
+  check_user "$@"
   log_info "Starting daily backup..."
   cd "$INSTALL_ROOT"
 

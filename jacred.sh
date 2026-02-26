@@ -17,7 +17,7 @@ readonly CRON_JACRED_MARKER="127.0.0.1:9117"
 readonly SAVE_URL="http://127.0.0.1:9117/jsondb/save"
 
 CRON_USER="${SUDO_USER:-root}"
-DOWNLOAD_DB=0   # 0 = skip DB download (use --no-download-db)
+DOWNLOAD_DB=1   # 1 = download DB by default (use --no-download-db to skip)
 REMOVE=0
 UPDATE=0
 PRE_RELEASE=0
@@ -306,14 +306,14 @@ install_database() {
   fi
   log_info "Downloading database..."
   cd "$INSTALL_ROOT"
-  if ! wget -q "$DB_URL" -O latest.tar.zst.zip || [[ ! -s latest.tar.zst.zip ]]; then
+  if ! wget -q "$DB_URL" -O latest.tar.zst || [[ ! -s latest.tar.zst ]]; then
     log_err "Database download failed: $DB_URL"
     exit 1
   fi
   log_info "Unpacking database..."
   mkdir -p Data
-  zstd -d latest.tar.zst.zip -c | tar -xf - -C Data
-  rm -f latest.tar.zst.zip
+  zstd -d latest.tar.zst -c | tar -xf - -C Data
+  rm -f latest.tar.zst
   log_info "Database installed"
 }
 
