@@ -14,13 +14,12 @@
   <link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
   <link rel="apple-touch-icon" href="./img/icon-192.png" />
   <link rel="manifest" href="./manifest.json" />
-  <link rel="search" type="application/opensearchdescription+xml" title="Torlook" href="/opensearch.xml" />
+  <link rel="search" type="application/opensearchdescription+xml" title="JacRed" href="/opensearch.xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -83,7 +82,8 @@
       animation: spin 0.7s linear infinite;
     }
 
-    * {
+    .transition-ui,
+    .transition-ui * {
       transition-property: background-color, border-color, color, fill, stroke, opacity, transform;
       transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
       transition-duration: 100ms;
@@ -100,6 +100,9 @@
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
+      transition-property: background-color;
+      transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+      transition-duration: 100ms;
     }
 
     :root:not(.dark) body {
@@ -296,377 +299,322 @@
 </head>
 
 <body class="text-gray-100 font-sans min-h-screen antialiased">
-  <div id="app" class="container mx-auto px-3 sm:px-4 py-3 sm:py-5 max-w-5xl">
+  <div id="app" class="transition-ui container mx-auto px-3 sm:px-4 py-3 sm:py-5 max-w-5xl">
+    <noscript>
+      <p
+        class="rounded-xl bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 px-4 py-3 mb-4">
+        Для поиска торрентов необходим JavaScript. Включите его и обновите страницу.</p>
+    </noscript>
+    <main>
 
-    <header class="mb-4 sm:mb-6 animate-slide-up">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-          <a href="/"
-            class="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gradient-to-br from-red-500 via-red-600 to-amber-500 rounded-xl shadow-lg shadow-red-900/50"
-            aria-label="На главную">
-            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </a>
-          <div class="min-w-0">
-            <h1
-              class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent truncate">
-              <span class="sm:hidden">Поиск</span><span class="hidden sm:inline">Поиск торрентов</span>
-            </h1>
-            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 hidden sm:block">По названию, КП или
-              IMDB</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <a href="/stats"
-            class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium no-underline transition-colors"
-            aria-label="Статистика трекеров">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span class="hidden sm:inline">Статистика</span>
-          </a>
-          <button type="button" id="apiKeyBtn"
-            class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent"
-            aria-label="Установить API ключ" title="Установить API ключ">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
-            <span class="hidden sm:inline">API ключ</span>
-          </button>
-          <button type="button" id="torServerBtn"
-            class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent"
-            aria-label="Настройки TorrServer" title="Настройки TorrServer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-            </svg>
-            <span class="hidden sm:inline">TorrServer</span>
-          </button>
-          <button id="toggleTheme"
-            class="tap-target p-3 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 transition-all group"
-            aria-label="Переключить тему" type="button">
-            <svg id="iconMoon"
-              class="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 hidden"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
-            <svg id="iconSun" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <form id="searchForm"
-      class="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-800 shadow-sm mb-5 animate-slide-up toolbar-field">
-
-      <div class="mb-4">
-        <div class="relative">
-          <input type="text" id="s" name="s"
-            class="w-full px-4 py-3.5 pl-12 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-            placeholder="Введите название для поиска..." autocomplete="off" autofocus />
-          <svg class="absolute left-4 top-4 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <button type="button" id="clear"
-            class="absolute right-3 top-3 p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all hidden"
-            aria-label="Очистить">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div id="validateError" class="text-red-500 dark:text-red-400 text-sm mt-2 text-center blink hidden"></div>
-      </div>
-
-      <div class="mb-3">
-        <button type="button" id="filterToggle" aria-expanded="false" aria-controls="filterContainer"
-          class="tap-target w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-gray-900 dark:text-gray-100 font-medium transition-all">
-          <span class="flex items-center gap-2">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            <span id="filterToggleLabel" class="text-sm sm:text-base">Дополнительные фильтры</span>
-            <span id="filterCountBadge" class="hidden text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full"></span>
-          </span>
-          <svg id="filterToggleIcon" class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 transition-transform duration-150" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-      </div>
-
-      <div id="filterContainer" class="collapse-content" aria-hidden="true">
-        <div class="mb-3 sm:mb-4 p-2.5 sm:p-3 lg:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-2.5 sm:space-y-3">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 lg:gap-3">
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Уточнить</label>
-              <input name="refine" type="text" placeholder="Например BDRip, WEB-DL, США"
-                class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Исключить</label>
-              <input name="exclude" type="text" placeholder="Например HEVC"
-                class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+      <header class="mb-4 sm:mb-6 animate-slide-up">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <a href="/"
+              class="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gradient-to-br from-red-500 via-red-600 to-amber-500 rounded-xl shadow-lg shadow-red-900/50"
+              aria-label="На главную">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </a>
+            <div class="min-w-0">
+              <h1
+                class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent truncate">
+                <span class="sm:hidden">Поиск</span><span class="hidden sm:inline">Поиск торрентов</span>
+              </h1>
+              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 hidden sm:block">По названию, КП или
+                IMDB</p>
             </div>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5 lg:gap-3">
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Качество</label>
-            <select name="quality" aria-label="Качество"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любое</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Тип видео</label>
-            <select name="videotype" aria-label="Тип видео"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любое</option>
-              <option value="sdr">SDR</option>
-              <option value="hdr">HDR</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Озвучка</label>
-            <select name="voice" aria-label="Озвучка"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любая</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Сезон</label>
-            <select name="season" aria-label="Сезон"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любой</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Категория</label>
-            <select name="type" aria-label="Категория"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любая</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Трекер</label>
-            <select name="tracker" aria-label="Трекер"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любой</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Год</label>
-            <select name="year" aria-label="Год"
-              class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
-              <option value="">Любой</option>
-            </select>
-          </div>
-          </div>
-          <div class="flex justify-end sm:justify-start pt-1">
-            <button type="button" id="filterReset"
-              class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-all">
-              Сбросить фильтры
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="/stats"
+              class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium no-underline transition-colors"
+              aria-label="Статистика трекеров">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span class="hidden sm:inline">Статистика</span>
+            </a>
+            <button type="button" id="apiKeyBtn"
+              class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent"
+              aria-label="Установить API ключ" title="Установить API ключ">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              <span class="hidden sm:inline">API ключ</span>
+            </button>
+            <button type="button" id="torServerBtn"
+              class="tap-target inline-flex items-center justify-center gap-1.5 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent"
+              aria-label="Настройки TorrServer" title="Настройки TorrServer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+              </svg>
+              <span class="hidden sm:inline">TorrServer</span>
+            </button>
+            <button id="toggleTheme"
+              class="tap-target p-3 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 transition-all group"
+              aria-label="Переключить тему" type="button">
+              <svg id="iconMoon"
+                class="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+              <svg id="iconSun" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div class="flex flex-wrap items-center gap-3 sm:gap-5 mb-4">
-        <div class="flex flex-wrap items-center gap-2.5 sm:gap-4">
-          <label
-            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
-            <input type="radio" name="sort" value="sid" id="sortSid"
-              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer"
-              checked />
-            <span
-              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
-              сидам</span>
-          </label>
-          <label
-            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
-            <input type="radio" name="sort" value="size" id="sortSize"
-              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
-            <span
-              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
-              размеру</span>
-          </label>
-          <label
-            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
-            <input type="radio" name="sort" value="date" id="sortDate"
-              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
-            <span
-              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
-              дате</span>
-          </label>
-          <label
-            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
-            <input type="radio" name="sort" value="update" id="sortUpdate"
-              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
-            <span
-              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
-              обновлению</span>
-          </label>
-        </div>
-        <label
-          class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
-          <input type="checkbox" id="forcedSearch"
-            class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
-          <span
-            class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">Точный
-            поиск</span>
-        </label>
-      </div>
+      <form id="searchForm"
+        class="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-800 shadow-sm mb-5 animate-slide-up toolbar-field">
 
-      <div class="flex gap-3 flex-wrap sm:flex-nowrap">
-        <button type="submit" id="submitButton"
-          class="flex-1 min-h-[48px] py-3.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/30 transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed tap-target">
-          <span id="submitButtonText">ИСКАТЬ</span>
-        </button>
-        <button type="button" id="clearSearchStorage"
-          class="min-h-[48px] px-4 py-3.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium rounded-xl transition-all tap-target shrink-0"
-          title="Очистить сохранённый запрос и показать пустой поиск">
-          Сбросить
-        </button>
-      </div>
-
-    </form>
-
-    <div id="loading" class="hidden text-center py-16 animate-fade-in">
-      <div class="inline-flex flex-col items-center gap-4">
-        <div class="relative">
-          <div class="w-16 h-16 border-4 border-gray-300 dark:border-gray-700 border-t-red-600 rounded-full spinner">
+        <div class="mb-4">
+          <div class="relative">
+            <input type="text" id="s" name="s"
+              class="w-full px-4 py-3.5 pl-12 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              placeholder="Введите название для поиска..." autocomplete="off" autofocus />
+            <svg class="absolute left-4 top-4 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <button type="button" id="clear"
+              class="absolute right-3 top-3 p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all hidden"
+              aria-label="Очистить">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
+          <div id="validateError" class="text-red-500 dark:text-red-400 text-sm mt-2 text-center blink hidden"></div>
         </div>
-        <p class="text-gray-600 dark:text-gray-400 font-medium text-lg">Поиск торрентов...</p>
-      </div>
-    </div>
 
-    <div id="resultsDiv" class="animate-slide-up">
-
-      <div class="webResult help">
-        <div
-          class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-2xl p-8 border border-blue-200 dark:border-blue-900/30 text-center">
-          <svg class="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor"
-            viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните поиск</h3>
-          <p class="text-gray-600 dark:text-gray-400">Введите название фильма или сериала для поиска по трекерам</p>
+        <div class="mb-3">
+          <button type="button" id="filterToggle" aria-expanded="false" aria-controls="filterContainer"
+            class="tap-target w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-gray-900 dark:text-gray-100 font-medium transition-all">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span id="filterToggleLabel" class="text-sm sm:text-base">Дополнительные фильтры</span>
+              <span id="filterCountBadge"
+                class="hidden text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full"></span>
+            </span>
+            <svg id="filterToggleIcon" class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 transition-transform duration-150"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
-      </div>
 
-      <div class="webResult hidden mb-6">
-        <div
-          class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-lg shadow-gray-200/50 dark:shadow-black/20">
-
+        <div id="filterContainer" class="collapse-content" aria-hidden="true">
           <div
-            class="h2 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-850 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex-1">
-                <a href="#"
-                  class="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                  Название торрента
-                </a>
+            class="mb-3 sm:mb-4 p-2.5 sm:p-3 lg:p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-2.5 sm:space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 lg:gap-3">
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Уточнить</label>
+                <input name="refine" type="text" placeholder="Например BDRip, WEB-DL, США"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
               </div>
-              <a href="#"
-                class="magneto flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg flex items-center justify-center transition-all group">
-                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </a>
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Исключить</label>
+                <input name="exclude" type="text" placeholder="Например HEVC"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5 lg:gap-3">
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Качество</label>
+                <select name="quality" aria-label="Качество"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любое</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Тип
+                  видео</label>
+                <select name="videotype" aria-label="Тип видео"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любое</option>
+                  <option value="sdr">SDR</option>
+                  <option value="hdr">HDR</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Озвучка</label>
+                <select name="voice" aria-label="Озвучка"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любая</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Сезон</label>
+                <select name="season" aria-label="Сезон"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любой</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Категория</label>
+                <select name="type" aria-label="Категория"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любая</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Трекер</label>
+                <select name="tracker" aria-label="Трекер"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любой</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-1.5">Год</label>
+                <select name="year" aria-label="Год"
+                  class="filter-input w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                  <option value="">Любой</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex justify-end sm:justify-start pt-1">
+              <button type="button" id="filterReset"
+                class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-all">
+                Сбросить фильтры
+              </button>
             </div>
           </div>
+        </div>
 
-          <div class="p-6">
-            <div class="desc text-gray-700 dark:text-gray-300 mb-4 text-center">
-              Описание релиза
-            </div>
-
-            <div class="tags flex flex-wrap justify-center gap-2 mb-4">
+        <div class="flex flex-wrap items-center gap-3 sm:gap-5 mb-4">
+          <div class="flex flex-wrap items-center gap-2.5 sm:gap-4">
+            <label
+              class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+              <input type="radio" name="sort" value="sid" id="sortSid"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer"
+                checked />
               <span
-                class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm">Качество</span>
+                class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
+                сидам</span>
+            </label>
+            <label
+              class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+              <input type="radio" name="sort" value="size" id="sortSize"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
               <span
-                class="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">Озвучка</span>
-            </div>
+                class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
+                размеру</span>
+            </label>
+            <label
+              class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+              <input type="radio" name="sort" value="date" id="sortDate"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
+              <span
+                class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
+                дате</span>
+            </label>
+            <label
+              class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+              <input type="radio" name="sort" value="update" id="sortUpdate"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
+              <span
+                class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">по
+                обновлению</span>
+            </label>
+          </div>
+          <label
+            class="flex items-center gap-2.5 cursor-pointer group min-h-[44px] sm:min-h-0 px-2 py-1.5 sm:px-0 sm:py-0 rounded-lg sm:rounded-none bg-gray-50 dark:bg-gray-800/50 sm:bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50 sm:hover:bg-transparent transition-colors">
+            <input type="checkbox" id="forcedSearch"
+              class="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 shrink-0 cursor-pointer" />
+            <span
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 select-none">Точный
+              поиск</span>
+          </label>
+        </div>
 
-            <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
-              <div class="flex items-center gap-2">
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span class="text-gray-600 dark:text-gray-400">Размер:</span>
-                <span class="size font-medium text-cyan-600 dark:text-cyan-400">1.50 GB</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span class="text-gray-600 dark:text-gray-400">Дата:</span>
-                <span class="date font-medium text-purple-600 dark:text-purple-400">2024-02-05</span>
-              </div>
-              <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1">
-                  <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                      d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z"
-                      clip-rule="evenodd" />
-                  </svg>
-                  <span class="seeders font-semibold text-green-600 dark:text-green-400">10</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                      d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z"
-                      clip-rule="evenodd" />
-                  </svg>
-                  <span class="leechers font-semibold text-red-600 dark:text-red-400">5</span>
-                </div>
-              </div>
+        <div class="flex gap-3 flex-wrap sm:flex-nowrap">
+          <button type="submit" id="submitButton"
+            class="flex-1 min-h-[48px] py-3.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/30 transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed tap-target">
+            <span id="submitButtonText">ИСКАТЬ</span>
+          </button>
+          <button type="button" id="clearSearchStorage"
+            class="min-h-[48px] px-4 py-3.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium rounded-xl transition-all tap-target shrink-0"
+            title="Очистить сохранённый запрос и показать пустой поиск">
+            Сбросить
+          </button>
+        </div>
+
+      </form>
+
+      <div id="loading" class="hidden text-center py-16 animate-fade-in">
+        <div class="inline-flex flex-col items-center gap-4">
+          <div class="relative">
+            <div class="w-16 h-16 border-4 border-gray-300 dark:border-gray-700 border-t-red-600 rounded-full spinner">
             </div>
           </div>
-
+          <p class="text-gray-600 dark:text-gray-400 font-medium text-lg">Поиск торрентов...</p>
         </div>
       </div>
 
-      <div class="webResult notfound hidden">
-        <div class="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
-          <svg class="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor"
-            viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Ничего не найдено</h3>
-          <p class="text-gray-600 dark:text-gray-400">По вашему запросу результатов не обнаружено. Попробуйте изменить
-            поисковый запрос.</p>
+      <div id="resultsDiv" class="animate-slide-up"></div>
+
+      <template id="helpTemplate">
+        <div class="webResult help">
+          <div
+            class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-2xl p-8 border border-blue-200 dark:border-blue-900/30 text-center">
+            <svg class="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните поиск</h3>
+            <p class="text-gray-600 dark:text-gray-400">Введите название фильма или сериала, КП или IMDB для поиска по
+              трекерам</p>
+          </div>
+        </div>
+      </template>
+      <template id="notfoundTemplate">
+        <div class="webResult notfound">
+          <div
+            class="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
+            <svg class="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Ничего не найдено</h3>
+            <p class="text-gray-600 dark:text-gray-400">По вашему запросу результатов не обнаружено. Попробуйте изменить
+              запрос или фильтры.</p>
+          </div>
+        </div>
+      </template>
+
+      <div id="loadMoreSentinel" class="text-center py-8">
+        <div id="loadMoreIndicator" class="hidden inline-flex flex-col items-center gap-3">
+          <div class="w-10 h-10 border-2 border-gray-300 dark:border-gray-700 border-t-red-600 rounded-full spinner">
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Загрузка результатов...</p>
         </div>
       </div>
 
-    </div>
-
-    <div id="loadMoreSentinel" class="text-center py-8">
-      <div id="loadMoreIndicator" class="hidden inline-flex flex-col items-center gap-3">
-        <div class="w-10 h-10 border-2 border-gray-300 dark:border-gray-700 border-t-red-600 rounded-full spinner">
-        </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">Загрузка результатов...</p>
-      </div>
-    </div>
+    </main>
 
     <footer class="mt-16 bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800">
       <div class="flex flex-wrap items-center justify-between gap-4">
@@ -695,7 +643,7 @@
   </div>
 
   <button id="backToTop"
-    class="fixed p-3 sm:p-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-full shadow-2xl shadow-red-900/50 opacity-0 pointer-events-none transition-all duration-150 z-50 group hover:scale-110 active:scale-95 tap-target"
+    class="transition-ui fixed p-3 sm:p-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-full shadow-2xl shadow-red-900/50 opacity-0 pointer-events-none transition-all duration-150 z-50 group hover:scale-110 active:scale-95 tap-target"
     style="bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); right: calc(1rem + env(safe-area-inset-right, 0px));"
     aria-label="Вернуться к началу страницы">
     <svg class="w-6 h-6 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor"
@@ -704,8 +652,8 @@
     </svg>
   </button>
 
-  <div id="apiKeyModal" class="fixed inset-0 z-[100] hidden" aria-modal="true" aria-labelledby="apiKeyModalTitle"
-    role="dialog">
+  <div id="apiKeyModal" class="transition-ui fixed inset-0 z-[100] hidden" aria-modal="true"
+    aria-labelledby="apiKeyModalTitle" role="dialog">
     <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="apiKeyModalBackdrop"></div>
     <div class="relative flex min-h-full items-center justify-center p-4">
       <div
@@ -732,8 +680,8 @@
     </div>
   </div>
 
-  <div id="torServerModal" class="fixed inset-0 z-[100] hidden" aria-modal="true" aria-labelledby="torServerModalTitle"
-    role="dialog">
+  <div id="torServerModal" class="transition-ui fixed inset-0 z-[100] hidden" aria-modal="true"
+    aria-labelledby="torServerModalTitle" role="dialog">
     <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="torServerModalBackdrop"></div>
     <div class="relative flex min-h-full items-center justify-center p-4">
       <div
@@ -871,6 +819,7 @@
         };
 
         const PAGE_SIZE = 20;
+        const API_BASE = '/api/v1.0';
 
         const state = {
           isLoading: false,
@@ -895,6 +844,33 @@
             timeout = setTimeout(later, wait);
           };
         };
+
+        function getModalFocusables(modal) {
+          if (!modal) return [];
+          const sel = 'input:not([disabled]), button:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]';
+          return Array.from(modal.querySelectorAll(sel)).filter(el => el.tabIndex !== -1);
+        }
+
+        function setupModalFocusTrap(modal) {
+          if (!modal) return;
+          modal.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab') return;
+            const focusables = getModalFocusables(modal);
+            if (focusables.length === 0) return;
+            const idx = focusables.indexOf(document.activeElement);
+            if (e.shiftKey) {
+              if (idx <= 0) {
+                focusables[focusables.length - 1].focus();
+                e.preventDefault();
+              }
+            } else {
+              if (idx === -1 || idx >= focusables.length - 1) {
+                focusables[0].focus();
+                e.preventDefault();
+              }
+            }
+          });
+        }
 
         const updateThemeIcons = (isDark) => {
           if (isDark) {
@@ -946,27 +922,32 @@
         };
 
         const getActiveFilterCount = () => {
+          const v = getFilterValues();
           let n = 0;
-          document.querySelectorAll('#filterContainer select.filter-input').forEach(function (el) {
-            if (el.value) n++;
-          });
-          const refine = (document.querySelector('#filterContainer [name="refine"]') || {}).value || '';
-          const exclude = (document.querySelector('#filterContainer [name="exclude"]') || {}).value || '';
-          if (refine.trim()) n++;
-          if (exclude.trim()) n++;
+          if (v.type) n++;
+          if (v.tracker) n++;
+          if (v.voice) n++;
+          if (v.videotype) n++;
+          if (v.year) n++;
+          if (v.quality) n++;
+          if (v.season) n++;
+          if (v.refine) n++;
+          if (v.exclude) n++;
           return n;
         };
 
         const updateFilterCountBadge = () => {
           const n = getActiveFilterCount();
-          const $badge = $('#filterCountBadge');
-          const $label = $('#filterToggleLabel');
+          const badge = document.getElementById('filterCountBadge');
+          const label = document.getElementById('filterToggleLabel');
+          if (!badge || !label) return;
           if (n > 0) {
-            $badge.removeClass('hidden').text(n);
-            $label.attr('aria-label', 'Дополнительные фильтры, активно ' + n);
+            badge.classList.remove('hidden');
+            badge.textContent = String(n);
+            label.setAttribute('aria-label', 'Дополнительные фильтры, активно ' + n);
           } else {
-            $badge.addClass('hidden');
-            $label.removeAttr('aria-label');
+            badge.classList.add('hidden');
+            label.removeAttribute('aria-label');
           }
         };
 
@@ -1022,10 +1003,27 @@
             .replace(/>/g, '&gt;');
         };
 
-        const getCurrentTrackerFilter = () => {
-          const sel = document.querySelector('#filterContainer select[name="tracker"]');
-          return (sel && sel.value) ? sel.value.trim() : '';
-        };
+        function getFilterValues() {
+          const c = document.getElementById('filterContainer');
+          if (!c) return { type: '', tracker: '', voice: '', videotype: '', year: '', quality: '', season: '', refine: '', exclude: '' };
+          const get = (name) => {
+            const el = c.querySelector('[name="' + name + '"]');
+            return (el && el.value) ? String(el.value).trim() : '';
+          };
+          return {
+            type: get('type'),
+            tracker: get('tracker'),
+            voice: get('voice'),
+            videotype: get('videotype'),
+            year: get('year'),
+            quality: get('quality'),
+            season: get('season'),
+            refine: get('refine'),
+            exclude: get('exclude')
+          };
+        }
+
+        const getCurrentTrackerFilter = () => getFilterValues().tracker;
 
         const buildCardHtml = (elem, activeTracker) => {
           const title = escapeHtml(elem.title || elem.name || '');
@@ -1050,7 +1048,7 @@
               <div class="h2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   <button type="button" class="btn-filter-tracker tap-target flex items-center justify-center w-8 h-8 rounded-md border flex-shrink-0 transition-all ${trackerBtnClass}" data-tracker="${escapeAttr(trackerName)}" title="${isTrackerActive ? 'Сбросить фильтр по трекеру' : 'Искать только на этом трекере'}" aria-label="Фильтр по трекеру ${escapeHtml(trackerName)}">
-                    <img src="${icoSrc}" alt="" class="w-4 h-4 object-contain" onerror="this.style.display='none'">
+                    <img src="${icoSrc}" alt="" class="w-4 h-4 object-contain" loading="lazy" onerror="this.style.display='none'">
                   </button>
                   <a href="${url}" target="_blank" rel="noopener noreferrer"
                     class="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words min-w-0 line-clamp-2 sm:line-clamp-1">${title}</a>
@@ -1075,7 +1073,7 @@
                 <div class="flex flex-col gap-2.5 sm:hidden text-xs text-gray-600 dark:text-gray-400">
                   <div class="flex flex-wrap items-center gap-2.5">
                     <span class="flex items-center gap-1.5 flex-shrink-0">
-                      <img src="${icoSrc}" alt="" class="w-4 h-4 object-contain" onerror="this.style.display='none'">
+                      <img src="${icoSrc}" alt="" class="w-4 h-4 object-contain" loading="lazy" onerror="this.style.display='none'">
                       <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
                     </span>
                     <span class="flex items-center gap-1.5">
@@ -1102,7 +1100,7 @@
                 <!-- Desktop/Tablet: One line layout -->
                 <div class="hidden sm:flex sm:flex-wrap sm:items-center sm:gap-3 md:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   <span class="flex items-center gap-1.5 flex-shrink-0">
-                    <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" onerror="this.style.display='none'">
+                    <img src="${icoSrc}" alt="" class="w-3.5 h-3.5 object-contain" loading="lazy" onerror="this.style.display='none'">
                     <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(trackerName)}</span>
                   </span>
                   <span class="flex items-center gap-1.5">
@@ -1128,8 +1126,8 @@
           </div>`;
         };
 
-        const helpHtml = `<div class="webResult help"><div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-2xl p-8 border border-blue-200 dark:border-blue-900/30 text-center"><svg class="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Начните поиск</h3><p class="text-gray-600 dark:text-gray-400">Введите название фильма или сериала, КП или IMDB для поиска по трекерам</p></div></div>`;
-        const notfoundHtml = `<div class="webResult notfound"><div class="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center"><svg class="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Ничего не найдено</h3><p class="text-gray-600 dark:text-gray-400">По вашему запросу результатов не обнаружено. Попробуйте изменить запрос или фильтры.</p></div></div>`;
+        const getHelpHtml = () => (document.getElementById('helpTemplate') && document.getElementById('helpTemplate').innerHTML) || '';
+        const getNotFoundHtml = () => (document.getElementById('notfoundTemplate') && document.getElementById('notfoundTemplate').innerHTML) || '';
 
         const clearSearchStorage = () => {
           try {
@@ -1141,7 +1139,7 @@
           const sidRadio = document.querySelector('input[type=radio][name=sort][value=sid]');
           if (sidRadio) sidRadio.checked = true;
           if (elements.forcedSearch) elements.forcedSearch.checked = false;
-          elements.resultsDiv.innerHTML = helpHtml;
+          elements.resultsDiv.innerHTML = getHelpHtml();
           state.allItems = [];
           state.filteredItems = [];
           state.displayCount = 0;
@@ -1151,8 +1149,8 @@
         };
 
         const buildResultsFromJson = (items, limit) => {
-          if (items == null || !Array.isArray(items)) return { html: helpHtml, hasMore: false };
-          if (items.length === 0) return { html: notfoundHtml, hasMore: false };
+          if (items == null || !Array.isArray(items)) return { html: getHelpHtml(), hasMore: false };
+          if (items.length === 0) return { html: getNotFoundHtml(), hasMore: false };
           const show = limit ? items.slice(0, limit) : items;
           const activeTracker = getCurrentTrackerFilter();
           const html = show.map(e => buildCardHtml(e, activeTracker)).join('');
@@ -1163,34 +1161,24 @@
           const sortVal = (document.querySelector('input[name="sort"]:checked') || {}).value || 'sid';
           const sortMap = { sid: 'sid', size: 'size', date: 'create', update: 'update' };
           const forcedSearch = elements.forcedSearch && elements.forcedSearch.checked;
-          let url = '/api/v1.0/torrents?search=' + encodeURIComponent(query) + '&sort=' + (sortMap[sortVal] || 'sid');
+          let url = API_BASE + '/torrents?search=' + encodeURIComponent(query) + '&sort=' + (sortMap[sortVal] || 'sid');
           if (forcedSearch) url += '&exact=true';
-          const c = document.getElementById('filterContainer');
-          if (c) {
-            const get = (name) => (c.querySelector('[name="' + name + '"]') || {}).value || '';
-            const type = get('type');
-            const tracker = get('tracker');
-            const voice = get('voice');
-            const videotype = get('videotype');
-            const year = get('year');
-            const quality = get('quality');
-            const season = get('season');
-            if (type) url += '&type=' + encodeURIComponent(type);
-            if (tracker) url += '&tracker=' + encodeURIComponent(tracker);
-            if (voice) url += '&voice=' + encodeURIComponent(voice);
-            if (videotype) url += '&videotype=' + encodeURIComponent(videotype);
-            if (year) url += '&relased=' + encodeURIComponent(year);
-            if (quality) url += '&quality=' + encodeURIComponent(quality);
-            if (season) url += '&season=' + encodeURIComponent(season);
-          }
+          const f = getFilterValues();
+          if (f.type) url += '&type=' + encodeURIComponent(f.type);
+          if (f.tracker) url += '&tracker=' + encodeURIComponent(f.tracker);
+          if (f.voice) url += '&voice=' + encodeURIComponent(f.voice);
+          if (f.videotype) url += '&videotype=' + encodeURIComponent(f.videotype);
+          if (f.year) url += '&relased=' + encodeURIComponent(f.year);
+          if (f.quality) url += '&quality=' + encodeURIComponent(f.quality);
+          if (f.season) url += '&season=' + encodeURIComponent(f.season);
           const apiKey = localStorage.getItem('api_key');
           if (apiKey) url += '&apikey=' + encodeURIComponent(apiKey);
           return url;
         };
 
         const initFilter = (items) => {
-          const $c = $('#filterContainer');
-          if (!items || !items.length) return;
+          const container = document.getElementById('filterContainer');
+          if (!container || !items || !items.length) return;
           const quality = new Set(), years = new Set(), trackers = new Set(), voices = new Set(), seasons = new Set(), types = new Set();
           items.forEach((el) => {
             if (el.quality) quality.add(el.quality);
@@ -1200,21 +1188,27 @@
             if (el.seasons && el.seasons.length) el.seasons.forEach((s) => seasons.add(s));
             if (el.types && el.types.length) el.types.forEach((t) => types.add(t));
           });
-          const fillSelect = (name, values, firstLabel) => {
-            const $s = $c.find('[name="' + name + '"]');
-            if (!$s.length) return;
-            const current = ($s.val() || '').trim();
+          const fillSelect = (name, values) => {
+            const sel = container.querySelector('[name="' + name + '"]');
+            if (!sel) return;
+            const current = (sel.value || '').trim();
             if (current) values.add(current);
-            $s.find('option:not([value=""])').remove();
-            Array.from(values).sort().forEach((v) => { $s.append($('<option>').attr('value', v).text(v)); });
-            if (current) $s.val(current);
+            const options = sel.querySelectorAll('option:not([value=""])');
+            options.forEach((opt) => opt.remove());
+            Array.from(values).sort().forEach((v) => {
+              const opt = document.createElement('option');
+              opt.value = v;
+              opt.textContent = v;
+              sel.appendChild(opt);
+            });
+            if (current) sel.value = current;
           };
-          fillSelect('quality', quality, 'Любое');
-          fillSelect('year', years, 'Любой');
-          fillSelect('tracker', trackers, 'Любой');
-          fillSelect('voice', voices, 'Любая');
-          fillSelect('season', seasons, 'Любой');
-          fillSelect('type', types, 'Любая');
+          fillSelect('quality', quality);
+          fillSelect('year', years);
+          fillSelect('tracker', trackers);
+          fillSelect('voice', voices);
+          fillSelect('season', seasons);
+          fillSelect('type', types);
         };
 
         const applyClientFilters = (items) => {
@@ -1232,7 +1226,7 @@
         const ensureApiKey = () => {
           return new Promise((resolve, reject) => {
             const tryKey = (k) => {
-              const url = '/api/v1.0/conf' + (k ? '?apikey=' + encodeURIComponent(k) : '');
+              const url = API_BASE + '/conf' + (k ? '?apikey=' + encodeURIComponent(k) : '');
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -1348,9 +1342,9 @@
             const items = await response.json();
             state.allItems = Array.isArray(items) ? items : [];
             state.currentQuery = query;
-            const fc = document.getElementById('filterContainer');
-            state.filterRefine = (fc && fc.querySelector('[name="refine"]')) ? fc.querySelector('[name="refine"]').value : '';
-            state.filterExclude = (fc && fc.querySelector('[name="exclude"]')) ? fc.querySelector('[name="exclude"]').value : '';
+            const f = getFilterValues();
+            state.filterRefine = f.refine;
+            state.filterExclude = f.exclude;
             initFilter(state.allItems);
             updateFilterCountBadge();
             state.filteredItems = applyClientFilters(state.allItems);
@@ -1410,7 +1404,7 @@
           return m ? m[1].toLowerCase() : '';
         };
 
-        const copyToClipboardWithFeedback = (text, buttonSelector, iconHtml) => {
+        const copyToClipboardWithFeedback = (text, buttonOrSelector, iconHtml) => {
           if (!text) return;
           const doCopy = () => {
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1426,7 +1420,7 @@
             return Promise.resolve();
           };
           doCopy().then(() => {
-            const btn = document.activeElement && document.activeElement.closest(buttonSelector);
+            const btn = buttonOrSelector instanceof Element ? buttonOrSelector : (document.activeElement && document.activeElement.closest(buttonOrSelector));
             if (btn) {
               const oldHtml = btn.innerHTML;
               btn.innerHTML = iconHtml || '<i class="fas fa-check text-green-600"></i>';
@@ -1435,9 +1429,9 @@
           }).catch(() => doCopy());
         };
 
-        const copyMagnetToClipboard = (magnet) => {
+        const copyMagnetToClipboard = (magnet, button) => {
           if (!magnet) return;
-          copyToClipboardWithFeedback(magnet, '.btn-copy-magnet', '<i class="fas fa-check text-green-600"></i>');
+          copyToClipboardWithFeedback(magnet, button || '.btn-copy-magnet', '<i class="fas fa-check text-green-600"></i>');
         };
 
         const handleScroll = debounce(() => {
@@ -1469,6 +1463,21 @@
           elements.iconMoon = document.getElementById('iconMoon');
           elements.iconSun = document.getElementById('iconSun');
           elements.backToTop = document.getElementById('backToTop');
+
+          elements.resultsDiv.innerHTML = getHelpHtml();
+
+          window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled promise rejection:', e.reason);
+            if (elements.validateError) {
+              elements.validateError.textContent = 'Что-то пошло не так. Попробуйте обновить страницу.';
+              elements.validateError.classList.remove('hidden');
+              setTimeout(() => {
+                if (elements.validateError && elements.validateError.textContent.indexOf('Что-то пошло не так') !== -1) {
+                  elements.validateError.classList.add('hidden');
+                }
+              }, 5000);
+            }
+          });
 
           initTheme();
 
@@ -1507,13 +1516,22 @@
           const apiKeyModalSave = document.getElementById('apiKeyModalSave');
           const apiKeyModalCancel = document.getElementById('apiKeyModalCancel');
           const apiKeyModalBackdrop = document.getElementById('apiKeyModalBackdrop');
+          let apiKeyModalTrigger = null;
+          setupModalFocusTrap(apiKeyModal);
           const openApiKeyModal = () => {
+            apiKeyModalTrigger = document.getElementById('apiKeyBtn');
             if (apiKeyInput) apiKeyInput.value = localStorage.getItem('api_key') || '';
             if (apiKeyModalError) { apiKeyModalError.classList.add('hidden'); apiKeyModalError.textContent = ''; }
             if (apiKeyModal) apiKeyModal.classList.remove('hidden');
-            setTimeout(() => { if (apiKeyInput) apiKeyInput.focus(); }, 100);
+            setTimeout(() => {
+              const first = getModalFocusables(apiKeyModal)[0];
+              if (first) first.focus(); else if (apiKeyInput) apiKeyInput.focus();
+            }, 100);
           };
-          const closeApiKeyModal = () => { if (apiKeyModal) apiKeyModal.classList.add('hidden'); };
+          const closeApiKeyModal = () => {
+            if (apiKeyModal) apiKeyModal.classList.add('hidden');
+            if (apiKeyModalTrigger) { apiKeyModalTrigger.focus(); apiKeyModalTrigger = null; }
+          };
           document.getElementById('apiKeyBtn').addEventListener('click', openApiKeyModal);
           if (apiKeyModalCancel) apiKeyModalCancel.addEventListener('click', closeApiKeyModal);
           if (apiKeyModalBackdrop) apiKeyModalBackdrop.addEventListener('click', closeApiKeyModal);
@@ -1523,7 +1541,7 @@
               if (apiKeyModalError) { apiKeyModalError.textContent = 'Введите ключ'; apiKeyModalError.classList.remove('hidden'); }
               return;
             }
-            fetch('/api/v1.0/conf?apikey=' + encodeURIComponent(key))
+            fetch(API_BASE + '/conf?apikey=' + encodeURIComponent(key))
               .then(r => r.json())
               .then(json => {
                 if (json.apikey) {
@@ -1544,9 +1562,6 @@
               if (e.key === 'Escape') { e.preventDefault(); closeApiKeyModal(); }
             });
           }
-          document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && apiKeyModal && !apiKeyModal.classList.contains('hidden')) closeApiKeyModal();
-          });
 
           const torServerModal = document.getElementById('torServerModal');
           const torServerUrlInput = document.getElementById('torServerUrlInput');
@@ -1556,15 +1571,24 @@
           const torServerModalSave = document.getElementById('torServerModalSave');
           const torServerModalCancel = document.getElementById('torServerModalCancel');
           const torServerModalBackdrop = document.getElementById('torServerModalBackdrop');
+          let torServerModalTrigger = null;
+          setupModalFocusTrap(torServerModal);
           const openTorServerModal = async () => {
+            torServerModalTrigger = document.getElementById('torServerBtn');
             if (torServerUrlInput) torServerUrlInput.value = localStorage.getItem('jacredTorServerUrl') || '';
             if (torServerLoginInput) torServerLoginInput.value = localStorage.getItem('jacredTorServerLogin') || '';
             if (torServerPasswordInput) torServerPasswordInput.value = await getSecureStorage('jacredTorServerPassword');
             if (torServerModalError) { torServerModalError.classList.add('hidden'); torServerModalError.textContent = ''; }
             if (torServerModal) torServerModal.classList.remove('hidden');
-            setTimeout(() => { if (torServerUrlInput) torServerUrlInput.focus(); }, 100);
+            setTimeout(() => {
+              const first = getModalFocusables(torServerModal)[0];
+              if (first) first.focus(); else if (torServerUrlInput) torServerUrlInput.focus();
+            }, 100);
           };
-          const closeTorServerModal = () => { if (torServerModal) torServerModal.classList.add('hidden'); };
+          const closeTorServerModal = () => {
+            if (torServerModal) torServerModal.classList.add('hidden');
+            if (torServerModalTrigger) { torServerModalTrigger.focus(); torServerModalTrigger = null; }
+          };
           document.getElementById('torServerBtn').addEventListener('click', openTorServerModal);
           if (torServerModalCancel) torServerModalCancel.addEventListener('click', closeTorServerModal);
           if (torServerModalBackdrop) torServerModalBackdrop.addEventListener('click', closeTorServerModal);
@@ -1591,8 +1615,11 @@
             closeTorServerModal();
           };
           if (torServerModalSave) torServerModalSave.addEventListener('click', saveTorServerFromModal);
+
           document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && torServerModal && !torServerModal.classList.contains('hidden')) closeTorServerModal();
+            if (e.key !== 'Escape') return;
+            if (apiKeyModal && !apiKeyModal.classList.contains('hidden')) { e.preventDefault(); closeApiKeyModal(); }
+            else if (torServerModal && !torServerModal.classList.contains('hidden')) { e.preventDefault(); closeTorServerModal(); }
           });
 
           // Setup infinite scroll for load more
@@ -1608,49 +1635,65 @@
             observer.observe(loadMoreSentinel);
           }
 
-          $(document).on('click', '.btn-copy-magnet', function (e) {
+          document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-copy-magnet');
+            if (!btn) return;
             e.preventDefault();
             e.stopPropagation();
-            copyMagnetToClipboard($(this).attr('data-magnet'));
+            copyMagnetToClipboard(btn.getAttribute('data-magnet'), btn);
           });
 
-          $(document).on('click', '.btn-copy-hash', function (e) {
+          document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-copy-hash');
+            if (!btn) return;
             e.preventDefault();
             e.stopPropagation();
-            const magnet = $(this).attr('data-magnet');
+            const magnet = btn.getAttribute('data-magnet');
             const hash = extractInfoHashFromMagnet(magnet);
-            if (hash) copyToClipboardWithFeedback(hash, '.btn-copy-hash', '<i class="fas fa-check text-green-600 text-sm"></i>');
+            if (hash) copyToClipboardWithFeedback(hash, btn, '<i class="fas fa-check text-green-600 text-sm"></i>');
           });
 
           const torBtnDefaultHtml = '<svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>';
           const torBtnSpinnerHtml = '<span class="spinner inline-block w-4 h-4 sm:w-5 sm:h-5 border-2 border-current border-t-transparent rounded-full shrink-0" aria-hidden="true"></span>';
           const torBtnSuccessHtml = '<svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
-          $(document).on('click', '.btn-send-to-tor', async function (e) {
+          document.addEventListener('click', async function (e) {
+            const btn = e.target.closest('.btn-send-to-tor');
+            if (!btn) return;
             e.preventDefault();
             e.stopPropagation();
-            const magnet = $(this).attr('data-magnet');
+            const magnet = btn.getAttribute('data-magnet');
             if (!magnet) return;
             let baseUrl = (localStorage.getItem('jacredTorServerUrl') || '').trim();
             const login = (localStorage.getItem('jacredTorServerLogin') || '').trim();
             const password = (await getSecureStorage('jacredTorServerPassword') || '').trim();
-            const $btn = $(this);
-            const origTitle = $btn.attr('title');
+            const origTitle = btn.getAttribute('title');
             const setFeedback = (msg) => {
-              $btn.attr('title', msg);
-              setTimeout(() => { $btn.attr('title', origTitle); }, 3000);
+              btn.setAttribute('title', msg);
+              setTimeout(() => { btn.setAttribute('title', origTitle); }, 3000);
             };
-            const setButtonState = (state) => {
-              if (state === 'loading') {
-                $btn.prop('disabled', true).addClass('pointer-events-none is-loading').attr('aria-busy', 'true').attr('title', 'Отправка…');
-                $btn.html(torBtnSpinnerHtml);
-              } else if (state === 'success') {
-                $btn.removeClass('pointer-events-none is-loading').prop('disabled', false).attr('aria-busy', 'false');
-                $btn.addClass('is-sent').html(torBtnSuccessHtml);
+            const setButtonState = (btnState) => {
+              if (btnState === 'loading') {
+                btn.disabled = true;
+                btn.classList.add('pointer-events-none', 'is-loading');
+                btn.setAttribute('aria-busy', 'true');
+                btn.setAttribute('title', 'Отправка…');
+                btn.innerHTML = torBtnSpinnerHtml;
+              } else if (btnState === 'success') {
+                btn.classList.remove('pointer-events-none', 'is-loading');
+                btn.disabled = false;
+                btn.setAttribute('aria-busy', 'false');
+                btn.classList.add('is-sent');
+                btn.innerHTML = torBtnSuccessHtml;
                 setTimeout(() => {
-                  $btn.removeClass('is-sent').html(torBtnDefaultHtml).attr('title', origTitle);
+                  btn.classList.remove('is-sent');
+                  btn.innerHTML = torBtnDefaultHtml;
+                  btn.setAttribute('title', origTitle);
                 }, 1800);
               } else {
-                $btn.prop('disabled', false).removeClass('pointer-events-none is-loading').attr('aria-busy', 'false').html(torBtnDefaultHtml);
+                btn.disabled = false;
+                btn.classList.remove('pointer-events-none', 'is-loading');
+                btn.setAttribute('aria-busy', 'false');
+                btn.innerHTML = torBtnDefaultHtml;
               }
             };
             if (!baseUrl) {
@@ -1690,10 +1733,12 @@
             }
           });
 
-          $(document).on('click', '.btn-filter-tracker', function (e) {
+          document.addEventListener('click', function (e) {
+            const trackerBtn = e.target.closest('.btn-filter-tracker');
+            if (!trackerBtn) return;
             e.preventDefault();
             e.stopPropagation();
-            const tracker = ($(this).attr('data-tracker') || '').trim();
+            const tracker = (trackerBtn.getAttribute('data-tracker') || '').trim();
             const sel = document.querySelector('#filterContainer select[name="tracker"]');
             if (!sel) return;
             const current = (sel.value || '').trim();
@@ -1711,13 +1756,9 @@
           });
 
           const applyRefineExclude = () => {
-            const fc = document.getElementById('filterContainer');
-            if (fc) {
-              const r = fc.querySelector('[name="refine"]');
-              const e = fc.querySelector('[name="exclude"]');
-              state.filterRefine = (r && r.value) || '';
-              state.filterExclude = (e && e.value) || '';
-            }
+            const f = getFilterValues();
+            state.filterRefine = f.refine;
+            state.filterExclude = f.exclude;
             updateFilterCountBadge();
             if (!state.allItems.length) return;
             state.filteredItems = applyClientFilters(state.allItems);
@@ -1748,8 +1789,9 @@
                   if (sel.options.length) sel.selectedIndex = 0;
                 });
               }
-              state.filterRefine = '';
-              state.filterExclude = '';
+              const f = getFilterValues();
+              state.filterRefine = f.refine;
+              state.filterExclude = f.exclude;
               updateFilterCountBadge();
               if (elements.searchInput.value.trim().length > 0) elements.searchForm.dispatchEvent(new Event('submit'));
             });
@@ -1771,7 +1813,7 @@
             });
           }
 
-          window.addEventListener('scroll', handleScroll);
+          window.addEventListener('scroll', handleScroll, { passive: true });
 
           updateClearButton();
 
