@@ -362,7 +362,7 @@ namespace JacRed.Engine
             catch (OperationCanceledException)
             {
                 //errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (3 минуты)";
-                Log(errorMessage, typetask);
+                //Log(errorMessage, typetask);
                 apiStatusCode = 408;
             }
             catch (JsonException ex)
