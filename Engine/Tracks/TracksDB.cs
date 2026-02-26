@@ -277,7 +277,7 @@ namespace JacRed.Engine
                 {
                     Log("Все серверы недоступны. Пауза 1 минута...");
                     await Task.Delay(TimeSpan.FromMinutes(1), token);
-                    Log("Пауза завершена. Выход.");
+                    //Log("Пауза завершена. Выход.");
                     return;
                 }
             }
@@ -287,6 +287,7 @@ namespace JacRed.Engine
             bool analysisSuccessful = false;
             string errorMessage = null;
             int apiStatusCode = 0;
+            bool clean = false;
 
             try
             {
@@ -307,7 +308,7 @@ namespace JacRed.Engine
                         // Держим паузу 1 минуту
                         await Task.Delay(TimeSpan.FromMinutes(1), token);
 
-                        Log("Пауза завершена. Выход.", typetask);
+                        //Log("Пауза завершена. Выход.", typetask);
                         return;
                     }
 
@@ -334,7 +335,7 @@ namespace JacRed.Engine
                     }
                     else if (torrentAdded)
                     {
-                        Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...", typetask);
+                        //Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...", typetask);
                     }
 
                     // 5. Небольшая пауза для инициализации торрента
@@ -349,18 +350,18 @@ namespace JacRed.Engine
                     if (res?.streams != null && res.streams.Count > 0)
                     {
                         analysisSuccessful = true;
-                        Log($"API успешно вернул {res.streams.Count} треков", typetask);
+                        Log($"API успешно вернул {res.streams.Count} треков для {infohash}", typetask);
                     }
                     else
                     {
                         errorMessage = "Нет данных о треках";
-                        Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
+                        //Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (3 минуты)";
+                //errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (3 минуты)";
                 Log(errorMessage, typetask);
                 apiStatusCode = 408;
             }
@@ -378,17 +379,17 @@ namespace JacRed.Engine
             finally
             {
                 // 7. Очистка торрента на сервере
-                await CleanupTorrent(tsuri, infohash, expectedCategory, typetask);
+                clean = await CleanupTorrent(tsuri, infohash, expectedCategory, typetask);
             }
 
             // 8. Обновление данных в базе
-            await UpdateAnalysisResults(magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, apiStatusCode, errorMessage);
+            await UpdateAnalysisResults(clean, magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, apiStatusCode, errorMessage);
         }
 
         /// <summary>
         /// Обновляет результаты анализа в базе данных
         /// </summary>
-        private static async Task UpdateAnalysisResults(string magnet, string torrentKey, string infohash,
+        private static async Task UpdateAnalysisResults(bool clean, string magnet, string torrentKey, string infohash,
             int currentAttempt, bool analysisSuccessful, FfprobeModel ffprobeResult, int typetask, int apiStatusCode, string errorMessage = null)
         {
             try
@@ -421,19 +422,31 @@ namespace JacRed.Engine
                 {
                     // Анализ неуспешен - увеличиваем счетчик попыток
                     int NewAttepmt = currentAttempt;
-
+                    string fail = "Прервано по таймауту";
                     if (typetask != 1)
-                    {
                         NewAttepmt++;
 
-                        if (apiStatusCode == 400)
-                            NewAttepmt = AppInit.conf.tracksatempt;
+                    if (!clean)
+                        fail = "Не удалось скачать торрент";
+
+                    if (apiStatusCode == 400 && clean)
+                    {
+                        NewAttepmt = AppInit.conf.tracksatempt; //Обнуляем попытки, если содержимое торрента некорректно.
+                        fail = "Некорректное содержимое";
+                    }
+
+                    if (AppInit.conf.tracksatempt == 0)
+                    {
+                        NewAttepmt = 0;
+                        Log($"Анализ треков для {infohash} без результата. {fail}.", typetask);
+                    }
+                    else
+                    {
+                        Log($"Анализ треков для {infohash} без результата. {fail}. Осталось {AppInit.conf.tracksatempt - NewAttepmt} попыток.", typetask);
                     }
 
                     if (NewAttepmt != currentAttempt)
                         FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, NewAttepmt);
-
-                    Log($"Анализ треков для {infohash} без результата. Код ответа API: {apiStatusCode}. Осталось {AppInit.conf.tracksatempt - NewAttepmt} попыток.", typetask);
                 }
             }
             catch (Exception ex)
@@ -781,7 +794,7 @@ namespace JacRed.Engine
         /// Очистка торрента на сервере (ВСЕГДА выполняется, но только если торрент в указанной категории)
         /// Удаление производится только по хешу
         /// </summary>
-        private static async Task CleanupTorrent(string tsuri, string infohash, string expectedCategory, int? typetask = null)
+        private static async Task<bool> CleanupTorrent(string tsuri, string infohash, string expectedCategory, int? typetask = null)
         {
             try
             {
@@ -791,13 +804,13 @@ namespace JacRed.Engine
                 if (serverError)
                 {
                     Log($"Сервер вернул ошибку при запросе списка торрентов. Удаление отменено.", typetask);
-                    return; // Не удаляем при ошибке сервера
+                    return false; // Не удаляем при ошибке сервера
                 }
 
                 if (!exists)
                 {
-                    Log($"Торрент {infohash} не найден на сервере. Удаление не требуется.", typetask);
-                    return; // Торрента нет - нечего удалять
+                    //Log($"Торрент {infohash} не найден на сервере. Удаление не требуется.", typetask);
+                    return false; // Торрента нет - нечего удалять
                 }
 
                 // Проверяем категорию для удаления
@@ -805,8 +818,8 @@ namespace JacRed.Engine
 
                 if (!isExpectedCategory)
                 {
-                    Log($"Торрент {infohash} не в категории '{expectedCategory}' (категория: '{actualCategory}'). Удаление отменено.", typetask);
-                    return; // Не удаляем торренты из других категорий
+                    //Log($"Торрент {infohash} не в категории '{expectedCategory}' (категория: '{actualCategory}'). Удаление отменено.", typetask);
+                    return true; // Не удаляем торренты из других категорий
                 }
 
                 // Торрент существует, в правильной категории и сервер работает - выполняем удаление
@@ -829,7 +842,7 @@ namespace JacRed.Engine
 
                 if (response.IsSuccessStatusCode)
                 {
-                    Log($"Торрент {infohash} успешно удален с сервера", typetask);
+                    //Log($"Торрент {infohash} успешно удален с сервера", typetask);
                 }
                 else
                 {
@@ -840,6 +853,8 @@ namespace JacRed.Engine
             {
                 Log($"Ошибка при очистке торрента {infohash} на сервере: {ex.Message}", typetask);
             }
+
+            return true;
         }
 
         /// <summary>
