@@ -891,7 +891,20 @@
         const initTheme = () => {
           try {
             const savedTheme = localStorage.getItem('statsTheme');
-            const isDark = savedTheme !== 'light';
+            let isDark;
+
+            if (savedTheme === 'dark') {
+              isDark = true;
+            } else if (savedTheme === 'light') {
+              isDark = false;
+            } else {
+              // No explicit preference saved: respect system preference if available
+              if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                isDark = true;
+              } else {
+                isDark = false;
+              }
+            }
 
             if (isDark) {
               document.documentElement.classList.add('dark');
