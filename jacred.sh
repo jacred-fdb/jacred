@@ -222,9 +222,9 @@ do_update() {
 }
 
 install_apt_packages() {
-  log_info "Installing system packages (wget, zstd, jq)..."
+  log_info "Installing system packages (wget, zstd, jq, unzip, file)..."
   apt update
-  apt install -y --no-install-recommends wget zstd jq
+  apt install -y --no-install-recommends wget zstd jq unzip file
 }
 
 ensure_service_user() {
@@ -303,21 +303,27 @@ install_database() {
   log_info "Downloading database..."
   cd "$INSTALL_ROOT"
   mkdir -p Data
-  if ! wget -q "$DB_URL" -O db.zip || [[ ! -s db.zip ]]; then
+  if ! wget -q "$DB_URL" -O db.archive || [[ ! -s db.archive ]]; then
     log_err "Database download failed: $DB_URL"
     exit 1
   fi
   log_info "Unpacking database..."
-  unzip -oq db.zip
   local tar_zst
-  tar_zst="$(find . -maxdepth 1 -name '*.tar.zst' -print -quit)"
-  if [[ -z "$tar_zst" || ! -f "$tar_zst" ]]; then
-    log_err "Archive did not contain a .tar.zst file"
-    rm -f db.zip
-    exit 1
+  if file -b db.archive | grep -qi 'zip archive'; then
+    unzip -oq db.archive
+    tar_zst="$(find . -maxdepth 1 -name '*.tar.zst' -print -quit)"
+    if [[ -z "$tar_zst" || ! -f "$tar_zst" ]]; then
+      log_err "Zip archive did not contain a .tar.zst file"
+      rm -f db.archive
+      exit 1
+    fi
+    zstd -d "$tar_zst" -c | tar -xf - -C Data
+    rm -f db.archive "$tar_zst"
+  else
+    # Server may serve raw .tar.zst (e.g. from backup.sh) despite .zip in URL
+    zstd -d db.archive -c | tar -xf - -C Data
+    rm -f db.archive
   fi
-  zstd -d "$tar_zst" -c | tar -xf - -C Data
-  rm -f db.zip "$tar_zst"
   log_info "Database installed"
 }
 
