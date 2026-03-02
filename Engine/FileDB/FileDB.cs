@@ -64,6 +64,13 @@ namespace JacRed.Engine
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // Selezen: .../relizy-ot-selezen/12292-slug-name.html — ID перед первым дефисом
+            if (string.Equals(trackerName, "selezen", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"/relizy-ot-selezen/(\d+)-");
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
             return 0;
         }
 
