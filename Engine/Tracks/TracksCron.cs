@@ -116,7 +116,7 @@ namespace JacRed.Engine
                                     //if (hex == null)
                                     //    continue;
 
-                                    if (t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
+                                    if (t.ffprobe_tryingdata >= AppInit.conf.tracksatempt && AppInit.conf.tracksatempt != 0)
                                         continue;
 
                                     if (typetask == 1 || typetask == 2 || t.sid > 0)
