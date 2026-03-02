@@ -89,13 +89,10 @@ namespace JacRed.Controllers.CRON
                         {
                             if (response.Headers.TryGetValues("Set-Cookie", out var cook))
                             {
-                                string PHPSESSID = null;
-                                foreach (string line in cook)
-                                {
-                                    if (string.IsNullOrWhiteSpace(line)) continue;
-                                    if (line.Contains("PHPSESSID="))
-                                        PHPSESSID = new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value;
-                                }
+                                string PHPSESSID = cook
+                                    .Where(line => !string.IsNullOrWhiteSpace(line) && line.Contains("PHPSESSID="))
+                                    .Select(line => new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value)
+                                    .LastOrDefault();
                                 if (!string.IsNullOrWhiteSpace(PHPSESSID))
                                 {
                                     memoryCache.Set("selezen:cookie", $"PHPSESSID={PHPSESSID}; _ym_isad=2;", DateTime.Now.AddDays(1));
@@ -346,11 +343,14 @@ namespace JacRed.Controllers.CRON
                         if (idMatch.Success)
                         {
                             string id = idMatch.Groups[1].Value;
-                            foreach (var kv in db)
+                            var match = db
+                                .Where(kv => string.Equals(kv.Value.trackerName, "selezen", StringComparison.OrdinalIgnoreCase))
+                                .Select(kv => (kv, m: Regex.Match(kv.Key ?? "", @"/relizy-ot-selezen/(\d+)-")))
+                                .FirstOrDefault(x => x.m.Success && x.m.Groups[1].Value == id);
+                            if (match.kv.Key != null)
                             {
-                                if (!string.Equals(kv.Value.trackerName, "selezen", StringComparison.OrdinalIgnoreCase)) continue;
-                                var m = Regex.Match(kv.Key ?? "", @"/relizy-ot-selezen/(\d+)-");
-                                if (m.Success && m.Groups[1].Value == id) { exists = true; _tcache = kv.Value; break; }
+                                exists = true;
+                                _tcache = match.kv.Value;
                             }
                         }
                     }
