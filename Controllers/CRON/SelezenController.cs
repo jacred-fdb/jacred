@@ -64,45 +64,47 @@ namespace JacRed.Controllers.CRON
                     return false;
                 }
 
-                var clientHandler = new System.Net.Http.HttpClientHandler() { AllowAutoRedirect = false };
-                clientHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
-                using (var client = new System.Net.Http.HttpClient(clientHandler))
+                using (var clientHandler = new System.Net.Http.HttpClientHandler() { AllowAutoRedirect = false })
                 {
-                    client.Timeout = TimeSpan.FromSeconds(15);
-                    client.MaxResponseContentBufferSize = 2000000;
-                    client.DefaultRequestHeaders.Add("User-Agent", SelezenUserAgent);
-                    client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                    client.DefaultRequestHeaders.Add("Referer", host + "/");
-                    client.DefaultRequestHeaders.Add("Origin", host);
-
-                    var postParams = new Dictionary<string, string>
+                    clientHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
+                    using (var client = new System.Net.Http.HttpClient(clientHandler))
                     {
-                        { "login_name", AppInit.conf.Selezen.login.u },
-                        { "login_password", AppInit.conf.Selezen.login.p },
-                        { "login_not_save", "1" },
-                        { "login", "submit" }
-                    };
+                        client.Timeout = TimeSpan.FromSeconds(15);
+                        client.MaxResponseContentBufferSize = 2000000;
+                        client.DefaultRequestHeaders.Add("User-Agent", SelezenUserAgent);
+                        client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                        client.DefaultRequestHeaders.Add("Referer", host + "/");
+                        client.DefaultRequestHeaders.Add("Origin", host);
 
-                    using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
-                    using (var response = await client.PostAsync(host, postContent))
-                    {
-                        if (response.Headers.TryGetValues("Set-Cookie", out var cook))
+                        var postParams = new Dictionary<string, string>
                         {
-                            string PHPSESSID = null;
-                            foreach (string line in cook)
+                            { "login_name", AppInit.conf.Selezen.login.u },
+                            { "login_password", AppInit.conf.Selezen.login.p },
+                            { "login_not_save", "1" },
+                            { "login", "submit" }
+                        };
+
+                        using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
+                        using (var response = await client.PostAsync(host, postContent))
+                        {
+                            if (response.Headers.TryGetValues("Set-Cookie", out var cook))
                             {
-                                if (string.IsNullOrWhiteSpace(line)) continue;
-                                if (line.Contains("PHPSESSID="))
-                                    PHPSESSID = new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value;
+                                string PHPSESSID = null;
+                                foreach (string line in cook)
+                                {
+                                    if (string.IsNullOrWhiteSpace(line)) continue;
+                                    if (line.Contains("PHPSESSID="))
+                                        PHPSESSID = new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value;
+                                }
+                                if (!string.IsNullOrWhiteSpace(PHPSESSID))
+                                {
+                                    memoryCache.Set("selezen:cookie", $"PHPSESSID={PHPSESSID}; _ym_isad=2;", DateTime.Now.AddDays(1));
+                                    ParserLog.Write("selezen", "TakeLogin success", new Dictionary<string, object> { { "host", host } });
+                                    return true;
+                                }
                             }
-                            if (!string.IsNullOrWhiteSpace(PHPSESSID))
-                            {
-                                memoryCache.Set("selezen:cookie", $"PHPSESSID={PHPSESSID}; _ym_isad=2;", DateTime.Now.AddDays(1));
-                                ParserLog.Write("selezen", "TakeLogin success", new Dictionary<string, object> { { "host", host } });
-                                return true;
-                            }
+                            ParserLog.Write("selezen", "TakeLogin failed", new Dictionary<string, object> { { "reason", "no PHPSESSID in response" }, { "statusCode", (int)response.StatusCode } });
                         }
-                        ParserLog.Write("selezen", "TakeLogin failed", new Dictionary<string, object> { { "reason", "no PHPSESSID in response" }, { "statusCode", (int)response.StatusCode } });
                     }
                 }
             }
