@@ -108,7 +108,7 @@ jobs:
             --verbosity minimal
 
       - name: Upload artifact ${{ matrix.artifact_name }}
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/${{ matrix.output_dir }}
