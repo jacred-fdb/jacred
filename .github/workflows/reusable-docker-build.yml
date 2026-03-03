@@ -178,21 +178,21 @@ jobs:
           provenance: ${{ inputs.provenance }}
 
       - if: ${{ inputs.generate_syft_sbom && inputs.push }}
-        uses: anchore/sbom-action@v0.22.2
+        uses: anchore/sbom-action@v0.23.0
         with:
           image: ${{ env.GHCR_IMAGE }}@${{ steps.build.outputs.digest }}
           format: ${{ inputs.syft_format }}
           output-file: sbom.${{ inputs.syft_format == 'spdx-json' && 'spdx.json' || 'json' }}
 
       - if: ${{ inputs.generate_syft_sbom && inputs.push }}
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: sbom-${{ github.sha }}
           path: sbom.${{ inputs.syft_format == 'spdx-json' && 'spdx.json' || 'json' }}
           retention-days: ${{ inputs.sbom_artifact_retention_days }}
 
       - if: ${{ inputs.attest_github && inputs.push }}
-        uses: actions/attest-build-provenance@v3.2.0
+        uses: actions/attest-build-provenance@v4.1.0
         with:
           subject-name: ${{ env.GHCR_IMAGE }}
           subject-digest: ${{ steps.build.outputs.digest }}

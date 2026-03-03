@@ -23,8 +23,7 @@
 
 # Selezen
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/ParseAllTask"
+# curl "http://127.0.0.1:9117/cron/selezen/parse?parseFrom=1&parseTo=5"
 
 # Megapeer
 0   *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/parse"

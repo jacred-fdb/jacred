@@ -12,12 +12,12 @@ readonly JACRED_USER="jacred"
 readonly SERVICE_NAME="jacred"
 readonly SYSTEMD_UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly RELEASE_BASE="https://github.com/jacred-fdb/jacred/releases/latest/download"
-readonly DB_URL="https://jacred.torrservera.net/latest.zip"
+readonly DB_URL="https://sync.jacred.stream/latest.tar.zst.zip"
 readonly CRON_JACRED_MARKER="127.0.0.1:9117"
 readonly SAVE_URL="http://127.0.0.1:9117/jsondb/save"
 
 CRON_USER="${SUDO_USER:-root}"
-DOWNLOAD_DB=0   # 0 = skip DB download (use --no-download-db)
+DOWNLOAD_DB=1   # 1 = download DB by default (use --no-download-db to skip)
 REMOVE=0
 UPDATE=0
 PRE_RELEASE=0
@@ -83,28 +83,25 @@ detect_arch() {
 }
 
 get_prerelease_url() {
+  if ! command -v curl >/dev/null 2>&1; then
+    log_err "curl is required for --pre-release but is not installed or not in PATH."
+    exit 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    log_err "jq is required for --pre-release but is not installed or not in PATH."
+    exit 1
+  fi
   local asset_name="jacred-linux-${ARCH}.zip"
   local api_url="https://api.github.com/repos/jacred-fdb/jacred/releases"
   local url
-  url=$(python3 -c "
-import json, sys, urllib.request
-try:
-    req = urllib.request.Request('$api_url', headers={'Accept': 'application/vnd.github+json'})
-    data = json.loads(urllib.request.urlopen(req).read())
-except Exception as e:
-    sys.stderr.write(str(e))
-    sys.exit(2)
-for r in data:
-    if r.get('prerelease'):
-        for a in r.get('assets', []):
-            if a.get('name') == '$asset_name':
-                print(a['browser_download_url'])
-                sys.exit(0)
-sys.exit(1)
-" 2>/dev/null) || {
-    log_err "Could not find pre-release asset $asset_name (python3 required for --pre-release). Check GitHub and network."
+  url=$(curl -sL -H 'Accept: application/vnd.github+json' "$api_url" \
+    | jq -r --arg name "$asset_name" \
+      '.[] | select(.prerelease == true) | .assets[] | select(.name == $name) | .browser_download_url' \
+    | head -n1) || true
+  if [[ -z "${url:-}" ]]; then
+    log_err "Could not find pre-release asset $asset_name. Check GitHub and network."
     exit 1
-  }
+  fi
   PUBLISH_URL="$url"
 }
 
@@ -225,9 +222,9 @@ do_update() {
 }
 
 install_apt_packages() {
-  log_info "Installing system packages (wget, unzip)..."
+  log_info "Installing system packages (wget, zstd, jq, unzip, file)..."
   apt update
-  apt install -y --no-install-recommends wget unzip
+  apt install -y --no-install-recommends wget zstd jq unzip file
 }
 
 ensure_service_user() {
@@ -255,7 +252,6 @@ install_app() {
   unzip -oq publish.zip
   rm -f publish.zip
   chmod +x "${INSTALL_ROOT}/JacRed"
-  cp -n "${INSTALL_ROOT}/Data/init.conf" "${INSTALL_ROOT}/init.conf" 2>/dev/null || true
   log_info "Application installed to $INSTALL_ROOT"
 }
 
@@ -306,14 +302,36 @@ install_database() {
   fi
   log_info "Downloading database..."
   cd "$INSTALL_ROOT"
-  if ! wget -q "$DB_URL" -O latest.zip || [[ ! -s latest.zip ]]; then
+  mkdir -p Data
+  if ! wget -q "$DB_URL" -O db.archive || [[ ! -s db.archive ]]; then
     log_err "Database download failed: $DB_URL"
     exit 1
   fi
   log_info "Unpacking database..."
-  unzip -oq latest.zip
-  rm -f latest.zip
+  local tar_zst
+  if file -b db.archive | grep -qi 'zip archive'; then
+    unzip -oq db.archive
+    tar_zst="$(find . -maxdepth 1 -name '*.tar.zst' -print -quit)"
+    if [[ -z "$tar_zst" || ! -f "$tar_zst" ]]; then
+      log_err "Zip archive did not contain a .tar.zst file"
+      rm -f db.archive
+      exit 1
+    fi
+    zstd -d "$tar_zst" -c | tar -xf - -C Data
+    rm -f db.archive "$tar_zst"
+  else
+    # Server may serve raw .tar.zst (e.g. from backup.sh) despite .zip in URL
+    zstd -d db.archive -c | tar -xf - -C Data
+    rm -f db.archive
+  fi
   log_info "Database installed"
+}
+
+# Copy Data/init.conf to install root if present (Data is populated by app zip or DB unpack).
+copy_init_conf() {
+  if [[ -f "${INSTALL_ROOT}/Data/init.conf" ]]; then
+    cp -n "${INSTALL_ROOT}/Data/init.conf" "${INSTALL_ROOT}/init.conf" 2>/dev/null || true
+  fi
 }
 
 start_service() {
@@ -330,7 +348,8 @@ Installation complete.
 
   - Edit config: $INSTALL_ROOT/init.conf
   - Restart:     systemctl restart $SERVICE_NAME
-  - Full crontab: crontab $INSTALL_ROOT/Data/crontab
+  - Cron was merged into your crontab. View entries: cat $INSTALL_ROOT/Data/crontab
+  - To replace entire crontab with only jacred: crontab $INSTALL_ROOT/Data/crontab
 
 ################################################################
 
@@ -347,18 +366,20 @@ main() {
     exit 1
   fi
   ARCH=$(detect_arch)
+
+  if [[ "$REMOVE" -eq 1 ]]; then
+    do_remove
+    return 0
+  fi
+
+  install_apt_packages
   if [[ "$PRE_RELEASE" -eq 1 ]]; then
-    log_info "Resolving latest pre-release (e.g. 2.0.0-dev1)..."
+    log_info "Resolving latest pre-release..."
     get_prerelease_url
     log_info "Using pre-release asset: $PUBLISH_URL"
   else
     PUBLISH_URL="${RELEASE_BASE}/jacred-linux-${ARCH}.zip"
     log_info "Using release asset: jacred-linux-${ARCH}.zip"
-  fi
-
-  if [[ "$REMOVE" -eq 1 ]]; then
-    do_remove
-    return 0
   fi
 
   if [[ "$UPDATE" -eq 1 ]]; then
@@ -368,12 +389,12 @@ main() {
 
   log_info "Starting installation..."
 
-  install_apt_packages
   ensure_service_user
   install_app
   install_systemd_unit
   install_cron
   install_database
+  copy_init_conf
   set_install_ownership
   start_service
   print_post_install

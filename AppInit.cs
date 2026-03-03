@@ -293,7 +293,7 @@ namespace JacRed
 
         public TrackerSettings Rutracker = new TrackerSettings("https://rutracker.org");
 
-        public TrackerSettings Selezen = new TrackerSettings("https://open.selezen.org");
+        public TrackerSettings Selezen = new TrackerSettings("https://use.selezen.club");
 
         public TrackerSettings Lostfilm = new TrackerSettings("https://www.lostfilm.tv");
 
