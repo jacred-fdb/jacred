@@ -362,11 +362,34 @@ namespace JacRed.Controllers.CRON
                 if (createTime == default)
                     createTime = DateTime.UtcNow;
 
+                string fileName = Match(torrentBlock, @"info_d1-le""[^>]*>([^<]+)", 1);
+                int qualityFromFile = 0;
+                int seasonFromFile = 0;
+                string videotypeFromFile = null;
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    var qMatch = Regex.Match(fileName, @"\b(\d{3,4})p\b", RegexOptions.IgnoreCase);
+                    if (qMatch.Success && int.TryParse(qMatch.Groups[1].Value, out int q) && (q == 480 || q == 720 || q == 1080 || q == 2160))
+                        qualityFromFile = q;
+                    var sMatch = Regex.Match(fileName, @"\b[Ss](\d+)\b", RegexOptions.IgnoreCase);
+                    if (sMatch.Success && int.TryParse(sMatch.Groups[1].Value, out int s) && s > 0)
+                        seasonFromFile = s;
+                    if (Regex.IsMatch(fileName, @"\b(HDR|10-?bit|10\s*bit)\b", RegexOptions.IgnoreCase))
+                        videotypeFromFile = "hdr";
+                }
+
                 string torrentUrl = $"{baseUrl.TrimEnd('/')}/index.php?do=download&id={torrentId}";
 
                 string title = listTitle;
                 if (!string.IsNullOrWhiteSpace(sizeName))
                     title = $"{listTitle} / {sizeName}";
+                if (qualityFromFile > 0)
+                    title += $" [{qualityFromFile}p]";
+                if (seasonFromFile > 0)
+                    title += $" S{seasonFromFile}";
+                if (videotypeFromFile == "hdr")
+                    title += " [HDR]";
+                title += " LE-Production";
 
                 double sizeNum = 0;
                 if (!string.IsNullOrWhiteSpace(sizeName))
