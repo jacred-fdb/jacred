@@ -1,8 +1,6 @@
-<div align="center">
-  <img src="wwwroot/img/jacred-social-preview.png" alt="Jacred-FDB — Torrent aggregator & file database" width="480">
-</div>
+# JacRed
 
-# <img src="wwwroot/img/jacred.png" width="32" height="32" alt=""> JacRed
+![Jacred — A Torrent aggregator & file database](wwwroot/img/jacred-social-preview.png)
 
 [![Build](https://github.com/jacred-fdb/jacred/actions/workflows/build.yml/badge.svg)](https://github.com/jacred-fdb/jacred/actions/workflows/build.yml)
 [![Release](https://github.com/jacred-fdb/jacred/actions/workflows/release.yml/badge.svg)](https://github.com/jacred-fdb/jacred/actions/workflows/release.yml)
@@ -63,7 +61,7 @@ curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh | bas
 **Опции:**
 
 | Опция | Описание |
-|-------|----------|
+| ------- | ---------- |
 | `--no-download-db` | Не скачивать и не распаковывать базу (только при установке) |
 | `--pre-release` | Установить или обновить из последнего pre-release (например, 2.0.0-dev1) |
 | `--update` | Обновить приложение с последнего релиза (сохранить БД, заменить файлы, перезапустить) |
@@ -129,7 +127,7 @@ sudo -u myservice ./jacred.sh --remove
 ### Основные параметры
 
 | Параметр | Описание | По умолчанию |
-|----------|----------|--------------|
+| ---------- | ---------- | -------------- |
 | `listenip` | IP для прослушивания (`any` — все интерфейсы) | `any` |
 | `listenport` | Порт HTTP | `9117` |
 | `apikey` | Ключ авторизации API (пусто — без проверки) | — |
@@ -149,7 +147,7 @@ sudo -u myservice ./jacred.sh --remove
 Кеш открытых файлов БД для повышения производительности при высокой нагрузке:
 
 | Параметр | Описание | По умолчанию |
-|----------|----------|--------------|
+| ---------- | ---------- | -------------- |
 | `enable` | Включить кеш | `false` |
 | `validHour` | Время жизни кеша в часах | `1` |
 | `maxOpenWriteTask` | Максимальное число открытых задач записи | `200` |
@@ -168,7 +166,7 @@ evercache:
 ### Синхронизация
 
 | Параметр | Описание | По умолчанию |
-|----------|----------|--------------|
+| ---------- | ---------- | -------------- |
 | `syncapi` | URL сервера с открытым `opensync` для загрузки базы (пусто — не использовать) | `""` |
 | `synctrackers` | Список трекеров для синхронизации с syncapi | см. example |
 | `disable_trackers` | Трекеры, не участвующие в синке (RIP и др.) | `hdrezka`, `anifilm`, `anilibria` |
@@ -180,7 +178,7 @@ evercache:
 ### Логирование
 
 | Параметр | Описание | По умолчанию |
-|----------|----------|--------------|
+| ---------- | ---------- | -------------- |
 | `log` | Устаревший: включить логи fdb и парсеров | `false` |
 | `logFdb` | Писать лог добавлений/обновлений в Data/log/fdb.*.log | `false` |
 | `logFdbRetentionDays` | Хранить логи fdb не более N дней (0 — без ограничения) | `7` |
@@ -191,7 +189,7 @@ evercache:
 ### Статистика и треки
 
 | Параметр | Описание | По умолчанию |
-|----------|----------|--------------|
+| ---------- | ---------- | -------------- |
 | `timeStatsUpdate` | Интервал обновления статистики, мин | `90` |
 | `tracks` | Включить сбор метаданных треков (tsuri) | `false` |
 | `trackslog` | Включить логи модуля tracks (Data/log/tracks.log) | `false` |
@@ -207,7 +205,7 @@ evercache:
 Для каждого трекера можно задать следующие параметры:
 
 | Параметр | Описание | Пример |
-|----------|----------|--------|
+| ---------- | ---------- | -------- |
 | `host` | Основной URL трекера | `https://rutracker.org` |
 | `alias` | Альтернативный URL (например, .onion адрес) | `http://rutracker....onion` |
 | `useproxy` | Использовать прокси для этого трекера | `true` / `false` |
@@ -228,7 +226,7 @@ evercache:
 Используются для всех запросов, если не переопределены в `globalproxy`:
 
 | Параметр | Описание | Пример |
-|----------|----------|--------|
+| ---------- | ---------- | -------- |
 | `pattern` | Регулярное выражение для сопоставления URL | `"\\.onion"` |
 | `list` | Список прокси-серверов | `["socks5://127.0.0.1:9050"]` |
 | `useAuth` | Использовать аутентификацию | `true` / `false` |
@@ -374,7 +372,7 @@ Anifilm, AniLibria, HDRezka.
 
 ## Сборка
 
-### Требования
+### Требования для сборки
 
 - **.NET 9.0 SDK** (см. **`JacRed.csproj`**)
 - **Git** (для генерации версии из тегов)
