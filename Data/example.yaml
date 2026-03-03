@@ -35,6 +35,7 @@ synctrackers:
   - animelayer
   - anidub
   - aniliberty
+  - leproduction
 # RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers: []
 syncsport: true
@@ -171,6 +172,13 @@ Anidub:
 
 Aniliberty:
   host: https://aniliberty.top
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: false
+
+LeProduction:
+  host: https://www.le-production.tv
   useproxy: false
   reqMinute: 8
   parseDelay: 7000

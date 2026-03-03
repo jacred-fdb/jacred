@@ -166,6 +166,7 @@ namespace JacRed
                 case "baibako": return conf.Baibako.log;
                 case "bitru": return conf.Bitru.log;
                 case "kinozal": return conf.Kinozal.log;
+                case "leproduction": return conf.LeProduction.log;
                 case "lostfilm": return conf.Lostfilm.log;
                 case "mazepa": return conf.Mazepa.log;
                 case "megapeer": return conf.Megapeer.log;
@@ -302,6 +303,8 @@ namespace JacRed
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
         public TrackerSettings Aniliberty = new TrackerSettings("https://aniliberty.top");
+
+        public TrackerSettings LeProduction = new TrackerSettings("https://www.le-production.tv");
 
         // TODO: fix parser
         public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");

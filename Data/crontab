@@ -63,3 +63,7 @@
 # curl "http://127.0.0.1:9117/cron/aniliberty/parse?parseTo=5"
 # curl "http://127.0.0.1:9117/cron/aniliberty/parse?parseFrom=1&parseTo=5"
 # https://aniliberty.top/api/v1/anime/torrents?limit=50&page=60
+
+# LeProduction (LE-Production.TV)
+*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/leproduction/parse"
+# curl "http://127.0.0.1:9117/cron/leproduction/parse?parseFrom=1&parseTo=5"

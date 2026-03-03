@@ -71,6 +71,13 @@ namespace JacRed.Engine
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // LeProduction: .../index.php?do=download&id=7048 — ID раздачи в query
+            if (string.Equals(trackerName, "leproduction", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"[?&]id=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
             return 0;
         }
 
