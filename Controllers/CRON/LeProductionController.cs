@@ -361,6 +361,7 @@ namespace JacRed.Controllers.CRON
                 }
                 if (createTime == default)
                     createTime = DateTime.UtcNow;
+                DateTime updateTime = DateTime.UtcNow;
 
                 string fileName = Match(torrentBlock, @"info_d1-le""[^>]*>([^<]+)", 1);
                 int qualityFromFile = 0;
@@ -416,7 +417,7 @@ namespace JacRed.Controllers.CRON
                     sid = sid,
                     pir = pir,
                     createTime = createTime,
-                    updateTime = createTime,
+                    updateTime = updateTime,
                     name = name,
                     originalname = originalname,
                     relased = relased,
