@@ -378,7 +378,9 @@ namespace JacRed.Controllers.CRON
                         videotypeFromFile = "hdr";
                 }
 
-                string torrentUrl = $"{baseUrl.TrimEnd('/')}/index.php?do=download&id={torrentId}";
+                string torrentUrl = releaseUrl.IndexOf('?') >= 0
+                    ? $"{releaseUrl}&id={torrentId}"
+                    : $"{releaseUrl}?id={torrentId}";
 
                 string title = listTitle;
                 if (!string.IsNullOrWhiteSpace(sizeName))
