@@ -384,6 +384,15 @@
             </svg>
             <span>Главная</span>
           </a>
+          <button type="button" id="apiKeyBtn"
+            class="tap-target inline-flex items-center justify-center gap-1.5 sm:gap-2 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-transparent shrink-0"
+            aria-label="Установить API ключ" title="Установить API ключ">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span class="hidden sm:inline">API ключ</span>
+          </button>
           <button id="refreshBtn"
             class="inline-flex items-center justify-center gap-1.5 sm:gap-2 h-9 min-w-[44px] px-2.5 sm:px-3 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-medium shadow shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors group shrink-0"
             type="button" aria-label="Обновить статистику">
@@ -491,6 +500,30 @@
       </div>
     </div>
 
+    <div id="apiKeyModal" class="transition-ui fixed inset-0 z-[100] hidden" aria-modal="true"
+      aria-labelledby="apiKeyModalTitle" role="dialog">
+      <div class="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm" id="apiKeyModalBackdrop"></div>
+      <div class="relative flex min-h-full items-center justify-center p-4">
+        <div
+          class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 animate-fade-in">
+          <h2 id="apiKeyModalTitle" class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Установить API
+            ключ</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ключ используется для поиска и статистики. Сохраняется в
+            браузере.</p>
+          <input type="password" id="apiKeyInput" autocomplete="new-password"
+            class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            placeholder="Введите ключ API" />
+          <p id="apiKeyModalError" class="text-sm text-red-500 dark:text-red-400 mb-4 hidden" role="alert"></p>
+          <div class="flex gap-3 justify-end">
+            <button type="button" id="apiKeyModalCancel"
+              class="px-4 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Отмена</button>
+            <button type="button" id="apiKeyModalSave"
+              class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="emptyState" class="hidden text-center py-16 animate-fade-in" role="status" aria-live="polite">
       <svg class="w-16 h-16 text-gray-400 dark:text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor"
         viewBox="0 0 24 24" aria-hidden="true">
@@ -529,6 +562,11 @@
         return url + sep + 'apikey=' + encodeURIComponent(key);
       };
 
+      const API_BASE = '/api/v1.0';
+      const CONF_TIMEOUT_MS = 5000;
+
+      let openApiKeyModalRef = null;
+
       const CONFIG = Object.freeze({
         API_URL: '/stats/torrents',
         LAST_UPDATE_URL: '/lastupdatedb',
@@ -544,6 +582,28 @@
 
       const isDesktopViewport = () =>
         window.matchMedia(`(min-width: ${CONFIG.VIEW_BREAKPOINT}px)`).matches;
+
+      const getModalFocusables = (modal) => {
+        if (!modal) return [];
+        return Array.from(modal.querySelectorAll(
+          'input:not([disabled]), button:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]'
+        )).filter(el => el.tabIndex !== -1);
+      };
+
+      const setupModalFocusTrap = (modal) => {
+        if (!modal) return;
+        modal.addEventListener('keydown', (e) => {
+          if (e.key !== 'Tab') return;
+          const focusables = getModalFocusables(modal);
+          if (!focusables.length) return;
+          const idx = focusables.indexOf(document.activeElement);
+          if (e.shiftKey) {
+            if (idx <= 0) { focusables[focusables.length - 1].focus(); e.preventDefault(); }
+          } else {
+            if (idx === -1 || idx >= focusables.length - 1) { focusables[0].focus(); e.preventDefault(); }
+          }
+        });
+      };
 
       const debounce = (func, wait) => {
         let timeout;
@@ -1074,11 +1134,12 @@
 
         } catch (err) {
           console.error('Ошибка загрузки данных:', err);
-          elements.errorMessage.textContent =
-            (err && err.message)
-              ? err.message
-              : 'Не удалось загрузить данные. Проверьте подключение и попробуйте снова.';
+          const is401 = err && String(err.message).includes('401');
+          elements.errorMessage.textContent = is401
+            ? 'Требуется API ключ. Нажмите «API ключ» и введите ключ.'
+            : ((err && err.message) ? err.message : 'Не удалось загрузить данные. Проверьте подключение и попробуйте снова.');
           elements.error.classList.remove('hidden');
+          if (is401 && openApiKeyModalRef) openApiKeyModalRef();
         } finally {
           elements.loading.classList.add('hidden');
           elements.refreshBtn.disabled = false;
@@ -1157,7 +1218,8 @@
           'tablePagination', 'paginationInfo', 'paginationPrev', 'paginationNext',
           'emptyState', 'refreshBtn', 'refreshBtnText', 'refreshIcon', 'lastUpdate',
           'toggleNumbers', 'toggleWidth', 'toggleView', 'toggleTheme',
-          'iconMoon', 'iconSun', 'backToTop', 'homeLink'
+          'iconMoon', 'iconSun', 'backToTop', 'homeLink', 'apiKeyModal', 'apiKeyInput',
+          'apiKeyModalError', 'apiKeyModalSave', 'apiKeyModalCancel', 'apiKeyModalBackdrop'
         ];
 
         const missing = [];
@@ -1179,6 +1241,76 @@
         elements.sortSelect.addEventListener('change', handleSortChange);
         elements.refreshBtn.addEventListener('click', load);
         elements.retryBtn.addEventListener('click', load);
+
+        const apiKeyModal = elements.apiKeyModal;
+        const apiKeyInput = elements.apiKeyInput;
+        const apiKeyModalError = elements.apiKeyModalError;
+        const apiKeyModalSave = elements.apiKeyModalSave;
+        const apiKeyModalCancel = elements.apiKeyModalCancel;
+        const apiKeyModalBackdrop = elements.apiKeyModalBackdrop;
+        let apiKeyModalTrigger = null;
+
+        setupModalFocusTrap(apiKeyModal);
+
+        const openApiKeyModal = () => {
+          if (!apiKeyModal || !apiKeyInput) return;
+          apiKeyModalTrigger = document.getElementById('apiKeyBtn');
+          apiKeyInput.value = LS.get('api_key');
+          if (apiKeyModalError) { apiKeyModalError.classList.add('hidden'); apiKeyModalError.textContent = ''; }
+          apiKeyModal.classList.remove('hidden');
+          setTimeout(() => { const f = getModalFocusables(apiKeyModal)[0]; if (f) f.focus(); else apiKeyInput.focus(); }, 50);
+        };
+        openApiKeyModalRef = openApiKeyModal;
+
+        const closeApiKeyModal = () => {
+          if (apiKeyModal) apiKeyModal.classList.add('hidden');
+          if (apiKeyModalTrigger) { apiKeyModalTrigger.focus(); apiKeyModalTrigger = null; }
+        };
+
+        const saveApiKeyFromModal = () => {
+          const key = (apiKeyInput?.value || '').trim();
+          if (!key) {
+            if (apiKeyModalError) { apiKeyModalError.textContent = 'Введите ключ'; apiKeyModalError.classList.remove('hidden'); }
+            return;
+          }
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), CONF_TIMEOUT_MS);
+          fetch(API_BASE + '/conf?apikey=' + encodeURIComponent(key), { signal: controller.signal })
+            .then(r => r.json())
+            .then(json => {
+              clearTimeout(timeoutId);
+              if (json.apikey) {
+                LS.set('api_key', key);
+                closeApiKeyModal();
+                elements.error.classList.add('hidden');
+                load();
+              } else {
+                if (apiKeyModalError) { apiKeyModalError.textContent = 'Ключ неверный или не принят сервером'; apiKeyModalError.classList.remove('hidden'); }
+              }
+            })
+            .catch(err => {
+              clearTimeout(timeoutId);
+              if (apiKeyModalError) {
+                apiKeyModalError.textContent = err?.name === 'AbortError' ? 'Истекло время ожидания' : 'Ошибка проверки ключа';
+                apiKeyModalError.classList.remove('hidden');
+              }
+            });
+        };
+
+        document.getElementById('apiKeyBtn')?.addEventListener('click', openApiKeyModal);
+        apiKeyModalCancel?.addEventListener('click', closeApiKeyModal);
+        apiKeyModalBackdrop?.addEventListener('click', closeApiKeyModal);
+        apiKeyModalSave?.addEventListener('click', saveApiKeyFromModal);
+        apiKeyInput?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); saveApiKeyFromModal(); }
+          else if (e.key === 'Escape') { e.preventDefault(); closeApiKeyModal(); }
+        });
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key !== 'Escape') return;
+          if (apiKeyModal && !apiKeyModal.classList.contains('hidden')) { e.preventDefault(); closeApiKeyModal(); }
+        });
+
         elements.toggleNumbers.addEventListener('click', handleToggleNumbers);
         elements.toggleWidth.addEventListener('click', handleToggleWidth);
         elements.toggleView.addEventListener('click', handleToggleView);
