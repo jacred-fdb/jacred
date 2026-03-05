@@ -158,8 +158,7 @@ namespace JacRed.Engine.Middlewares
                 // Behind tunnel/proxy: require devkey for /dev/, /cron/, /jsondb
                 if (IsLocalOnlyPath(path) && !string.IsNullOrEmpty(AppInit.conf?.devkey) && !DevKeyMatches(httpContext))
                 {
-                    if (ShouldSetPrivateNetworkHeader(fromLocalNetwork, path))
-                        SetPrivateNetworkHeader(httpContext);
+                    SetPrivateNetworkHeader(httpContext);
                     httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 401;
                     return;
                 }
@@ -196,7 +195,7 @@ namespace JacRed.Engine.Middlewares
             if (isCron && cronStopwatch != null)
             {
                 cronStopwatch.Stop();
-                var label = isCron ? path.Substring(6) : path.TrimStart('/');
+                var label = path.Substring(6);
                 var elapsed = cronStopwatch.ElapsedMilliseconds >= 1000
                     ? $"{cronStopwatch.Elapsed.TotalSeconds:F1}s"
                     : $"{cronStopwatch.ElapsedMilliseconds}ms";
