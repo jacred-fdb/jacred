@@ -73,7 +73,7 @@ namespace JacRed.Engine.Middlewares
                 // External: require API key when configured
                 if (!string.IsNullOrEmpty(AppInit.conf.apikey))
                 {
-                    if (httpContext.Request.Path.Value == "/" || Regex.IsMatch(httpContext.Request.Path.Value, "^/(api/v1\\.0/conf|stats/|sync/)"))
+                    if (httpContext.Request.Path.Value == "/" || Regex.IsMatch(httpContext.Request.Path.Value, "^/(api/v1\\.0/conf|stats(/.*)?|sync/)"))
                     {
                         await _next(httpContext);
                         return;

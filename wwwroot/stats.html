@@ -516,6 +516,19 @@
     (function () {
       'use strict';
 
+      const LS = {
+        get: (key) => { try { return localStorage.getItem(key) || ''; } catch (_) { return ''; } },
+        set: (key, value) => { try { localStorage.setItem(key, value); } catch (e) { console.warn('localStorage.setItem(' + key + ') failed:', e); } },
+        remove: (key) => { try { localStorage.removeItem(key); } catch (e) { console.warn('localStorage.removeItem(' + key + ') failed:', e); } }
+      };
+
+      const appendApiKey = (url) => {
+        const key = LS.get('api_key');
+        if (!key) return url;
+        const sep = url.indexOf('?') >= 0 ? '&' : '?';
+        return url + sep + 'apikey=' + encodeURIComponent(key);
+      };
+
       const CONFIG = Object.freeze({
         API_URL: '/stats/torrents',
         LAST_UPDATE_URL: '/lastupdatedb',
@@ -981,7 +994,7 @@
         const timerId = setTimeout(() => controller.abort(), CONFIG.LAST_UPDATE_TIMEOUT_MS);
 
         try {
-          const response = await fetch(CONFIG.LAST_UPDATE_URL, { signal: controller.signal });
+          const response = await fetch(appendApiKey(CONFIG.LAST_UPDATE_URL), { signal: controller.signal });
           clearTimeout(timerId);
 
           if (!response.ok) {
@@ -1030,7 +1043,7 @@
         elements.refreshIcon.classList.add('spinner');
 
         try {
-          const raw = await fetchWithRetry(CONFIG.API_URL);
+          const raw = await fetchWithRetry(appendApiKey(CONFIG.API_URL));
 
           if (typeof raw !== 'string' || raw.trim() === '') {
             throw new Error(
