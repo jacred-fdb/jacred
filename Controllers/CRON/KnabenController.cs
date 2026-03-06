@@ -176,7 +176,7 @@ namespace JacRed.Controllers.CRON
                 {
                     var dir = "Data/temp";
                     if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
-                    System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "knaben_error.json"),
+                    System.IO.File.WriteAllText(System.IO.Path.Join(dir, "knaben_error.json"),
                         JsonConvert.SerializeObject(new { request = json, response = response, error = ex.Message }, Formatting.Indented));
                 }
                 catch (Exception writeEx)
