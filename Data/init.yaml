@@ -8,12 +8,12 @@ openstats: true
 opensync: false
 opensync_v1: false
 web: true
-log: true
+log: false
 logFdb: false
 logFdbRetentionDays: 7
 logFdbMaxSizeMb: 0
 logFdbMaxFiles: 0
-logParsers: true
+logParsers: false
 syncapi: ""
 synctrackers:
   - rutracker
@@ -48,11 +48,6 @@ tracksinterval:
   task0: 180
 tsuri:
   - http://127.0.0.1:8090
-Knaben:
-  host: https://api.knaben.org
-  useproxy: false
-  reqMinute: 120
-  log: true
 timeStatsUpdate: 15
 timeSync: 120
 timeSyncSpidr: 360
