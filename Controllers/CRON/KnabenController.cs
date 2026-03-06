@@ -156,7 +156,7 @@ namespace JacRed.Controllers.CRON
             if (AppInit.conf?.Knaben == null) return null;
 
             var json = JsonConvert.SerializeObject(req, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-            var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
+            using var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
 
             string response = await HttpClient.Post(ApiUrl, content, timeoutSeconds: 15, useproxy: AppInit.conf.Knaben.useproxy);
             if (string.IsNullOrWhiteSpace(response))
