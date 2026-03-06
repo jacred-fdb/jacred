@@ -49,7 +49,6 @@ jobs:
   build-docker-image:
     name: Build and push Docker image
     needs: extract-version
-    if: github.event_name != 'pull_request'
     permissions:
       actions: read
       contents: write
@@ -73,7 +72,9 @@ jobs:
 
   upload-release-assets:
     name: Attach artifacts to release
-    needs: [extract-version, build]
+    needs:
+      - extract-version
+      - build
     if: needs.extract-version.outputs.is_release == 'true'
     uses: ./.github/workflows/reusable-upload-release-assets.yml
     with:
