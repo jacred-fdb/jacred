@@ -64,6 +64,10 @@ namespace JacRed.Engine
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // Baibako: details.php?id=42075 или /details.php?id=42075
+            if (string.Equals(trackerName, "baibako", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"details\.php\?id=(\d+)", RegexOptions.IgnoreCase);
             // Selezen: .../relizy-ot-selezen/12292-slug-name.html — ID перед первым дефисом
             if (string.Equals(trackerName, "selezen", StringComparison.OrdinalIgnoreCase))
             {
