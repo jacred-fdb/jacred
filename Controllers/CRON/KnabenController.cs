@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -96,7 +97,7 @@ namespace JacRed.Controllers.CRON
             var parsed = parts
                 .Select(p => int.TryParse(p.Trim(), out int id) ? id : (int?)null)
                 .Where(x => x.HasValue)
-                .Select(x => x.Value)
+                .Select(x => x!.Value)
                 .ToArray();
             return parsed.Length > 0 ? parsed : DefaultCategories;
         }
@@ -137,10 +138,40 @@ namespace JacRed.Controllers.CRON
                     new Dictionary<string, object> { { "fetched", totalFetched }, { "added", added }, { "updated", updated }, { "skipped", skipped }, { "failed", failed } });
                 return $"fetched={totalFetched} +{added} ~{updated} ={skipped} failed={failed}";
             }
+            catch (TaskCanceledException tce)
+            {
+                ParserLog.Write(TrackerName, "Timeout", new Dictionary<string, object>
+                {
+                    { "message", tce.Message },
+                    { "type", tce.GetType().Name },
+                    { "exception", tce }
+                });
+                return $"error: {tce.Message}";
+            }
             catch (OperationCanceledException oce)
             {
                 ParserLog.Write(TrackerName, "Canceled", new Dictionary<string, object> { { "message", oce.Message } });
                 return "canceled";
+            }
+            catch (HttpRequestException httpEx)
+            {
+                ParserLog.Write(TrackerName, "HttpError", new Dictionary<string, object>
+                {
+                    { "message", httpEx.Message },
+                    { "type", httpEx.GetType().Name },
+                    { "exception", httpEx }
+                });
+                return $"error: {httpEx.Message}";
+            }
+            catch (JsonException jsonEx)
+            {
+                ParserLog.Write(TrackerName, "JsonError", new Dictionary<string, object>
+                {
+                    { "message", jsonEx.Message },
+                    { "type", jsonEx.GetType().Name },
+                    { "exception", jsonEx }
+                });
+                return $"error: {jsonEx.Message}";
             }
             catch (Exception ex)
             {
