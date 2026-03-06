@@ -79,7 +79,7 @@ jobs:
           ref: ${{ steps.checkout_ref.outputs.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5.1.0
+        uses: actions/setup-dotnet@v5.2.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
