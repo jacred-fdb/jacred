@@ -31,156 +31,28 @@ permissions:
   id-token: write
 
 jobs:
+  extract-version:
+    name: Extract version
+    uses: ./.github/workflows/reusable-extract-version.yml
+    with:
+      tag: ${{ inputs.tag }}
+      checkout_ref: ${{ inputs.checkout_ref }}
+    secrets: inherit
+
   build:
-    name: ${{ matrix.artifact_name }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runtime: linux-arm64
-            output_dir: linux-arm64
-            artifact_name: jacred-linux-arm64
-          - runtime: linux-x64
-            output_dir: linux-amd64
-            artifact_name: jacred-linux-amd64
-          - runtime: win-x64
-            output_dir: windows-x64
-            artifact_name: jacred-windows-x64
-          - runtime: osx-arm64
-            output_dir: osx-arm64
-            artifact_name: jacred-osx-arm64
-          - runtime: osx-x64
-            output_dir: osx-amd64
-            artifact_name: jacred-osx-amd64
-    steps:
-      - name: Determine checkout ref
-        id: checkout_ref
-        run: |
-          # Use input checkout_ref if provided (from workflow_call), otherwise use github.ref
-          if [ -n "${{ inputs.checkout_ref }}" ]; then
-            REF="${{ inputs.checkout_ref }}"
-            echo "Using checkout_ref from workflow_call: $REF"
-          else
-            REF="${{ github.ref }}"
-            if [[ "$REF" == refs/tags/* ]]; then
-              TAG_NAME="${REF#refs/tags/}"
-              echo "Using tag push event: $TAG_NAME"
-            else
-              echo "Using default ref: $REF"
-            fi
-          fi
-          echo "ref=$REF" >> "$GITHUB_OUTPUT"
-          echo "Checking out ref: $REF"
-
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          ref: ${{ steps.checkout_ref.outputs.ref }}
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5.2.0
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Dotnet format code
-        run: dotnet format JacRed.csproj --verify-no-changes
-        working-directory: ./
-        continue-on-error: false
-      - name: Restore
-        run: dotnet restore --verbosity minimal
-
-      - name: Publish ${{ matrix.artifact_name }}
-        run: |
-          dotnet publish JacRed.csproj \
-            --configuration Release \
-            --runtime ${{ matrix.runtime }} \
-            --output ${{ runner.temp }}/${{ matrix.output_dir }} \
-            --self-contained true \
-            -p:PublishTrimmed=false \
-            -p:PublishSingleFile=true \
-            -p:DebugType=None \
-            -p:EnableCompressionInSingleFile=true \
-            -p:OptimizationPreference=Speed \
-            -p:SuppressTrimAnalysisWarnings=true \
-            -p:IlcOptimizationPreference=Speed \
-            -p:IlcFoldIdenticalMethodBodies=true \
-            --verbosity minimal
-
-      - name: Upload artifact ${{ matrix.artifact_name }}
-        uses: actions/upload-artifact@v7.0.0
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ runner.temp }}/${{ matrix.output_dir }}
-          retention-days: ${{ (inputs.tag != '' || startsWith(github.ref, 'refs/tags/')) && 30 || 7 }}
-
-  extract-docker-version:
-    name: Version for Docker
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag_latest: ${{ steps.version.outputs.tag_latest }}
-      checkout_ref: ${{ steps.version.outputs.checkout_ref }}
-    steps:
-      - name: Set version
-        id: version
-        run: |
-          # Use input tag if provided (from workflow_call), otherwise detect from ref
-          if [ -n "${{ inputs.tag }}" ]; then
-            TAG_NAME="${{ inputs.tag }}"
-            echo "Using tag from workflow_call: $TAG_NAME"
-            # Release name equals tag name, so use tag name directly
-            # Check tag name pattern to determine if it's a pre-release
-            # Pre-releases typically contain -dev, -alpha, -beta, -rc, etc.
-            if [[ "$TAG_NAME" =~ -(dev|alpha|beta|rc|pre) ]]; then
-              prerelease="true"
-              echo "Detected pre-release from tag pattern: $TAG_NAME"
-            else
-              prerelease="false"
-              echo "Detected full release from tag pattern: $TAG_NAME"
-            fi
-            v="$TAG_NAME"
-            # Use input checkout_ref if provided, otherwise construct from tag
-            if [ -n "${{ inputs.checkout_ref }}" ]; then
-              checkout_ref="${{ inputs.checkout_ref }}"
-            else
-              checkout_ref="refs/tags/$TAG_NAME"
-            fi
-          else
-            # Fallback to detecting from github.ref (for push/pull_request events)
-            REF="${{ github.ref }}"
-            if [[ "$REF" == refs/tags/* ]]; then
-              TAG_NAME="${REF#refs/tags/}"
-              echo "Detected tag push: $TAG_NAME"
-              # Release name equals tag name, so use tag name directly
-              # Check tag name pattern to determine if it's a pre-release
-              # Pre-releases typically contain -dev, -alpha, -beta, -rc, etc.
-              if [[ "$TAG_NAME" =~ -(dev|alpha|beta|rc|pre) ]]; then
-                prerelease="true"
-                echo "Detected pre-release from tag pattern: $TAG_NAME"
-              else
-                prerelease="false"
-                echo "Detected full release from tag pattern: $TAG_NAME"
-              fi
-              v="$TAG_NAME"
-              checkout_ref="$REF"
-            else
-              v=""
-              prerelease="true"
-              checkout_ref="$REF"
-              echo "Not a tag push, using default ref"
-            fi
-          fi
-          # Strip only leading 'v' so 2.0.0-dev2 and v2.0.0-dev2 both become 2.0.0-dev2
-          [ -n "$v" ] && v="${v#v}" || true
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
-          # Tag as 'latest' only for full releases (not pre-releases)
-          [ "$prerelease" = "false" ] && echo "tag_latest=true" >> "$GITHUB_OUTPUT" || echo "tag_latest=false" >> "$GITHUB_OUTPUT"
+    name: .NET build
+    needs: extract-version
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      checkout_ref: ${{ needs.extract-version.outputs.checkout_ref }}
+      dotnet_version: ${{ env.DOTNET_VERSION }}
+      retention_days: ${{ needs.extract-version.outputs.is_release == 'true' && 30 || 7 }}
+    secrets: inherit
 
   build-docker-image:
     name: Build and push Docker image
-    needs: extract-docker-version
+    needs: extract-version
+    if: github.event_name != 'pull_request'
     permissions:
       actions: read
       contents: write
@@ -191,64 +63,23 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build.yml
     with:
       image: ${{ vars.IMAGE_NAME || 'jacred' }}
-      version: ${{ needs.extract-docker-version.outputs.version }}
-      tag_latest: ${{ needs.extract-docker-version.outputs.tag_latest }}
-      checkout_ref: ${{ needs.extract-docker-version.outputs.checkout_ref }}
+      version: ${{ needs.extract-version.outputs.version }}
+      tag_latest: ${{ needs.extract-version.outputs.tag_latest }}
+      checkout_ref: ${{ needs.extract-version.outputs.checkout_ref }}
       push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
       attest_github: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
       sbom: true
       provenance: "mode=max"
       generate_syft_sbom: true
       sbom_artifact_retention_days: ${{ (inputs.tag != '' || startsWith(github.ref, 'refs/tags/')) && 30 || 7 }}
+    secrets: inherit
 
   upload-release-assets:
     name: Attach artifacts to release
-    needs: build
-    if: inputs.tag != '' || startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Extract tag name
-        id: set_tag
-        run: |
-          # Use input tag if provided (from workflow_call), otherwise extract from GITHUB_REF
-          if [ -n "${{ inputs.tag }}" ]; then
-            TAG_NAME="${{ inputs.tag }}"
-          else
-            TAG_NAME="${GITHUB_REF#refs/tags/}"
-          fi
-          echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v8.0.0
-        with:
-          pattern: "jacred-*-*"
-          path: artifacts
-          merge-multiple: false
-
-      - name: Create release archives
-        id: archives
-        run: |
-          set -e
-          RELEASE_DIR=release-files
-          mkdir -p "$RELEASE_DIR"
-
-          for artifact_dir in artifacts/*/; do
-            name=$(basename "$artifact_dir")
-            (cd "$artifact_dir" && zip -r "../../$RELEASE_DIR/${name}.zip" .)
-          done
-
-          {
-            echo 'files<<EOF'
-            ls -1 "$RELEASE_DIR"/*.zip
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.set_tag.outputs.tag }}
-          files: ${{ steps.archives.outputs.files }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    needs: [extract-version, build]
+    if: needs.extract-version.outputs.is_release == 'true'
+    uses: ./.github/workflows/reusable-upload-release-assets.yml
+    with:
+      tag: ${{ needs.extract-version.outputs.release_tag }}
+      artifact_pattern: "jacred-*-*"
+    secrets: inherit
