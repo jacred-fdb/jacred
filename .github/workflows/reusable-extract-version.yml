@@ -93,8 +93,10 @@ jobs:
           fi
           # Strip only leading 'v' for version (Docker)
           [ -n "$v" ] && v="${v#v}" || true
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
-          echo "is_release=$is_release" >> "$GITHUB_OUTPUT"
-          [ "$prerelease" = "false" ] && echo "tag_latest=true" >> "$GITHUB_OUTPUT" || echo "tag_latest=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$v"
+            echo "release_tag=$release_tag"
+            echo "checkout_ref=$checkout_ref"
+            echo "is_release=$is_release"
+            [ "$prerelease" = "false" ] && echo "tag_latest=true" || echo "tag_latest=false"
+          } >> "$GITHUB_OUTPUT"

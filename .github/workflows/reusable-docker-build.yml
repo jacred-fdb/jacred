@@ -95,9 +95,9 @@ on:
 
     outputs:
       tags:
-        value: ${{ jobs.build.outputs.tags }}
+        value: ${{ jobs.build-docker.outputs.tags }}
       digest:
-        value: ${{ jobs.build.outputs.digest }}
+        value: ${{ jobs.build-docker.outputs.digest }}
 
 jobs:
   build-docker:
