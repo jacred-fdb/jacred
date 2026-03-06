@@ -190,13 +190,7 @@ namespace JacRed.Controllers.CRON
             var resp = await ApiRequestAsync(req);
             if (resp?.Hits == null || resp.Hits.Count == 0) return new List<TorrentDetails>();
 
-            var list = new List<TorrentDetails>();
-            foreach (var h in resp.Hits)
-            {
-                var t = MapToTorrentDetails(h);
-                if (t != null) list.Add(t);
-            }
-            return list;
+            return resp.Hits.Select(MapToTorrentDetails).Where(t => t != null).ToList();
         }
 
         #endregion
