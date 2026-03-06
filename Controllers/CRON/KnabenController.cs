@@ -144,7 +144,12 @@ namespace JacRed.Controllers.CRON
             }
             catch (Exception ex)
             {
-                ParserLog.Write(TrackerName, "Error", new Dictionary<string, object> { { "message", ex.Message } });
+                ParserLog.Write(TrackerName, "Error", new Dictionary<string, object>
+                {
+                    { "message", ex.Message },
+                    { "type", ex.GetType().Name },
+                    { "exception", ex }
+                });
                 return $"error: {ex.Message}";
             }
         }
