@@ -34,6 +34,7 @@
   <ItemGroup>
     <None Include="wwwroot\css\*" />
     <None Include="wwwroot\img\*.svg" />
+    <None Include="wwwroot\img\ico\*" />
     <None Include="wwwroot\index.html" />
     <None Include="wwwroot\js\*" />
   </ItemGroup>

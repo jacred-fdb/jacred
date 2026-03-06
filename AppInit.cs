@@ -165,6 +165,7 @@ namespace JacRed
                 case "animelayer": return conf.Animelayer.log;
                 case "baibako": return conf.Baibako.log;
                 case "bitru": return conf.Bitru.log;
+                case "knaben": return conf.Knaben.log;
                 case "kinozal": return conf.Kinozal.log;
                 case "lostfilm": return conf.Lostfilm.log;
                 case "mazepa": return conf.Mazepa.log;
@@ -302,6 +303,8 @@ namespace JacRed
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
         public TrackerSettings Aniliberty = new TrackerSettings("https://aniliberty.top");
+
+        public TrackerSettings Knaben = new TrackerSettings("https://api.knaben.org");
 
         // TODO: fix parser
         public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");

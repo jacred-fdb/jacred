@@ -47,7 +47,10 @@
 
 # BitruApi: официальный API (5 req/sec), movie+serial
 */20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitruapi/parse"
-# Разово подтянуть торренты после даты: curl -s "http://127.0.0.1:9117/cron/bitruapi/ParseFromDate?lastnewtor=23.10.2025"
+
+# Knaben: API v1, TV + Movies
+*/20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/knaben/parse"
+# pages=3 | query=Breaking+Bad | hours=24 | orderBy=seeders | categories=2001000,3001000
 
 # Animelayer
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
