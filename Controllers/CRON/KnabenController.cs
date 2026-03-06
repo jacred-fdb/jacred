@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -75,7 +74,7 @@ namespace JacRed.Controllers.CRON
             string orderBy = "date",
             string categories = null)
         {
-            if (!TryStartParse()) { ParserLog.Write(TrackerName, "Skipped — already running"); return "work"; }
+            if (!TryStartParse()) return "work";
             try
             {
                 if (!EnsureConfig()) return "config missing";
@@ -138,49 +137,15 @@ namespace JacRed.Controllers.CRON
                     new Dictionary<string, object> { { "fetched", totalFetched }, { "added", added }, { "updated", updated }, { "skipped", skipped }, { "failed", failed } });
                 return $"fetched={totalFetched} +{added} ~{updated} ={skipped} failed={failed}";
             }
-            catch (TaskCanceledException tce)
-            {
-                ParserLog.Write(TrackerName, "Timeout", new Dictionary<string, object>
-                {
-                    { "message", tce.Message },
-                    { "type", tce.GetType().Name },
-                    { "exception", tce }
-                });
-                return $"error: {tce.Message}";
-            }
             catch (OperationCanceledException oce)
             {
                 ParserLog.Write(TrackerName, "Canceled", new Dictionary<string, object> { { "message", oce.Message } });
                 return "canceled";
             }
-            catch (HttpRequestException httpEx)
-            {
-                ParserLog.Write(TrackerName, "HttpError", new Dictionary<string, object>
-                {
-                    { "message", httpEx.Message },
-                    { "type", httpEx.GetType().Name },
-                    { "exception", httpEx }
-                });
-                return $"error: {httpEx.Message}";
-            }
-            catch (JsonException jsonEx)
-            {
-                ParserLog.Write(TrackerName, "JsonError", new Dictionary<string, object>
-                {
-                    { "message", jsonEx.Message },
-                    { "type", jsonEx.GetType().Name },
-                    { "exception", jsonEx }
-                });
-                return $"error: {jsonEx.Message}";
-            }
             catch (Exception ex)
             {
-                ParserLog.Write(TrackerName, "Error", new Dictionary<string, object>
-                {
-                    { "message", ex.Message },
-                    { "type", ex.GetType().Name },
-                    { "exception", ex }
-                });
+                if (ex is OutOfMemoryException) throw;
+                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
                 return $"error: {ex.Message}";
             }
         }
