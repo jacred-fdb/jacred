@@ -179,7 +179,10 @@ namespace JacRed.Controllers.CRON
                     System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "knaben_error.json"),
                         JsonConvert.SerializeObject(new { request = json, response = response, error = ex.Message }, Formatting.Indented));
                 }
-                catch { }
+                catch (Exception writeEx)
+                {
+                    ParserLog.Write(TrackerName, "Write diagnostic file failed", new Dictionary<string, object> { { "error", writeEx.Message } });
+                }
                 return null;
             }
         }
