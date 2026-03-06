@@ -228,7 +228,7 @@ namespace JacRed.Controllers.CRON
                 url = $"https://knaben.xyz/?id={h.Id}"; // Fallback when API returns only Id
             if (string.IsNullOrWhiteSpace(url)) return null;
 
-            var title = HttpUtility.HtmlDecode(h.Title?.Trim() ?? "");
+            var title = HttpUtility.HtmlDecode(h.Title.Trim());
             var createTime = ParseDate(h.Date) ?? ParseDate(h.LastSeen) ?? DateTime.UtcNow;
             var updateTime = ParseDate(h.LastSeen) ?? createTime;
             var (name, relased) = ParseNameAndYear(title);
