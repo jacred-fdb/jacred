@@ -30,6 +30,8 @@ permissions:
 jobs:
   extract-version:
     name: Extract version
+    permissions:
+      actions: read
     uses: ./.github/workflows/reusable-extract-version.yml
     with:
       tag: ${{ inputs.tag }}
@@ -72,6 +74,8 @@ jobs:
 
   upload-release-assets:
     name: Attach artifacts to release
+    permissions:
+      contents: write
     needs:
       - extract-version
       - build
