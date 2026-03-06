@@ -93,10 +93,12 @@ namespace JacRed.Controllers.CRON
         {
             if (string.IsNullOrWhiteSpace(s)) return DefaultCategories;
             var parts = s.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var list = new List<int>();
-            foreach (var p in parts)
-                if (int.TryParse(p.Trim(), out int id)) list.Add(id);
-            return list.Count > 0 ? list.ToArray() : DefaultCategories;
+            var parsed = parts
+                .Select(p => int.TryParse(p.Trim(), out int id) ? id : (int?)null)
+                .Where(x => x.HasValue)
+                .Select(x => x.Value)
+                .ToArray();
+            return parsed.Length > 0 ? parsed : DefaultCategories;
         }
 
         async Task<string> ParseCore(int from, int size, int pages, string query, int hours, string orderBy, int[] categories)
