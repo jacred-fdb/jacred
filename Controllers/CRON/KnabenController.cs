@@ -165,26 +165,7 @@ namespace JacRed.Controllers.CRON
                 return null;
             }
 
-            try
-            {
-                return JsonConvert.DeserializeObject<KnabenApiResponse>(response);
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, "Parse response failed", new Dictionary<string, object> { { "error", ex.Message } });
-                try
-                {
-                    var dir = "Data/temp";
-                    if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
-                    System.IO.File.WriteAllText(System.IO.Path.Join(dir, "knaben_error.json"),
-                        JsonConvert.SerializeObject(new { request = json, response = response, error = ex.Message }, Formatting.Indented));
-                }
-                catch (Exception writeEx)
-                {
-                    ParserLog.Write(TrackerName, "Write diagnostic file failed", new Dictionary<string, object> { { "error", writeEx.Message } });
-                }
-                return null;
-            }
+            return JsonConvert.DeserializeObject<KnabenApiResponse>(response);
         }
 
         async Task<List<TorrentDetails>> FetchTorrentsFromApi(int from, int size, int? secondsSince, string query, string orderBy, int[] categories)
