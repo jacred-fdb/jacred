@@ -15,11 +15,6 @@ on:
         required: false
         default: "jacred-*-*"
 
-    secrets:
-      GITHUB_TOKEN:
-        description: "GitHub token for release upload"
-        required: true
-
 jobs:
   upload-release-assets:
     name: Attach artifacts to release
