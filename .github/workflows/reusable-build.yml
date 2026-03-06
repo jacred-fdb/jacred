@@ -37,6 +37,8 @@ on:
 jobs:
   build:
     name: ${{ matrix.artifact_name }}
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

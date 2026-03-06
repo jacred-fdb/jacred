@@ -1,6 +1,8 @@
 ---
 name: Reusable Extract Version
 
+permissions: {}
+
 on:
   workflow_call:
     inputs:
