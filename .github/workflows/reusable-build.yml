@@ -46,10 +46,10 @@ jobs:
         include:
           - runtime: linux-x64
             output_dir: linux-x64
-            artifact_name: jacred-linux-x64
+            artifact_name: jacred-linux-amd64
           - runtime: linux-musl-x64
             output_dir: linux-musl-x64
-            artifact_name: jacred-linux-musl-x64
+            artifact_name: jacred-linux-musl-amd64
           - runtime: linux-musl-arm64
             output_dir: linux-musl-arm64
             artifact_name: jacred-linux-musl-arm64
