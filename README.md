@@ -413,7 +413,7 @@ Anifilm, AniLibria, HDRezka.
 
 ## Docker
 
-Образ можно запускать через **Docker** или **Docker Compose**. Конфигурация (`init.yaml` или `init.conf`) и данные (база fdb, логи) хранятся в томах; при первом запуске из образа копируются файлы по умолчанию из **`Data/`**.
+Образ можно запускать через **Docker** или **Docker Compose**. Конфигурация (`init.yaml` или `init.conf`) и данные (база fdb, логи) хранятся в томах или bind-монтированных каталогах. При первом запуске конфиг по умолчанию копируется автоматически (поддерживаются и named volumes, и bind mounts).
 
 ### Docker Run
 
@@ -428,6 +428,8 @@ docker run -d \
 ```
 
 ### Docker Compose
+
+**Вариант с named volumes** (рекомендуется):
 
 ```yaml
 name: jacred
@@ -461,9 +463,19 @@ volumes:
   jacred-data:
 ```
 
+**Вариант с bind mounts** (удобно для доступа к файлам на хосте) — замените блок `volumes` в сервисе на:
+
+```yaml
+volumes:
+  - ./config:/app/config
+  - ./data:/app/Data
+```
+
+Готовые примеры: **`docker/docker-compose.yml`** (bind mounts), **`docker-compose.example.yml`** (named volumes).
+
 **Полезно:**
 
-- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` (на хосте: каталог тома в `docker volume inspect jacred-config` → `Mountpoint`). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера.
+- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` или каталоге `./config` (при bind mount). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера.
 - **Порты:** веб-интерфейс и API доступны на порту **9117** (при необходимости измените маппинг `ports` и `listenport` в конфиге).
 - **Память:** при большой базе или активном парсинге увеличьте лимит `memory` в `deploy.resources.limits` (рекомендуется минимум 2GB).
 - **Тома:**
