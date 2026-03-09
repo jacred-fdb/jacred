@@ -213,6 +213,9 @@ namespace JacRed.Controllers.CRON
             var createTime = ParseDate(h.Date) ?? ParseDate(h.LastSeen) ?? DateTime.UtcNow;
             var updateTime = ParseDate(h.LastSeen) ?? createTime;
             var (name, relased) = ParseNameAndYear(title);
+            // Append source tracker (EZTV, 1337x, etc.) for display — Knaben aggregates from multiple trackers
+            if (!string.IsNullOrWhiteSpace(h.Tracker) && !title.Contains(h.Tracker))
+                title = $"{title} | {h.Tracker}";
 
             return new TorrentDetails
             {
@@ -234,18 +237,55 @@ namespace JacRed.Controllers.CRON
             };
         }
 
-        static (string, int) ParseNameAndYear(string title)
+        /// <summary>
+        /// Strips metadata from title (season/episode, quality, release tags) so the base
+        /// show/movie name remains. Enables API v1/v2 exact search by content name only.
+        /// </summary>
+        static string CleanTitleForSearch(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return title;
+            string t = title.Trim();
+
+            // Year in parentheses/brackets — strip and everything after
+            var yearMatch = Regex.Match(t, @"[\(\[](\d{4})[\)\]]");
+            if (yearMatch.Success && yearMatch.Index > 0)
+                t = t.Substring(0, yearMatch.Index);
+
+            // Season/Episode: S01E01, S1E1, S01, E01, 1x01
+            t = Regex.Replace(t, @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b", "", RegexOptions.IgnoreCase);
+            // Season X (Russian/English) — only 1–2 digit season numbers, not 480p/720p etc.
+            t = Regex.Replace(t, @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$", "", RegexOptions.IgnoreCase);
+            // Quality
+            t = Regex.Replace(t, @"\b(2160p|1080p|720p|480p)\b", "", RegexOptions.IgnoreCase);
+            // Release tags
+            t = Regex.Replace(t, @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|BDRemux|HDRip|BluRay|BRRip|DVDRip|HDTV)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts)\b", "", RegexOptions.IgnoreCase);
+
+            t = Regex.Replace(t, @"[\[\]\|]", " ");
+            t = Regex.Replace(t, @"\s{2,}", " ").Trim().TrimEnd(' ', '/', '-', '|');
+            // Strip trailing release group (e.g. -FENiX, -MeGusta, .x265-ELiTE) to unify search keys
+            t = Regex.Replace(t, @"[.\s]+-\s*[A-Za-z0-9][A-Za-z0-9.-]*$", "", RegexOptions.IgnoreCase);
+            t = t.Trim().TrimEnd(' ', '-');
+            return string.IsNullOrWhiteSpace(t) ? title : t;
+        }
+
+        public static (string name, int relased) ParseNameAndYear(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return (null, 0);
             string name = title.Trim();
+            // Strip source tracker suffix added by MapToTorrentDetails (e.g. " | EZTV", " | The Pirate Bay")
+            name = Regex.Replace(name, @"\s+\|\s+[^|]+$", "").Trim();
+            if (string.IsNullOrWhiteSpace(name)) return (null, 0);
             int relased = 0;
-            var m = Regex.Match(title, @"[\(\[](\d{4})[\)\]]");
+            var m = Regex.Match(name, @"[\(\[](\d{4})[\)\]]");
             if (m.Success && int.TryParse(m.Groups[1].Value, out int y))
             {
                 relased = y;
-                if (m.Index > 0) name = title.Substring(0, m.Index).TrimEnd(' ', '/', '-', '|');
+                if (m.Index > 0) name = name.Substring(0, m.Index).TrimEnd(' ', '/', '-', '|');
             }
-            return (string.IsNullOrWhiteSpace(name) ? title : name, relased);
+            // Strip metadata so search by base content name works in API v1/v2
+            name = CleanTitleForSearch(name);
+            return (string.IsNullOrWhiteSpace(name) ? title.Trim() : name, relased);
         }
 
         static int GetQualityFromCategoryId(int[] ids)

@@ -7,6 +7,7 @@ using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using Microsoft.AspNetCore.Mvc;
+using JacRed.Controllers.CRON;
 
 namespace JacRed.Controllers
 {
@@ -185,6 +186,70 @@ namespace JacRed.Controllers
 
             FileDB.SaveChangesToFile();
             return Json(new { ok = true });
+        }
+
+        /// <summary>
+        /// Normalizes names for existing Knaben torrents: strips metadata from title so
+        /// name/originalname contain only the base content name. Fixes search in API v1/v2.
+        /// GET /dev/fixKnabenNames
+        /// </summary>
+        public JsonResult FixKnabenNames()
+        {
+            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            const string trackerName = "knaben";
+            int processed = 0, updated = 0, migrated = 0;
+
+            foreach (var item in FileDB.masterDb.ToArray())
+            {
+                using (var fdb = FileDB.OpenWrite(item.Key))
+                {
+                    var toMigrate = new List<(string url, TorrentDetails t, string newKey)>();
+
+                    foreach (var kv in fdb.Database.ToList())
+                    {
+                        var t = kv.Value;
+                        if (t == null || !string.Equals(t.trackerName, trackerName, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        processed++;
+                        string source = !string.IsNullOrWhiteSpace(t.title) ? t.title : (t.name ?? "");
+                        if (string.IsNullOrWhiteSpace(source)) continue;
+
+                        var (newName, _) = KnabenController.ParseNameAndYear(source);
+                        if (string.IsNullOrWhiteSpace(newName) || newName == t.name) continue;
+
+                        t.name = newName;
+                        t.originalname = newName;
+                        t._sn = StringConvert.SearchName(newName);
+                        t._so = StringConvert.SearchName(newName);
+                        updated++;
+
+                        string newKey = FileDB.KeyForTorrent(t.name, t.originalname);
+                        if (!string.IsNullOrEmpty(newKey) && newKey != item.Key && newKey.IndexOf(':') > 0)
+                            toMigrate.Add((kv.Key, t, newKey));
+                    }
+
+                    foreach (var (url, t, newKey) in toMigrate)
+                    {
+                        fdb.Database.Remove(url);
+                        FileDB.MigrateTorrentToNewKey(t, newKey);
+                        migrated++;
+                    }
+
+                    if (fdb.Database.Count == 0)
+                        FileDB.RemoveKeyFromMasterDb(item.Key);
+
+                    if (updated > 0 || migrated > 0)
+                        fdb.savechanges = true;
+                }
+            }
+
+            FileDB.SaveChangesToFile();
+            try { Controllers.ApiController.getFastdb(update: true); } catch { }
+
+            return Json(new { ok = true, processed, updated, migrated });
         }
 
         /// <summary>
