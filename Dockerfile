@@ -23,6 +23,7 @@ COPY . .
 # Restore and publish
 RUN set -eu; \
     case "${TARGETARCH}" in \
+    386)   RID=linux-musl-x86 ;; \
     amd64) RID=linux-musl-x64 ;; \
     arm)   RID=linux-musl-arm ;; \
     arm64) RID=linux-musl-arm64 ;; \
