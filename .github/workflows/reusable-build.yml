@@ -44,15 +44,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - runtime: linux-x64
+            output_dir: linux-x64
+            artifact_name: jacred-linux-x64
+          - runtime: linux-musl-x64
+            output_dir: linux-musl-x64
+            artifact_name: jacred-linux-musl-x64
+          - runtime: linux-musl-arm64
+            output_dir: linux-musl-arm64
+            artifact_name: jacred-linux-musl-arm64
+          - runtime: linux-arm
+            output_dir: linux-arm
+            artifact_name: jacred-linux-arm
           - runtime: linux-arm64
             output_dir: linux-arm64
             artifact_name: jacred-linux-arm64
-          - runtime: linux-x64
-            output_dir: linux-amd64
-            artifact_name: jacred-linux-amd64
           - runtime: win-x64
-            output_dir: windows-x64
-            artifact_name: jacred-windows-x64
+            output_dir: win-x64
+            artifact_name: jacred-win-x64
+          - runtime: win-x86
+            output_dir: win-x86
+            artifact_name: jacred-win-x86
+          - runtime: win-arm64
+            output_dir: win-arm64
+            artifact_name: jacred-win-arm64
           - runtime: osx-arm64
             output_dir: osx-arm64
             artifact_name: jacred-osx-arm64
