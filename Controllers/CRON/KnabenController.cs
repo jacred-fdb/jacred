@@ -238,28 +238,41 @@ namespace JacRed.Controllers.CRON
         }
 
         /// <summary>
-        /// Strips metadata from title (season/episode, quality, release tags) so the base
-        /// show/movie name remains. Enables API v1/v2 exact search by content name only.
+        /// Normalizes title for search: strips metadata (season/episode, quality, release tags).
+        /// Series: extracts show name only (text before S01E05). Movies: strips year and metadata.
+        /// Required for API v1/v2 exact search by content name.
         /// </summary>
         static string CleanTitleForSearch(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return title;
             string t = title.Trim();
 
-            // Year in parentheses/brackets — strip and everything after
-            var yearMatch = Regex.Match(t, @"[\(\[](\d{4})[\)\]]");
-            if (yearMatch.Success && yearMatch.Index > 0)
-                t = t.Substring(0, yearMatch.Index);
+            // For series: extract show name as text before S01E05 — enables search by "Scarpetta" for all episodes
+            var seriesMatch = Regex.Match(t, @"^(.+?)\s+S\d{1,2}E\d{1,2}\b", RegexOptions.IgnoreCase);
+            if (seriesMatch.Success && seriesMatch.Groups[1].Length > 0)
+            {
+                t = seriesMatch.Groups[1].Value.Trim();
+            }
+            else
+            {
+                // Year in parentheses/brackets — strip and everything after
+                var yearMatch = Regex.Match(t, @"[\(\[](\d{4})[\)\]]");
+                if (yearMatch.Success && yearMatch.Index > 0)
+                    t = t.Substring(0, yearMatch.Index);
 
-            // Season/Episode: S01E01, S1E1, S01, E01, 1x01
-            t = Regex.Replace(t, @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b", "", RegexOptions.IgnoreCase);
-            // Season X (Russian/English) — only 1–2 digit season numbers, not 480p/720p etc.
-            t = Regex.Replace(t, @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$", "", RegexOptions.IgnoreCase);
+                // Season/Episode: S01E01, S1E1, S01, E01, 1x01
+                t = Regex.Replace(t, @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b", "", RegexOptions.IgnoreCase);
+                // Season X (Russian/English) — only 1–2 digit season numbers, not 480p/720p etc.
+                t = Regex.Replace(t, @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$", "", RegexOptions.IgnoreCase);
+            }
+
             // Quality
             t = Regex.Replace(t, @"\b(2160p|1080p|720p|480p)\b", "", RegexOptions.IgnoreCase);
             // Release tags
             t = Regex.Replace(t, @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|BDRemux|HDRip|BluRay|BRRip|DVDRip|HDTV)\b", "", RegexOptions.IgnoreCase);
-            t = Regex.Replace(t, @"\b(x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(x264|x265|xvid|h\.?264|h\.?265|hevc|avc|aac|ac3|dts)\b", "", RegexOptions.IgnoreCase);
+            // Streaming/audio metadata (AMZN, DD 5.1, Atmos, playWEB, etc.)
+            t = Regex.Replace(t, @"\b(AMZN|DD\s*5\s*1|DD5\.?1|Atmos|DDP?\s*5\.?1|playWEB)\b", "", RegexOptions.IgnoreCase);
 
             t = Regex.Replace(t, @"[\[\]\|]", " ");
             t = Regex.Replace(t, @"\s{2,}", " ").Trim().TrimEnd(' ', '/', '-', '|');
