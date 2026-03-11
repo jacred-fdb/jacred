@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -230,14 +231,19 @@ namespace JacRed.Controllers.CRON
             else
                 return null;
 
-            string name = info.Name ?? "";
-            string originalname = template.OrigName;
+            string name = CleanTitleForSearch(info.Name ?? "")?.Trim();
+            string originalname = CleanTitleForSearch(template.OrigName ?? "")?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) name = (info.Name ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(originalname)) originalname = (template.OrigName ?? "").Trim();
             string yearDisplay = BitruYearToDisplayString(info.Year);
             int relased = BitruYearToReleased(info.Year);
 
-            string titlePart = name;
-            if (!string.IsNullOrWhiteSpace(originalname))
-                titlePart += " / " + originalname;
+            // Для title используем исходные значения из API (с сезоном и т.д.)
+            string nameRaw = (info.Name ?? "").Trim();
+            string originalnameRaw = (template.OrigName ?? "").Trim();
+            string titlePart = nameRaw;
+            if (!string.IsNullOrWhiteSpace(originalnameRaw))
+                titlePart += " / " + originalnameRaw;
             if (!string.IsNullOrEmpty(yearDisplay))
                 titlePart += " (" + yearDisplay + ")";
             if (template.Video?.Quality != null)
@@ -264,6 +270,37 @@ namespace JacRed.Controllers.CRON
                 relased = relased,
                 _sn = torrent.File
             };
+        }
+
+        /// <summary>
+        /// Убирает из названия сезон, эпизод, качество и т.д. — для name/originalname.
+        /// API v2 ищет по базовому имени; сезон указывается отдельным параметром season.
+        /// Публичный для использования в DevController.FixBitruNames.
+        /// </summary>
+        public static string CleanTitleForSearch(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return title;
+            string t = title.Trim();
+
+            // Год в скобках — убираем и всё после
+            var yearMatch = Regex.Match(t, @"[\(\[](\d{4})[\)\]]");
+            if (yearMatch.Success && yearMatch.Index > 0)
+                t = t.Substring(0, yearMatch.Index);
+
+            // Сезон/эпизод: S01E01, 1x01, 1 сезон, 1-5 сезон
+            t = Regex.Replace(t, @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\s*\d{1,2}(-\d{1,2})?\s*сезон\s*.*$", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$", "", RegexOptions.IgnoreCase);
+
+            // Качество и теги релиза
+            t = Regex.Replace(t, @"\b(2160p|1080p|720p|480p)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|BDRemux|HDRip|BluRay|BRRip|DVDRip|HDTV)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts)\b", "", RegexOptions.IgnoreCase);
+
+            t = Regex.Replace(t, @"[\[\]\|]", " ");
+            t = Regex.Replace(t, @"\s{2,}", " ").Trim().TrimEnd(' ', '/', '-', '|');
+            t = Regex.Replace(t, @"[.\s]+-\s*[A-Za-z0-9][A-Za-z0-9.-]*$", "", RegexOptions.IgnoreCase);
+            return t.Trim().TrimEnd(' ', '-');
         }
 
         /// <summary>Год из API может быть number (2020) или string ("2011-2015"). Для отображения в title — как есть.</summary>
