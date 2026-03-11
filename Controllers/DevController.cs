@@ -189,8 +189,8 @@ namespace JacRed.Controllers
         }
 
         /// <summary>
-        /// Normalizes names for existing Knaben torrents: strips metadata from title so
-        /// name/originalname contain only the base content name. Fixes search in API v1/v2.
+        /// Мигрирует Knaben: name/originalname/relased/title по ParseNameAndYear и BuildTitleForFileDB.
+        /// Dynasty 2017 → Dynasty (relased 2017), [2026, ...] → relased 2026, нормализация title для FileDB.
         /// GET /dev/fixKnabenNames
         /// </summary>
         public JsonResult FixKnabenNames()
@@ -217,11 +217,25 @@ namespace JacRed.Controllers
                         string source = !string.IsNullOrWhiteSpace(t.title) ? t.title : (t.name ?? "");
                         if (string.IsNullOrWhiteSpace(source)) continue;
 
-                        var (newName, _) = KnabenController.ParseNameAndYear(source);
-                        if (string.IsNullOrWhiteSpace(newName) || newName == t.name) continue;
+                        var (newName, newRelased) = KnabenController.ParseNameAndYear(source);
+                        if (string.IsNullOrWhiteSpace(newName)) continue;
+
+                        string trackerSuffix = "";
+                        var suffixMatch = Regex.Match(source, @"\s+\|\s+[^|]+$");
+                        if (suffixMatch.Success) trackerSuffix = suffixMatch.Value;
+
+                        string newTitle = KnabenController.BuildTitleForFileDB(source.TrimEnd()) + trackerSuffix;
+
+                        bool nameChanged = newName != t.name || newName != t.originalname;
+                        bool relasedChanged = newRelased != t.relased;
+                        bool titleChanged = newTitle != t.title;
+
+                        if (!nameChanged && !relasedChanged && !titleChanged) continue;
 
                         t.name = newName;
                         t.originalname = newName;
+                        t.relased = newRelased;
+                        t.title = newTitle;
                         t._sn = StringConvert.SearchName(newName);
                         t._so = StringConvert.SearchName(newName);
                         updated++;

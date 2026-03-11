@@ -17,8 +17,11 @@ using JacRed.Models.tParse;
 namespace JacRed.Controllers.CRON
 {
     /// <summary>
-    /// Knaben API v1 — TV + Movies. Aggregates torrents from multiple trackers.
-    /// https://api.knaben.org/v1
+    /// Knaben API v1 — TV + Movies from TPB, 1337x, EZTV, Rutracker.
+    /// Config: init.yaml Knaben (host, parseDelay, useproxy).
+    /// Parse: /cron/knaben/parse?pages=1&query=&orderBy=date — query, hours, orderBy (date|seeders|peers).
+    /// Name: Call the Midwife S15E08→Call the Midwife; War.Machine.2026→War Machine; [2026, ...]→relased.
+    /// Title normalized for FileDB (2160p, .HDR→ HDR). Migrate: /dev/fixKnabenNames.
     /// </summary>
     [Route("/cron/knaben/[action]")]
     public class KnabenController : BaseController
@@ -61,10 +64,6 @@ namespace JacRed.Controllers.CRON
             return false;
         }
 
-        /// <summary>
-        /// Parse Knaben API. Params: from, size, pages, query, hours, orderBy, categories.
-        /// Examples: /cron/knaben/parse | /cron/knaben/parse?pages=3 | /cron/knaben/parse?query=Breaking+Bad
-        /// </summary>
         async public Task<string> Parse(
             int from = 0,
             int size = 300,
@@ -88,7 +87,6 @@ namespace JacRed.Controllers.CRON
             finally { EndParse(); }
         }
 
-        /// <summary>Parse categories from comma/semicolon/space-separated string. Returns DefaultCategories if empty or invalid.</summary>
         static int[] ParseCategories(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return DefaultCategories;
@@ -206,14 +204,15 @@ namespace JacRed.Controllers.CRON
 
             string url = !string.IsNullOrWhiteSpace(h.Details) ? h.Details : h.Link;
             if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(h.Id))
-                url = $"https://knaben.xyz/?id={h.Id}"; // Fallback when API returns only Id
+                url = $"https://knaben.xyz/?id={h.Id}";
             if (string.IsNullOrWhiteSpace(url)) return null;
 
             var title = HttpUtility.HtmlDecode(h.Title.Trim());
             var createTime = ParseDate(h.Date) ?? ParseDate(h.LastSeen) ?? DateTime.UtcNow;
             var updateTime = ParseDate(h.LastSeen) ?? createTime;
             var (name, relased) = ParseNameAndYear(title);
-            // Append source tracker (EZTV, 1337x, etc.) for display — Knaben aggregates from multiple trackers
+
+            title = BuildTitleForFileDB(title);
             if (!string.IsNullOrWhiteSpace(h.Tracker) && !title.Contains(h.Tracker))
                 title = $"{title} | {h.Tracker}";
 
@@ -232,71 +231,66 @@ namespace JacRed.Controllers.CRON
                 _sn = string.IsNullOrWhiteSpace(h.MagnetUrl) && !string.IsNullOrWhiteSpace(h.Link) ? h.Link : null,
                 name = name,
                 originalname = name,
-                relased = relased,
-                quality = GetQualityFromCategoryId(h.CategoryId)
+                relased = relased
             };
         }
 
-        /// <summary>
-        /// Normalizes title for search: strips metadata (season/episode, quality, release tags).
-        /// Series: extracts show name only (text before S01E05). Movies: strips year and metadata.
-        /// Required for API v1/v2 exact search by content name.
-        /// </summary>
+        /// <summary>Strips metadata for search key. Series: text before S01E05. Movies: year + metadata.</summary>
         static string CleanTitleForSearch(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return title;
             string t = title.Trim();
 
-            // For series: extract show name as text before S01E05 — enables search by "Scarpetta" for all episodes
+            t = Regex.Replace(t, @"\[[^\]]*\]", " ");
             var seriesMatch = Regex.Match(t, @"^(.+?)\s+S\d{1,2}E\d{1,2}\b", RegexOptions.IgnoreCase);
             if (seriesMatch.Success && seriesMatch.Groups[1].Length > 0)
-            {
                 t = seriesMatch.Groups[1].Value.Trim();
-            }
             else
             {
-                // Year in parentheses/brackets — strip and everything after
                 var yearMatch = Regex.Match(t, @"[\(\[](\d{4})[\)\]]");
                 if (yearMatch.Success && yearMatch.Index > 0)
                     t = t.Substring(0, yearMatch.Index);
-
-                // Season/Episode: S01E01, S1E1, S01, E01, 1x01
                 t = Regex.Replace(t, @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b", "", RegexOptions.IgnoreCase);
-                // Season X (Russian/English) — only 1–2 digit season numbers, not 480p/720p etc.
                 t = Regex.Replace(t, @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$", "", RegexOptions.IgnoreCase);
             }
 
-            // Quality
             t = Regex.Replace(t, @"\b(2160p|1080p|720p|480p)\b", "", RegexOptions.IgnoreCase);
-            // Release tags
-            t = Regex.Replace(t, @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|BDRip|BDRemux|HDRip|BluRay|BRRip|DVDRip|HDTV)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(HDR10?|DV|HDR|SDR|10bit)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(WEB[-\s]?DL|WEB[-\s]?Rip|WEB\b|BDRip|BDRemux|HDRip|BluRay|BRRip|DVDRip|HDTV)\b", "", RegexOptions.IgnoreCase);
             t = Regex.Replace(t, @"\b(x264|x265|xvid|h\.?264|h\.?265|hevc|avc|aac|ac3|dts)\b", "", RegexOptions.IgnoreCase);
-            // Streaming/audio metadata (AMZN, DD 5.1, Atmos, playWEB, etc.)
-            t = Regex.Replace(t, @"\b(AMZN|DD\s*5\s*1|DD5\.?1|Atmos|DDP?\s*5\.?1|playWEB)\b", "", RegexOptions.IgnoreCase);
-
+            t = Regex.Replace(t, @"\b(AMZN|NF|DS4K|DD\s*5\s*1|DD5\.?1|DDPA|DDP5\.?1|Atmos|DDP?\s*5\.?1|playWEB)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b(ESub|Sub)\b", "", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\.", " ");
             t = Regex.Replace(t, @"[\[\]\|]", " ");
             t = Regex.Replace(t, @"\s{2,}", " ").Trim().TrimEnd(' ', '/', '-', '|');
-            // Strip trailing release group (e.g. -FENiX, -MeGusta, .x265-ELiTE) to unify search keys
             t = Regex.Replace(t, @"[.\s]+-\s*[A-Za-z0-9][A-Za-z0-9.-]*$", "", RegexOptions.IgnoreCase);
             t = t.Trim().TrimEnd(' ', '-');
             return string.IsNullOrWhiteSpace(t) ? title : t;
         }
 
+        /// <summary>Extracts name + year. Supports (2026), [2026, ...], standalone 2026. Used by DevController.FixKnabenNames.</summary>
         public static (string name, int relased) ParseNameAndYear(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return (null, 0);
-            string name = title.Trim();
-            // Strip source tracker suffix added by MapToTorrentDetails (e.g. " | EZTV", " | The Pirate Bay")
-            name = Regex.Replace(name, @"\s+\|\s+[^|]+$", "").Trim();
+            string name = Regex.Replace(title.Trim(), @"\s+\|\s+[^|]+$", "").Trim();
             if (string.IsNullOrWhiteSpace(name)) return (null, 0);
             int relased = 0;
-            var m = Regex.Match(name, @"[\(\[](\d{4})[\)\]]");
+
+            var m = Regex.Match(name, @"[\(\[](\d{4})[\)\],\s]");
             if (m.Success && int.TryParse(m.Groups[1].Value, out int y))
             {
                 relased = y;
                 if (m.Index > 0) name = name.Substring(0, m.Index).TrimEnd(' ', '/', '-', '|');
             }
-            // Strip metadata so search by base content name works in API v1/v2
+            else
+            {
+                var yearMatch = Regex.Match(name, @"\b(19|20)\d{2}\b");
+                if (yearMatch.Success && int.TryParse(yearMatch.Value, out int y2))
+                {
+                    relased = y2;
+                    name = Regex.Replace(name, @"\b(19|20)\d{2}\b", "").Trim();
+                }
+            }
             name = CleanTitleForSearch(name);
             return (string.IsNullOrWhiteSpace(name) ? title.Trim() : name, relased);
         }
@@ -311,6 +305,20 @@ namespace JacRed.Controllers.CRON
                 if (id == 2002000 || id == 3002000) return 720;
             }
             return 480;
+        }
+
+        /// <summary>Normalizes title for FileDB: 2160p lowercase, .HDR→ HDR, Dolby Vision→ HDR. Used by DevController.FixKnabenNames.</summary>
+        public static string BuildTitleForFileDB(string originalTitle)
+        {
+            if (string.IsNullOrWhiteSpace(originalTitle)) return originalTitle;
+            string t = originalTitle.Trim();
+            t = Regex.Replace(t, @"\b2160p\b", "2160p", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b1080p\b", "1080p", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\b720p\b", "720p", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"\.(HDR10?)\b", " $1", RegexOptions.IgnoreCase);
+            if (Regex.IsMatch(t, @"(dolby\s*vision|10-?bit)", RegexOptions.IgnoreCase) && !Regex.IsMatch(t, @"(\.|\[|,| )hdr", RegexOptions.IgnoreCase))
+                t += " HDR";
+            return t;
         }
 
         static string[] GetTypesFromCategoryId(int[] ids)
@@ -341,7 +349,6 @@ namespace JacRed.Controllers.CRON
 
         #region Save
 
-        /// <summary>Save to FileDB. Key = url. Log by: added (new), updated (sid/pir/magnet changed), skipped (no change), failed (no magnet).</summary>
         async Task<(int added, int updated, int skipped, int failed)> SaveTorrents(List<TorrentDetails> torrents)
         {
             int added = 0, updated = 0, skipped = 0, failed = 0;
