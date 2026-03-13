@@ -20,16 +20,24 @@ elif [ -f /app/config/init.conf ]; then
     rm -f /app/init.yaml
 else
     echo "Initializing configuration..."
-    if [ -f /app/Data/init.yaml ]; then
-        cp /app/Data/init.yaml /app/config/init.yaml
-        cp /app/Data/init.yaml /app/init.yaml
+    # Prefer Data (populated with named volumes), fallback to defaults (when Data is bind-mounted empty)
+    if [ -f /app/Data/init.yaml ] || [ -f /app/defaults/init.yaml ]; then
+        src="/app/Data/init.yaml"
+        [ -f "$src" ] || src="/app/defaults/init.yaml"
+        cp "$src" /app/config/init.yaml
+        cp "$src" /app/init.yaml
         chmod 640 /app/config/init.yaml /app/init.yaml
         rm -f /app/init.conf
-    else
-        cp /app/Data/init.conf /app/config/init.conf
-        cp /app/Data/init.conf /app/init.conf
+    elif [ -f /app/Data/init.conf ] || [ -f /app/defaults/init.conf ]; then
+        src="/app/Data/init.conf"
+        [ -f "$src" ] || src="/app/defaults/init.conf"
+        cp "$src" /app/config/init.conf
+        cp "$src" /app/init.conf
         chmod 640 /app/config/init.conf /app/init.conf
         rm -f /app/init.yaml
+    else
+        echo "ERROR: No default config (init.yaml or init.conf) found" >&2
+        exit 1
     fi
 fi
 

@@ -45,6 +45,9 @@
 
 - **.NET 9.0** (для запуска из исходников)
 - Для установки скриптом: **Linux** (systemd, cron), рекомендуется Debian/Ubuntu
+- **libicu** — на Linux (.NET использует ICU для глобализации). При запуске бинарника напрямую (без Docker) установите пакет:
+  - **Debian/Ubuntu:** `apt install libicu-dev` или `libicu76` / `libicu72` (имя пакета зависит от версии дистрибутива)
+  - **Alpine:** `apk add icu-libs` (в Docker-образе уже включено)
 
 ---
 
@@ -72,10 +75,10 @@ curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh | bas
 
 ```bash
 # Обычная установка (одна команда)
-curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh | bash
+curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh | sudo bash
 
 # Установка без загрузки базы (одна команда)
-curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh | bash -s -- --no-download-db
+curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh | sudo bash -s -- --no-download-db
 
 # Скачать скрипт и запустить с аргументами
 curl -s https://raw.githubusercontent.com/jacred-fdb/jacred/main/jacred.sh -o jacred.sh
@@ -130,7 +133,7 @@ sudo -u myservice ./jacred.sh --remove
 | ---------- | ---------- | -------------- |
 | `listenip` | IP для прослушивания (`any` — все интерфейсы) | `any` |
 | `listenport` | Порт HTTP | `9117` |
-| `apikey` | Ключ авторизации API (пусто — без проверки) | — |
+| `apikey` | Ключ авторизации API (пусто — без проверки). Передаётся через `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer`. Без ключа доступны: `/`, `/stats`, `/health`, `/version`, `/lastupdatedb`, `/api/v1.0/conf`, `/sync/*` | — |
 | `devkey` | Ключ для доступа к `/dev/`, `/cron/`, `/jsondb` за туннелем/прокси (пусто — только локальная сеть). Передаётся через заголовок `X-Dev-Key` или параметр `?devkey=...` | — |
 | `mergeduplicates` | Объединять дубликаты в выдаче | `true` |
 | `mergenumduplicates` | Объединять дубликаты по номеру (серии и т.п.) | `true` |
@@ -346,7 +349,24 @@ Anifilm, AniLibria, HDRezka.
 
 - **`GET /dev/*`** — инструменты разработки и отладки БД (только localhost или с `devkey`).
   - Доступ: только из локальной сети или с `devkey` (заголовок `X-Dev-Key` или параметр `?devkey=...`).
-  - Эндпоинты: `/dev/UpdateSize`, `/dev/ResetCheckTime`, `/dev/UpdateDetails`, `/dev/FindCorrupt`, `/dev/RemoveNullValues` и др.
+
+| Эндпоинт | Описание |
+| --------- | --------- |
+| **`/dev/UpdateSize`** | Пересчитывает поле `size` (байты) из `sizeName` для всех торрентов. Обновляет `updateTime`. |
+| **`/dev/ResetCheckTime`** | Сбрасывает `checkTime` на вчера для всех торрентов (для повторной проверки). |
+| **`/dev/UpdateDetails`** | Обновляет детали торрентов через `updateFullDetails` (качество, сезоны и т.п.). |
+| **`/dev/UpdateSearchName`** | Пересчитывает `_sn` и `_so` из `name`/`originalname`, мигрирует торренты при смене ключа бакета. |
+| **`/dev/FixKnabenNames`** | Нормализует имена торрентов Knaben: убирает метаданные из title, оставляет базовое имя. Исправляет поиск в API v1/v2. Возвращает `{ ok, processed, updated, migrated }`. |
+| **`/dev/FixBitruNames`** | Нормализует name/originalname торрентов Bitru: убирает сезон, эпизод, качество. Исправляет поиск в API v1/v2. Возвращает `{ ok, processed, updated, migrated }`. |
+| **`/dev/FindCorrupt`** | Сканирует БД на повреждённые записи (null Value, пустые name/originalname/trackerName). Только чтение. Параметр: `?sampleSize=20`. |
+| **`/dev/RemoveNullValues`** | Удаляет записи, где `torrent.Value == null` (битые ссылки). |
+| **`/dev/FindDuplicateKeys`** | Ищет дубликаты ключей вида `X:X` (например `ponies:ponies`). Параметры: `?tracker=lostfilm`, `?excludeNumeric=false`. |
+| **`/dev/RemoveBucket`** | Удаляет бакет по ключу. Параметры: `?key=ponies:ponies` — удалить; `?key=...&migrateName=...&migrateOriginalname=...` — перенести торренты в новый бакет. |
+| **`/dev/FindEmptySearchFields`** | Ищет торренты с пустыми `_sn` или `_so`. Только чтение. Параметр: `?sampleSize=20`. |
+| **`/dev/FixEmptySearchFields`** | Заполняет пустые `_sn`/`_so` из name/originalname/title, мигрирует при смене ключа. Пересобирает fastdb. |
+| **`/dev/MigrateAnilibertyUrls`** | Мигрирует торренты Aniliberty на URL с хешем из magnet (`?hash=...`). |
+| **`/dev/RemoveDuplicateAniliberty`** | Удаляет дубликаты Aniliberty по хешу magnet, оставляет запись с последним `updateTime`. |
+| **`/dev/FixAnimelayerDuplicates`** | Устраняет дубликаты Animelayer: нормализует HTTP→HTTPS, удаляет HTTP-дубликаты. |
 
 ### Статистика и синхронизация
 
@@ -365,8 +385,8 @@ Anifilm, AniLibria, HDRezka.
 
 **Примечания:**
 
-> - Для использования API с авторизацией укажите `apikey` в конфиге и передавайте его как query-параметр `?apikey=...` в запросах.
-> - Эндпоинты `/cron/*`, `/dev/*`, `/jsondb/*` доступны только из локальной сети. При работе за туннелем/прокси (когда все запросы выглядят локальными) используйте `devkey` для защиты этих эндпоинтов.
+> - Для использования API с авторизацией укажите `apikey` в конфиге. Ключ можно передать: `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer`. Пути `/`, `/stats`, `/health`, `/version`, `/lastupdatedb`, `/api/v1.0/conf`, `/sync/*` доступны без ключа.
+> - Эндпоинты `/cron/*`, `/dev/*`, `/jsondb/*` доступны только из локальной/приватной сети (по IP клиента). При работе за туннелем/прокси (когда все запросы выглядят локальными) используйте `devkey` для защиты этих эндпоинтов.
 
 ---
 
@@ -410,7 +430,7 @@ Anifilm, AniLibria, HDRezka.
 
 ## Docker
 
-Образ можно запускать через **Docker** или **Docker Compose**. Конфигурация (`init.yaml` или `init.conf`) и данные (база fdb, логи) хранятся в томах; при первом запуске из образа копируются файлы по умолчанию из **`Data/`**.
+Образ можно запускать через **Docker** или **Docker Compose**. Конфигурация (`init.yaml` или `init.conf`) и данные (база fdb, логи) хранятся в томах или bind-монтированных каталогах. При первом запуске конфиг по умолчанию копируется автоматически (поддерживаются и named volumes, и bind mounts).
 
 ### Docker Run
 
@@ -425,6 +445,8 @@ docker run -d \
 ```
 
 ### Docker Compose
+
+**Вариант с named volumes** (рекомендуется):
 
 ```yaml
 name: jacred
@@ -458,9 +480,19 @@ volumes:
   jacred-data:
 ```
 
+**Вариант с bind mounts** (удобно для доступа к файлам на хосте) — замените блок `volumes` в сервисе на:
+
+```yaml
+volumes:
+  - ./config:/app/config
+  - ./data:/app/Data
+```
+
+Готовые примеры: **`docker/docker-compose.yml`** (bind mounts), **`docker-compose.example.yml`** (named volumes).
+
 **Полезно:**
 
-- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` (на хосте: каталог тома в `docker volume inspect jacred-config` → `Mountpoint`). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера.
+- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` или каталоге `./config` (при bind mount). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера.
 - **Порты:** веб-интерфейс и API доступны на порту **9117** (при необходимости измените маппинг `ports` и `listenport` в конфиге).
 - **Память:** при большой базе или активном парсинге увеличьте лимит `memory` в `deploy.resources.limits` (рекомендуется минимум 2GB).
 - **Тома:**
@@ -492,6 +524,7 @@ volumes:
 
 ### Приложение не запускается
 
+- **Ошибка «Couldn't find a valid ICU package»** — .NET требует библиотеку ICU на Linux. Установите: `apt install libicu-dev` (Debian/Ubuntu) или `libicu76` / `libicu72` (имя зависит от версии). Проверьте доступные пакеты: `apt-cache search libicu`. Подробнее: [aka.ms/dotnet-missing-libicu](https://aka.ms/dotnet-missing-libicu)
 - Проверьте наличие конфигурационного файла (`init.yaml` или `init.conf`)
 - Убедитесь, что порт не занят другим процессом: `netstat -tuln | grep 9117`
 - Проверьте логи systemd: `journalctl -u jacred -f`
@@ -538,6 +571,7 @@ JacRed построен на **ASP.NET Core** (.NET 9.0) и использует
 
 ### Основные компоненты
 
+- **ModHeaders** — middleware: ограничение по IP (локальная/приватная сеть для `/cron/`, `/dev/`, `/jsondb`), проверка `devkey` и `apikey`, CORS `Access-Control-Allow-Private-Network`, логирование cron
 - **FileDB** — управление файловой базой данных
 - **SyncCron** — синхронизация с удалёнными серверами
 - **TrackersCron** — планирование и выполнение парсинга трекеров

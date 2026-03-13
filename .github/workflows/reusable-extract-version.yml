@@ -1,0 +1,104 @@
+---
+name: Reusable Extract Version
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag name (e.g. 1.0.0 or v1.0.0). When provided, used as release tag."
+        type: string
+        required: false
+        default: ""
+
+      checkout_ref:
+        description: "Git ref to checkout (e.g., refs/tags/1.0.0). When empty, derived from tag or github.ref."
+        type: string
+        required: false
+        default: ""
+
+    outputs:
+      version:
+        description: "Version without leading 'v' (for Docker JACRED_VERSION)"
+        value: ${{ jobs.extract.outputs.version }}
+      release_tag:
+        description: "Full tag name for GitHub Release (e.g. 1.0.0 or v1.0.0)"
+        value: ${{ jobs.extract.outputs.release_tag }}
+      tag_latest:
+        description: "Whether to tag as 'latest' (true for full releases only)"
+        value: ${{ jobs.extract.outputs.tag_latest }}
+      checkout_ref:
+        description: "Git ref to checkout"
+        value: ${{ jobs.extract.outputs.checkout_ref }}
+      is_release:
+        description: "Whether this is a release build (tag push or tag input)"
+        value: ${{ jobs.extract.outputs.is_release }}
+
+jobs:
+  extract:
+    name: Extract version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      tag_latest: ${{ steps.version.outputs.tag_latest }}
+      checkout_ref: ${{ steps.version.outputs.checkout_ref }}
+      is_release: ${{ steps.version.outputs.is_release }}
+    steps:
+      - name: Set version
+        id: version
+        run: |
+          # Use input tag if provided (from workflow_call), otherwise detect from ref
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG_NAME="${{ inputs.tag }}"
+            echo "Using tag from workflow_call: $TAG_NAME"
+            if [[ "$TAG_NAME" =~ -(dev|alpha|beta|rc|pre) ]]; then
+              prerelease="true"
+              echo "Detected pre-release from tag pattern: $TAG_NAME"
+            else
+              prerelease="false"
+              echo "Detected full release from tag pattern: $TAG_NAME"
+            fi
+            v="$TAG_NAME"
+            if [ -n "${{ inputs.checkout_ref }}" ]; then
+              checkout_ref="${{ inputs.checkout_ref }}"
+            else
+              checkout_ref="refs/tags/$TAG_NAME"
+            fi
+            release_tag="$TAG_NAME"
+            is_release="true"
+          else
+            REF="${{ github.ref }}"
+            if [[ "$REF" == refs/tags/* ]]; then
+              TAG_NAME="${REF#refs/tags/}"
+              echo "Detected tag push: $TAG_NAME"
+              if [[ "$TAG_NAME" =~ -(dev|alpha|beta|rc|pre) ]]; then
+                prerelease="true"
+                echo "Detected pre-release from tag pattern: $TAG_NAME"
+              else
+                prerelease="false"
+                echo "Detected full release from tag pattern: $TAG_NAME"
+              fi
+              v="$TAG_NAME"
+              checkout_ref="$REF"
+              release_tag="$TAG_NAME"
+              is_release="true"
+            else
+              v=""
+              prerelease="true"
+              checkout_ref="$REF"
+              release_tag=""
+              is_release="false"
+              echo "Not a tag push, using default ref"
+            fi
+          fi
+          # Strip only leading 'v' for version (Docker)
+          [ -n "$v" ] && v="${v#v}" || true
+          {
+            echo "version=$v"
+            echo "release_tag=$release_tag"
+            echo "checkout_ref=$checkout_ref"
+            echo "is_release=$is_release"
+            [ "$prerelease" = "false" ] && echo "tag_latest=true" || echo "tag_latest=false"
+          } >> "$GITHUB_OUTPUT"

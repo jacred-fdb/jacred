@@ -23,6 +23,7 @@ COPY . .
 # Restore and publish
 RUN set -eu; \
     case "${TARGETARCH}" in \
+    386)   RID=linux-musl-x86 ;; \
     amd64) RID=linux-musl-x64 ;; \
     arm)   RID=linux-musl-arm ;; \
     arm64) RID=linux-musl-arm64 ;; \
@@ -75,7 +76,7 @@ RUN set -eux; \
     /usr/share/locale/* \
     && addgroup -g 1000 -S jacred \
     && adduser -u 1000 -S jacred -G jacred -s /sbin/nologin -h /app \
-    && mkdir -p /app/Data /app/Data/fdb /app/Data/temp /app/Data/tracks /app/config \
+    && mkdir -p /app/Data /app/Data/fdb /app/Data/temp /app/Data/tracks /app/config /app/defaults \
     && touch /app/Data/temp/stats.json \
     && chown -R jacred:jacred /app \
     && chmod -R 750 /app
@@ -86,6 +87,9 @@ WORKDIR /app
 COPY --from=build --chown=jacred:jacred --chmod=550 /dist/JacRed /app/JacRed
 COPY --from=build --chown=jacred:jacred --chmod=550 /dist/wwwroot /app/wwwroot
 COPY --from=build --chown=jacred:jacred --chmod=550 /dist/Data /app/Data
+# Default config files for first run when Data is overridden by bind mount (./data:/app/Data)
+COPY --from=build --chown=jacred:jacred /dist/Data/init.conf /app/defaults/
+COPY --from=build --chown=jacred:jacred /dist/Data/init.yaml /app/defaults/
 COPY --chown=jacred:jacred --chmod=550 entrypoint.sh /entrypoint.sh
 
 # Environment variables

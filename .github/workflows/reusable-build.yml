@@ -1,0 +1,137 @@
+---
+name: Reusable .NET Build
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: "Git ref to checkout (e.g., refs/tags/1.0.0). Empty = github.ref"
+        type: string
+        required: false
+        default: ""
+
+      dotnet_version:
+        description: "Dotnet version (e.g. 9.0.x)"
+        type: string
+        required: false
+        default: "9.0.x"
+
+      project_file:
+        description: "Path to .csproj file"
+        type: string
+        required: false
+        default: "JacRed.csproj"
+
+      retention_days:
+        description: "Artifact retention days (7 for CI, 30 for releases)"
+        type: number
+        required: false
+        default: 7
+
+      verify_format:
+        description: "Run dotnet format --verify-no-changes"
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  build:
+    name: ${{ matrix.artifact_name }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: linux-x64
+            output_dir: linux-x64
+            artifact_name: jacred-linux-amd64
+          - runtime: linux-musl-x64
+            output_dir: linux-musl-x64
+            artifact_name: jacred-linux-musl-amd64
+          - runtime: linux-musl-arm64
+            output_dir: linux-musl-arm64
+            artifact_name: jacred-linux-musl-arm64
+          - runtime: linux-arm
+            output_dir: linux-arm
+            artifact_name: jacred-linux-arm
+          - runtime: linux-arm64
+            output_dir: linux-arm64
+            artifact_name: jacred-linux-arm64
+          - runtime: win-x64
+            output_dir: win-x64
+            artifact_name: jacred-win-x64
+          - runtime: win-x86
+            output_dir: win-x86
+            artifact_name: jacred-win-x86
+          - runtime: win-arm64
+            output_dir: win-arm64
+            artifact_name: jacred-win-arm64
+          - runtime: osx-arm64
+            output_dir: osx-arm64
+            artifact_name: jacred-osx-arm64
+          - runtime: osx-x64
+            output_dir: osx-amd64
+            artifact_name: jacred-osx-amd64
+    steps:
+      - name: Determine checkout ref
+        id: checkout_ref
+        run: |
+          if [ -n "${{ inputs.checkout_ref }}" ]; then
+            REF="${{ inputs.checkout_ref }}"
+            echo "Using checkout_ref from workflow_call: $REF"
+          else
+            REF="${{ github.ref }}"
+            if [[ "$REF" == refs/tags/* ]]; then
+              TAG_NAME="${REF#refs/tags/}"
+              echo "Using tag push event: $TAG_NAME"
+            else
+              echo "Using default ref: $REF"
+            fi
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Checking out ref: $REF"
+
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ steps.checkout_ref.outputs.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.2.0
+        with:
+          dotnet-version: ${{ inputs.dotnet_version }}
+
+      - name: Dotnet format code
+        if: ${{ inputs.verify_format }}
+        run: dotnet format ${{ inputs.project_file }} --verify-no-changes
+        working-directory: ./
+        continue-on-error: false
+
+      - name: Restore
+        run: dotnet restore --verbosity minimal
+
+      - name: Publish ${{ matrix.artifact_name }}
+        run: |
+          dotnet publish ${{ inputs.project_file }} \
+            --configuration Release \
+            --runtime ${{ matrix.runtime }} \
+            --output ${{ runner.temp }}/${{ matrix.output_dir }} \
+            --self-contained true \
+            -p:PublishTrimmed=false \
+            -p:PublishSingleFile=true \
+            -p:DebugType=None \
+            -p:EnableCompressionInSingleFile=true \
+            -p:OptimizationPreference=Speed \
+            -p:SuppressTrimAnalysisWarnings=true \
+            -p:IlcOptimizationPreference=Speed \
+            -p:IlcFoldIdenticalMethodBodies=true \
+            --verbosity minimal
+
+      - name: Upload artifact ${{ matrix.artifact_name }}
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ runner.temp }}/${{ matrix.output_dir }}
+          retention-days: ${{ inputs.retention_days }}

@@ -140,6 +140,59 @@ namespace JacRed.Controllers.CRON
             return (name, original, year);
         }
 
+        static DateTime ParseMazepaDate(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return default;
+
+            text = WebUtility.HtmlDecode(text).Trim();
+            text = Regex.Replace(text, @"\s+", " ");
+
+            var m = Regex.Match(text, @"(\d{1,2})\s+([^\s]+)\s+(\d{4}),\s*(\d{1,2}):(\d{2})", RegexOptions.IgnoreCase);
+            if (!m.Success)
+                return default;
+
+            if (!int.TryParse(m.Groups[1].Value, out int day))
+                return default;
+
+            string monthRaw = m.Groups[2].Value.Trim().ToLowerInvariant();
+            if (!int.TryParse(m.Groups[3].Value, out int year))
+                return default;
+            if (!int.TryParse(m.Groups[4].Value, out int hour))
+                return default;
+            if (!int.TryParse(m.Groups[5].Value, out int minute))
+                return default;
+
+            int month = monthRaw switch
+            {
+                "січ" or "сiч" => 1,
+                "лют" => 2,
+                "бер" => 3,
+                "кві" or "квi" => 4,
+                "тра" => 5,
+                "чер" => 6,
+                "лип" => 7,
+                "сер" => 8,
+                "вер" => 9,
+                "жов" => 10,
+                "лис" => 11,
+                "гру" => 12,
+                _ => 0
+            };
+
+            if (month == 0)
+                return default;
+
+            try
+            {
+                return new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Utc);
+            }
+            catch
+            {
+                return default;
+            }
+        }
+
         async Task<bool> CheckLogin()
         {
             if (Cookie(memoryCache) != null)
@@ -336,6 +389,16 @@ namespace JacRed.Controllers.CRON
                 int.TryParse(Regex.Match(block, @"seedmed[^>]*><b>(\d+)</b>").Groups[1].Value, out int sid);
                 int.TryParse(Regex.Match(block, @"leechmed[^>]*><b>(\d+)</b>").Groups[1].Value, out int pir);
 
+                string lastPostText = Regex.Match(
+                    block,
+                    @"<ul class=""last_post[^""]*"">.*?<a[^>]*>([^<]+)</a>",
+                    RegexOptions.Singleline
+                ).Groups[1].Value;
+
+                DateTime lastPostTime = ParseMazepaDate(lastPostText);
+                if (lastPostTime == default)
+                    lastPostTime = DateTime.UtcNow;
+
                 var titleTrim = title.Trim();
                 var (name, originalname, year) = ParseNamesAdvanced(titleTrim);
 
@@ -354,7 +417,8 @@ namespace JacRed.Controllers.CRON
                     videotype = ParseVideotype(titleTrim),
                     sid = sid,
                     pir = pir,
-                    createTime = DateTime.UtcNow,
+                    createTime = lastPostTime,
+                    updateTime = lastPostTime,
                     relased = year
                 });
             }
@@ -363,7 +427,19 @@ namespace JacRed.Controllers.CRON
             string signature = string.Join(",", list.Take(5).Select(x => x.url));
 
             int added = 0;
-            await FileDB.AddOrUpdate(list, (t, db) => { added++; return Task.FromResult(true); });
+            await FileDB.AddOrUpdate(list, (torrent, db) =>
+            {
+                if (db.TryGetValue(torrent.url, out TorrentDetails existing))
+                {
+                    torrent.createTime = existing.createTime != default ? existing.createTime : torrent.createTime;
+                }
+                else
+                {
+                    added++;
+                }
+
+                return Task.FromResult(true);
+            });
 
             return (list.Count, added, signature);
         }

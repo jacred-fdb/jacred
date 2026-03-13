@@ -31,6 +31,7 @@ synctrackers:
   - animelayer
   - anidub
   - aniliberty
+  - knaben
 disable_trackers: []
 syncsport: false
 syncspidr: false

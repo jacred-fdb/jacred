@@ -35,6 +35,7 @@ synctrackers:
   - animelayer
   - anidub
   - aniliberty
+  - knaben
 # RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers: []
 syncsport: true
@@ -174,6 +175,12 @@ Aniliberty:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
+  log: false
+
+Knaben:
+  host: https://api.knaben.org
+  useproxy: false
+  reqMinute: 120
   log: false
 
 Baibako:
