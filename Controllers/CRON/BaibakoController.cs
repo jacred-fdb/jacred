@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,60 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/baibako/[action]")]
     public class BaibakoController : BaseController
     {
+        #region Constants
+        private static class BaibakoConstants
+        {
+            // Cookie names
+            public const string COOKIE_PHPSESSID = "PHPSESSID";
+            public const string COOKIE_PASS = "pass";
+            public const string COOKIE_UID = "uid";
+
+            // Endpoints
+            public const string ENDPOINT_LOGIN = "/takelogin.php";
+            public const string ENDPOINT_BROWSE = "/browse.php";
+            public const string ENDPOINT_DOWNLOAD = "/download.php";
+
+            // Cache keys
+            public const string CACHE_COOKIE = "baibako:cookie";
+
+            // Tracker name
+            public const string TRACKER_NAME = "baibako";
+
+            // Content types
+            public const string TYPE_SERIAL = "serial";
+            public const string TYPE_MOVIE = "movie";
+
+            // Form parameters
+            public const string PARAM_USERNAME = "username";
+            public const string PARAM_PASSWORD = "password";
+
+            // Validation
+            public const string VALIDATION_NAV_TOP = "id=\"navtop\"";
+
+            // Cache duration
+            public static readonly TimeSpan COOKIE_CACHE_DURATION = TimeSpan.FromDays(1);
+        }
+        #endregion
+
+        #region Compiled Regexes (Static cache to avoid recompilation)
+        private static readonly Regex RegexSerialPattern1 = new Regex("/s\\d+e\\d+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern2 = new Regex("\\d+[\\-й]?\\s*сезон", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern3 = new Regex("сезон\\s+повністю", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern4 = new Regex("сезон\\s+полностью", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern5 = new Regex("полный\\s+\\d+\\s+сезон", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern6 = new Regex("повній\\s+\\d+[\\-й]?\\s*сезон", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern7 = new Regex("\\d+[\\-й]?\\s*сезон\\s+повністю", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern8 = new Regex("\\d+[\\-й]?\\s*сезон\\s+полностью", RegexOptions.Compiled);
+        private static readonly Regex RegexSerialPattern9 = new Regex("сезон\\s+\\d+", RegexOptions.Compiled);
+        private static readonly Regex RegexDownloadId = new Regex("href=[\"']/?(?:download\\.php\\?id=|download\\.php&amp;id=)([0-9]+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexCookieValue = new Regex("([^;]+)(;|$)", RegexOptions.Compiled);
+        private static readonly Regex RegexWhitespace = new Regex("[\\n\\r\\t ]+", RegexOptions.Compiled);
+        private static readonly Regex RegexTitleFormat = new Regex("([^/\\(]+)[^/]+/([^/\\(]+)", RegexOptions.Compiled);
+        private static readonly Regex RegexQualityFilter = new Regex("(1080p|720p)", RegexOptions.Compiled);
+        #endregion
+
+        private static readonly SemaphoreSlim loginSemaphore = new SemaphoreSlim(1, 1);
+
         #region TakeLogin
         static string Cookie(IMemoryCache memoryCache)
         {
@@ -25,7 +80,7 @@ namespace JacRed.Controllers.CRON
                 return AppInit.conf.Baibako.cookie;
 
             // Then check cached cookie
-            if (memoryCache.TryGetValue("baibako:cookie", out string cookie))
+            if (memoryCache.TryGetValue(BaibakoConstants.CACHE_COOKIE, out string cookie))
                 return cookie;
 
             return null;
@@ -45,14 +100,19 @@ namespace JacRed.Controllers.CRON
             }
 
             // No cookie and no credentials
-            ParserLog.Write("baibako", "No cookie or login credentials available");
+            ParserLog.Write(BaibakoConstants.TRACKER_NAME, "No cookie or login credentials available");
             return false;
         }
 
         async Task<bool> TakeLogin()
         {
+            await loginSemaphore.WaitAsync();
             try
             {
+                // Double-check after acquiring semaphore - another task might have logged in
+                if (Cookie(memoryCache) != null)
+                    return true;
+
                 var login = AppInit.conf.Baibako.login.u;
                 var pass = AppInit.conf.Baibako.login.p;
                 var host = AppInit.conf.Baibako.host;
@@ -71,37 +131,25 @@ namespace JacRed.Controllers.CRON
 
                     var postParams = new Dictionary<string, string>
                     {
-                        { "username", login },
-                        { "password", pass }
+                        { BaibakoConstants.PARAM_USERNAME, login },
+                        { BaibakoConstants.PARAM_PASSWORD, pass }
                     };
 
                     using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
                     {
-                        using (var response = await client.PostAsync($"{host}/takelogin.php", postContent))
+                        using (var response = await client.PostAsync($"{host}{BaibakoConstants.ENDPOINT_LOGIN}", postContent))
                         {
                             if (response.Headers.TryGetValues("Set-Cookie", out var cook))
                             {
-                                string sessid = null, passCookie = null, uid = null;
-                                foreach (string line in cook)
-                                {
-                                    if (string.IsNullOrWhiteSpace(line))
-                                        continue;
-
-                                    if (line.Contains("PHPSESSID="))
-                                        sessid = new Regex("PHPSESSID=([^;]+)(;|$)").Match(line).Groups[1].Value;
-
-                                    if (line.Contains("pass="))
-                                        passCookie = new Regex("pass=([^;]+)(;|$)").Match(line).Groups[1].Value;
-
-                                    if (line.Contains("uid="))
-                                        uid = new Regex("uid=([^;]+)(;|$)").Match(line).Groups[1].Value;
-                                }
+                                string sessid = ExtractCookieValue(cook, BaibakoConstants.COOKIE_PHPSESSID);
+                                string passCookie = ExtractCookieValue(cook, BaibakoConstants.COOKIE_PASS);
+                                string uid = ExtractCookieValue(cook, BaibakoConstants.COOKIE_UID);
 
                                 if (!string.IsNullOrWhiteSpace(sessid) && !string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(passCookie))
                                 {
-                                    string cookieStr = $"PHPSESSID={sessid}; uid={uid}; pass={passCookie}";
-                                    memoryCache.Set("baibako:cookie", cookieStr, TimeSpan.FromDays(1));
-                                    ParserLog.Write("baibako", "Login OK");
+                                    string cookieStr = $"{BaibakoConstants.COOKIE_PHPSESSID}={sessid}; {BaibakoConstants.COOKIE_UID}={uid}; {BaibakoConstants.COOKIE_PASS}={passCookie}";
+                                    memoryCache.Set(BaibakoConstants.CACHE_COOKIE, cookieStr, BaibakoConstants.COOKIE_CACHE_DURATION);
+                                    ParserLog.Write(BaibakoConstants.TRACKER_NAME, "Login OK");
                                     return true;
                                 }
                             }
@@ -111,10 +159,28 @@ namespace JacRed.Controllers.CRON
             }
             catch (Exception ex)
             {
-                ParserLog.Write("baibako", $"Login error: {ex.Message}");
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login error: {ex.Message}");
+            }
+            finally
+            {
+                loginSemaphore.Release();
             }
 
             return false;
+        }
+
+        private string ExtractCookieValue(IEnumerable<string> cookieHeaders, string cookieName)
+        {
+            foreach (string line in cookieHeaders)
+            {
+                if (string.IsNullOrWhiteSpace(line) || !line.Contains($"{cookieName}="))
+                    continue;
+
+                var match = RegexCookieValue.Match(line.Substring(line.IndexOf($"{cookieName}=") + cookieName.Length + 1));
+                if (match.Success)
+                    return match.Groups[1].Value;
+            }
+            return null;
         }
         #endregion
 
@@ -153,7 +219,7 @@ namespace JacRed.Controllers.CRON
                 #endregion
 
                 var sw = Stopwatch.StartNew();
-                string baseUrl = $"{AppInit.conf.Baibako.host}/browse.php";
+                string baseUrl = $"{AppInit.conf.Baibako.host}{BaibakoConstants.ENDPOINT_BROWSE}";
 
                 // Determine page range
                 int startPage = parseFrom >= 0 ? parseFrom : 0;
@@ -167,7 +233,7 @@ namespace JacRed.Controllers.CRON
                     endPage = temp;
                 }
 
-                ParserLog.Write("baibako", $"Starting parse", new Dictionary<string, object>
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Starting parse", new Dictionary<string, object>
                 {
                     { "parseFrom", parseFrom },
                     { "parseTo", parseTo },
@@ -184,7 +250,7 @@ namespace JacRed.Controllers.CRON
                     if (page > startPage)
                         await Task.Delay(AppInit.conf.Baibako.parseDelay);
 
-                    ParserLog.Write("baibako", $"Page {page}: {baseUrl}?page={page}");
+                    ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Page {page}: {baseUrl}?page={page}");
                     var result = await parsePage(page);
                     totalParsed += result.parsed;
                     totalAdded += result.added;
@@ -193,7 +259,7 @@ namespace JacRed.Controllers.CRON
                     totalFailed += result.failed;
                 }
 
-                ParserLog.Write("baibako", $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
                     new Dictionary<string, object>
                     {
                         { "parsed", totalParsed },
@@ -205,7 +271,7 @@ namespace JacRed.Controllers.CRON
             }
             catch (Exception ex)
             {
-                ParserLog.Write("baibako", $"Error: {ex.Message}");
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Error: {ex.Message}");
             }
             finally
             {
@@ -220,10 +286,10 @@ namespace JacRed.Controllers.CRON
         #region parsePage
         async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.Baibako.host}/browse.php?page={page}", encoding: Encoding.GetEncoding(1251), cookie: Cookie(memoryCache));
-            if (html == null || !html.Contains("id=\"navtop\""))
+            string html = await HttpClient.Get($"{AppInit.conf.Baibako.host}{BaibakoConstants.ENDPOINT_BROWSE}?page={page}", encoding: Encoding.GetEncoding(1251), cookie: Cookie(memoryCache));
+            if (html == null || !html.Contains(BaibakoConstants.VALIDATION_NAV_TOP))
             {
-                ParserLog.Write("baibako", $"Page parse failed", new Dictionary<string, object>
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Page parse failed", new Dictionary<string, object>
                 {
                     { "page", page },
                     { "reason", html == null ? "null response" : "invalid content" }
@@ -235,22 +301,11 @@ namespace JacRed.Controllers.CRON
 
             foreach (string row in tParse.ReplaceBadNames(HttpUtility.HtmlDecode(html.Replace("&nbsp;", ""))).Split("<tr").Skip(1))
             {
-                #region Локальный метод - Match
-                string Match(string pattern, int index = 1)
-                {
-                    string res = new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim();
-                    res = Regex.Replace(res, "[\n\r\t ]+", " ");
-                    return res.Trim();
-                }
-                #endregion
-
                 if (string.IsNullOrWhiteSpace(row))
                     continue;
 
                 // Дата создания
-                // HTML uses "Обновлена" (Updated) or "Загружена" (Uploaded)
-                // Note: Some dates may be in the future (2025-2026) if tracker uses release dates for upcoming content
-                DateTime createTime = tParse.ParseCreateTime(Match("<small>(?:Загружена|Обновлена): ([0-9]+ [^ ]+ [0-9]{4}) в [^<]+</small>"), "dd.MM.yyyy");
+                DateTime createTime = tParse.ParseCreateTime(ExtractAndClean(row, "<small>(?:Загружена|Обновлена): ([0-9]+ [^ ]+ [0-9]{4}) в [^<]+</small>"), "dd.MM.yyyy");
                 if (createTime == default)
                 {
                     if (page != 0)
@@ -272,7 +327,7 @@ namespace JacRed.Controllers.CRON
                 title = Regex.Replace(title, "/( +| )?$", "").Trim();
 
                 // Filter by quality - only accept 1080p or 720p releases
-                if (!Regex.IsMatch(title, "(1080p|720p)"))
+                if (!RegexQualityFilter.IsMatch(title))
                     continue;
 
                 url = $"{AppInit.conf.Baibako.host}/{url}";
@@ -281,8 +336,7 @@ namespace JacRed.Controllers.CRON
                 #region name / originalname
                 string name = null, originalname = null;
 
-                // 9-1-1 /9-1-1 /s04e01-13 /WEBRip XviD
-                var g = Regex.Match(title, "([^/\\(]+)[^/]+/([^/\\(]+)").Groups;
+                var g = RegexTitleFormat.Match(title).Groups;
                 if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
                 {
                     name = g[1].Value.Trim();
@@ -296,8 +350,7 @@ namespace JacRed.Controllers.CRON
                 if (!string.IsNullOrWhiteSpace(name))
                 {
                     // Extract download ID from href="download.php?id=42075" or href="download.php&amp;id=42075"
-                    // Match both regular and HTML-encoded ampersand
-                    var downloadMatch = Regex.Match(row, "href=[\"']/?(?:download\\.php\\?id=|download\\.php&amp;id=)([0-9]+)[\"']", RegexOptions.IgnoreCase);
+                    var downloadMatch = RegexDownloadId.Match(row);
                     if (!downloadMatch.Success)
                         continue;
 
@@ -306,38 +359,12 @@ namespace JacRed.Controllers.CRON
                         continue;
 
                     #region types
-                    // Determine content type based on title patterns
-                    // Serials typically have: s01e01, s02e01-10, сезон, Сезон, сезон повністю, etc.
-                    string[] types = null;
-                    string titleLower = title.ToLower();
-
-                    // Check for serial patterns (season/episode indicators)
-                    // Patterns: s01e01, s02e01-10, /сезон, /Сезон, сезон повністю, полностью, etc.
-                    bool isSerial = Regex.IsMatch(title, "/s\\d+e\\d+", RegexOptions.IgnoreCase) ||
-                                    Regex.IsMatch(titleLower, "\\d+[\\-й]?\\s*сезон") ||
-                                    Regex.IsMatch(titleLower, "сезон\\s+повністю") ||
-                                    Regex.IsMatch(titleLower, "сезон\\s+полностью") ||
-                                    Regex.IsMatch(titleLower, "полный\\s+\\d+\\s+сезон") ||
-                                    Regex.IsMatch(titleLower, "повний\\s+\\d+[\\-й]?\\s*сезон") ||
-                                    Regex.IsMatch(titleLower, "\\d+[\\-й]?\\s*сезон\\s+повністю") ||
-                                    Regex.IsMatch(titleLower, "\\d+[\\-й]?\\s*сезон\\s+полностью") ||
-                                    Regex.IsMatch(titleLower, "сезон\\s+\\d+") ||
-                                    Regex.IsMatch(titleLower, "s\\d+e\\d+");
-
-                    if (isSerial)
-                    {
-                        types = new string[] { "serial" };
-                    }
-                    else
-                    {
-                        // If no serial patterns found, assume it's a movie
-                        types = new string[] { "movie" };
-                    }
+                    string[] types = DetectContentType(title);
                     #endregion
 
                     torrents.Add(new BaibakoDetails()
                     {
-                        trackerName = "baibako",
+                        trackerName = BaibakoConstants.TRACKER_NAME,
                         types = types,
                         url = url,
                         title = title,
@@ -345,7 +372,7 @@ namespace JacRed.Controllers.CRON
                         createTime = createTime,
                         name = name,
                         originalname = originalname,
-                        downloadUri = $"{AppInit.conf.Baibako.host}/download.php?id={downloadId}"
+                        downloadUri = $"{AppInit.conf.Baibako.host}{BaibakoConstants.ENDPOINT_DOWNLOAD}?id={downloadId}"
                     });
                 }
             }
@@ -364,6 +391,7 @@ namespace JacRed.Controllers.CRON
                     {
                         // Get cookie once for this torrent
                         string cookie = Cookie(memoryCache);
+                        string referer = $"{AppInit.conf.Baibako.host}{BaibakoConstants.ENDPOINT_BROWSE}";
 
                         // Check if already exists
                         bool exists = db.TryGetValue(t.url, out TorrentDetails _tcache);
@@ -371,144 +399,80 @@ namespace JacRed.Controllers.CRON
                         // If torrent exists with same title, check if we need to update
                         if (exists && string.Equals(_tcache.title?.Trim(), t.title?.Trim(), StringComparison.OrdinalIgnoreCase))
                         {
-                            // Check if types changed (e.g., serial -> movie or vice versa)
-                            bool typesChanged = false;
-                            if (t.types != null && _tcache.types != null)
-                            {
-                                // Compare types arrays
-                                if (t.types.Length != _tcache.types.Length)
-                                {
-                                    typesChanged = true;
-                                }
-                                else
-                                {
-                                    foreach (string type in t.types)
-                                    {
-                                        if (!_tcache.types.Contains(type))
-                                        {
-                                            typesChanged = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            else if (t.types != null || _tcache.types != null)
-                            {
-                                // One is null, other is not
-                                typesChanged = true;
-                            }
+                            // Check if types changed
+                            bool typesChanged = !TypesEqual(t.types, _tcache.types);
 
                             // If types changed, update without downloading torrent
                             if (typesChanged)
                             {
                                 updatedCount++;
-                                ParserLog.WriteUpdated("baibako", t, $"types updated: [{string.Join(", ", _tcache.types ?? new string[0])}] -> [{string.Join(", ", t.types ?? new string[0])}]");
+                                ParserLog.WriteUpdated(BaibakoConstants.TRACKER_NAME, t, $"types updated: [{string.Join(", ", _tcache.types ?? new string[0])}] -> [{string.Join(", ", t.types ?? new string[0])}]");
                                 return true;
                             }
 
-                            // Download torrent to get current magnet and size
-                            byte[] torrent = await HttpClient.Download(t.downloadUri, cookie: cookie, referer: $"{AppInit.conf.Baibako.host}/browse.php");
-
-                            if (torrent == null || torrent.Length == 0)
+                            // Download and extract magnet/size for existing torrent
+                            var extractResult = await DownloadAndExtractTorrent(t.downloadUri, cookie, referer);
+                            if (extractResult.error != null)
                             {
                                 skippedCount++;
-                                string cookieStatus = string.IsNullOrWhiteSpace(cookie) ? "no cookie" : "cookie present";
-                                ParserLog.WriteSkipped("baibako", _tcache, $"failed to download torrent (null or empty), downloadUri={t.downloadUri}, {cookieStatus}");
+                                ParserLog.WriteSkipped(BaibakoConstants.TRACKER_NAME, _tcache, extractResult.error);
                                 return false;
                             }
 
-                            string magnet = BencodeTo.Magnet(torrent);
-                            string sizeName = BencodeTo.SizeName(torrent);
+                            // Check if magnet or size changed
+                            string magnetCompare = _tcache.magnet?.Trim() ?? "";
+                            string sizeCompare = _tcache.sizeName?.Trim() ?? "";
+                            string newMagnetCompare = extractResult.magnet?.Trim() ?? "";
+                            string newSizeCompare = extractResult.sizeName?.Trim() ?? "";
 
-                            if (!string.IsNullOrWhiteSpace(magnet) && !string.IsNullOrWhiteSpace(sizeName))
+                            bool magnetChanged = !string.Equals(magnetCompare, newMagnetCompare, StringComparison.OrdinalIgnoreCase);
+                            bool sizeChanged = !string.Equals(sizeCompare, newSizeCompare, StringComparison.OrdinalIgnoreCase);
+
+                            if (!magnetChanged && !sizeChanged)
                             {
-                                // Check if magnet or size changed
-                                bool magnetChanged = !string.Equals(_tcache.magnet?.Trim(), magnet.Trim(), StringComparison.OrdinalIgnoreCase);
-                                bool sizeChanged = !string.Equals(_tcache.sizeName?.Trim(), sizeName.Trim(), StringComparison.OrdinalIgnoreCase);
-
-                                if (!magnetChanged && !sizeChanged)
-                                {
-                                    // No changes detected, skip
-                                    skippedCount++;
-                                    ParserLog.WriteSkipped("baibako", _tcache, "no changes");
-                                    return false;
-                                }
-
-                                // Update with new magnet/size
-                                t.magnet = magnet;
-                                t.sizeName = sizeName;
-                                updatedCount++;
-                                string reason = magnetChanged && sizeChanged ? "magnet and size updated" : (magnetChanged ? "magnet updated" : "size updated");
-                                ParserLog.WriteUpdated("baibako", t, reason);
-                                return true;
-                            }
-                            else
-                            {
-                                // Failed to extract magnet/size, but torrent exists - skip to avoid overwriting with empty data
                                 skippedCount++;
-                                ParserLog.WriteSkipped("baibako", _tcache, "failed to extract magnet/size, keeping existing data");
+                                ParserLog.WriteSkipped(BaibakoConstants.TRACKER_NAME, _tcache, "no changes");
                                 return false;
                             }
-                        }
 
-                        // New torrent or title changed - download and add/update
-                        byte[] torrentData = await HttpClient.Download(t.downloadUri, cookie: cookie, referer: $"{AppInit.conf.Baibako.host}/browse.php");
-
-                        if (torrentData == null || torrentData.Length == 0)
-                        {
-                            failedCount++;
-                            string cookieStatus = string.IsNullOrWhiteSpace(cookie) ? "no cookie" : "cookie present";
-                            ParserLog.WriteFailed("baibako", t, $"failed to download torrent (null or empty), downloadUri={t.downloadUri}, {cookieStatus}");
-                            return false;
-                        }
-
-                        // Check if downloaded data looks like a torrent file (should start with "d" for bencoded dictionary)
-                        // Torrent files are bencoded and start with 'd' (dictionary) or sometimes have BOM
-                        bool looksLikeTorrent = torrentData.Length > 0 && torrentData[0] == (byte)'d';
-                        if (!looksLikeTorrent && torrentData.Length < 100)
-                        {
-                            // Might be HTML error page - check if it contains HTML tags
-                            string preview = Encoding.UTF8.GetString(torrentData, 0, Math.Min(200, torrentData.Length));
-                            if (preview.Contains("<html") || preview.Contains("<!DOCTYPE") || preview.Contains("<body"))
-                            {
-                                failedCount++;
-                                ParserLog.WriteFailed("baibako", t, $"downloaded HTML instead of torrent file, downloadUri={t.downloadUri}, preview={preview.Substring(0, Math.Min(100, preview.Length))}");
-                                return false;
-                            }
-                        }
-
-                        string newMagnet = BencodeTo.Magnet(torrentData);
-                        string newSizeName = BencodeTo.SizeName(torrentData);
-
-                        if (!string.IsNullOrWhiteSpace(newMagnet) && !string.IsNullOrWhiteSpace(newSizeName))
-                        {
-                            t.magnet = newMagnet;
-                            t.sizeName = newSizeName;
-
-                            if (exists)
-                            {
-                                updatedCount++;
-                                ParserLog.WriteUpdated("baibako", t, "title changed or new data");
-                            }
-                            else
-                            {
-                                addedCount++;
-                                ParserLog.WriteAdded("baibako", t);
-                            }
-
+                            // Update with new magnet/size
+                            t.magnet = extractResult.magnet;
+                            t.sizeName = extractResult.sizeName;
+                            updatedCount++;
+                            string reason = magnetChanged && sizeChanged ? "magnet and size updated" : (magnetChanged ? "magnet updated" : "size updated");
+                            ParserLog.WriteUpdated(BaibakoConstants.TRACKER_NAME, t, reason);
                             return true;
                         }
 
-                        // More detailed error message
-                        string errorDetails = $"magnet={(string.IsNullOrWhiteSpace(newMagnet) ? "null" : "ok")}, sizeName={(string.IsNullOrWhiteSpace(newSizeName) ? "null" : "ok")}, torrentSize={torrentData?.Length ?? 0}";
-                        failedCount++;
-                        ParserLog.WriteFailed("baibako", t, $"failed to extract magnet or size: {errorDetails}");
-                        return false;
+                        // New torrent or title changed - download and add/update
+                        var result = await DownloadAndExtractTorrent(t.downloadUri, cookie, referer);
+                        if (result.error != null)
+                        {
+                            failedCount++;
+                            ParserLog.WriteFailed(BaibakoConstants.TRACKER_NAME, t, result.error);
+                            return false;
+                        }
+
+                        t.magnet = result.magnet;
+                        t.sizeName = result.sizeName;
+
+                        if (exists)
+                        {
+                            updatedCount++;
+                            ParserLog.WriteUpdated(BaibakoConstants.TRACKER_NAME, t, "title changed or new data");
+                        }
+                        else
+                        {
+                            addedCount++;
+                            ParserLog.WriteAdded(BaibakoConstants.TRACKER_NAME, t);
+                        }
+
+                        return true;
                     }
                     catch (Exception ex)
                     {
                         failedCount++;
-                        ParserLog.WriteFailed("baibako", t, $"exception: {ex.Message}");
+                        ParserLog.WriteFailed(BaibakoConstants.TRACKER_NAME, t, $"exception: {ex.Message}");
                         return false;
                     }
                 });
@@ -516,7 +480,7 @@ namespace JacRed.Controllers.CRON
 
             if (parsedCount > 0)
             {
-                ParserLog.Write("baibako", $"Page {page} completed",
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Page {page} completed",
                     new Dictionary<string, object>
                     {
                         { "parsed", parsedCount },
@@ -528,6 +492,88 @@ namespace JacRed.Controllers.CRON
             }
 
             return (parsedCount, addedCount, updatedCount, skippedCount, failedCount);
+        }
+
+        private string ExtractAndClean(string text, string pattern)
+        {
+            string res = new Regex(pattern, RegexOptions.IgnoreCase).Match(text).Groups[1].Value.Trim();
+            res = RegexWhitespace.Replace(res, " ");
+            return res.Trim();
+        }
+
+        private string[] DetectContentType(string title)
+        {
+            string titleLower = title.ToLower();
+
+            bool isSerial = RegexSerialPattern1.IsMatch(title) ||
+                           RegexSerialPattern2.IsMatch(titleLower) ||
+                           RegexSerialPattern3.IsMatch(titleLower) ||
+                           RegexSerialPattern4.IsMatch(titleLower) ||
+                           RegexSerialPattern5.IsMatch(titleLower) ||
+                           RegexSerialPattern6.IsMatch(titleLower) ||
+                           RegexSerialPattern7.IsMatch(titleLower) ||
+                           RegexSerialPattern8.IsMatch(titleLower) ||
+                           RegexSerialPattern9.IsMatch(titleLower);
+
+            return isSerial
+                ? new string[] { BaibakoConstants.TYPE_SERIAL }
+                : new string[] { BaibakoConstants.TYPE_MOVIE };
+        }
+
+        private bool TypesEqual(string[] types1, string[] types2)
+        {
+            if (types1 == null && types2 == null) return true;
+            if (types1 == null || types2 == null) return false;
+            return types1.SequenceEqual(types2 ?? new string[0]);
+        }
+
+        private async Task<(byte[] data, string magnet, string sizeName, string error)>
+            DownloadAndExtractTorrent(string downloadUri, string cookie, string referer)
+        {
+            byte[] torrentData = await HttpClient.Download(downloadUri, cookie: cookie, referer: referer);
+
+            if (torrentData == null || torrentData.Length == 0)
+            {
+                string cookieStatus = string.IsNullOrWhiteSpace(cookie) ? "no cookie" : "cookie present";
+                return (null, null, null, $"failed to download torrent (null or empty), downloadUri={downloadUri}, {cookieStatus}");
+            }
+
+            // Check if downloaded data looks like a torrent file
+            if (!IsValidBencodedTorrent(torrentData))
+            {
+                return (torrentData, null, null, $"downloaded HTML instead of torrent file, downloadUri={downloadUri}");
+            }
+
+            string magnet = BencodeTo.Magnet(torrentData);
+            string sizeName = BencodeTo.SizeName(torrentData);
+
+            if (!string.IsNullOrWhiteSpace(magnet) && !string.IsNullOrWhiteSpace(sizeName))
+            {
+                return (torrentData, magnet, sizeName, null);
+            }
+
+            string errorDetails = $"magnet={(string.IsNullOrWhiteSpace(magnet) ? "null" : "ok")}, sizeName={(string.IsNullOrWhiteSpace(sizeName) ? "null" : "ok")}, torrentSize={torrentData?.Length ?? 0}";
+            return (torrentData, null, null, $"failed to extract magnet or size: {errorDetails}");
+        }
+
+        private bool IsValidBencodedTorrent(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+                return false;
+
+            // Valid bencoded torrent starts with 'd' (dictionary)
+            if (data[0] == (byte)'d')
+                return true;
+
+            // If small and looks like HTML, it's not a torrent
+            if (data.Length < 100)
+            {
+                string preview = Encoding.UTF8.GetString(data, 0, Math.Min(200, data.Length));
+                if (preview.Contains("<html") || preview.Contains("<!DOCTYPE") || preview.Contains("<body"))
+                    return false;
+            }
+
+            return false;
         }
         #endregion
     }
