@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using JacRed.Engine;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
+using System.Net.Sockets;
 
 namespace JacRed.Controllers.CRON
 {
@@ -165,9 +166,13 @@ namespace JacRed.Controllers.CRON
             {
                 ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login cancelled: {ex.Message}");
             }
-            catch (Exception ex)
+            catch (System.IO.IOException ex)
             {
-                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login error: {ex.GetType().Name}: {ex.ToString()}");
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login error: {ex.GetType().Name}: {ex}");
+            }
+            catch (SocketException ex)
+            {
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login error: {ex.GetType().Name}: {ex}");
             }
             finally
             {
@@ -477,6 +482,10 @@ namespace JacRed.Controllers.CRON
                         return true;
                     }
                     catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (SystemException)
                     {
                         throw;
                     }
