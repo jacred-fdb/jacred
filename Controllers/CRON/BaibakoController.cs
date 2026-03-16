@@ -157,9 +157,17 @@ namespace JacRed.Controllers.CRON
                     }
                 }
             }
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login HTTP error: {ex.Message}");
+            }
+            catch (OperationCanceledException ex)
+            {
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login cancelled: {ex.Message}");
+            }
             catch (Exception ex)
             {
-                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login error: {ex.Message}");
+                ParserLog.Write(BaibakoConstants.TRACKER_NAME, $"Login error: {ex.GetType().Name}: {ex.ToString()}");
             }
             finally
             {
@@ -171,16 +179,15 @@ namespace JacRed.Controllers.CRON
 
         private string ExtractCookieValue(IEnumerable<string> cookieHeaders, string cookieName)
         {
-            foreach (string line in cookieHeaders)
-            {
-                if (string.IsNullOrWhiteSpace(line) || !line.Contains($"{cookieName}="))
-                    continue;
+            string cookieKey = $"{cookieName}=";
+            string candidate = (cookieHeaders ?? Enumerable.Empty<string>())
+                .Where(line => !string.IsNullOrWhiteSpace(line) && line.Contains(cookieKey))
+                .FirstOrDefault();
 
-                var match = RegexCookieValue.Match(line.Substring(line.IndexOf($"{cookieName}=") + cookieName.Length + 1));
-                if (match.Success)
-                    return match.Groups[1].Value;
-            }
-            return null;
+            if (candidate == null) return null;
+
+            var match = RegexCookieValue.Match(candidate.Substring(candidate.IndexOf(cookieKey) + cookieKey.Length));
+            return match.Success ? match.Groups[1].Value : null;
         }
         #endregion
 
@@ -422,8 +429,8 @@ namespace JacRed.Controllers.CRON
                             // Check if magnet or size changed
                             string magnetCompare = _tcache.magnet?.Trim() ?? "";
                             string sizeCompare = _tcache.sizeName?.Trim() ?? "";
-                            string newMagnetCompare = extractResult.magnet?.Trim() ?? "";
-                            string newSizeCompare = extractResult.sizeName?.Trim() ?? "";
+                            string newMagnetCompare = extractResult.magnet.Trim();
+                            string newSizeCompare = extractResult.sizeName.Trim();
 
                             bool magnetChanged = !string.Equals(magnetCompare, newMagnetCompare, StringComparison.OrdinalIgnoreCase);
                             bool sizeChanged = !string.Equals(sizeCompare, newSizeCompare, StringComparison.OrdinalIgnoreCase);
@@ -469,10 +476,14 @@ namespace JacRed.Controllers.CRON
 
                         return true;
                     }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         failedCount++;
-                        ParserLog.WriteFailed(BaibakoConstants.TRACKER_NAME, t, $"exception: {ex.Message}");
+                        ParserLog.WriteFailed(BaibakoConstants.TRACKER_NAME, t, $"exception: {ex.GetType().Name}: {ex.Message}");
                         return false;
                     }
                 });
@@ -524,7 +535,7 @@ namespace JacRed.Controllers.CRON
         {
             if (types1 == null && types2 == null) return true;
             if (types1 == null || types2 == null) return false;
-            return types1.SequenceEqual(types2 ?? new string[0]);
+            return types1.SequenceEqual(types2);
         }
 
         private async Task<(byte[] data, string magnet, string sizeName, string error)>
@@ -552,7 +563,7 @@ namespace JacRed.Controllers.CRON
                 return (torrentData, magnet, sizeName, null);
             }
 
-            string errorDetails = $"magnet={(string.IsNullOrWhiteSpace(magnet) ? "null" : "ok")}, sizeName={(string.IsNullOrWhiteSpace(sizeName) ? "null" : "ok")}, torrentSize={torrentData?.Length ?? 0}";
+            string errorDetails = $"magnet={(string.IsNullOrWhiteSpace(magnet) ? "null" : "ok")}, sizeName={(string.IsNullOrWhiteSpace(sizeName) ? "null" : "ok")}, torrentSize={torrentData.Length}";
             return (torrentData, null, null, $"failed to extract magnet or size: {errorDetails}");
         }
 
