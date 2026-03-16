@@ -423,8 +423,8 @@ namespace JacRed.Controllers.CRON
                             if (!string.IsNullOrWhiteSpace(magnet) && !string.IsNullOrWhiteSpace(sizeName))
                             {
                                 // Check if magnet or size changed
-                                bool magnetChanged = !string.Equals(_tcache.magnet?.Trim(), magnet?.Trim(), StringComparison.OrdinalIgnoreCase);
-                                bool sizeChanged = !string.Equals(_tcache.sizeName?.Trim(), sizeName?.Trim(), StringComparison.OrdinalIgnoreCase);
+                                bool magnetChanged = !string.Equals(_tcache.magnet?.Trim(), magnet.Trim(), StringComparison.OrdinalIgnoreCase);
+                                bool sizeChanged = !string.Equals(_tcache.sizeName?.Trim(), sizeName.Trim(), StringComparison.OrdinalIgnoreCase);
 
                                 if (!magnetChanged && !sizeChanged)
                                 {
