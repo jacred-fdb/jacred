@@ -85,8 +85,8 @@ WORKDIR /app
 
 # Copy publish output: /dist contains JacRed (binary), wwwroot/, Data/
 COPY --from=build --chown=jacred:jacred --chmod=550 /dist/JacRed /app/JacRed
-COPY --from=build --chown=jacred:jacred --chmod=550 /dist/wwwroot /app/wwwroot
-COPY --from=build --chown=jacred:jacred --chmod=550 /dist/Data /app/Data
+COPY --from=build --chown=jacred:jacred --chmod=750 /dist/wwwroot /app/wwwroot
+COPY --from=build --chown=jacred:jacred --chmod=750 /dist/Data /app/Data
 # Default config files for first run when Data is overridden by bind mount (./data:/app/Data)
 COPY --from=build --chown=jacred:jacred /dist/Data/init.conf /app/defaults/
 COPY --from=build --chown=jacred:jacred /dist/Data/init.yaml /app/defaults/
