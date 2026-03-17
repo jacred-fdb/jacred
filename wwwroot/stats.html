@@ -305,17 +305,17 @@
           <button id="toggleTheme"
             class="p-3 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-all group shrink-0"
             aria-label="Переключить тему оформления" type="button">
-          <svg id="iconMoon"
-            class="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 hidden"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-          <svg id="iconSun" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
+            <svg id="iconMoon"
+              class="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 hidden"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+            <svg id="iconSun" class="w-5 h-5 text-yellow-500 hidden" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
           </button>
         </div>
         <script>
@@ -518,7 +518,8 @@
           class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6 animate-fade-in">
           <h2 id="apiKeyModalTitle" class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Установить API
             ключ</h2>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ключ используется для поиска и статистики. Сохраняется в
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ключ используется для поиска и статистики.
+            Сохраняется в
             браузере.</p>
           <input type="password" id="apiKeyInput" autocomplete="new-password"
             class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
@@ -730,12 +731,6 @@
         skip: Number(item.tracks?.skip) || 0
       });
 
-      const toSafeIconName = (name) => {
-        const base = (name || '').toString().toLowerCase();
-        const safe = base.replace(/[^a-z0-9_-]/g, '-');
-        return safe.replace(/-+/g, '-').replace(/^-|-$/g, '') || 'default';
-      };
-
       const getSafeIconPath = (item) => {
         const rawName = (item.trackerName || '').toLowerCase();
         const safeName = rawName.replace(/[^a-z0-9_-]/g, '');
@@ -747,7 +742,6 @@
         const tracks = getTracksData(item);
         const name = item.trackerName || '—';
         const nameSafe = escapeHtml(name);
-        const icoName = toSafeIconName(item.trackerName);
         const ico = escapeAttr(getSafeIconPath(item));
 
         return `
