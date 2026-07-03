@@ -86,7 +86,7 @@ namespace JacRed.Controllers
 
         static List<object> CollectTorrents(string trackerName, int newtoday, int updatedtoday, int limit)
         {
-            var today = DateTime.Today - (DateTime.Now - DateTime.UtcNow);
+            var today = DateTime.UtcNow.Date;
             var collected = new List<TorrentDetails>();
             var filterByTracker = !string.IsNullOrWhiteSpace(trackerName);
 

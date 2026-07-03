@@ -26,7 +26,7 @@ namespace JacRed.Engine
 
                 try
                 {
-                    var today = DateTime.Today - (DateTime.Now - DateTime.UtcNow);
+                    var today = DateTime.UtcNow.Date;
                     var stats = new Dictionary<string, (DateTime lastnewtor, int newtor, int update, int check, int alltorrents, int trkconfirm, int trkwait, int trerror)>();
 
                     foreach (var item in FileDB.masterDb.ToArray())
