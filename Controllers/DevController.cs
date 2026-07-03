@@ -1138,7 +1138,7 @@ namespace JacRed.Controllers
         }
 
         /// <summary>
-        /// Экспорт всех ffprobe/tracks в JSON (layout для lampa-tracks: AA/B/HASHREST).
+        /// Экспорт всех ffprobe/tracks в JSON (layout для lampa-tracks: AA/B/HASH.json).
         /// </summary>
         public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true)
         {
@@ -1146,6 +1146,18 @@ namespace JacRed.Controllers
                 return Json(new { badip = true });
 
             var result = TracksDB.ExportAll(dir, dryRun, includeTorrentDb);
+            return Json(new { ok = true, result });
+        }
+
+        /// <summary>
+        /// Backfill в Data/tracks: .json для новых файлов, миграция legacy без расширения, данные из FileDB.
+        /// </summary>
+        public JsonResult BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            var result = TracksDB.BackfillTracks("Data/tracks", dryRun, includeTorrentDb, migrateLegacy);
             return Json(new { ok = true, result });
         }
     }

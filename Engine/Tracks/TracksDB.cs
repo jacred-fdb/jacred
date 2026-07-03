@@ -27,7 +27,13 @@ namespace JacRed.Engine
                 {
                     foreach (var file in Directory.GetFiles(folder2))
                     {
-                        string infohash = folder1.Substring(12) + folder2.Substring(folder1.Length + 1) + Path.GetFileName(file);
+                        string infohash = InfohashFromTrackRelPath(
+                            Path.GetFileName(folder1),
+                            Path.GetFileName(folder2),
+                            Path.GetFileName(file));
+
+                        if (!IsValidInfohash(infohash))
+                            continue;
 
                         try
                         {
@@ -47,12 +53,40 @@ namespace JacRed.Engine
 
         static string pathDb(string infohash, bool createfolder = false)
         {
+            infohash = NormalizeInfohash(infohash);
             string folder = $"Data/tracks/{infohash.Substring(0, 2)}/{infohash[2]}";
 
             if (createfolder)
                 Directory.CreateDirectory(folder);
 
-            return $"{folder}/{infohash.Substring(3)}";
+            return $"{folder}/{infohash.Substring(3)}.json";
+        }
+
+        static string LegacyPathDb(string infohash)
+        {
+            infohash = NormalizeInfohash(infohash);
+            return $"Data/tracks/{infohash.Substring(0, 2)}/{infohash[2]}/{infohash.Substring(3)}";
+        }
+
+        static string TrackFilePath(string tracksDir, string infohash, bool withExtension = true)
+        {
+            infohash = NormalizeInfohash(infohash);
+            string folder = Path.Combine(tracksDir, infohash.Substring(0, 2), infohash[2].ToString());
+            string filename = withExtension ? $"{infohash.Substring(3)}.json" : infohash.Substring(3);
+            return Path.Combine(folder, filename);
+        }
+
+        static string ResolveTrackPath(string infohash)
+        {
+            string jsonPath = pathDb(infohash);
+            if (File.Exists(jsonPath))
+                return jsonPath;
+
+            string legacyPath = LegacyPathDb(infohash);
+            if (File.Exists(legacyPath))
+                return legacyPath;
+
+            return null;
         }
 
         public static bool theBad(string[] types)
@@ -75,8 +109,8 @@ namespace JacRed.Engine
             if (Database.TryGetValue(infohash, out FfprobeModel res))
                 return res.streams;
 
-            string path = pathDb(infohash);
-            if (!File.Exists(path))
+            string path = ResolveTrackPath(infohash);
+            if (path == null)
                 return null;
 
             try
@@ -865,12 +899,19 @@ namespace JacRed.Engine
                 Log($"Ошибка при обновлении данных в памяти: {ex.Message}", typetask);
             }
 
-            // Сохранение в файл
+            // Сохранение в файл (.json — формат lampa-tracks / R2)
             try
             {
                 string path = pathDb(infohash, createfolder: true);
                 string json = JsonConvert.SerializeObject(result, Formatting.Indented);
                 await File.WriteAllTextAsync(path, json, Encoding.UTF8);
+
+                string legacyPath = LegacyPathDb(infohash);
+                if (File.Exists(legacyPath) && !string.Equals(path, legacyPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(legacyPath); }
+                    catch { }
+                }
 
                 // Логирование информации о языках
                 var audioLanguages = result.streams
@@ -1006,7 +1047,7 @@ namespace JacRed.Engine
             infohash = NormalizeInfohash(infohash);
             string folder = Path.Combine(outputDir, infohash.Substring(0, 2), infohash[2].ToString());
             Directory.CreateDirectory(folder);
-            return Path.Combine(folder, infohash.Substring(3));
+            return Path.Combine(folder, $"{infohash.Substring(3)}.json");
         }
 
         /// <summary>
@@ -1211,6 +1252,105 @@ namespace JacRed.Engine
 
             return result;
         }
+
+        /// <summary>
+        /// Backfill в Data/tracks: миграция legacy-файлов без расширения → .json и запись недостающих из FileDB.
+        /// </summary>
+        public static TracksBackfillResult BackfillTracks(string tracksDir = "Data/tracks", bool dryRun = false, bool includeTorrentDb = true, bool migrateLegacy = true)
+        {
+            var result = new TracksBackfillResult
+            {
+                tracksDir = tracksDir,
+                dryRun = dryRun,
+                includeTorrentDb = includeTorrentDb,
+                migrateLegacy = migrateLegacy
+            };
+
+            var data = new Dictionary<string, FfprobeModel>(StringComparer.OrdinalIgnoreCase);
+            result.stats = new TracksExportStats();
+            CollectAllInto(data, result.stats, includeTorrentDb);
+            result.stats.total = data.Count;
+
+            if (dryRun)
+            {
+                foreach (var item in data)
+                {
+                    string jsonPath = TrackFilePath(tracksDir, item.Key, withExtension: true);
+                    string legacyPath = TrackFilePath(tracksDir, item.Key, withExtension: false);
+
+                    if (File.Exists(jsonPath))
+                        result.skippedExisting++;
+                    else if (migrateLegacy && File.Exists(legacyPath))
+                        result.migratedLegacy++;
+                    else
+                        result.written++;
+                }
+
+                return result;
+            }
+
+            Directory.CreateDirectory(tracksDir);
+
+            foreach (var item in data)
+            {
+                try
+                {
+                    string jsonPath = TrackFilePath(tracksDir, item.Key, withExtension: true);
+                    string legacyPath = TrackFilePath(tracksDir, item.Key, withExtension: false);
+                    Directory.CreateDirectory(Path.GetDirectoryName(jsonPath));
+
+                    if (File.Exists(jsonPath))
+                    {
+                        result.skippedExisting++;
+                        if (migrateLegacy && File.Exists(legacyPath))
+                        {
+                            try { File.Delete(legacyPath); result.migratedLegacy++; }
+                            catch { }
+                        }
+                        continue;
+                    }
+
+                    if (migrateLegacy && File.Exists(legacyPath))
+                    {
+                        File.Move(legacyPath, jsonPath);
+                        result.migratedLegacy++;
+                        Database.AddOrUpdate(item.Key, item.Value, (k, v) => item.Value);
+                        continue;
+                    }
+
+                    string json = JsonConvert.SerializeObject(item.Value, Formatting.Indented);
+                    File.WriteAllText(jsonPath, json, Encoding.UTF8);
+                    Database.AddOrUpdate(item.Key, item.Value, (k, v) => item.Value);
+                    result.written++;
+                }
+                catch (Exception ex)
+                {
+                    result.writeErrors++;
+                    if (result.errorSamples.Count < 10)
+                        result.errorSamples.Add(new { hash = item.Key, error = ex.Message });
+                }
+            }
+
+            try
+            {
+                string manifestPath = Path.Combine(tracksDir, "backfill-manifest.json");
+                File.WriteAllText(manifestPath, JsonConvert.SerializeObject(new
+                {
+                    backfilledAt = DateTime.UtcNow,
+                    tracksDir,
+                    includeTorrentDb,
+                    migrateLegacy,
+                    result.stats,
+                    result.written,
+                    result.migratedLegacy,
+                    result.skippedExisting,
+                    result.writeErrors
+                }, Formatting.Indented), Encoding.UTF8);
+            }
+            catch { }
+
+            return result;
+        }
     }
 
     public class TracksExportStats
@@ -1235,6 +1375,20 @@ namespace JacRed.Engine
         public bool includeTorrentDb { get; set; }
         public TracksExportStats stats { get; set; }
         public int written { get; set; }
+        public int writeErrors { get; set; }
+        public List<object> errorSamples { get; set; } = new List<object>();
+    }
+
+    public class TracksBackfillResult
+    {
+        public string tracksDir { get; set; }
+        public bool dryRun { get; set; }
+        public bool includeTorrentDb { get; set; }
+        public bool migrateLegacy { get; set; }
+        public TracksExportStats stats { get; set; }
+        public int written { get; set; }
+        public int migratedLegacy { get; set; }
+        public int skippedExisting { get; set; }
         public int writeErrors { get; set; }
         public List<object> errorSamples { get; set; } = new List<object>();
     }
