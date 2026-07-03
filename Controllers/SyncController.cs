@@ -176,5 +176,15 @@ namespace JacRed.Controllers
 
             return Json(new { take, torrents });
         }
+
+
+        [Route("/sync/tracks/stats")]
+        public JsonResult TracksStats(bool includeTorrentDb = true)
+        {
+            if (!AppInit.conf.opensync)
+                return Json(new { error = "opensync disabled" });
+
+            return Json(new { ok = true, stats = TracksDB.GetExportStats(includeTorrentDb) });
+        }
     }
 }

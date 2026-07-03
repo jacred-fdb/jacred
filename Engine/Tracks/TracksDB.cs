@@ -985,5 +985,257 @@ namespace JacRed.Engine
             }
             catch { return null; }
         }
+
+        static bool IsValidInfohash(string infohash) =>
+            !string.IsNullOrEmpty(infohash) && infohash.Length == 40 && infohash.All(c =>
+                (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
+
+        static string NormalizeInfohash(string infohash) => infohash?.ToLowerInvariant();
+
+        static string InfohashFromTrackRelPath(string prefix2, string prefix1, string filename)
+        {
+            var stem = filename;
+            if (stem.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                stem = stem.Substring(0, stem.Length - 5);
+
+            return NormalizeInfohash(prefix2 + prefix1 + stem);
+        }
+
+        static string ExportFilePath(string outputDir, string infohash)
+        {
+            infohash = NormalizeInfohash(infohash);
+            string folder = Path.Combine(outputDir, infohash.Substring(0, 2), infohash[2].ToString());
+            Directory.CreateDirectory(folder);
+            return Path.Combine(folder, infohash.Substring(3));
+        }
+
+        /// <summary>
+        /// Сканирует Data/tracks и (опционально) ffprobe в FileDB. Файлы tracks имеют приоритет над полем torrent.ffprobe.
+        /// </summary>
+        public static Dictionary<string, FfprobeModel> CollectAll(bool includeTorrentDb = true)
+        {
+            var result = new Dictionary<string, FfprobeModel>(StringComparer.OrdinalIgnoreCase);
+            CollectAllInto(result, null, includeTorrentDb);
+            return result;
+        }
+
+        static void CollectAllInto(Dictionary<string, FfprobeModel> result, TracksExportStats stats, bool includeTorrentDb)
+        {
+            CollectFromTracksDir("Data/tracks", result, stats);
+
+            foreach (var item in Database)
+            {
+                if (item.Value?.streams == null || item.Value.streams.Count == 0)
+                    continue;
+
+                if (!result.ContainsKey(item.Key))
+                {
+                    result[item.Key] = item.Value;
+                    if (stats != null)
+                        stats.fromMemory++;
+                }
+            }
+
+            if (includeTorrentDb)
+                CollectFromTorrentDb(result, stats);
+        }
+
+        static void CollectFromTracksDir(string tracksDir, Dictionary<string, FfprobeModel> result, TracksExportStats stats)
+        {
+            if (!Directory.Exists(tracksDir))
+                return;
+
+            foreach (var folder1 in Directory.GetDirectories(tracksDir))
+            {
+                foreach (var folder2 in Directory.GetDirectories(folder1))
+                {
+                    foreach (var file in Directory.GetFiles(folder2))
+                    {
+                        if (stats != null)
+                            stats.filesScanned++;
+
+                        string infohash = InfohashFromTrackRelPath(
+                            Path.GetFileName(folder1),
+                            Path.GetFileName(folder2),
+                            Path.GetFileName(file));
+
+                        if (!IsValidInfohash(infohash))
+                        {
+                            if (stats != null)
+                                stats.invalidPath++;
+                            continue;
+                        }
+
+                        try
+                        {
+                            var model = JsonConvert.DeserializeObject<FfprobeModel>(File.ReadAllText(file));
+                            if (model?.streams == null || model.streams.Count == 0)
+                            {
+                                if (stats != null)
+                                    stats.emptyStreams++;
+                                continue;
+                            }
+
+                            result[infohash] = model;
+                            if (stats != null)
+                                stats.fromTracksFiles++;
+                        }
+                        catch
+                        {
+                            if (stats != null)
+                                stats.readErrors++;
+                        }
+                    }
+                }
+            }
+        }
+
+        static void CollectFromTorrentDb(Dictionary<string, FfprobeModel> result, TracksExportStats stats)
+        {
+            foreach (var item in FileDB.masterDb.Keys)
+            {
+                IReadOnlyDictionary<string, TorrentDetails> db;
+                try
+                {
+                    db = FileDB.OpenRead(item, cache: false);
+                }
+                catch
+                {
+                    if (stats != null)
+                        stats.torrentDbErrors++;
+                    continue;
+                }
+
+                if (db == null)
+                    continue;
+
+                foreach (var torrent in db.Values)
+                {
+                    if (stats != null)
+                        stats.torrentsScanned++;
+
+                    if (torrent?.ffprobe == null || torrent.ffprobe.Count == 0 || string.IsNullOrEmpty(torrent.magnet))
+                        continue;
+
+                    string infohash;
+                    try
+                    {
+                        infohash = NormalizeInfohash(MagnetLink.Parse(torrent.magnet).InfoHashes.V1OrV2.ToHex());
+                    }
+                    catch
+                    {
+                        if (stats != null)
+                            stats.magnetErrors++;
+                        continue;
+                    }
+
+                    if (!IsValidInfohash(infohash))
+                    {
+                        if (stats != null)
+                            stats.magnetErrors++;
+                        continue;
+                    }
+
+                    if (result.ContainsKey(infohash))
+                        continue;
+
+                    result[infohash] = new FfprobeModel { streams = torrent.ffprobe };
+                    if (stats != null)
+                        stats.fromTorrentDb++;
+                }
+            }
+        }
+
+        public static TracksExportStats GetExportStats(bool includeTorrentDb = true)
+        {
+            var result = new Dictionary<string, FfprobeModel>(StringComparer.OrdinalIgnoreCase);
+            var stats = new TracksExportStats();
+            CollectAllInto(result, stats, includeTorrentDb);
+            stats.total = result.Count;
+            return stats;
+        }
+
+        /// <summary>
+        /// Экспорт всех ffprobe/tracks в JSON-файлы (layout JacRed → lampa-tracks).
+        /// </summary>
+        public static TracksExportResult ExportAll(string outputDir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true)
+        {
+            var result = new TracksExportResult
+            {
+                outputDir = outputDir,
+                dryRun = dryRun,
+                includeTorrentDb = includeTorrentDb
+            };
+
+            var data = new Dictionary<string, FfprobeModel>(StringComparer.OrdinalIgnoreCase);
+            result.stats = new TracksExportStats();
+            CollectAllInto(data, result.stats, includeTorrentDb);
+            result.stats.total = data.Count;
+
+            if (dryRun)
+                return result;
+
+            Directory.CreateDirectory(outputDir);
+
+            foreach (var item in data)
+            {
+                try
+                {
+                    string path = ExportFilePath(outputDir, item.Key);
+                    string json = JsonConvert.SerializeObject(item.Value, Formatting.Indented);
+                    File.WriteAllText(path, json, Encoding.UTF8);
+                    result.written++;
+                }
+                catch (Exception ex)
+                {
+                    result.writeErrors++;
+                    if (result.errorSamples.Count < 10)
+                        result.errorSamples.Add(new { hash = item.Key, error = ex.Message });
+                }
+            }
+
+            try
+            {
+                string manifestPath = Path.Combine(outputDir, "export-manifest.json");
+                File.WriteAllText(manifestPath, JsonConvert.SerializeObject(new
+                {
+                    exportedAt = DateTime.UtcNow,
+                    outputDir,
+                    includeTorrentDb,
+                    result.stats,
+                    result.written,
+                    result.writeErrors
+                }, Formatting.Indented), Encoding.UTF8);
+            }
+            catch { }
+
+            return result;
+        }
+    }
+
+    public class TracksExportStats
+    {
+        public int total { get; set; }
+        public int filesScanned { get; set; }
+        public int fromTracksFiles { get; set; }
+        public int fromMemory { get; set; }
+        public int fromTorrentDb { get; set; }
+        public int torrentsScanned { get; set; }
+        public int invalidPath { get; set; }
+        public int emptyStreams { get; set; }
+        public int readErrors { get; set; }
+        public int magnetErrors { get; set; }
+        public int torrentDbErrors { get; set; }
+    }
+
+    public class TracksExportResult
+    {
+        public string outputDir { get; set; }
+        public bool dryRun { get; set; }
+        public bool includeTorrentDb { get; set; }
+        public TracksExportStats stats { get; set; }
+        public int written { get; set; }
+        public int writeErrors { get; set; }
+        public List<object> errorSamples { get; set; } = new List<object>();
     }
 }

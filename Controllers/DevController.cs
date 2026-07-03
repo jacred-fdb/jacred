@@ -1125,5 +1125,28 @@ namespace JacRed.Controllers
                 errors = errors.Take(10).ToList()
             });
         }
+
+        /// <summary>
+        /// Статистика по ffprobe/tracks (файлы Data/tracks + поле ffprobe в FileDB).
+        /// </summary>
+        public JsonResult TracksStats(bool includeTorrentDb = true)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            return Json(new { ok = true, stats = TracksDB.GetExportStats(includeTorrentDb) });
+        }
+
+        /// <summary>
+        /// Экспорт всех ffprobe/tracks в JSON (layout для lampa-tracks: AA/B/HASHREST).
+        /// </summary>
+        public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true)
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            var result = TracksDB.ExportAll(dir, dryRun, includeTorrentDb);
+            return Json(new { ok = true, result });
+        }
     }
 }
