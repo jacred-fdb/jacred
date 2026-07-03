@@ -16,6 +16,7 @@
 - 📦 **Файловая БД (fdb)** для быстрого доступа к данным
 - 🔄 **Синхронизация** с удалёнными серверами или самостоятельный парсинг
 - 🎯 **API Jackett** — полная совместимость с форматом Jackett
+- 📡 **Torznab XML** — встроенный Torznab API для Sonarr/Radarr/Prowlarr (без отдельного jacred-proxy)
 - 🌐 **Веб-интерфейс** для просмотра и управления
 - 🔐 **Поддержка прокси** и Tor для доступа к .onion доменам
 - 📊 **Статистика** по трекерам и торрентам
@@ -275,10 +276,35 @@ globalproxy:
   "syncapi": "https://jacred.example.com",
   "NNMClub": { "alias": "http://nnmclub....onion" },
   "globalproxy": [
-    { "pattern": "\\.onion", "list": ["socks5://127.0.0.1:9050"] }
-  ]
+    { "pattern": "\\.onion", "list": ["socks5://192.168.1.1:9050"] }
+  ],
+  "torznab": {
+    "enable": true,
+    "mergeV1": "auto",
+    "maxV1Pairs": 4,
+    "v1Sort": "sid",
+    "stripTrailingYear": true,
+    "enrichTitles": true,
+    "skipCatFilter": true
+  }
 }
 ```
+
+#### Torznab / Jackett (`torznab`)
+
+Встроенная совместимость с [jacred-proxy](https://github.com/jacred-fdb/jacred-proxy) без отдельного Cloudflare Worker.
+
+| Параметр | Описание | По умолчанию |
+| -------- | -------- | ------------ |
+| `enable` | Включить Torznab XML на `/api` | `true` |
+| `mergeV1` | Слияние v1: `true` / `false` / `auto` | `auto` |
+| `maxV1Pairs` | Лимит v1-запросов в fuzzy mode (`auto`) | `4` |
+| `v1Sort` | Сортировка v1 для IMDB (`sid` = seeders) | `sid` |
+| `stripTrailingYear` | Доп. вариант запроса без года | `true` |
+| `enrichTitles` | Озвучки в Torznab title | `true` |
+| `skipCatFilter` | Не фильтровать по `cat` на стороне сервера | `true` |
+
+**Sonarr/Radarr:** URL индексатора — `http://jacred:9120/api`, API key — ваш `apikey` из конфига.
 
 ---
 
@@ -345,6 +371,15 @@ Anifilm, AniLibria, HDRezka.
 
 - **`GET /api/v2.0/indexers/{status}/results`** — поиск в формате Jackett (совместимость с Jackett API).
   - Параметры: `Query` (поисковый запрос), `Category` (категория), `Tracker` (трекер), `apikey` (если настроен).
+  - Ответ включает `"jacred": true`.
+- **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).
+- **`GET /api/v1/indexer`** — заглушка для Prowlarr.
+- **`GET /api`** — Torznab XML (`t=search|tvsearch|moviesearch|caps|indexers`).
+- **`GET /api/v2.0/indexers/{id}/results/torznab/api`** — Torznab XML (Jackett-совместимый путь).
+  - Параметры: `q`, `imdbid`, `season`, `ep`, `year`, `cat`, `title`, `title_original`, `is_serial`, `limit`, `offset`, `apikey`.
+  - IMDB/KP ID (`tt…`, `kp…`) → поиск через v1 с `exact=true` (как в jacred-proxy).
+  - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
+  - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный API).
   - Параметры: `query` (поисковый запрос), `tracker` (трекер), `category` (категория), `quality` (качество).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.

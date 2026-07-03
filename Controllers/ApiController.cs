@@ -78,15 +78,19 @@ namespace JacRed.Controllers
         [Route("/api/v2.0/indexers/{status}/results")]
         public ActionResult Jackett(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial = -1)
         {
-            //Console.WriteLine(HttpContext.Request.Path + HttpContext.Request.QueryString.Value);
+            bool rqnum = !HttpContext.Request.QueryString.Value.Contains("&is_serial=") && HttpContext.Request.Headers.UserAgent.ToString() == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36";
+            var results = JackettSearchResults(apikey, query, title, title_original, year, category, is_serial, rqnum, memoryCache);
+            return Json(new RootObject() { Results = results });
+        }
 
+        public static List<Result> JackettSearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache)
+        {
             string cachekey = $"api:v2.0:indexers:{query}:{title}:{title_original}:{year}:{(category != null && category.Count > 0 ? string.Join(",", category.Select(i => $"{i.Key}={i.Value}")) : "null")}:{is_serial}";
-            if (memoryCache.TryGetValue(cachekey, out List<Result> _cacheResult))
-                return Json(new RootObject() { Results = _cacheResult });
+            if (memoryCache != null && memoryCache.TryGetValue(cachekey, out List<Result> _cacheResult))
+                return _cacheResult;
 
             var fastdb = getFastdb();
             var torrents = new Dictionary<string, TorrentDetails>();
-            bool rqnum = !HttpContext.Request.QueryString.Value.Contains("&is_serial=") && HttpContext.Request.Headers.UserAgent.ToString() == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36";
 
             #region Запрос с NUM
             if (rqnum && query != null)
@@ -106,7 +110,7 @@ namespace JacRed.Controllers
                 else
                 {
                     if (Regex.IsMatch(query, "^([^a-z-A-Z]+) ((19|20)[0-9]{2})$"))
-                        return Json(new RootObject() { Results = new List<Result>() });
+                        return new List<Result>();
 
                     mNum = Regex.Match(query, "^([^a-z-A-Z]+) ([^а-я-А-Я]+)$");
 
@@ -669,10 +673,10 @@ namespace JacRed.Controllers
                 });
             }
 
-            if (AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour == 0)
+            if (memoryCache != null && AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour == 0)
                 memoryCache.Set(cachekey, Results, DateTime.Now.AddMinutes(5));
 
-            return Json(new RootObject() { Results = Results });
+            return Results;
         }
         #endregion
 
