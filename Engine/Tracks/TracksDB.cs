@@ -354,6 +354,7 @@ namespace JacRed.Engine
         /// <param name="currentAttempt">Текущая попытка анализа</param>
         /// <param name="types">Типы контента</param>
         /// <param name="torrentKey">Ключ торрента в FileDB (search_name:search_originalname)</param>
+        /// <param name="typetask">Номер cron-задачи (1 — день, 2 — месяц, 3 — год, 4 — остальное, 5 — обновления)</param>
         public static async Task Add(string magnet, int currentAttempt, string[] types = null, string torrentKey = null, int typetask = 1)
         {
             // 1. Валидация входных параметров

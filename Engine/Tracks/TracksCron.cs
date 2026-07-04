@@ -10,14 +10,6 @@ namespace JacRed.Engine
 {
     public static class TracksCron
     {
-        /// <param name="typetask">
-        /// 1 - день
-        /// 2 - месяц
-        /// 3 - год
-        /// 4 - остальное
-        /// 5 - обновления
-        /// </param>
-
         private static readonly ThreadLocal<Random> _random =
             new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
 
@@ -26,6 +18,16 @@ namespace JacRed.Engine
             return _random.Value.Next(2000, 5001);
         }
 
+        /// <summary>
+        /// Периодический анализ медиа-треков торрентов
+        /// </summary>
+        /// <param name="typetask">
+        /// 1 - день
+        /// 2 - месяц
+        /// 3 - год
+        /// 4 - остальное
+        /// 5 - обновления
+        /// </param>
         async public static Task Run(int typetask)
         {
             await Task.Delay(20_000);

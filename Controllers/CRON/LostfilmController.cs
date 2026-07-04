@@ -234,9 +234,13 @@ namespace JacRed.Controllers.CRON
             }
         }
 
-        /// <returns>true если нужно прекратить парсинг (достигли stopBeforeDate)</returns>
+        /// <param name="host">Базовый URL LostFilm (например https://www.lostfilm.tv)</param>
+        /// <param name="cookie">Cookie для авторизованных запросов</param>
+        /// <param name="page">Номер страницы ленты /new/ (1 = /new/, 2 = /new/page_2, ...)</param>
+        /// <param name="stopBeforeDate">Если задано — прекратить парсинг, когда встретится раздача старше этой даты</param>
         /// <param name="startFromDate">Если задано — в обработку попадают только раздачи с createTime &lt;= startFromDate</param>
         /// <param name="preloadedHtml">Если не null, использовать вместо GET (для первой страницы при пагинации)</param>
+        /// <returns>true если нужно прекратить парсинг (достигли stopBeforeDate)</returns>
         static async Task<bool> ParsePage(string host, string cookie, int page, DateTime? stopBeforeDate, DateTime? startFromDate, string preloadedHtml = null)
         {
             string url = page > 1 ? $"{host}/new/page_{page}" : $"{host}/new/";
