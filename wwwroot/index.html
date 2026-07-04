@@ -72,31 +72,33 @@
 
       <form id="searchForm" class="jr-search-form">
         <div class="jr-search-form-body">
+        <div class="jr-search-block">
         <div class="jr-search-pin-group">
-        <div class="jr-search-dock-wrap">
-          <div class="jr-search-dock">
-            <div id="searchSticky" class="jr-search-sticky">
-              <label for="s" class="visually-hidden">Поиск торрентов</label>
-              <div class="jr-search-bar">
-                <div class="jr-search-wrap">
-                  <i class="bi bi-search jr-search-icon" aria-hidden="true"></i>
-                  <input type="text" id="s" name="s" class="form-control jr-search-input" placeholder="Введите название..."
-                    autocomplete="off" />
-                  <button type="button" id="clear" class="btn btn-link jr-search-clear d-none text-secondary tap-target"
-                    aria-label="Очистить поле поиска"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+          <div class="jr-search-dock-wrap">
+            <div class="jr-search-dock">
+              <div id="searchSticky" class="jr-search-sticky">
+                <label for="s" class="visually-hidden">Поиск торрентов</label>
+                <div class="jr-search-bar">
+                  <div class="jr-search-wrap">
+                    <i class="bi bi-search jr-search-icon" aria-hidden="true"></i>
+                    <input type="search" id="s" name="s" enterkeyhint="search" inputmode="search"
+                      class="form-control jr-search-input" placeholder="Введите название..."
+                      autocomplete="off" />
+                    <button type="button" id="clear" class="btn btn-link jr-search-clear d-none text-secondary tap-target"
+                      aria-label="Очистить поле поиска"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                  </div>
+                  <button type="submit" id="submitButton" class="btn btn-jr-primary jr-search-submit tap-target"
+                    aria-label="Искать">
+                    <span id="submitButtonText">Искать</span>
+                    <i class="bi bi-search jr-search-submit__icon" aria-hidden="true"></i>
+                  </button>
                 </div>
-                <button type="submit" id="submitButton" class="btn btn-jr-primary jr-search-submit tap-target"
-                  aria-label="Искать">
-                  <span id="submitButtonText">Искать</span>
-                  <i class="bi bi-search jr-search-submit__icon" aria-hidden="true"></i>
-                </button>
+                <div id="validateError" class="jr-search-error d-none" role="alert" aria-live="polite"></div>
               </div>
-              <div id="validateError" class="jr-search-error d-none" role="alert" aria-live="polite"></div>
             </div>
           </div>
         </div>
-
-        <div class="jr-search-shell glass-card mb-3 gsap-rise">
+        <div class="jr-search-filters-shell glass-card mb-3 gsap-rise">
           <div class="jr-search-header">
           <div class="jr-search-toolbar">
             <div class="jr-filter-bar">

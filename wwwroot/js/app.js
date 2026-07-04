@@ -83,42 +83,8 @@
     return 'результатов';
   };
 
-  const MOBILE_SEARCH_MQ = '(max-width: 767px)';
-  let searchDockAnchor = null;
-
-  const syncMobileSearchDock = () => {
-    const dock = document.querySelector('.jr-search-dock-wrap');
-    const root = document.documentElement;
-    const isMobile = window.matchMedia(MOBILE_SEARCH_MQ).matches;
-    const hasResults = document.body.classList.contains('jr-has-results');
-
-    if (!dock) return;
-
-    if (hasResults && isMobile) {
-      if (!searchDockAnchor) {
-        searchDockAnchor = document.createComment('jr-search-dock-anchor');
-        dock.parentNode.insertBefore(searchDockAnchor, dock);
-      }
-      if (dock.parentNode !== document.body) {
-        document.body.prepend(dock);
-      }
-      document.body.classList.add('jr-mobile-search-fixed');
-      requestAnimationFrame(() => {
-        root.style.setProperty('--jr-search-dock-h', `${dock.offsetHeight}px`);
-      });
-      return;
-    }
-
-    document.body.classList.remove('jr-mobile-search-fixed');
-    root.style.removeProperty('--jr-search-dock-h');
-    if (searchDockAnchor && searchDockAnchor.parentNode && dock.parentNode === document.body) {
-      searchDockAnchor.parentNode.insertBefore(dock, searchDockAnchor.nextSibling);
-    }
-  };
-
   const setSearchResultsMode = (hasResults) => {
     document.body.classList.toggle('jr-has-results', !!hasResults);
-    requestAnimationFrame(() => requestAnimationFrame(syncMobileSearchDock));
   };
 
   const updateResultsHeader = () => {
@@ -748,6 +714,15 @@
 
     elements.searchForm.addEventListener('submit', handleSubmit);
     elements.searchInput.addEventListener('input', () => { updateClearButton(); elements.validateError.classList.add('d-none'); });
+    elements.searchInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      if (typeof elements.searchForm.requestSubmit === 'function') {
+        elements.searchForm.requestSubmit(elements.submitButton);
+      } else {
+        elements.searchForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      }
+    });
     elements.clear.addEventListener('click', handleClear);
     elements.filterToggle.addEventListener('click', toggleFilters);
 
@@ -777,13 +752,6 @@
 
     updateFilterCountBadge();
     syncListViewUi();
-
-    const searchDock = document.querySelector('.jr-search-dock-wrap');
-    if (searchDock && typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(syncMobileSearchDock).observe(searchDock);
-    }
-    window.addEventListener('resize', syncMobileSearchDock, { passive: true });
-    window.addEventListener('orientationchange', syncMobileSearchDock, { passive: true });
 
     document.getElementById('toggleListView')?.addEventListener('click', toggleListView);
 
@@ -1080,7 +1048,6 @@
       }
     }
 
-    syncMobileSearchDock();
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
