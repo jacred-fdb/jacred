@@ -1042,12 +1042,16 @@ namespace JacRed.Engine
             return NormalizeInfohash(prefix2 + prefix1 + stem);
         }
 
+        /// <summary>
+        /// R2 / lampa-tracks layout: {HASH[0:2]}/{HASH[2]}/{HASH[3:40]}.json — uppercase hex.
+        /// </summary>
         static string ExportFilePath(string outputDir, string infohash)
         {
             infohash = NormalizeInfohash(infohash);
-            string folder = Path.Combine(outputDir, infohash.Substring(0, 2), infohash[2].ToString());
+            var upper = infohash.ToUpperInvariant();
+            string folder = Path.Combine(outputDir, upper.Substring(0, 2), upper.Substring(2, 1));
             Directory.CreateDirectory(folder);
-            return Path.Combine(folder, $"{infohash.Substring(3)}.json");
+            return Path.Combine(folder, $"{upper.Substring(3)}.json");
         }
 
         /// <summary>
@@ -1196,10 +1200,79 @@ namespace JacRed.Engine
             return stats;
         }
 
+        static volatile bool _exportRunning;
+        static readonly object _exportLock = new object();
+        static TracksExportJobStatus _exportJob = new TracksExportJobStatus();
+
+        public static TracksExportJobStatus GetExportJobStatus()
+        {
+            lock (_exportLock)
+                return _exportJob.Clone();
+        }
+
+        /// <summary>
+        /// Запускает ExportAll в фоне. Возвращает false, если экспорт уже идёт.
+        /// </summary>
+        public static bool TryStartExport(string outputDir = "Data/tracks-export", bool includeTorrentDb = true)
+        {
+            lock (_exportLock)
+            {
+                if (_exportRunning)
+                    return false;
+
+                _exportRunning = true;
+                _exportJob = new TracksExportJobStatus
+                {
+                    running = true,
+                    phase = "collecting",
+                    outputDir = outputDir,
+                    includeTorrentDb = includeTorrentDb,
+                    startedAt = DateTime.UtcNow
+                };
+            }
+
+            var job = _exportJob;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    var result = ExportAll(outputDir, dryRun: false, includeTorrentDb, job);
+                    lock (_exportLock)
+                    {
+                        job.running = false;
+                        job.phase = "done";
+                        job.completedAt = DateTime.UtcNow;
+                        job.result = result;
+                        job.written = result.written;
+                        job.writeErrors = result.writeErrors;
+                        job.total = result.stats?.total ?? 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (_exportLock)
+                    {
+                        job.running = false;
+                        job.phase = "error";
+                        job.completedAt = DateTime.UtcNow;
+                        job.error = ex.Message;
+                    }
+
+                    Console.WriteLine($"tracks export: {ex}");
+                }
+                finally
+                {
+                    _exportRunning = false;
+                }
+            });
+
+            return true;
+        }
+
         /// <summary>
         /// Экспорт всех ffprobe/tracks в JSON-файлы (layout JacRed → lampa-tracks).
         /// </summary>
-        public static TracksExportResult ExportAll(string outputDir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true)
+        public static TracksExportResult ExportAll(string outputDir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, TracksExportJobStatus progress = null)
         {
             var result = new TracksExportResult
             {
@@ -1208,10 +1281,24 @@ namespace JacRed.Engine
                 includeTorrentDb = includeTorrentDb
             };
 
+            if (progress != null)
+            {
+                progress.phase = "collecting";
+                progress.outputDir = outputDir;
+                progress.includeTorrentDb = includeTorrentDb;
+            }
+
             var data = new Dictionary<string, FfprobeModel>(StringComparer.OrdinalIgnoreCase);
             result.stats = new TracksExportStats();
             CollectAllInto(data, result.stats, includeTorrentDb);
             result.stats.total = data.Count;
+
+            if (progress != null)
+            {
+                progress.phase = dryRun ? "done" : "writing";
+                progress.total = data.Count;
+                progress.stats = result.stats;
+            }
 
             if (dryRun)
                 return result;
@@ -1226,12 +1313,18 @@ namespace JacRed.Engine
                     string json = JsonConvert.SerializeObject(item.Value, Formatting.Indented);
                     File.WriteAllText(path, json, Encoding.UTF8);
                     result.written++;
+
+                    if (progress != null)
+                        progress.written = result.written;
                 }
                 catch (Exception ex)
                 {
                     result.writeErrors++;
                     if (result.errorSamples.Count < 10)
                         result.errorSamples.Add(new { hash = item.Key, error = ex.Message });
+
+                    if (progress != null)
+                        progress.writeErrors = result.writeErrors;
                 }
             }
 
@@ -1377,6 +1470,41 @@ namespace JacRed.Engine
         public int written { get; set; }
         public int writeErrors { get; set; }
         public List<object> errorSamples { get; set; } = new List<object>();
+    }
+
+    public class TracksExportJobStatus
+    {
+        public bool running { get; set; }
+        public string phase { get; set; }
+        public string outputDir { get; set; }
+        public bool includeTorrentDb { get; set; }
+        public DateTime? startedAt { get; set; }
+        public DateTime? completedAt { get; set; }
+        public int total { get; set; }
+        public int written { get; set; }
+        public int writeErrors { get; set; }
+        public TracksExportStats stats { get; set; }
+        public TracksExportResult result { get; set; }
+        public string error { get; set; }
+
+        public TracksExportJobStatus Clone()
+        {
+            return new TracksExportJobStatus
+            {
+                running = running,
+                phase = phase,
+                outputDir = outputDir,
+                includeTorrentDb = includeTorrentDb,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                total = total,
+                written = written,
+                writeErrors = writeErrors,
+                stats = stats,
+                result = result,
+                error = error
+            };
+        }
     }
 
     public class TracksBackfillResult

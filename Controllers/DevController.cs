@@ -1139,14 +1139,40 @@ namespace JacRed.Controllers
 
         /// <summary>
         /// Экспорт всех ffprobe/tracks в JSON (layout для lampa-tracks: AA/B/HASH.json).
+        /// dryRun=true — только статистика; иначе по умолчанию фоновый экспорт (background=true).
         /// </summary>
-        public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true)
+        public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, bool background = true)
         {
             if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
                 return Json(new { badip = true });
 
-            var result = TracksDB.ExportAll(dir, dryRun, includeTorrentDb);
-            return Json(new { ok = true, result });
+            if (dryRun)
+            {
+                var result = TracksDB.ExportAll(dir, dryRun: true, includeTorrentDb);
+                return Json(new { ok = true, result });
+            }
+
+            if (!background)
+            {
+                var result = TracksDB.ExportAll(dir, dryRun: false, includeTorrentDb);
+                return Json(new { ok = true, result });
+            }
+
+            if (!TracksDB.TryStartExport(dir, includeTorrentDb))
+                return Json(new { ok = false, alreadyRunning = true, status = TracksDB.GetExportJobStatus() });
+
+            return Json(new { ok = true, started = true, status = TracksDB.GetExportJobStatus() });
+        }
+
+        /// <summary>
+        /// Статус фонового экспорта tracks (см. ExportTracks).
+        /// </summary>
+        public JsonResult ExportTracksStatus()
+        {
+            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
+                return Json(new { badip = true });
+
+            return Json(new { ok = true, status = TracksDB.GetExportJobStatus() });
         }
 
         /// <summary>
