@@ -19,5 +19,7 @@ if [[ -z "$sw_tag" ]]; then
 fi
 sw_tag="${sw_tag:-dev}"
 
-perl -pi -e "s/const CACHE_NAME = 'jacred-static-[^']+'/const CACHE_NAME = 'jacred-static-${sw_tag}'/" "$SW_FILE"
+tmp="$(mktemp)"
+sed "s/const CACHE_NAME = 'jacred-static-[^']*'/const CACHE_NAME = 'jacred-static-${sw_tag}'/" "$SW_FILE" > "$tmp"
+mv "$tmp" "$SW_FILE"
 echo "Service worker cache: jacred-static-${sw_tag}"
