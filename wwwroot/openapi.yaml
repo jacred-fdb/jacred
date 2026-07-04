@@ -345,16 +345,67 @@ paths:
   /api/v1/indexer:
     get:
       tags: [Torznab]
-      summary: Prowlarr stub
-      operationId: prowlarrStub
-      security: []
+      summary: Prowlarr indexer list
+      description: |
+        Prowlarr-compatible indexer list for discover clients (qui, autobrr) and Prowlarr apps.
+        Returns a JSON array with `enable: true` and `protocol: torrent`.
+      operationId: prowlarrIndexerList
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: X-Api-Key
+          in: header
+          schema:
+            type: string
       responses:
         '200':
-          description: Indexer metadata
+          description: Enabled torrent indexers
           content:
             application/json:
               schema:
-                type: object
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProwlarrIndexer'
+        '404':
+          description: Torznab disabled
+
+  /api/v1/indexer/{indexerId}/newznab:
+    get:
+      tags: [Torznab]
+      summary: Prowlarr Torznab proxy
+      description: |
+        Prowlarr-compatible Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`).
+        Same handler as `/torznab/api` and Jackett alias paths.
+      operationId: prowlarrNewznab
+      parameters:
+        - name: indexerId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: t
+          in: query
+          schema:
+            type: string
+            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: cat
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Torznab XML
+          content:
+            application/xml:
+              schema:
+                type: string
+        '404':
+          description: Torznab disabled
 
   /stats/Torrents:
     get:
@@ -897,6 +948,30 @@ components:
           type: string
         buildDate:
           type: string
+
+    ProwlarrIndexer:
+      type: object
+      description: Prowlarr /api/v1/indexer list item
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+        description:
+          type: string
+        implementation:
+          type: string
+          example: Torznab
+        implementationName:
+          type: string
+          example: Torznab
+        enable:
+          type: boolean
+        protocol:
+          type: string
+          enum: [unknown, usenet, torrent]
+          example: torrent
 
     ErrorResponse:
       type: object

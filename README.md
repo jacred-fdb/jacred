@@ -395,7 +395,8 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Параметры Lampa: `Query`, `title`, `title_original`, `year`, `is_serial`, `genres`, `Category[]`, `season`, `ep`, `limit`, `offset`, `apikey`.
   - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true`.
 - **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).
-- **`GET /api/v1/indexer`** — заглушка для Prowlarr.
+- **`GET /api/v1/indexer`** — список индексаторов в формате Prowlarr REST API (qui/autobrr discover fallback).
+- **`GET /api/v1/indexer/{id}/newznab`** — Torznab XML через Prowlarr-совместимый путь (`t=caps|search|…`).
 - **`GET /torznab/api`** — Torznab XML, основной endpoint (`t=search|tvsearch|moviesearch|caps|indexers`).
 - **`GET /api/v2.0/indexers/{id}/results/torznab/api`** — Torznab XML (Jackett-алиас, тот же обработчик).
 

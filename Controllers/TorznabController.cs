@@ -14,11 +14,17 @@ namespace JacRed.Controllers
     /// </summary>
     public class TorznabController : BaseController
     {
+        internal static bool IsTorznabEnabled()
+        {
+            return AppInit.conf.torznab == null || AppInit.conf.torznab.enable;
+        }
+
         [Route("/torznab/api")]
         [Route("/api/v2.0/indexers/{indexer}/results/torznab/api")]
+        [Route("/api/v1/indexer/{indexer}/newznab")]
         public async Task<IActionResult> Torznab(string indexer, string t, string apikey)
         {
-            if (AppInit.conf.torznab != null && !AppInit.conf.torznab.enable)
+            if (!IsTorznabEnabled())
                 return NotFound();
 
             var query = HttpContext.Request.Query;
@@ -87,14 +93,27 @@ namespace JacRed.Controllers
             });
         }
 
+        /// <summary>
+        /// Prowlarr REST API: list indexers (used by qui/autobrr discover fallback and Prowlarr clients).
+        /// Returns a JSON array matching Prowlarr's <c>/api/v1/indexer</c> schema.
+        /// </summary>
         [Route("/api/v1/indexer")]
-        public IActionResult ProwlarrStub()
+        public IActionResult ProwlarrIndexerList()
         {
-            return Json(new
+            if (!TorznabController.IsTorznabEnabled())
+                return NotFound();
+
+            return Json(new[]
             {
-                Indexers = new[]
+                new
                 {
-                    new { id = "all", name = "JacRed (all trackers)", configured = true }
+                    id = 1,
+                    name = "JacRed (all trackers)",
+                    description = "Aggregated JacRed search across all configured trackers",
+                    implementation = "Torznab",
+                    implementationName = "Torznab",
+                    enable = true,
+                    protocol = "torrent"
                 }
             });
         }
