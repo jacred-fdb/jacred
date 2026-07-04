@@ -1,6 +1,7 @@
 'use strict';
 
-const CACHE_NAME = 'jacred-static-v3.3.0';
+/* Bump CACHE_NAME on each deploy (build.sh syncs from git describe). */
+const CACHE_NAME = 'jacred-static-v3.3.2';
 
 const VENDOR_PRECACHE = [
   '/css/fonts.css',
@@ -30,6 +31,8 @@ const CRITICAL_PRECACHE = [
 ];
 
 const OPTIONAL_PRECACHE = [
+  '/',
+  '/stats',
   '/js/animations.js',
   '/js/app.js',
   '/js/stats.js',
@@ -50,7 +53,8 @@ const MINIMAL_OFFLINE_HTML = '<!DOCTYPE html><html lang="ru"><head><meta charset
   'button{font:inherit;padding:.6rem 1.2rem;border-radius:.5rem;border:0;cursor:pointer;' +
   'background:#4285f4;color:#fff}</style></head><body><div><h1>Соединение потеряно</h1>' +
   '<p>Сервер JacRed недоступен. Проверьте интернет и попробуйте снова.</p>' +
-  '<button type="button" onclick="location.reload()">Повторить</button></div></body></html>';
+  /* Form submit, not onclick — works under strict CSP in cached shell pages */
+  '<form method="get" action="."><button type="submit">Повторить</button></form></div></body></html>';
 
 const absUrl = (path) => new URL(path, self.location.origin).href;
 
@@ -121,6 +125,7 @@ const precacheOne = async (targetCache, path) => {
 };
 
 const migrateFromOldCaches = async (targetCache, paths) => {
+  /* Reuse assets from prior CACHE_NAME after deploy so offline upgrade is seamless */
   const oldKeys = (await caches.keys()).filter((k) => k !== CACHE_NAME);
   for (const oldKey of oldKeys) {
     const oldCache = await caches.open(oldKey);
@@ -213,6 +218,7 @@ const fetchNetworkOnly = (request) =>
   }));
 
 const handleAppShellNavigation = async (request) => {
+  /* Network-first for / and /stats; fall back to cache when offline */
   const pathname = new URL(request.url).pathname;
   try {
     const res = await fetchNetworkOnly(request);
@@ -234,6 +240,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  /* API responses must never be cached or served from SW */
   if (url.pathname.startsWith('/api/')) return;
 
   if (isDocumentNavigation(event.request)) {

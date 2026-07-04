@@ -790,18 +790,6 @@
         render();
       });
 
-    document.body.addEventListener('error', (e) => {
-      const target = e.target;
-      if (
-        target instanceof HTMLImageElement &&
-        target.classList.contains('tracker-icon') &&
-        !target.classList.contains('tracker-icon--fallback')
-      ) {
-        target.classList.add('tracker-icon--fallback');
-        target.src = '';
-      }
-    }, true);
-
     document.addEventListener('keydown', (e) => {
       if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTypingTarget(e.target)) {
         e.preventDefault();

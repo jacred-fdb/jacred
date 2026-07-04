@@ -61,13 +61,23 @@
     LS.set('theme', next);
   };
 
+  const syncThemeColorMeta = (isDark) => {
+    const color = isDark ? '#0a0a0f' : '#e8f0fe';
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute('content', color);
+    });
+    const statusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (statusBar) {
+      statusBar.setAttribute('content', isDark ? 'black-translucent' : 'default');
+    }
+  };
+
   const applyTheme = (mode, iconMoon, iconSun) => {
     const isDark = mode === 'dark';
     document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-jr-glass', 'true');
     updateThemeIcons(iconMoon, iconSun, isDark);
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', isDark ? '#000000' : '#e8f0fe');
+    syncThemeColorMeta(isDark);
   };
 
   const initSystemThemeListener = (iconMoon, iconSun) => {
@@ -239,6 +249,22 @@
     initInstallPrompt();
     initKeyboardHelp();
     initOnlineStatus();
+    initTrackerIconFallback();
+  };
+
+  const initTrackerIconFallback = () => {
+    if (document.body.dataset.jrTrackerIconFallback) return;
+    document.body.dataset.jrTrackerIconFallback = '1';
+    document.body.addEventListener('error', (e) => {
+      const target = e.target;
+      if (
+        !(target instanceof HTMLImageElement) ||
+        !target.classList.contains('tracker-icon') ||
+        target.classList.contains('tracker-icon--fallback')
+      ) return;
+      target.classList.add('tracker-icon--fallback');
+      target.removeAttribute('src');
+    }, true);
   };
 
   const setInert = (el, inert) => {
@@ -248,7 +274,7 @@
       el.setAttribute('aria-hidden', 'true');
     } else {
       el.removeAttribute('inert');
-      el.setAttribute('aria-hidden', 'false');
+      el.removeAttribute('aria-hidden');
     }
   };
 
@@ -331,9 +357,10 @@
     else global.addEventListener('load', register);
   };
 
-  const appendApiKey = (url) => url;
+  const appendApiKey = (url) => url; /* legacy export; key is sent via X-Api-Key header only */
 
   const withApiKeyHeaders = (options = {}) => {
+    /* Header keeps the key out of URLs, logs, and Referer */
     const key = LS.get('api_key');
     if (!key) return options;
     const headers = new Headers(options.headers || {});
@@ -346,7 +373,18 @@
   const getSafeIconPath = (trackerName) => {
     const rawName = String(trackerName || '').toLowerCase();
     const safeName = rawName.replace(/[^a-z0-9_-]/g, '');
-    return './img/ico/' + (safeName || 'default') + '.ico';
+    if (!safeName) return './img/jacred.png';
+    return './img/ico/' + safeName + '.ico';
+  };
+
+  const isSafeHttpUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const parsed = new URL(url, global.location.origin);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
   };
 
   const initApiKeyModal = ({
@@ -453,6 +491,7 @@
     fetchWithApiKey,
     withApiKeyHeaders,
     getSafeIconPath,
+    isSafeHttpUrl,
     initApiKeyModal
   });
 })(window);

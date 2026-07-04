@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const { LS, debounce, scrollToTop, initThemeToggle, initApiKeyModal, showToast, isTypingTarget, setInert, getSearchSkeletonHtml, fetchWithApiKey, getSafeIconPath } = window.Jacred;
+  const { LS, debounce, scrollToTop, initThemeToggle, initApiKeyModal, showToast, isTypingTarget, setInert, getSearchSkeletonHtml, fetchWithApiKey, getSafeIconPath, isSafeHttpUrl } = window.Jacred;
 
   const URL_FILTER_KEYS = ['type', 'tracker', 'voice', 'videotype', 'year', 'quality', 'season', 'refine', 'exclude'];
 
@@ -84,7 +84,23 @@
   };
 
   const setSearchResultsMode = (hasResults) => {
+    /* Toggles body.jr-has-results — sticky search + compact hero (styles.css) */
     document.body.classList.toggle('jr-has-results', !!hasResults);
+    const loadMoreEl = document.getElementById('loadMoreSentinel');
+    if (loadMoreEl) loadMoreEl.classList.toggle('d-none', !hasResults);
+  };
+
+  const showValidateError = (message) => {
+    if (!elements.validateError) return;
+    elements.validateError.textContent = message;
+    elements.validateError.classList.remove('d-none');
+    elements.searchInput?.setAttribute('aria-invalid', 'true');
+  };
+
+  const clearValidateError = () => {
+    if (!elements.validateError) return;
+    elements.validateError.classList.add('d-none');
+    elements.searchInput?.removeAttribute('aria-invalid');
   };
 
   const updateResultsHeader = () => {
@@ -114,7 +130,7 @@
     elements.searchInput.value = '';
     elements.searchInput.focus();
     updateClearButton();
-    elements.validateError.classList.add('d-none');
+    clearValidateError();
   };
 
   const getActiveFilterCount = () => {
@@ -323,7 +339,10 @@
     const rawTitle = elem.title || elem.name || '';
     const title = escapeHtml(rawTitle);
     const titleTip = escapeAttr(rawTitle);
-    const url = elem.url ? escapeAttr(elem.url) : '#';
+    const url = isSafeHttpUrl(elem.url) ? escapeAttr(elem.url) : '#';
+    const urlAttrs = isSafeHttpUrl(elem.url)
+      ? ` href="${url}" target="_blank" rel="noopener noreferrer"`
+      : ' role="link" aria-disabled="true" tabindex="-1"';
     const magnetRaw = (elem.magnet || '').trim();
     const hasMagnet = !!magnetRaw;
     const magnetAttr = hasMagnet ? escapeAttr(magnetRaw) : '';
@@ -351,7 +370,7 @@
       ? `<span class="quality-badge ${qualityBadgeClass(elem.quality)}" title="Качество: ${escapeAttr(String(elem.quality))}">${escapeHtml(qualityLabel)}</span>`
       : '';
     const metaPrimary = `<div class="result-meta-row result-meta-row--primary">
-      <span class="result-meta-item result-meta-item--tracker"><img src="${icoSrc}" alt="" width="16" height="16" loading="lazy" onerror="this.style.display='none'"><strong>${escapeHtml(trackerName)}</strong></span>
+      <span class="result-meta-item result-meta-item--tracker"><img src="${icoSrc}" alt="" class="tracker-icon" width="16" height="16" loading="lazy"><strong>${escapeHtml(trackerName)}</strong></span>
       ${qualityBadge}
     </div>`;
     const metaSecondary = `<div class="result-meta-row result-meta-row--secondary">
@@ -375,9 +394,9 @@
   <div class="result-card__head">
     <div class="result-card__title-row">
       <button type="button" class="${trackerBtnClass}" data-tracker="${escapeAttr(trackerName)}" title="${isActive ? 'Сбросить фильтр по трекеру' : 'Искать только на этом трекере'}" aria-label="Фильтр по трекеру ${escapeHtml(trackerName)}">
-        <img src="${icoSrc}" alt="" width="14" height="14" loading="lazy" onerror="this.style.display='none'">
+        <img src="${icoSrc}" alt="" class="tracker-icon" width="14" height="14" loading="lazy">
       </button>
-      <a href="${url}" target="_blank" rel="noopener noreferrer" title="${titleTip}" class="${titleClass}">${title}</a>
+      <a${urlAttrs} title="${titleTip}" class="${titleClass}">${title}</a>
     </div>
     <div class="result-card__meta result-card__meta--inline">${metaPrimary}${metaSecondary}</div>
     ${actionsHtml}
@@ -389,9 +408,9 @@
   <div class="result-card__head">
     <div class="result-card__title-row">
       <button type="button" class="${trackerBtnClass}" data-tracker="${escapeAttr(trackerName)}" title="${isActive ? 'Сбросить фильтр по трекеру' : 'Искать только на этом трекере'}" aria-label="Фильтр по трекеру ${escapeHtml(trackerName)}">
-        <img src="${icoSrc}" alt="" width="14" height="14" loading="lazy" onerror="this.style.display='none'">
+        <img src="${icoSrc}" alt="" class="tracker-icon" width="14" height="14" loading="lazy">
       </button>
-      <a href="${url}" target="_blank" rel="noopener noreferrer" title="${titleTip}" class="${titleClass}">${title}</a>
+      <a${urlAttrs} title="${titleTip}" class="${titleClass}">${title}</a>
     </div>
   </div>
   <div class="result-card__meta">${metaPrimary}${metaSecondary}</div>
@@ -420,7 +439,7 @@
     setSearchResultsMode(false);
     updateResultsHeader();
     updateClearButton();
-    elements.validateError.classList.add('d-none');
+    clearValidateError();
     try { history.replaceState({}, document.title, '/'); } catch (_) { }
   };
 
@@ -506,8 +525,7 @@
           if (key) LS.set('api_key', key);
           resolve();
         } else if (key) {
-          elements.validateError.textContent = 'API ключ неверный. Введите правильный ключ.';
-          elements.validateError.classList.remove('d-none');
+          showValidateError('API ключ неверный. Введите правильный ключ.');
           reject(new Error('Неверный API ключ'));
         } else {
               const modalEl = document.getElementById('apiKeyModal');
@@ -544,19 +562,17 @@
     e.preventDefault();
     const query = elements.searchInput.value.trim();
     if (!query) {
-      elements.validateError.textContent = 'Поисковый запрос пустой!';
-      elements.validateError.classList.remove('d-none');
+      showValidateError('Поисковый запрос пустой!');
       return;
     }
     if (state.isLoading) return;
     LS.set('search', query);
     setSearchLoading(true);
-    elements.validateError.classList.add('d-none');
+    clearValidateError();
     try {
       await ensureApiKey();
     } catch (err) {
-      elements.validateError.textContent = err.message || 'Требуется ключ API';
-      elements.validateError.classList.remove('d-none');
+      showValidateError(err.message || 'Требуется ключ API');
       setSearchLoading(false);
       return;
     }
@@ -566,22 +582,19 @@
       const response = await fetchWithApiKey(buildApiUrl(query), { signal: controller.signal });
       clearTimeout(timeoutId);
       if (response.status === 401) {
-        elements.validateError.textContent = 'Требуется API ключ. Проверьте введённый ключ.';
-        elements.validateError.classList.remove('d-none');
+        showValidateError('Требуется API ключ. Проверьте введённый ключ.');
         elements.resultsDiv.innerHTML = getNotFoundHtml();
         updateResultsHeader();
         return;
       }
       if (response.status === 403) {
-        elements.validateError.textContent = 'Доступ запрещён (403). Проверьте ключ API.';
-        elements.validateError.classList.remove('d-none');
+        showValidateError('Доступ запрещён (403). Проверьте ключ API.');
         elements.resultsDiv.innerHTML = getNotFoundHtml();
         updateResultsHeader();
         return;
       }
       if (response.status === 429) {
-        elements.validateError.textContent = 'Слишком много запросов. Подождите несколько секунд.';
-        elements.validateError.classList.remove('d-none');
+        showValidateError('Слишком много запросов. Подождите несколько секунд.');
         elements.resultsDiv.innerHTML = getNotFoundHtml();
         updateResultsHeader();
         return;
@@ -606,8 +619,7 @@
       let msg = 'Ошибка выполнения поиска';
       if (error.name === 'AbortError') msg = 'Истекло время ожидания ответа. Попробуйте снова.';
       else if (error.message === 'Failed to fetch') msg = 'Ошибка сети. Проверьте соединение.';
-      elements.validateError.textContent = msg;
-      elements.validateError.classList.remove('d-none');
+      showValidateError(msg);
       elements.resultsDiv.innerHTML = getNotFoundHtml();
       updateResultsHeader();
     } finally {
@@ -710,7 +722,7 @@
     });
 
     elements.searchForm.addEventListener('submit', handleSubmit);
-    elements.searchInput.addEventListener('input', () => { updateClearButton(); elements.validateError.classList.add('d-none'); });
+    elements.searchInput.addEventListener('input', () => { updateClearButton(); clearValidateError(); });
     elements.searchInput.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' || e.isComposing) return;
       e.preventDefault();
@@ -719,6 +731,11 @@
       } else {
         elements.searchForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       }
+    });
+    elements.searchForm.querySelectorAll('.filter-input[type="text"]').forEach((input) => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') e.preventDefault();
+      });
     });
     elements.clear.addEventListener('click', handleClear);
     elements.filterToggle.addEventListener('click', toggleFilters);

@@ -1,6 +1,8 @@
 (function (global) {
   'use strict';
 
+  /* Runs in <head> before paint — theme, offline shell, PWA safe-area hooks */
+
   var isAppShellPath = function (pathname) {
     return pathname === '/' || pathname === '/stats' || pathname.indexOf('/stats/') === 0;
   };
@@ -17,8 +19,20 @@
       : (prefersDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-bs-theme', mode);
     document.documentElement.setAttribute('data-jr-glass', 'true');
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', mode === 'dark' ? '#000000' : '#e8f0fe');
+    var color = mode === 'dark' ? '#0a0a0f' : '#e8f0fe';
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+      meta.setAttribute('content', color);
+    });
+    var statusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (statusBar) {
+      /* Manifest theme_color is static; iOS status bar style must track light/dark here */
+      statusBar.setAttribute('content', mode === 'dark' ? 'black-translucent' : 'default');
+    }
+    var standalone = (global.matchMedia && global.matchMedia('(display-mode: standalone)').matches)
+      || global.navigator.standalone === true; /* legacy iOS Home Screen */
+    if (standalone) {
+      document.documentElement.classList.add('jr-standalone');
+    }
   } catch (_) {
     document.documentElement.setAttribute('data-bs-theme', 'dark');
     document.documentElement.setAttribute('data-jr-glass', 'true');

@@ -9,11 +9,13 @@
   <meta name="theme-color" content="#e8f0fe" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a0a0f" media="(prefers-color-scheme: dark)" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="JacRed" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Поиск торрентов | JacRed</title>
   <link rel="icon" type="image/png" href="./img/jacred.png" />
   <link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
-  <link rel="apple-touch-icon" href="./img/icon-192.png" />
+  <link rel="apple-touch-icon" href="./img/icon-192.png" sizes="192x192" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="search" type="application/opensearchdescription+xml" title="JacRed" href="/opensearch.xml" />
   <link rel="preload" href="./css/styles.css" as="style" />
@@ -32,22 +34,22 @@
         <span class="jr-brand-icon" aria-hidden="true"><i class="bi bi-search"></i></span>
         <span class="jr-brand-text d-none d-sm-inline">JacRed</span>
       </a>
-      <div class="d-flex align-items-center gap-2 ms-auto">
-        <a href="/stats" class="btn-jr-nav d-inline-flex align-items-center gap-1.5 tap-target">
-          <i class="bi bi-bar-chart-line"></i><span class="btn-jr-nav__label">Статистика</span>
+      <div class="d-flex align-items-center gap-2 ms-auto jr-navbar__actions flex-shrink-0">
+        <a href="/stats" class="btn-jr-nav d-inline-flex align-items-center gap-1.5 tap-target" aria-label="Статистика">
+          <i class="bi bi-bar-chart-line" aria-hidden="true"></i><span class="btn-jr-nav__label">Статистика</span>
         </a>
         <button type="button" id="apiKeyBtn" class="btn-jr-nav tap-target border-0" aria-label="Установить API ключ"
-          title="API ключ"><i class="bi bi-key"></i><span class="btn-jr-nav__label ms-1">API ключ</span></button>
+          title="API ключ"><i class="bi bi-key" aria-hidden="true"></i><span class="btn-jr-nav__label ms-1">API ключ</span></button>
         <button type="button" id="torServerBtn" class="btn-jr-nav tap-target border-0"
-          aria-label="Настройки TorrServer" title="TorrServer"><i class="bi bi-hdd-network"></i><span
+          aria-label="Настройки TorrServer" title="TorrServer"><i class="bi bi-hdd-network" aria-hidden="true"></i><span
             class="btn-jr-nav__label ms-1">TorrServer</span></button>
-        <button type="button" class="btn-jr-nav tap-target border-0" data-bs-toggle="modal"
+        <button type="button" class="btn-jr-nav tap-target border-0 d-none d-md-inline-flex" data-bs-toggle="modal"
           data-bs-target="#shortcutsModal" aria-label="Горячие клавиши" title="Горячие клавиши (?)">
-          <i class="bi bi-keyboard"></i>
+          <i class="bi bi-keyboard" aria-hidden="true"></i>
         </button>
         <button type="button" id="toggleTheme" class="btn-jr-icon tap-target" aria-label="Переключить тему">
-          <i class="bi bi-moon-stars" id="iconMoon"></i>
-          <i class="bi bi-sun d-none" id="iconSun"></i>
+          <i class="bi bi-moon-stars" id="iconMoon" aria-hidden="true"></i>
+          <i class="bi bi-sun d-none" id="iconSun" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -59,7 +61,7 @@
     </noscript>
 
     <main id="main">
-    <header id="jrHero" class="jr-hero text-center mb-3">
+    <header id="jrHero" class="jr-hero jr-hero--search text-center mb-3 mb-md-4">
       <div class="position-relative d-inline-block mb-3">
         <div class="jr-hero-glow position-absolute top-50 start-50 translate-middle rounded-circle"></div>
         <h1 class="jr-hero-title position-relative fw-bold mb-2">Поиск торрентов</h1>
@@ -68,9 +70,10 @@
     </header>
 
       <div class="jr-search-form-body">
-      <form id="searchForm" class="jr-search-form">
+        <!-- form#searchForm: search bar only; filters use form="searchForm"; results live outside the form -->
         <div class="jr-search-block">
-        <div class="jr-search-pin-group">
+          <div class="jr-search-pin-group">
+            <form id="searchForm" class="jr-search-form">
           <div class="jr-search-dock-wrap">
             <div class="jr-search-dock">
               <div id="searchSticky" class="jr-search-sticky">
@@ -80,7 +83,7 @@
                     <i class="bi bi-search jr-search-icon" aria-hidden="true"></i>
                     <input type="search" id="s" name="s" enterkeyhint="search" inputmode="search"
                       class="form-control jr-search-input" placeholder="Введите название..."
-                      autocomplete="off" />
+                      autocomplete="off" aria-describedby="validateError" />
                     <button type="button" id="clear" class="btn btn-link jr-search-clear d-none text-secondary tap-target"
                       aria-label="Очистить поле поиска"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                   </div>
@@ -94,7 +97,8 @@
               </div>
             </div>
           </div>
-        </div>
+            </form>
+          </div>
         <div class="jr-search-filters-shell glass-card mb-3 gsap-rise">
           <div class="jr-search-header">
           <div class="jr-search-toolbar">
@@ -117,25 +121,25 @@
               <div class="jr-sort-row">
                 <div class="jr-segmented" role="radiogroup" aria-label="Сортировка результатов">
                   <div class="form-check">
-                    <input class="form-check-input" type="radio" name="sort" value="sid" id="sortSid" checked />
+                    <input class="form-check-input" type="radio" name="sort" value="sid" id="sortSid" form="searchForm" checked />
                     <label class="form-check-label" for="sortSid" title="По количеству сидов">по сидам</label>
                   </div>
                   <div class="form-check">
-                    <input class="form-check-input" type="radio" name="sort" value="size" id="sortSize" />
+                    <input class="form-check-input" type="radio" name="sort" value="size" id="sortSize" form="searchForm" />
                     <label class="form-check-label" for="sortSize" title="По размеру файла">по размеру</label>
                   </div>
                   <div class="form-check">
-                    <input class="form-check-input" type="radio" name="sort" value="date" id="sortDate" />
+                    <input class="form-check-input" type="radio" name="sort" value="date" id="sortDate" form="searchForm" />
                     <label class="form-check-label" for="sortDate" title="По дате добавления в базу">добавлен</label>
                   </div>
                   <div class="form-check">
-                    <input class="form-check-input" type="radio" name="sort" value="update" id="sortUpdate" />
+                    <input class="form-check-input" type="radio" name="sort" value="update" id="sortUpdate" form="searchForm" />
                     <label class="form-check-label" for="sortUpdate" title="По дате обновления">обновлён</label>
                   </div>
                 </div>
                 <div class="jr-sort-row__footer">
                   <div class="form-check form-switch jr-exact-switch mb-0">
-                    <input class="form-check-input" type="checkbox" role="switch" id="forcedSearch" />
+                    <input class="form-check-input" type="checkbox" role="switch" id="forcedSearch" form="searchForm" />
                     <label class="form-check-label" for="forcedSearch">
                       <span class="jr-exact-switch__short d-none d-lg-inline">Точный</span>
                       <span class="jr-exact-switch__long d-lg-none">Точный поиск</span>
@@ -152,25 +156,25 @@
             <div class="row g-2 g-md-3 mb-2">
               <div class="col-sm-6">
                 <label class="form-label jr-filter-label" for="filterRefine">Уточнить</label>
-                <input id="filterRefine" name="refine" type="text" placeholder="Например BDRip, WEB-DL, США"
+                <input id="filterRefine" name="refine" type="text" form="searchForm" placeholder="Например BDRip, WEB-DL, США"
                   class="form-control form-control-sm filter-input" autocomplete="off" />
               </div>
               <div class="col-sm-6">
                 <label class="form-label jr-filter-label" for="filterExclude">Исключить</label>
-                <input id="filterExclude" name="exclude" type="text" placeholder="Например HEVC"
+                <input id="filterExclude" name="exclude" type="text" form="searchForm" placeholder="Например HEVC"
                   class="form-control form-control-sm filter-input" autocomplete="off" />
               </div>
             </div>
             <div class="row g-2 g-md-3">
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterQuality">Качество</label>
-                <select id="filterQuality" name="quality" class="form-select form-select-sm filter-input">
+                <select id="filterQuality" name="quality" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любое</option>
                 </select>
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterVideotype">Тип видео</label>
-                <select id="filterVideotype" name="videotype" class="form-select form-select-sm filter-input">
+                <select id="filterVideotype" name="videotype" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любое</option>
                   <option value="sdr">SDR</option>
                   <option value="hdr">HDR</option>
@@ -178,31 +182,31 @@
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterVoice">Озвучка</label>
-                <select id="filterVoice" name="voice" class="form-select form-select-sm filter-input">
+                <select id="filterVoice" name="voice" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любая</option>
                 </select>
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterSeason">Сезон</label>
-                <select id="filterSeason" name="season" class="form-select form-select-sm filter-input">
+                <select id="filterSeason" name="season" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любой</option>
                 </select>
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterType">Категория</label>
-                <select id="filterType" name="type" class="form-select form-select-sm filter-input">
+                <select id="filterType" name="type" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любая</option>
                 </select>
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterTracker">Трекер</label>
-                <select id="filterTracker" name="tracker" class="form-select form-select-sm filter-input">
+                <select id="filterTracker" name="tracker" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любой</option>
                 </select>
               </div>
               <div class="col-6 col-md-4">
                 <label class="form-label jr-filter-label" for="filterYear">Год</label>
-                <select id="filterYear" name="year" class="form-select form-select-sm filter-input">
+                <select id="filterYear" name="year" form="searchForm" class="form-select form-select-sm filter-input">
                   <option value="">Любой</option>
                 </select>
               </div>
@@ -214,7 +218,7 @@
           </div>
           </div>
         </div>
-      </form>
+        </div>
 
       <section class="jr-results-section" aria-label="Результаты поиска">
       <div id="loading" class="d-none" role="status" aria-live="polite" aria-label="Поиск торрентов">
@@ -230,7 +234,7 @@
           <span class="jr-view-toggle__label d-none d-sm-inline">Список</span>
         </button>
       </div>
-      <div id="resultsDiv" aria-atomic="false" data-jr-dynamic></div>
+      <div id="resultsDiv" role="region" aria-live="polite" aria-atomic="false" data-jr-dynamic></div>
 
       <template id="helpTemplate">
         <div class="state-card state-card--help">
@@ -248,7 +252,7 @@
         </div>
       </template>
 
-      <div id="loadMoreSentinel" class="jr-load-more text-center py-2">
+      <div id="loadMoreSentinel" class="jr-load-more text-center py-2 d-none">
         <div id="loadMoreIndicator" class="d-none" aria-hidden="true">
           <div class="jr-spinner jr-spinner--inline mx-auto" role="status" aria-label="Загрузка"></div>
         </div>
@@ -261,9 +265,9 @@
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex gap-3">
           <a href="https://github.com/jacred-fdb/jacred" target="_blank" rel="noopener noreferrer"
-            class="text-secondary fs-5" aria-label="GitHub"><i class="bi bi-github"></i></a>
+            class="text-secondary fs-5" aria-label="GitHub"><i class="bi bi-github" aria-hidden="true"></i></a>
           <a href="https://t.me/pavelpikta" target="_blank" rel="noopener noreferrer" class="text-secondary fs-5"
-            aria-label="Telegram"><i class="bi bi-telegram"></i></a>
+            aria-label="Telegram"><i class="bi bi-telegram" aria-hidden="true"></i></a>
         </div>
         <p class="small text-secondary mb-0">Работает на <a href="https://github.com/jacred-fdb/jacred"
             class="text-decoration-none">Jacred</a></p>
@@ -275,7 +279,6 @@
     <i class="bi bi-arrow-up"></i>
   </button>
 
-  <!-- Keyboard shortcuts -->
   <div id="shortcutsModal" class="modal fade" tabindex="-1" aria-labelledby="shortcutsModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
       <div class="modal-content glass-card border-0">
@@ -297,7 +300,6 @@
     </div>
   </div>
 
-  <!-- API Key Modal -->
   <div id="apiKeyModal" class="modal fade" tabindex="-1" aria-labelledby="apiKeyModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content glass-card border-0">
@@ -320,7 +322,6 @@
     </div>
   </div>
 
-  <!-- TorrServer Modal -->
   <div id="torServerModal" class="modal fade" tabindex="-1" aria-labelledby="torServerModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content glass-card border-0">

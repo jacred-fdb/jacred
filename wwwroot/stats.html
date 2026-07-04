@@ -8,11 +8,13 @@
   <meta name="theme-color" content="#e8f0fe" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0a0a0f" media="(prefers-color-scheme: dark)" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="JacRed" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Статистика трекеров | JacRed</title>
   <link rel="icon" type="image/png" href="./img/jacred.png" />
   <link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
-  <link rel="apple-touch-icon" href="./img/icon-192.png" />
+  <link rel="apple-touch-icon" href="./img/icon-192.png" sizes="192x192" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="preload" href="./css/styles.css" as="style" />
   <link rel="stylesheet" href="./css/fonts.css" />
@@ -27,17 +29,25 @@
   <nav class="navbar jr-navbar sticky-top" aria-label="Навигация статистики">
     <div class="container jr-app jr-app--wide px-3 px-sm-4">
       <a class="navbar-brand d-flex align-items-center gap-2" href="/stats">
-        <span class="jr-brand-icon jr-brand-icon--stats"><i class="bi bi-bar-chart-line"></i></span>
+        <span class="jr-brand-icon jr-brand-icon--stats" aria-hidden="true"><i class="bi bi-bar-chart-line"></i></span>
         <span class="jr-brand-text--stats d-none d-sm-inline">Статистика</span>
       </a>
-      <div class="d-flex align-items-center gap-2 ms-auto">
-        <button type="button" class="btn-jr-icon tap-target" data-bs-toggle="modal"
+      <div class="d-flex align-items-center gap-2 ms-auto jr-navbar__actions flex-shrink-0">
+        <a href="/" id="homeLink" class="btn-jr-nav tap-target d-inline-flex align-items-center" aria-label="На главную">
+          <i class="bi bi-house" aria-hidden="true"></i><span class="btn-jr-nav__label">Главная</span>
+        </a>
+        <a href="/stats" class="btn-jr-nav tap-target d-inline-flex align-items-center" aria-label="Статистика" aria-current="page">
+          <i class="bi bi-bar-chart-line" aria-hidden="true"></i><span class="btn-jr-nav__label">Статистика</span>
+        </a>
+        <button type="button" id="apiKeyBtn" class="btn-jr-nav tap-target border-0" aria-label="Установить API ключ"
+          title="API ключ"><i class="bi bi-key" aria-hidden="true"></i><span class="btn-jr-nav__label ms-1">API ключ</span></button>
+        <button type="button" class="btn-jr-nav tap-target border-0 d-none d-md-inline-flex" data-bs-toggle="modal"
           data-bs-target="#shortcutsModal" aria-label="Горячие клавиши" title="Горячие клавиши (?)">
-          <i class="bi bi-keyboard"></i>
+          <i class="bi bi-keyboard" aria-hidden="true"></i>
         </button>
         <button type="button" id="toggleTheme" class="btn-jr-icon tap-target" aria-label="Переключить тему">
-          <i class="bi bi-moon-stars" id="iconMoon"></i>
-          <i class="bi bi-sun d-none" id="iconSun"></i>
+          <i class="bi bi-moon-stars" id="iconMoon" aria-hidden="true"></i>
+          <i class="bi bi-sun d-none" id="iconSun" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -60,7 +70,8 @@
           <label for="searchTracker" class="form-label jr-label">Поиск трекера</label>
           <div class="jr-search-wrap">
             <i class="bi bi-search jr-search-icon" aria-hidden="true"></i>
-            <input type="text" id="searchTracker" class="form-control jr-search-input form-control-sm"
+            <input type="search" id="searchTracker" enterkeyhint="search" inputmode="search"
+              class="form-control jr-search-input form-control-sm"
               placeholder="Поиск по имени..." autocomplete="off" />
           </div>
         </div>
@@ -84,13 +95,6 @@
         </div>
       </div>
       <div class="d-flex flex-wrap align-items-center jr-stats-toolbar">
-        <a href="/" id="homeLink" class="btn-jr-nav tap-target d-inline-flex align-items-center" aria-label="На главную">
-          <i class="bi bi-house" aria-hidden="true"></i><span class="btn-jr-nav__label">Главная</span>
-        </a>
-        <button type="button" id="apiKeyBtn" class="btn-jr-nav tap-target d-inline-flex align-items-center border-0"
-          aria-label="API ключ">
-          <i class="bi bi-key" aria-hidden="true"></i><span class="btn-jr-nav__label">API ключ</span>
-        </button>
         <button type="button" id="refreshBtn"
           class="btn-jr-nav tap-target d-inline-flex align-items-center border-0"
           aria-label="Обновить статистику">
@@ -154,8 +158,8 @@
           <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
           <span>Листайте таблицу по горизонтали</span>
         </p>
-        <div id="tablePagination" class="d-none">
-          <span id="paginationInfo"></span>
+        <div id="tablePagination" class="d-none" role="navigation" aria-label="Пагинация таблицы">
+          <span id="paginationInfo" role="status" aria-live="polite"></span>
           <div class="d-flex gap-2">
             <button id="paginationPrev" type="button" class="btn btn-sm btn-jr-ghost tap-target" aria-label="Предыдущая страница">Назад</button>
             <button id="paginationNext" type="button" class="btn btn-sm btn-jr-ghost tap-target" aria-label="Следующая страница">Вперёд</button>
@@ -175,9 +179,9 @@
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex gap-3">
           <a href="https://github.com/jacred-fdb/jacred" target="_blank" rel="noopener noreferrer"
-            class="text-secondary fs-5" aria-label="GitHub"><i class="bi bi-github"></i></a>
+            class="text-secondary fs-5" aria-label="GitHub"><i class="bi bi-github" aria-hidden="true"></i></a>
           <a href="https://t.me/pavelpikta" target="_blank" rel="noopener noreferrer" class="text-secondary fs-5"
-            aria-label="Telegram"><i class="bi bi-telegram"></i></a>
+            aria-label="Telegram"><i class="bi bi-telegram" aria-hidden="true"></i></a>
         </div>
         <p class="small text-secondary mb-0">Работает на <a href="https://github.com/jacred-fdb/jacred"
             class="text-decoration-none">Jacred</a></p>

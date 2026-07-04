@@ -1,9 +1,7 @@
-/**
- * GSAP motion — Apple/Google-inspired entrances for JacRed.
- */
 (function jacredGsap() {
   'use strict';
 
+  /* Skip all motion when user prefers reduced motion (a11y) */
   var reduced =
     typeof window !== 'undefined' &&
     window.matchMedia &&
@@ -130,7 +128,7 @@
     try {
       if (sessionStorage.getItem('jr-animated')) return true;
       sessionStorage.setItem('jr-animated', '1');
-    } catch (_) { /* ignore */ }
+    } catch (_) {}
     return false;
   }
 

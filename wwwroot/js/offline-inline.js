@@ -117,14 +117,20 @@
   var showOfflineInline = function () {
     if (!isAppShellPath(global.location.pathname)) return;
     var overlay = ensureOverlay();
+    var main = document.getElementById('main');
+    if (main) main.setAttribute('inert', '');
     document.documentElement.classList.add('jr-offline-inline-active', 'jr-offline');
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     setStatusText(false);
+    var retryBtn = document.getElementById('jrOfflineInlineRetry');
+    if (retryBtn) retryBtn.focus();
   };
 
   var hideOfflineInline = function () {
     var overlay = document.getElementById(INLINE_ID);
+    var main = document.getElementById('main');
+    if (main) main.removeAttribute('inert');
     document.documentElement.classList.remove('jr-offline-inline-active', 'jr-offline');
     if (overlay) {
       overlay.hidden = true;
