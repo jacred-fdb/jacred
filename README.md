@@ -264,6 +264,13 @@ globalproxy:
 listenport: 9120
 syncapi: https://jacred.example.com
 
+search:
+  mergeV1: auto
+  skipCatFilter: true
+
+torznab:
+  enable: true
+
 NNMClub:
   alias: http://nnmclub....onion
 
@@ -430,7 +437,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 Сводная таблица «клиент → URL → формат» — в разделе **Torznab / Jackett** выше.
 
 - **`GET /api/v2.0/indexers/{status}/results`** — поиск в формате Jackett JSON (**Lampa** и др.).
-  - Combined search: v2 card/fuzzy + v1 merge + IMDB (`Query=tt…` / `kp…`) + card fallback.
+  - Combined search (`search.*`): v2 card/fuzzy + v1 fuzzy (только fuzzy mode при `mergeV1: auto`) + IMDB/KP exact + card fallback.
   - Параметры Lampa: `Query`, `title`, `title_original`, `year`, `is_serial`, `genres`, `Category[]`, `Tracker[]`, `season`, `ep`, `limit`, `offset`, `apikey`.
   - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true`.
 - **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).

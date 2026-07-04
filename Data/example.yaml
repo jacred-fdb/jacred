@@ -62,6 +62,19 @@ evercache:
   maxOpenWriteTask: 200
   dropCacheTake: 200
 
+# Combined search (Lampa Jackett JSON, Torznab XML — shared pipeline)
+search:
+  mergeV1: auto # false | auto (v1 fuzzy только fuzzy mode) | true
+  maxV1Pairs: 4 # Лимит v1-пар при mergeV1=auto в fuzzy mode
+  v1Sort: sid # sid (seeders), pir, size; также IMDB/KP exact v1
+  stripTrailingYear: true # Fuzzy: доп. запрос без года в конце
+  skipCatFilter: true # Не фильтровать cat/Category[] на сервере (Lampa фильтрует сама)
+
+# Torznab XML (Sonarr/Radarr/Prowlarr). Не влияет на Lampa Jackett JSON.
+torznab:
+  enable: true # false → 404 на /torznab/api и Prowlarr meta
+  enrichTitles: true # Озвучки в Torznab XML <title>
+
 # Tracker settings (optional; defaults are used if omitted)
 Rutor:
   host: http://rutor.info

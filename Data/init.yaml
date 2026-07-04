@@ -56,3 +56,12 @@ evercache:
   validHour: 1
   maxOpenWriteTask: 200
   dropCacheTake: 200
+search:
+  mergeV1: auto
+  maxV1Pairs: 4
+  v1Sort: sid
+  stripTrailingYear: true
+  skipCatFilter: true
+torznab:
+  enable: true
+  enrichTitles: true
