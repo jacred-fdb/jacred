@@ -15,17 +15,15 @@ namespace JacRed.Controllers
     /// </summary>
     public class TorznabController : BaseController
     {
-        internal static bool IsTorznabEnabled()
-        {
-            return AppInit.conf.torznab == null || AppInit.conf.torznab.enable;
-        }
+        public static bool IsTorznabXmlEnabled() =>
+            AppInit.conf.torznab == null || AppInit.conf.torznab.enable;
 
         [Route("/torznab/api")]
         [Route("/api/v2.0/indexers/{indexer}/results/torznab/api")]
         [Route("/api/v1/indexer/{indexer}/newznab")]
         public async Task<IActionResult> Torznab(string indexer, string t, string apikey)
         {
-            if (!IsTorznabEnabled())
+            if (!IsTorznabXmlEnabled())
                 return NotFound();
 
             var query = HttpContext.Request.Query;
@@ -110,7 +108,7 @@ namespace JacRed.Controllers
         [Route("/api/v1/indexer")]
         public IActionResult ProwlarrIndexerList()
         {
-            if (!TorznabController.IsTorznabEnabled())
+            if (!TorznabController.IsTorznabXmlEnabled())
                 return NotFound();
 
             return Json(new[]
@@ -134,7 +132,7 @@ namespace JacRed.Controllers
         [Route("/api/v1/indexer/{id:int}")]
         public IActionResult ProwlarrIndexerDetail(int id)
         {
-            if (!TorznabController.IsTorznabEnabled())
+            if (!TorznabController.IsTorznabXmlEnabled())
                 return NotFound();
 
             if (id != 1)

@@ -153,24 +153,15 @@ namespace JacRed.Controllers
             bool rqnum = !HttpContext.Request.QueryString.Value.Contains("&is_serial=")
                 && HttpContext.Request.Headers.UserAgent.ToString() == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36";
 
-            List<Result> results;
+            if (string.IsNullOrWhiteSpace(query))
+                query = IndexerRequestParams.ResolveSearchQuery(q);
 
-            if (IndexerSearchHelper.CombinedSearchEnabled)
-            {
-                if (string.IsNullOrWhiteSpace(query))
-                    query = IndexerRequestParams.ResolveSearchQuery(q);
+            if (string.IsNullOrWhiteSpace(query) && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(title_original))
+                return Json(new RootObject() { Results = new List<Result>() });
 
-                if (string.IsNullOrWhiteSpace(query) && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(title_original))
-                    return Json(new RootObject() { Results = new List<Result>() });
-
-                var req = IndexerSearchHelper.BuildRequest(q, apikey, rqnum, query, title, title_original, year, is_serial);
-                results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache);
-                results = IndexerSearchHelper.ApplyPostFilters(results, q, req);
-            }
-            else
-            {
-                results = JackettSearchResults(apikey, query, title, title_original, year, category, is_serial, rqnum, memoryCache);
-            }
+            var req = IndexerSearchHelper.BuildRequest(q, apikey, rqnum, query, title, title_original, year, is_serial);
+            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache);
+            results = IndexerSearchHelper.ApplyPostFilters(results, q, req);
 
             return Json(new RootObject() { Results = results });
         }

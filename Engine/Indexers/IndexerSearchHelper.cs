@@ -1,5 +1,4 @@
 using JacRed.Models.Api;
-using JacRed.Models.AppConf;
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,9 +7,6 @@ namespace JacRed.Engine.Indexers
 {
     public static class IndexerSearchHelper
     {
-        public static bool CombinedSearchEnabled =>
-            AppInit.conf.torznab == null || AppInit.conf.torznab.enable;
-
         public static IndexerSearchRequest BuildRequest(
             IQueryCollection query,
             string apikey,
@@ -113,7 +109,7 @@ namespace JacRed.Engine.Indexers
             IndexerSearchRequest req,
             string torznabAction = null)
         {
-            var settings = AppInit.conf.torznab ?? new TorznabSettings();
+            var settings = IndexerSearchOptions.Resolve();
             string catParam = CategoryParam(query);
 
             bool applyCatFilter = !req.CardMode && !settings.skipCatFilter && !string.IsNullOrWhiteSpace(catParam);

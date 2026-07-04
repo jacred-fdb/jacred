@@ -95,13 +95,13 @@ namespace JacRed.Engine
                         Field("search.mergeV1", "select", "Merge v1 (fuzzy)", "auto — только fuzzy; card без v1", enumValues: new[] { "false", "auto", "true" }),
                         Field("search.maxV1Pairs", "int", "Max v1 pairs", "При mergeV1=auto или true (fuzzy)", min: 1),
                         Field("search.v1Sort", "string", "V1 sort", "sid, pir, size…"),
-                        Field("search.stripTrailingYear", "bool", "Strip trailing year", "Fuzzy: запрос без года")
+                        Field("search.stripTrailingYear", "bool", "Strip trailing year", "Fuzzy: запрос без года"),
+                        Field("search.skipCatFilter", "bool", "Skip cat filter", "Не фильтровать cat/Category[] на сервере")
                     }),
                     Group("torznab", "Torznab", "Torznab XML (Sonarr/Radarr/Prowlarr)", new[]
                     {
-                        Field("torznab.enable", "bool", "Torznab XML", "/torznab/api + combined search"),
-                        Field("torznab.enrichTitles", "bool", "Enrich titles", "Озвучки в XML title"),
-                        Field("torznab.skipCatFilter", "bool", "Skip cat filter", null)
+                        Field("torznab.enable", "bool", "Torznab XML", "/torznab/api и Torznab-алиасы"),
+                        Field("torznab.enrichTitles", "bool", "Enrich titles", "Озвучки в XML title")
                     }),
                     Group("proxy", "Прокси", null, new[]
                     {

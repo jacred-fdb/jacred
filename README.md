@@ -287,19 +287,19 @@ globalproxy:
     "mergeV1": "auto",
     "maxV1Pairs": 4,
     "v1Sort": "sid",
-    "stripTrailingYear": true
+    "stripTrailingYear": true,
+    "skipCatFilter": true
   },
   "torznab": {
     "enable": true,
-    "enrichTitles": true,
-    "skipCatFilter": true
+    "enrichTitles": true
   }
 }
 ```
 
 #### Combined search (`search`)
 
-Настройки объединённого поиска v2 + v1 для **`/api/v2.0/indexers/.../results`** (Lampa) и Torznab (при `torznab.enable`).
+Настройки поиска для **`/api/v2.0/indexers/.../results`** (Lampa, Jackett JSON) и Torznab XML (те же `SearchCombinedAsync`).
 
 | Параметр | Описание | По умолчанию |
 | -------- | -------- | ------------ |
@@ -307,6 +307,7 @@ globalproxy:
 | `maxV1Pairs` | Лимит v1-запросов при `mergeV1=auto` (fuzzy) | `4` |
 | `v1Sort` | Сортировка v1 (`sid` = seeders; также IMDB/KP) | `sid` |
 | `stripTrailingYear` | Доп. вариант fuzzy-запроса без года | `true` |
+| `skipCatFilter` | Не фильтровать по `cat` / `Category[]` на сервере | `true` |
 
 **`mergeV1: auto`** — v1 fuzzy **только в fuzzy mode** (Torznab text search, Lampa global search). Card mode (Lampa: `title` + `title_original`) — только v2 exact, без v1 fuzzy.
 
@@ -318,15 +319,16 @@ globalproxy:
 
 IMDB/KP (`tt…`, `kp…`) всегда через v1 exact, независимо от `mergeV1`.
 
+Jackett JSON (`/api/v2.0/indexers/.../results`) **всегда** использует combined search; на `torznab.enable` не зависит.
+
 #### Torznab XML (`torznab`)
 
 | Параметр | Описание | По умолчанию |
 | -------- | -------- | ------------ |
-| `enable` | Torznab XML + combined search (вместо legacy Jackett) | `true` |
+| `enable` | Torznab XML и Prowlarr/Jackett Torznab-алиасы | `true` |
 | `enrichTitles` | Озвучки в Torznab `<title>` | `true` |
-| `skipCatFilter` | Не фильтровать по `cat` на сервере | `true` |
 
-При `enable: false` Torznab-эндпоинты отвечают **404**.
+При `enable: false` Torznab XML-эндпоинты и Prowlarr meta (`/api/v1/indexer`) отвечают **404**. Jackett JSON для Lampa продолжает работать.
 
 | URL | Назначение |
 |-----|------------|

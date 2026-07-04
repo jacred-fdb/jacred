@@ -1,7 +1,7 @@
 namespace JacRed.Models.AppConf
 {
     /// <summary>
-    /// Combined indexer search (/api/v2.0/indexers/.../results, Torznab when enabled).
+    /// Combined indexer search: Jackett JSON and Torznab XML (shared pipeline).
     /// </summary>
     public class SearchSettings
     {
@@ -16,5 +16,8 @@ namespace JacRed.Models.AppConf
 
         /// <summary>Strip trailing year from fuzzy query and search both variants.</summary>
         public bool stripTrailingYear { get; set; } = true;
+
+        /// <summary>Skip category post-filter on server (client filters by cat/Category[]).</summary>
+        public bool skipCatFilter { get; set; } = true;
     }
 }
