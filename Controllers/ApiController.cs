@@ -25,19 +25,22 @@ namespace JacRed.Controllers
         [Route("/")]
         public ActionResult Index()
         {
+            SetNoStoreHtmlHeaders(Response);
             return File(System.IO.File.OpenRead("wwwroot/index.html"), "text/html");
         }
 
         [Route("/stats")]
         public ActionResult Stats()
         {
+            SetNoStoreHtmlHeaders(Response);
             return File(System.IO.File.OpenRead("wwwroot/stats.html"), "text/html");
         }
 
-        [Route("/offline.html")]
-        public ActionResult Offline()
+        static void SetNoStoreHtmlHeaders(HttpResponse response)
         {
-            return File(System.IO.File.OpenRead("wwwroot/offline.html"), "text/html");
+            response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            response.Headers["Pragma"] = "no-cache";
+            response.Headers["Expires"] = "0";
         }
 
         [Route("/opensearch.xml")]

@@ -4,7 +4,7 @@
 
 ## CDN-зависимости
 
-Bootstrap 5.3.3, Bootstrap Icons 1.11.3, GSAP 3.12.5 подключаются с [jsDelivr](https://cdn.jsdelivr.net) в `index.html` и `stats.html` (не хранятся в репозитории). Для работы UI нужен доступ в интернет; `offline.html` — автономная оболочка без CDN.
+Bootstrap 5.3.3, Bootstrap Icons 1.11.3, GSAP 3.12.5 подключаются с [jsDelivr](https://cdn.jsdelivr.net) в `index.html` и `stats.html` (не хранятся в репозитории). Для работы UI нужен доступ в интернет; при offline показывается inline-overlay (`offline-inline.js`).
 
 ## PWA: `theme_color` и тёмная тема
 

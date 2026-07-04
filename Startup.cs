@@ -95,7 +95,22 @@ namespace JacRed
             });
 
             if (AppInit.conf.web)
-                app.UseStaticFiles();
+            {
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    OnPrepareResponse = ctx =>
+                    {
+                        var path = ctx.Context.Request.Path.Value ?? "";
+                        if (path.Equals("/sw.js", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var headers = ctx.Context.Response.Headers;
+                            headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+                            headers["Pragma"] = "no-cache";
+                            headers["Expires"] = "0";
+                        }
+                    }
+                });
+            }
 
             app.UseModHeaders();
 

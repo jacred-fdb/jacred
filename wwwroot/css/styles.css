@@ -4103,6 +4103,48 @@ html.jr-offline .jr-navbar::after {
   border: 1px solid rgba(232, 113, 10, 0.25);
 }
 
+.jr-offline-inline {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: calc(3.5rem + env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
+    calc(1rem + env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--jr-bg) 88%, transparent);
+  -webkit-backdrop-filter: saturate(var(--jr-glass-saturate)) blur(12px);
+  backdrop-filter: saturate(var(--jr-glass-saturate)) blur(12px);
+  overflow-y: auto;
+}
+
+html.jr-offline-inline-active .jr-offline-inline {
+  display: flex;
+}
+
+.jr-offline-inline__panel {
+  width: 100%;
+  max-width: 28rem;
+  margin: auto;
+  padding: 1.5rem 1.25rem;
+}
+
+.jr-offline-inline__panel--online .jr-offline-badge {
+  background: var(--jr-success-soft, rgba(52, 168, 83, 0.12));
+  color: var(--jr-success, #34a853);
+}
+
+.jr-offline-inline__panel--online .jr-offline-badge__dot {
+  background: var(--jr-success, #34a853);
+  animation: none;
+}
+
+@media (min-width: 576px) {
+  .jr-offline-inline__panel {
+    padding: 2rem 1.75rem;
+  }
+}
+
 @media (prefers-contrast: more) {
   :root,
   [data-bs-theme='light'] {

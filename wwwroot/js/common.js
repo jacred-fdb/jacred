@@ -42,13 +42,20 @@
     if (iconSun) iconSun.classList.toggle('d-none', isDark);
   };
 
+  const resolveThemeMode = () => {
+    const stored = LS.get('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+    if (global.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+    return 'light';
+  };
+
   const syncThemeFromDom = (iconMoon, iconSun) => {
     const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     updateThemeIcons(iconMoon, iconSun, isDark);
   };
 
   const toggleTheme = (iconMoon, iconSun) => {
-    const isDark = document.documentElement.getAttribute('data-bs-theme') !== 'light';
+    const isDark = resolveThemeMode() === 'dark';
     const next = isDark ? 'light' : 'dark';
     applyTheme(next, iconMoon, iconSun);
     LS.set('theme', next);
@@ -76,7 +83,7 @@
 
   const initThemeToggle = ({ toggleEl, iconMoonEl, iconSunEl }) => {
     if (!toggleEl) return;
-    syncThemeFromDom(iconMoonEl, iconSunEl);
+    applyTheme(resolveThemeMode(), iconMoonEl, iconSunEl);
     toggleEl.addEventListener('click', () => toggleTheme(iconMoonEl, iconSunEl));
     initSystemThemeListener(iconMoonEl, iconSunEl);
   };
@@ -203,17 +210,28 @@
     });
   };
 
+  const normalizePathname = (pathname) => {
+    const p = pathname.replace(/\/+$/, '');
+    return p || '/';
+  };
+
+  const isAppShellPath = (pathname) =>
+    pathname === '/' || pathname === '/stats' || pathname.startsWith('/stats/');
+
+  const syncOfflineUi = () => {
+    if (global.JacredOffline?.syncInline) {
+      global.JacredOffline.syncInline();
+      return;
+    }
+    document.documentElement.classList.toggle('jr-offline', !navigator.onLine);
+  };
+
   const initOnlineStatus = () => {
-    const sync = () => {
-      document.documentElement.classList.toggle('jr-offline', !navigator.onLine);
-      if (!navigator.onLine) showToast('Нет подключения к сети', { type: 'warning', duration: 4000 });
-    };
     global.addEventListener('online', () => {
-      document.documentElement.classList.remove('jr-offline');
       showToast('Соединение восстановлено', { type: 'success' });
     });
-    global.addEventListener('offline', sync);
-    if (!navigator.onLine) document.documentElement.classList.add('jr-offline');
+    global.addEventListener('offline', syncOfflineUi);
+    if (!navigator.onLine) syncOfflineUi();
   };
 
   const initGlobalUi = () => {
@@ -258,11 +276,57 @@
 
   const registerServiceWorker = () => {
     if (!('serviceWorker' in navigator)) return;
-    const register = () => {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((err) => {
-        console.warn('Service worker registration failed:', err);
+
+    let reloadPending = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!reloadPending) return;
+      reloadPending = false;
+      if (!navigator.onLine && isAppShellPath(global.location.pathname)) {
+        syncOfflineUi();
+        return;
+      }
+      global.location.reload();
+    });
+
+    const bindUpdateChecks = (registration) => {
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        if (!worker || !navigator.serviceWorker.controller) return;
+        if (!navigator.onLine) return;
+        reloadPending = true;
       });
+      const checkForUpdates = () => {
+        if (!navigator.onLine) return;
+        registration.update().catch(() => {});
+      };
+      global.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdates();
+      });
+      global.addEventListener('focus', checkForUpdates);
+      global.addEventListener('online', checkForUpdates);
     };
+
+    const doRegister = () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((registration) => {
+          bindUpdateChecks(registration);
+          if (registration.waiting && navigator.serviceWorker.controller && navigator.onLine) {
+            reloadPending = true;
+          }
+        })
+        .catch((err) => {
+          console.warn('Service worker registration failed:', err);
+        });
+    };
+
+    const register = () => {
+      if (!navigator.onLine) {
+        global.addEventListener('online', () => doRegister(), { once: true });
+        return;
+      }
+      doRegister();
+    };
+
     if (document.readyState === 'complete') register();
     else global.addEventListener('load', register);
   };
@@ -360,6 +424,7 @@
     syncThemeFromDom,
     toggleTheme,
     applyTheme,
+    resolveThemeMode,
     initThemeToggle,
     initSystemThemeListener,
     announceLive,

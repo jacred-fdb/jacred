@@ -130,7 +130,6 @@ namespace JacRed.Engine.Middlewares
         {
             if (string.IsNullOrEmpty(path)) return false;
             return path.Equals("/opensearch.xml", StringComparison.OrdinalIgnoreCase)
-                || path.Equals("/offline.html", StringComparison.OrdinalIgnoreCase)
                 || path.Equals("/manifest.json", StringComparison.OrdinalIgnoreCase)
                 || path.Equals("/sw.js", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/css/", StringComparison.OrdinalIgnoreCase)

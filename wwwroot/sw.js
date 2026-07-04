@@ -1,22 +1,16 @@
-/* JacRed — PWA cache (static + offline shell) */
 'use strict';
 
-/* Inter, Bootstrap, Icons, GSAP — CDN (jsDelivr); не в precache.
-   Offline: shell (offline.html) без CDN; index/stats требуют сеть для vendor.
-   opensearch.xml is served by the backend and is not in static precache. */
-
 const CACHE_NAME = 'jacred-static-v2.7.0';
-const OFFLINE_PATH = '/offline.html';
 
-/** Root-absolute paths — cache.add() must not use ./ paths (they resolve from /sw.js or /stats/sw.js). */
-const PRECACHE = [
-  '/',
-  '/stats',
-  OFFLINE_PATH,
+const CRITICAL_PRECACHE = [
   '/css/styles.css',
-  '/js/common.js',
   '/js/theme.js',
-  '/js/pwa.js',
+  '/js/offline-inline.js',
+  '/js/common.js',
+  '/js/pwa.js'
+];
+
+const OPTIONAL_PRECACHE = [
   '/js/animations.js',
   '/js/app.js',
   '/js/stats.js',
@@ -27,7 +21,26 @@ const PRECACHE = [
   '/img/icon-512.png'
 ];
 
+const MINIMAL_OFFLINE_HTML = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">' +
+  '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+  '<title>Нет сети | JacRed</title>' +
+  '<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;' +
+  'min-height:100vh;margin:0;background:#0a0a0f;color:#e8e8e8;text-align:center;padding:1.5rem}' +
+  'h1{font-size:1.35rem;margin:0 0 .75rem}p{opacity:.85;margin:0 0 1.25rem}' +
+  'button{font:inherit;padding:.6rem 1.2rem;border-radius:.5rem;border:0;cursor:pointer;' +
+  'background:#4285f4;color:#fff}</style></head><body><div><h1>Соединение потеряно</h1>' +
+  '<p>Сервер JacRed недоступен. Проверьте интернет и попробуйте снова.</p>' +
+  '<button type="button" onclick="location.reload()">Повторить</button></div></body></html>';
+
 const absUrl = (path) => new URL(path, self.location.origin).href;
+
+const normalizePathname = (pathname) => {
+  const p = pathname.replace(/\/+$/, '');
+  return p || '/';
+};
+
+const isAppShellPath = (pathname) =>
+  pathname === '/' || pathname === '/stats' || pathname.startsWith('/stats/');
 
 const isStaticAsset = (url) => {
   const p = url.pathname;
@@ -35,34 +48,115 @@ const isStaticAsset = (url) => {
     /\.(css|js|png|ico|json|woff2?)$/i.test(p);
 };
 
-const isNavigation = (request) => request.mode === 'navigate';
+const minimalOfflineResponse = () => new Response(MINIMAL_OFFLINE_HTML, {
+  headers: {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store'
+  }
+});
+
+const putInCache = async (request, response) => {
+  if (!response.ok) return;
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(request, response.clone());
+};
+
+const findInAnyCache = async (url) => {
+  const direct = await caches.match(url);
+  if (direct) return direct;
+  const keys = await caches.keys();
+  for (const key of keys) {
+    if (key === CACHE_NAME) continue;
+    const match = await (await caches.open(key)).match(url);
+    if (match) return match;
+  }
+  return null;
+};
+
+const copyIntoCache = async (targetCache, url, response) => {
+  await targetCache.put(url, response.clone());
+  return true;
+};
+
+const precacheOne = async (targetCache, path) => {
+  const url = absUrl(path);
+  if (await targetCache.match(url)) return true;
+
+  try {
+    const res = await fetch(url, { cache: 'reload' });
+    if (res.ok) {
+      await copyIntoCache(targetCache, url, res);
+      return true;
+    }
+  } catch (_) { }
+
+  const existing = await findInAnyCache(url);
+  if (existing) {
+    await copyIntoCache(targetCache, url, existing);
+    return true;
+  }
+
+  return false;
+};
+
+const migrateFromOldCaches = async (targetCache, paths) => {
+  const oldKeys = (await caches.keys()).filter((k) => k !== CACHE_NAME);
+  for (const oldKey of oldKeys) {
+    const oldCache = await caches.open(oldKey);
+    for (const path of paths) {
+      const url = absUrl(path);
+      if (await targetCache.match(url)) continue;
+      const match = await oldCache.match(url);
+      if (match) await copyIntoCache(targetCache, url, match);
+    }
+  }
+};
 
 const precacheEntries = async (cache) => {
-  const results = await Promise.allSettled(
-    PRECACHE.map((path) => cache.add(absUrl(path)))
+  await migrateFromOldCaches(cache, [...CRITICAL_PRECACHE, ...OPTIONAL_PRECACHE]);
+
+  const criticalFailed = [];
+  for (const path of CRITICAL_PRECACHE) {
+    const ok = await precacheOne(cache, path);
+    if (!ok) criticalFailed.push(path);
+  }
+
+  const optionalResults = await Promise.allSettled(
+    OPTIONAL_PRECACHE.map((path) => precacheOne(cache, path))
   );
-  const failed = [];
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      console.error('[SW] precache failed:', PRECACHE[index], result.reason);
-      failed.push(PRECACHE[index]);
+  const optionalFailed = [];
+  optionalResults.forEach((result, index) => {
+    if (result.status === 'rejected' || result.value !== true) {
+      optionalFailed.push(OPTIONAL_PRECACHE[index]);
     }
   });
-  return failed;
+
+  if (criticalFailed.length) {
+    console.warn('[SW] critical precache incomplete (using migration/fallback):', criticalFailed);
+  }
+  if (optionalFailed.length) {
+    console.warn('[SW] optional precache skipped:', optionalFailed.length, optionalFailed);
+  }
+};
+
+const getCachedAppShell = async (pathname) => {
+  const p = normalizePathname(pathname);
+  const shellPath = p === '/stats' ? '/stats' : '/';
+  return caches.match(absUrl(shellPath));
+};
+
+const cacheAppShell = async (request, response) => {
+  if (!response.ok) return;
+  const p = normalizePathname(new URL(request.url).pathname);
+  if (p !== '/' && p !== '/stats') return;
+  await putInCache(request, response);
 };
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      const failed = await precacheEntries(cache);
-      if (failed.length === PRECACHE.length) {
-        console.error('[SW] install aborted: all precache entries failed');
-        return;
-      }
-      if (failed.length) {
-        console.warn('[SW] partial precache failure:', failed.length, 'of', PRECACHE.length, failed);
-      }
+      await precacheEntries(cache);
       await self.skipWaiting();
     })()
   );
@@ -70,17 +164,50 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await migrateFromOldCaches(cache, [...CRITICAL_PRECACHE, ...OPTIONAL_PRECACHE]);
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })()
   );
 });
 
-const serveOfflineFallback = async () => {
-  const offline = await caches.match(absUrl(OFFLINE_PATH));
-  if (offline) return offline;
-  return new Response('Offline', { status: 503, statusText: 'Offline' });
+const serveOfflineFallback = async (pathname) => {
+  const cached = await getCachedAppShell(pathname);
+  if (cached) return cached;
+  return minimalOfflineResponse();
 };
+
+const fetchNetworkOnly = (request) =>
+  fetch(new Request(request.url, {
+    method: 'GET',
+    cache: 'no-store',
+    mode: 'same-origin',
+    credentials: request.credentials,
+    redirect: request.redirect,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy
+  }));
+
+const handleAppShellNavigation = async (request) => {
+  const pathname = new URL(request.url).pathname;
+  try {
+    const res = await fetchNetworkOnly(request);
+    if (res.ok) {
+      await cacheAppShell(request, res);
+      return res;
+    }
+    const cached = await getCachedAppShell(pathname);
+    return cached || res;
+  } catch (_) {
+    return serveOfflineFallback(pathname);
+  }
+};
+
+const isDocumentNavigation = (request) =>
+  request.mode === 'navigate' || request.destination === 'document';
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
@@ -88,42 +215,52 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
-  if (isNavigation(event.request)) {
+  if (isDocumentNavigation(event.request)) {
+    if (isAppShellPath(url.pathname)) {
+      event.respondWith(handleAppShellNavigation(event.request));
+      return;
+    }
+
     event.respondWith(
-      fetch(event.request)
-        .then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-          }
+      (async () => {
+        try {
+          const res = await fetch(event.request);
+          if (res.ok) await putInCache(event.request, res);
           return res;
-        })
-        .catch(async () => {
+        } catch (_) {
           const cached = await caches.match(event.request);
-          if (cached) return cached;
-          return serveOfflineFallback();
-        })
+          return cached || serveOfflineFallback('/');
+        }
+      })()
     );
     return;
   }
 
   if (isStaticAsset(url)) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const network = fetch(event.request).then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-          }
+      (async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        try {
+          const res = await fetch(event.request);
+          if (res.ok) await putInCache(event.request, res);
           return res;
-        }).catch(() => cached);
-        return cached || network;
-      })
+        } catch (_) {
+          return new Response('', { status: 504, statusText: 'Network Error' });
+        }
+      })()
     );
     return;
   }
 
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    (async () => {
+      try {
+        return await fetch(event.request);
+      } catch (_) {
+        const cached = await caches.match(event.request);
+        return cached || new Response('', { status: 504, statusText: 'Network Error' });
+      }
+    })()
   );
 });
