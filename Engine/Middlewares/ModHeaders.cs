@@ -29,6 +29,11 @@ namespace JacRed.Engine.Middlewares
         [GeneratedRegex("^/(api/v1\\.0/conf|sync/)")]
         private static partial Regex PathWhitelistRegex();
 
+        /// <summary>Configuration API (/api/v1.0/config/*).</summary>
+        private static bool IsConfigApiPath(string path)
+            => !string.IsNullOrEmpty(path)
+                && path.StartsWith("/api/v1.0/config", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>Paths restricted to local/private network (by client IP).</summary>
         private static bool IsLocalOnlyPath(string path)
         {
@@ -37,7 +42,7 @@ namespace JacRed.Engine.Middlewares
                 || path.Equals("/jsondb", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/jsondb/", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/dev/", StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith("/api/v1.0/config", StringComparison.OrdinalIgnoreCase);
+                || IsConfigApiPath(path);
         }
 
         public ModHeaders(RequestDelegate next)
@@ -196,12 +201,24 @@ namespace JacRed.Engine.Middlewares
 
             if (!fromLocalNetwork)
             {
-                // /cron/, /jsondb, /dev/ — local network only
+                // /cron/, /jsondb, /dev/ — local network only; config API allows remote access with devkey
                 if (IsLocalOnlyPath(path))
                 {
-                    // OPTIONS: 204 for CORS preflight. UseCors runs before UseModHeaders, so CORS headers are applied to the response.
-                    httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 403;
-                    return;
+                    if (IsConfigApiPath(path) && !string.IsNullOrEmpty(AppInit.conf?.devkey))
+                    {
+                        if (!DevKeyMatches(httpContext))
+                        {
+                            SetPrivateNetworkHeader(httpContext);
+                            httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 401;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // OPTIONS: 204 for CORS preflight. UseCors runs before UseModHeaders, so CORS headers are applied to the response.
+                        httpContext.Response.StatusCode = httpContext.Request.Method == "OPTIONS" ? 204 : 403;
+                        return;
+                    }
                 }
             }
             else

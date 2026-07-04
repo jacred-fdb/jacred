@@ -5,7 +5,8 @@
     LS,
     initThemeToggle,
     showToast,
-    withDevKeyHeaders
+    withDevKeyHeaders,
+    withApiKeyHeaders
   } = window.Jacred;
 
   const { buildForm, collectFormData, deepClone } = window.JacredSettingsForm;
@@ -31,8 +32,12 @@
     saveBtn: document.getElementById('saveBtn'),
     devKeyBtn: document.getElementById('devKeyBtn'),
     devKeyInput: document.getElementById('devKeyInput'),
+    devKeyForm: document.getElementById('devKeyForm'),
+    devKeyModalError: document.getElementById('devKeyModalError'),
     devKeyModalSave: document.getElementById('devKeyModalSave'),
     devKeyModal: document.getElementById('devKeyModal'),
+    accessDeniedMessage: document.getElementById('accessDeniedMessage'),
+    accessDeniedDevKeyBtn: document.getElementById('accessDeniedDevKeyBtn'),
     modeFormTab: document.getElementById('modeFormTab'),
     modeRawTab: document.getElementById('modeRawTab'),
     diffModal: document.getElementById('diffModal'),
@@ -50,6 +55,25 @@
   let dirty = false;
   let diffModalInstance = null;
   let pendingSavePayload = null;
+  let devKeyModalInstance = null;
+
+  const ACCESS_MESSAGES = {
+    network: 'Редактирование конфигурации доступно только из локальной сети сервера. Откройте эту страницу по адресу сервера (например, http://127.0.0.1:9117/settings) или через VPN.',
+    devkey: 'Требуется dev-ключ из init.yaml. Укажите его в настройках браузера — кнопка «Dev ключ» в шапке или ниже.',
+    apikey: 'Требуется API-ключ. Задайте его на главной странице (кнопка «API ключ» в шапке), затем обновите настройки.'
+  };
+
+  const withConfigHeaders = (options = {}) => withApiKeyHeaders(withDevKeyHeaders(options));
+
+  const isAuthError = (status) => status === 403 || status === 401;
+
+  const authErrorKind = (status) => {
+    if (status === 403) return 'network';
+    if (status === 401) {
+      return LS.get('dev_key') ? 'apikey' : 'devkey';
+    }
+    return 'network';
+  };
 
   const setDirty = (value) => {
     dirty = value;
@@ -71,21 +95,29 @@
   const apiFetch = (url, options = {}) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    return fetch(url, withDevKeyHeaders({ ...options, signal: controller.signal }))
+    return fetch(url, withConfigHeaders({ ...options, signal: controller.signal }))
       .then(async (response) => {
         clearTimeout(timeoutId);
+        if (isAuthError(response.status)) {
+          return { response, json: null, authError: authErrorKind(response.status) };
+        }
         const ct = response.headers.get('content-type') || '';
         if (!ct.includes('application/json')) {
           const text = await response.text();
           throw new Error(response.ok ? 'Ответ сервера не JSON' : (text || `HTTP ${response.status}`));
         }
         const json = await response.json();
-        return { response, json };
+        return { response, json, authError: null };
       })
       .catch((err) => {
         clearTimeout(timeoutId);
         throw err;
       });
+  };
+
+  const handleAuthError = (kind, { promptDevKey = false } = {}) => {
+    showAccessDenied(kind);
+    if (promptDevKey && kind === 'devkey') openDevKeyModal();
   };
 
   const getPayload = () => {
@@ -110,9 +142,9 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ content: payload.content || '', format })
-    }).then(({ response, json }) => {
-      if (response.status === 403 || response.status === 401) {
-        showAccessDenied();
+    }).then(({ response, json, authError }) => {
+      if (authError) {
+        handleAuthError(authError);
         throw new Error('Доступ запрещён');
       }
       if (!json.ok) throw new Error(json.error || 'Не удалось разобрать конфигурацию');
@@ -141,9 +173,9 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload)
       }))
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) {
-          showAccessDenied();
+      .then(({ response, json, authError }) => {
+        if (authError) {
+          handleAuthError(authError);
           return;
         }
         if (!json.ok) throw new Error(json.error || 'Ошибка форматирования');
@@ -170,7 +202,12 @@
     if (els.saveBtn) els.saveBtn.disabled = state;
   };
 
-  const showAccessDenied = () => {
+  const showAccessDenied = (kind = 'network') => {
+    if (els.accessDeniedMessage) {
+      els.accessDeniedMessage.textContent = ACCESS_MESSAGES[kind] || ACCESS_MESSAGES.network;
+    }
+    els.accessDeniedDevKeyBtn?.classList.toggle('d-none', kind !== 'devkey');
+    els.devKeyBtn?.classList.toggle('jr-nav-needs-key', kind === 'devkey');
     els.accessDenied?.classList.remove('d-none');
     els.settingsPanel?.classList.add('d-none');
     els.settingsLoading?.classList.add('d-none');
@@ -178,6 +215,7 @@
 
   const showEditor = () => {
     els.accessDenied?.classList.add('d-none');
+    els.devKeyBtn?.classList.remove('jr-nav-needs-key');
     els.settingsPanel?.classList.remove('d-none');
     els.settingsLoading?.classList.add('d-none');
   };
@@ -263,9 +301,9 @@
     renderValidation(null);
 
     apiFetch(API_URL)
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) {
-          showAccessDenied();
+      .then(({ response, json, authError }) => {
+        if (authError) {
+          handleAuthError(authError, { promptDevKey: true });
           return;
         }
         if (!json.ok) throw new Error(json.error || 'Не удалось загрузить конфигурацию');
@@ -282,7 +320,8 @@
         restoreModeTab();
       })
       .catch((err) => {
-        showEditor();
+        if (err?.message === 'Доступ запрещён') return;
+        showAccessDenied('network');
         showToast(err?.name === 'AbortError' ? 'Истекло время ожидания' : (err.message || 'Ошибка загрузки'), { type: 'error' });
       })
       .finally(() => setLoading(false));
@@ -296,8 +335,8 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload)
       }))
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+      .then(({ response, json, authError }) => {
+        if (authError) { handleAuthError(authError); return; }
         renderValidation(json);
         showToast(json.ok ? 'Проверка пройдена' : (json.error || 'Ошибка валидации'), { type: json.ok ? 'success' : 'error' });
       })
@@ -351,8 +390,8 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload)
     })
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+      .then(({ response, json, authError }) => {
+        if (authError) { handleAuthError(authError); return; }
         if (!json.ok) {
           renderValidation({ error: json.error });
           showToast(json.error || 'Ошибка сохранения', { type: 'error' });
@@ -376,8 +415,8 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload)
       })
-        .then(({ response, json }) => {
-          if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+        .then(({ response, json, authError }) => {
+          if (authError) { handleAuthError(authError); return; }
           if (!json.ok) {
             renderValidation({ error: json.error });
             showToast(json.error || 'Ошибка diff', { type: 'error' });
@@ -394,18 +433,44 @@
       .finally(() => setLoading(false));
   };
 
+  const openDevKeyModal = () => {
+    if (!devKeyModalInstance || !els.devKeyModal) return;
+    if (els.devKeyInput) els.devKeyInput.value = LS.get('dev_key');
+    if (els.devKeyModalError) {
+      els.devKeyModalError.classList.add('d-none');
+      els.devKeyModalError.textContent = '';
+    }
+    devKeyModalInstance.show();
+    window.requestAnimationFrame(() => els.devKeyInput?.focus());
+  };
+
+  const saveDevKey = () => {
+    const key = (els.devKeyInput?.value || '').trim();
+    if (!key) {
+      if (els.devKeyModalError) {
+        els.devKeyModalError.textContent = 'Введите dev-ключ';
+        els.devKeyModalError.classList.remove('d-none');
+      }
+      return;
+    }
+    LS.set('dev_key', key);
+    devKeyModalInstance?.hide();
+    showToast('Dev ключ сохранён', { type: 'success' });
+    loadConfig();
+  };
+
   const initDevKeyModal = () => {
     if (!els.devKeyModal || typeof bootstrap === 'undefined') return;
-    const modal = new bootstrap.Modal(els.devKeyModal);
-    els.devKeyBtn?.addEventListener('click', () => {
-      if (els.devKeyInput) els.devKeyInput.value = LS.get('dev_key');
-      modal.show();
+    devKeyModalInstance = new bootstrap.Modal(els.devKeyModal);
+    els.devKeyBtn?.addEventListener('click', openDevKeyModal);
+    els.accessDeniedDevKeyBtn?.addEventListener('click', openDevKeyModal);
+    els.devKeyForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      saveDevKey();
     });
-    els.devKeyModalSave?.addEventListener('click', () => {
-      LS.set('dev_key', (els.devKeyInput?.value || '').trim());
-      modal.hide();
-      showToast('Dev ключ сохранён', { type: 'success' });
-      loadConfig();
+    els.devKeyModalSave?.addEventListener('click', (e) => {
+      e.preventDefault();
+      saveDevKey();
     });
   };
 
@@ -418,8 +483,8 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ data, format })
     })
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+      .then(({ response, json, authError }) => {
+        if (authError) { handleAuthError(authError); return; }
         if (!json.ok) throw new Error(json.error || 'Не удалось сериализовать конфиг');
         els.configEditor.value = json.content || '';
       });
@@ -434,8 +499,8 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ content, format })
     })
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+      .then(({ response, json, authError }) => {
+        if (authError) { handleAuthError(authError); return; }
         if (!json.ok) throw new Error(json.error || 'Не удалось разобрать конфиг');
         baseData = deepClone(json.data);
         renderForm();

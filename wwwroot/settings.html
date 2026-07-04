@@ -68,9 +68,14 @@
       <div id="accessDenied" class="jr-settings-denied glass-card p-4 mb-3 d-none" role="alert">
         <div class="d-flex gap-3 align-items-start">
           <span class="jr-settings-denied__icon" aria-hidden="true"><i class="bi bi-shield-exclamation"></i></span>
-          <div>
+          <div class="flex-grow-1">
             <h2 class="h6 fw-semibold mb-1">Доступ ограничен</h2>
-            <p class="small text-secondary mb-0">Редактирование конфигурации доступно только из локальной сети сервера. За туннелем может потребоваться dev-ключ.</p>
+            <p id="accessDeniedMessage" class="small text-secondary mb-3">Редактирование конфигурации доступно только из локальной сети сервера или с dev-ключом, если он задан в <code class="jr-inline-code">init.yaml</code>.</p>
+            <div id="accessDeniedActions" class="d-flex flex-wrap gap-2">
+              <button type="button" id="accessDeniedDevKeyBtn" class="btn btn-sm btn-jr-primary tap-target d-none">
+                <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Ввести dev-ключ
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -185,14 +190,18 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body">
-          <p class="small text-secondary">Нужен для доступа к API конфигурации за туннелем, если задан
-            <code>devkey</code>.</p>
-          <label for="devKeyInput" class="form-label jr-label">Dev ключ</label>
-          <input type="password" id="devKeyInput" autocomplete="new-password" class="form-control mb-2" />
+          <p class="small text-secondary">Нужен для доступа к API конфигурации, если в <code>init.yaml</code> задан
+            <code>devkey</code>. Ключ хранится только в браузере.</p>
+          <form id="devKeyForm" autocomplete="off">
+            <label for="devKeyInput" class="form-label jr-label">Dev ключ</label>
+            <input type="password" id="devKeyInput" name="devkey" autocomplete="current-password"
+              class="form-control mb-2" placeholder="X-Dev-Key" />
+            <p id="devKeyModalError" class="small text-danger d-none mb-0" role="alert"></p>
+          </form>
         </div>
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-jr-ghost" data-bs-dismiss="modal">Отмена</button>
-          <button type="button" id="devKeyModalSave" class="btn btn-jr-primary">Сохранить</button>
+          <button type="submit" form="devKeyForm" id="devKeyModalSave" class="btn btn-jr-primary">Сохранить</button>
         </div>
       </div>
     </div>

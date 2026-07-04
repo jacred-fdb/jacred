@@ -4702,6 +4702,17 @@ html.jr-offline-inline-active .jr-offline-inline {
   flex-shrink: 0;
 }
 
+.jr-navbar .btn-jr-nav.jr-nav-needs-key {
+  color: var(--bs-danger);
+  box-shadow: 0 0 0 1px rgba(234, 67, 53, 0.45);
+  animation: jr-nav-needs-key-pulse 2s ease-in-out infinite;
+}
+
+@keyframes jr-nav-needs-key-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(234, 67, 53, 0.45); }
+  50% { box-shadow: 0 0 0 3px rgba(234, 67, 53, 0.25); }
+}
+
 .jr-settings-diff-modal .modal-body {
   padding-top: 0.5rem;
 }
