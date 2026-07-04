@@ -371,7 +371,13 @@ namespace JacRed
             if (redactSensitive)
                 RedactSensitive(jo);
 
-            return SerializeConfigObject(jo, format ?? GetConfigSourceInfo().format ?? "yaml");
+            return RenderConfigObject(jo, format ?? GetConfigSourceInfo().format ?? "yaml");
+        }
+
+        public static string RenderConfigObject(JObject data, string format = null)
+        {
+            if (data == null) return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ? "{}" : "---\n";
+            return SerializeConfigObject(data, format ?? "yaml");
         }
 
         /// <summary>
@@ -484,15 +490,57 @@ namespace JacRed
         public static List<ConfigDiffEntry> ComputeConfigDiff(JObject proposed, bool redactSensitive = false)
         {
             var current = JObject.FromObject(conf ?? new AppInit());
-            var merged = (JObject)proposed.DeepClone();
+            var normalizedProposed = NormalizeConfigJObject(proposed);
 
             if (redactSensitive)
             {
                 RedactSensitive(current);
-                RedactSensitive(merged);
+                RedactSensitive(normalizedProposed);
             }
 
-            return ConfigSchema.ComputeDiff(current, merged);
+            return ConfigSchema.ComputeDiff(current, normalizedProposed);
+        }
+
+        /// <summary>Round-trip through AppInit so form JSON matches YAML parse semantics (types, computed fields, defaults).</summary>
+        public static JObject NormalizeConfigJObject(JObject proposed)
+        {
+            if (proposed == null) return new JObject();
+            try
+            {
+                var model = proposed.ToObject<AppInit>();
+                return model == null ? (JObject)proposed.DeepClone() : JObject.FromObject(model);
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                return (JObject)proposed.DeepClone();
+            }
+        }
+
+        /// <summary>Normalize config and return formatted YAML/JSON text plus structured data.</summary>
+        public static (bool ok, string error, JObject data, string content) FormatConfigObject(JObject proposed, string format = null)
+        {
+            if (proposed == null)
+                return (false, "Данные конфигурации пусты", null, null);
+
+            try
+            {
+                var parsed = proposed.ToObject<AppInit>();
+                if (parsed == null)
+                    return (false, "Не удалось преобразовать конфигурацию", null, null);
+
+                var validation = ValidateConfigModel(parsed);
+                if (!validation.ok)
+                    return (false, validation.error ?? "Ошибка валидации", null, null);
+
+                var normalized = JObject.FromObject(parsed);
+                var fmt = format ?? GetConfigSourceInfo().format ?? "yaml";
+                var content = RenderConfigObject(normalized, fmt);
+                return (true, null, normalized, content);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, null, null);
+            }
         }
 
         public static (bool ok, string error, ConfigSourceInfo info) SaveConfigObject(JObject data, string format = null)

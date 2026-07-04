@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.Json.Serialization;
@@ -101,16 +103,54 @@ namespace JacRed
             app.UseRouting();
             app.UseResponseCompression();
 
+            app.Use(async (context, next) =>
+            {
+                var path = context.Request.Path.Value ?? "";
+                if (path.Equals("/openapi.yaml", StringComparison.OrdinalIgnoreCase))
+                {
+                    var yamlPath = OpenApiSpecHelper.GetYamlPath(env?.ContentRootPath);
+                    if (File.Exists(yamlPath))
+                    {
+                        context.Response.ContentType = "application/yaml; charset=utf-8";
+                        await context.Response.SendFileAsync(yamlPath);
+                        return;
+                    }
+                }
+
+                if (path.Equals("/swagger/v1/swagger.json", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (OpenApiSpecHelper.TryGetOpenApiJson(env?.ContentRootPath, out var json, out var error))
+                    {
+                        context.Response.ContentType = "application/json; charset=utf-8";
+                        await context.Response.WriteAsync(json);
+                        return;
+                    }
+
+                    Console.WriteLine($"swagger: openapi.yaml → json failed ({error})");
+                    context.Response.StatusCode = 503;
+                    context.Response.ContentType = "application/json; charset=utf-8";
+                    await context.Response.WriteAsync($"{{\"error\":\"{error?.Replace("\"", "\\\"")}\"}}");
+                    return;
+                }
+
+                await next();
+            });
+
             app.UseSwagger();
             app.UseSwaggerUI(options =>
             {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "JacRed API v1");
+                options.SwaggerEndpoint("/openapi.yaml", "JacRed API (YAML)");
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "JacRed API (JSON)");
                 options.RoutePrefix = "swagger";
                 options.DocumentTitle = "JacRed API";
             });
 
             if (AppInit.conf.web)
             {
+                var contentTypes = new FileExtensionContentTypeProvider();
+                contentTypes.Mappings[".yaml"] = "application/yaml";
+                contentTypes.Mappings[".yml"] = "application/yaml";
+
                 app.Use(async (context, next) =>
                 {
                     ModHeaders.ApplySecurityHeaders(context);
@@ -119,6 +159,7 @@ namespace JacRed
 
                 app.UseStaticFiles(new StaticFileOptions
                 {
+                    ContentTypeProvider = contentTypes,
                     OnPrepareResponse = ctx =>
                     {
                         var path = ctx.Context.Request.Path.Value ?? "";

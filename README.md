@@ -17,7 +17,9 @@
 - 🔄 **Синхронизация** с удалёнными серверами или самостоятельный парсинг
 - 🎯 **API Jackett** — полная совместимость с форматом Jackett
 - 📡 **Torznab XML** — встроенный Torznab API для Sonarr/Radarr/Prowlarr (без отдельного jacred-proxy)
-- 🌐 **Веб-интерфейс** для просмотра и управления
+- 🌐 **Веб-интерфейс** — поиск, статистика и редактор конфигурации
+- ⚙️ **Настройки в браузере** — `/settings` (форма, YAML/JSON, валидация, diff перед сохранением)
+- 📖 **OpenAPI / Swagger** — `/openapi.yaml`, интерактивная документация на `/swagger`
 - 🔐 **Поддержка прокси** и Tor для доступа к .onion доменам
 - 📊 **Статистика** по трекерам и торрентам
 - 🎵 **Модуль tracks** для сбора метаданных треков (опционально)
@@ -114,7 +116,8 @@ sudo -u myservice ./jacred.sh --remove
 
 После установки:
 
-- Настройте конфиг: **`/opt/jacred/init.yaml`** или **`/opt/jacred/init.conf`**
+- Настройте конфиг: **`/opt/jacred/init.yaml`** или **`/opt/jacred/init.conf`**, либо через веб-редактор **`/settings`** (только из локальной/приватной сети)
+- Веб-интерфейс: **`http://127.0.0.1:9117/`** (поиск), **`/stats`**, **`/settings`**
 - Перезапуск: `systemctl restart jacred`
 - Полный crontab для парсинга: `crontab /opt/jacred/Data/crontab`
 
@@ -134,8 +137,8 @@ sudo -u myservice ./jacred.sh --remove
 | ---------- | ---------- | -------------- |
 | `listenip` | IP для прослушивания (`any` — все интерфейсы) | `any` |
 | `listenport` | Порт HTTP | `9117` |
-| `apikey` | Ключ авторизации API (пусто — без проверки). Передаётся через `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer`. Без ключа доступны: `/`, `/stats`, `/health`, `/version`, `/lastupdatedb`, `/swagger`, `/api/v1.0/conf`, `/sync/*` | — |
-| `devkey` | Ключ для доступа к `/dev/`, `/cron/`, `/jsondb` за туннелем/прокси (пусто — только локальная сеть). Передаётся через заголовок `X-Dev-Key` или параметр `?devkey=...` | — |
+| `apikey` | Ключ авторизации API (пусто — без проверки). Передаётся через `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer`. Без ключа доступны: `/`, `/stats`, `/settings`, `/health`, `/version`, `/lastupdatedb`, `/openapi.yaml`, `/swagger`, `/api/v1.0/conf`, `/sync/*` | — |
+| `devkey` | Ключ для доступа к `/dev/`, `/cron/`, `/jsondb`, `/api/v1.0/config/*` за туннелем/прокси (пусто — только локальная сеть). Передаётся через заголовок `X-Dev-Key` или параметр `?devkey=...` | — |
 | `mergeduplicates` | Объединять дубликаты в выдаче | `true` |
 | `mergenumduplicates` | Объединять дубликаты по номеру (серии и т.п.) | `true` |
 | `openstats` | Открыть доступ к `/stats/*` | `true` |
@@ -292,11 +295,9 @@ globalproxy:
 
 #### Torznab / Jackett (`torznab`)
 
-Встроенная совместимость с [jacred-proxy](https://github.com/jacred-fdb/jacred-proxy) без отдельного Cloudflare Worker.
-
 | Параметр | Описание | По умолчанию |
 | -------- | -------- | ------------ |
-| `enable` | Включить Torznab XML на `/api` | `true` |
+| `enable` | Включить Torznab XML | `true` |
 | `mergeV1` | Слияние v1: `true` / `false` / `auto` | `auto` |
 | `maxV1Pairs` | Лимит v1-запросов в fuzzy mode (`auto`) | `4` |
 | `v1Sort` | Сортировка v1 для IMDB (`sid` = seeders) | `sid` |
@@ -304,7 +305,20 @@ globalproxy:
 | `enrichTitles` | Озвучки в Torznab title | `true` |
 | `skipCatFilter` | Не фильтровать по `cat` на стороне сервера | `true` |
 
-**Sonarr/Radarr:** URL индексатора — `http://jacred:9120/api`, API key — ваш `apikey` из конфига.
+При `enable: false` Torznab-эндпоинты отвечают **404**.
+
+| URL | Назначение |
+|-----|------------|
+| **`GET /torznab/api`** | Основной Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`, `indexers`) |
+| **`GET /api/v2.0/indexers/{id}/results/torznab/api`** | Jackett-совместимый путь (алиас, тот же обработчик) |
+
+**Sonarr / Radarr / Prowlarr (Generic Torznab):**
+
+```
+http://jacred:9117/torznab/api
+```
+
+API key — значение `apikey` из конфига (query `?apikey=...` или заголовок). В ответе `t=caps` поле `<server url="...">` также указывает на `/torznab/api`.
 
 ---
 
@@ -353,16 +367,23 @@ Anifilm, AniLibria, HDRezka.
 
 ### OpenAPI / Swagger
 
-- **`GET /swagger`** — интерактивная документация (Swagger UI).
-- **`GET /swagger/v1/swagger.json`** — OpenAPI 3.0 спецификация (JSON).
+| URL | Назначение |
+|-----|------------|
+| `GET /swagger` | Swagger UI (интерактивная документация) |
+| `GET /swagger/v1/swagger.json` | OpenAPI 3.0 JSON (конвертируется из `wwwroot/openapi.yaml`) |
+| `GET /openapi.yaml` | Статическая OpenAPI 3.0 YAML (`wwwroot/openapi.yaml`) |
 
-В спецификацию входят публичные эндпоинты (`/api/*`, `/stats/*`, `/sync/*`, `/health`, …). Внутренние `/cron/*`, `/dev/*`, `/jsondb/*` скрыты.
+Swagger UI по умолчанию загружает **`/openapi.yaml`**; в выпадающем списке также доступен JSON (`/swagger/v1/swagger.json`).
 
-При настроенном `apikey` пути `/swagger` и `/swagger/*` доступны без ключа (как `/health`). Схемы авторизации в UI: `apikey` (query), `X-Api-Key`, `Authorization: Bearer`.
+При настроенном `apikey` пути `/swagger`, `/swagger/*` и `/openapi.yaml` доступны без ключа (как `/health`). Схемы авторизации в UI: `apikey` (query), `X-Api-Key`, `Authorization: Bearer`, `X-Dev-Key` (для Config API).
+
+В спецификацию входят публичные эндпоинты (`/api/*`, `/torznab/*`, `/stats/*`, `/sync/*`, `/health`, …). Внутренние `/cron/*`, `/dev/*`, `/jsondb/*` скрыты.
 
 ### Основные эндпоинты
 
-- **`GET /`** — веб-интерфейс (если `web: true`).
+- **`GET /`** — веб-интерфейс поиска (если `web: true`).
+- **`GET /stats`** — страница статистики (если `web: true`, данные — `/stats/*`).
+- **`GET /settings`** — веб-редактор конфигурации (если `web: true`; см. **«Config API»** ниже).
 - **`GET /health`** — проверка работы. Ответ JSON: `{"status":"OK"}`.
 - **`GET /version`** — версия приложения. Ответ JSON: `{"version":"1.0.0"}`.
 - **`GET /lastupdatedb`** — дата/время последнего обновления БД (UTC). Ответ JSON: `{"lastupdatedb":"dd.MM.yyyy HH:mm"}`.
@@ -375,8 +396,10 @@ Anifilm, AniLibria, HDRezka.
   - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true`.
 - **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).
 - **`GET /api/v1/indexer`** — заглушка для Prowlarr.
-- **`GET /api`** — Torznab XML (`t=search|tvsearch|moviesearch|caps|indexers`).
-- **`GET /api/v2.0/indexers/{id}/results/torznab/api`** — Torznab XML (Jackett-совместимый путь).
+- **`GET /torznab/api`** — Torznab XML, основной endpoint (`t=search|tvsearch|moviesearch|caps|indexers`).
+- **`GET /api/v2.0/indexers/{id}/results/torznab/api`** — Torznab XML (Jackett-алиас, тот же обработчик).
+
+  Параметры и поведение одинаковы для обоих Torznab-путей:
   - Параметры: `q`, `imdbid`, `season`, `ep`, `year`, `cat`, `title`, `title_original`, `is_serial`, `limit`, `offset`, `apikey`.
   - IMDB/KP ID (`tt…`, `kp…`) → поиск через v1 с `exact=true` (как в jacred-proxy).
   - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
@@ -385,7 +408,26 @@ Anifilm, AniLibria, HDRezka.
   - Параметры: `query` (поисковый запрос), `tracker` (трекер), `category` (категория), `quality` (качество).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.
 
-### Управление
+### Управление конфигурацией (Config API)
+
+REST API и страница **`/settings`** для редактирования **`init.yaml`** / **`init.conf`**.
+
+**Доступ:** только из локальной/приватной сети (по IP). При заданном **`devkey`** — заголовок `X-Dev-Key` или `?devkey=...`. При заданном **`apikey`** — также ключ API (как для поиска).
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/v1.0/config` | Текущий конфиг (`data` + `content`, метаданные файла) |
+| `GET` | `/api/v1.0/config/schema` | Схема полей для формы настроек |
+| `POST` | `/api/v1.0/config/validate` | Валидация без записи на диск |
+| `POST` | `/api/v1.0/config/diff` | Diff с текущим конфигом (перед сохранением) |
+| `POST` | `/api/v1.0/config/render` | Объект формы → YAML/JSON текст |
+| `POST` | `/api/v1.0/config/parse` | YAML/JSON текст → объект |
+| `POST` | `/api/v1.0/config/format` | Нормализация и форматирование |
+| `POST` | `/api/v1.0/config` | Сохранение (атомарная запись; hot-reload ~10 с) |
+
+Тело запросов: `{ "data": { ... } }` (форма) и/или `{ "content": "...", "format": "yaml" }` (текстовый редактор). Подробности — в **`/openapi.yaml`**.
+
+### Прочее управление
 
 - **`GET /api/v1.0/conf`** — проверка apikey (`?apikey=...`).
 - **`GET /jsondb/save`** — сохранить БД на диск (при использовании syncapi скрипт установки не вызывает save; при собственном парсинге cron вызывает save по расписанию).
@@ -432,12 +474,12 @@ Anifilm, AniLibria, HDRezka.
 
 | Условие | Поведение |
 | -------- | ----------- |
-| Клиент **не** в локальной/приватной сети (по IP) | `/cron/*`, `/dev/*`, `/jsondb/*` — **403**, ключи не помогают. |
+| Клиент **не** в локальной/приватной сети (по IP) | `/cron/*`, `/dev/*`, `/jsondb/*`, **`/api/v1.0/config/*`** — **403**, ключи не помогают. |
 | Клиент в локальной/приватной сети, в конфиге задан **`devkey`** | Нужен **`devkey`**: заголовок `X-Dev-Key` или `?devkey=...` (иначе **401**). Смысл — защита, когда за туннелем/прокси все запросы приходят с «локального» IP. |
 | В конфиге задан **`apikey`** | Для `/cron/*` (как и для поиска и остальных путей **вне** белого списка) нужен **`apikey`**: `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer` (иначе **401**). **`apikey` не заменяет `devkey`** — при необходимости передавайте оба. |
 | В конфиге **не** заданы ни `apikey`, ни `devkey` | Для `/cron/*` достаточно, чтобы клиент был в локальной/приватной сети (по IP). |
 
-Белый список путей **без** `apikey` (если ключ задан): `/`, `/stats`, `/health`, `/version`, `/lastupdatedb`, `/swagger`, `/api/v1.0/conf`, `/sync/*`. Путь **`/cron/*` в этот список не входит.**
+Белый список путей **без** `apikey` (если ключ задан): `/`, `/stats`, `/settings`, `/health`, `/version`, `/lastupdatedb`, `/openapi.yaml`, `/swagger`, `/api/v1.0/conf`, `/sync/*`. Путь **`/cron/*` в этот список не входит.**
 
 **Пример `curl` при включённых `apikey` и `devkey`:**
 
@@ -448,8 +490,8 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 
 **Примечания:**
 
-> - Для использования API с авторизацией укажите `apikey` в конфиге. Ключ можно передать: `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer`. Пути `/`, `/stats`, `/health`, `/version`, `/lastupdatedb`, `/api/v1.0/conf`, `/sync/*` доступны без ключа.
-> - Эндпоинты `/cron/*`, `/dev/*`, `/jsondb/*` сначала проверяются по **IP** (только локальная/приватная сеть), затем по **`devkey`** (если задан), затем по **`apikey`** (если задан). Для cron-задач на хосте при необходимости добавьте в `curl` заголовки или query-параметры для обоих ключей.
+> - Для использования API с авторизацией укажите `apikey` в конфиге. Ключ можно передать: `?apikey=...`, заголовок `X-Api-Key` или `Authorization: Bearer`. Пути `/`, `/stats`, `/settings`, `/health`, `/version`, `/lastupdatedb`, `/openapi.yaml`, `/swagger`, `/api/v1.0/conf`, `/sync/*` доступны без ключа.
+> - Эндпоинты `/cron/*`, `/dev/*`, `/jsondb/*`, `/api/v1.0/config/*` сначала проверяются по **IP** (только локальная/приватная сеть), затем по **`devkey`** (если задан), затем по **`apikey`** (если задан). Для cron-задач на хосте при необходимости добавьте в `curl` заголовки или query-параметры для обоих ключей.
 
 ---
 
@@ -479,14 +521,14 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 - **Windows**: x64
 - **macOS**: arm64, amd64
 
-Результат сборки находится в каталоге **`dist/<platform>/`** (single-file, self-contained).
+Результат сборки находится в каталоге **`dist/<platform>/`** (self-contained).
 
 ### Особенности сборки
 
-- Single-file публикация (один исполняемый файл)
+- **Linux / Windows:** single-file публикация (один исполняемый файл), сжатие включено
+- **macOS (osx-arm64, osx-amd64):** каталог с бинарником и зависимостями (`PublishSingleFile=false`) — обход известного бага .NET с `EnableCompressionInSingleFile` на Apple Silicon
 - Self-contained (включает .NET runtime)
 - Оптимизация для скорости выполнения
-- Сжатие в single-file
 - Версия генерируется автоматически из Git тегов через `generate-version.sh`
 
 ---
@@ -655,13 +697,15 @@ JacRed построен на **ASP.NET Core** (.NET 9.0) и использует
 
 ### Основные компоненты
 
-- **ModHeaders** — middleware: ограничение по IP (локальная/приватная сеть для `/cron/`, `/dev/`, `/jsondb`), проверка `devkey` и `apikey`, CORS `Access-Control-Allow-Private-Network`, логирование cron
+- **ModHeaders** — middleware: ограничение по IP (локальная/приватная сеть для `/cron/`, `/dev/`, `/jsondb`, `/api/v1.0/config`), проверка `devkey` и `apikey`, CORS `Access-Control-Allow-Private-Network`, логирование cron
 - **FileDB** — управление файловой базой данных
 - **SyncCron** — синхронизация с удалёнными серверами
 - **TrackersCron** — планирование и выполнение парсинга трекеров
 - **StatsCron** — сбор и обновление статистики
 - **TracksCron** — сбор метаданных треков (опционально)
-- **ApiController** — обработка API запросов
+- **ApiController** — поиск Jackett v1/v2, torrents API
+- **TorznabController** — Torznab XML (`/torznab/api`, Jackett-алиас)
+- **ConfigController** — Config API и схема для `/settings`
 - **SyncController** — эндпоинты синхронизации
 
 ---

@@ -28,8 +28,7 @@ namespace JacRed.Controllers
     /// Restricted to local/private network. Requires X-Dev-Key when devkey is configured.
     /// Uses Newtonsoft.Json end-to-end (System.Text.Json breaks JObject → [] on the client).
     /// </summary>
-    [Route("api/v1.0/config")]
-    [ApiExplorerSettings(GroupName = "Config")]
+    [Route("/api/v1.0/config")]
     public class ConfigController : Controller
     {
         static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
@@ -151,6 +150,56 @@ namespace JacRed.Controllers
                     warnings = validation.warnings
                 }
             });
+        }
+
+        /// <summary>Serialize form data to YAML/JSON text (for form ↔ raw editor sync).</summary>
+        [HttpPost("render")]
+        [Produces("application/json")]
+        public async Task<IActionResult> Render()
+        {
+            var body = await ReadBodyAsync();
+            if (body?.data == null)
+                return ConfigJson(new { ok = false, error = "Укажите data" });
+
+            var fmt = body.format ?? "yaml";
+            return ConfigJson(new { ok = true, content = AppInit.RenderConfigObject(body.data, fmt), format = fmt });
+        }
+
+        /// <summary>Parse YAML/JSON text to structured data (for form ↔ raw editor sync).</summary>
+        [HttpPost("parse")]
+        [Produces("application/json")]
+        public async Task<IActionResult> Parse()
+        {
+            var body = await ReadBodyAsync();
+            if (body == null || string.IsNullOrWhiteSpace(body.content))
+                return ConfigJson(new { ok = false, error = "Укажите content" });
+
+            var (jo, parseError) = AppInit.TryParseRequestToJObject(body.content, body.format, null);
+            if (jo == null)
+                return ConfigJson(new { ok = false, error = parseError ?? "Не удалось разобрать конфигурацию" });
+
+            return ConfigJson(new { ok = true, data = jo });
+        }
+
+        /// <summary>Pretty-print config (YAML/JSON) after AppInit normalization.</summary>
+        [HttpPost("format")]
+        [Produces("application/json")]
+        public async Task<IActionResult> Format()
+        {
+            var body = await ReadBodyAsync();
+            if (body == null)
+                return ConfigJson(new { ok = false, error = "Тело запроса пусто" });
+
+            var (jo, parseError) = ResolveConfigPayload(body);
+            if (jo == null)
+                return ConfigJson(new { ok = false, error = parseError ?? "Укажите data или content" });
+
+            var fmt = body.format ?? "yaml";
+            var (ok, error, data, content) = AppInit.FormatConfigObject(jo, fmt);
+            if (!ok)
+                return ConfigJson(new { ok = false, error = error ?? "Ошибка форматирования" });
+
+            return ConfigJson(new { ok = true, data, content, format = fmt });
         }
 
         /// <summary>Save configuration to init.yaml or init.conf (atomic write, hot-reload ~10s).</summary>

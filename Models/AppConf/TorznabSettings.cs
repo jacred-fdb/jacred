@@ -5,7 +5,7 @@ namespace JacRed.Models.AppConf
     /// </summary>
     public class TorznabSettings
     {
-        /// <summary>Enable native Torznab XML at /api and /api/v2.0/indexers/{id}/results/torznab/api.</summary>
+        /// <summary>Enable native Torznab XML at /torznab/api and /api/v2.0/indexers/{id}/results/torznab/api.</summary>
         public bool enable { get; set; } = true;
 
         /// <summary>v1 merge: true | false | auto (card=minimal, fuzzy=capped).</summary>

@@ -72,6 +72,11 @@
           return el.dataset.lastValid ? JSON.parse(el.dataset.lastValid) : null;
         }
       case 'select':
+        if (field.key === 'tracksmod') {
+          const n = parseInt(el.value, 10);
+          return Number.isFinite(n) ? n : 0;
+        }
+        return el.value;
       case 'string':
       case 'password':
       default:
@@ -84,7 +89,8 @@
     const id = `cfg-${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     const raw = normalizeRaw(getByPath(data, path), field);
     const wrap = document.createElement('div');
-    wrap.className = 'col-md-6 col-lg-4 mb-3';
+    wrap.className = 'col-md-6 col-lg-4 mb-3 jr-settings-field';
+    if (field.sensitive) wrap.classList.add('jr-settings-field--secret');
     wrap.dataset.fieldPath = path;
 
     let controlHtml = '';
@@ -94,11 +100,11 @@
 
     if (field.type === 'bool') {
       controlHtml =
-        `<div class="form-check form-switch mt-1">` +
+        `<div class="form-check form-switch jr-settings-switch mt-1">` +
         `<input class="form-check-input" type="checkbox" role="switch" id="${id}" ${raw ? 'checked' : ''}>` +
         `<label class="form-check-label" for="${id}">${escapeHtml(field.label)}</label>` +
         `</div>${desc}`;
-      wrap.className = 'col-md-6 col-lg-4 mb-3 d-flex flex-column justify-content-end';
+      wrap.className = 'col-md-6 col-lg-4 mb-3 jr-settings-field jr-settings-field--bool d-flex flex-column justify-content-end';
       wrap.innerHTML = controlHtml;
       return wrap;
     }
@@ -107,7 +113,7 @@
     if (field.type === 'stringList') inputValue = stringListToText(raw);
     if (field.type === 'json') {
       inputValue = raw != null ? JSON.stringify(raw, null, 2) : '[]';
-      wrap.className = 'col-12 mb-3';
+      wrap.className = 'col-12 mb-3 jr-settings-field jr-settings-field--json';
     }
 
     let inputHtml = '';
@@ -147,9 +153,12 @@
 
   const renderCheckboxList = (field, data) => {
     const path = field.key;
-    const selected = new Set(Array.isArray(getByPath(data, path)) ? getByPath(data, path) : []);
+    const raw = getByPath(data, path);
+    const selected = new Set(Array.isArray(raw) ? raw : []);
     const wrap = document.createElement('div');
-    wrap.className = 'col-12 mb-3';
+    wrap.className = 'col-12 mb-3 jr-settings-field jr-settings-field--checkboxes';
+    if (path === 'synctrackers') wrap.classList.add('jr-settings-field--sync-trackers');
+    if (path === 'disable_trackers') wrap.classList.add('jr-settings-field--disable-trackers');
     wrap.dataset.fieldPath = path;
 
     const items = (field.enumValues || []).map((slug) => {
@@ -157,17 +166,27 @@
       const checked = selected.has(slug) ? ' checked' : '';
       return (
         `<div class="col-6 col-md-4 col-lg-3">` +
-        `<div class="form-check">` +
+        `<label class="form-check jr-settings-checkbox-tile">` +
         `<input class="form-check-input" type="checkbox" id="${id}" value="${escapeHtml(slug)}"${checked}>` +
-        `<label class="form-check-label small" for="${id}">${escapeHtml(slug)}</label>` +
-        `</div></div>`
+        `<span class="form-check-label">${escapeHtml(slug)}</span>` +
+        `</label></div>`
       );
     }).join('');
 
     wrap.innerHTML =
-      `<label class="form-label jr-label">${escapeHtml(field.label)}</label>` +
+      `<div class="jr-settings-checkbox-head">` +
+      `<label class="form-label jr-label mb-0">${escapeHtml(field.label)}</label>` +
+      `<span class="jr-settings-checkbox-count small text-secondary">${selected.size} выбрано</span>` +
+      `</div>` +
       (field.description ? `<div class="form-text mb-2">${escapeHtml(field.description)}</div>` : '') +
-      `<div class="row g-1">${items}</div>`;
+      `<div class="row g-2 jr-settings-checkbox-grid">${items}</div>`;
+
+    wrap.addEventListener('change', () => {
+      const count = wrap.querySelectorAll('input[type="checkbox"]:checked').length;
+      const countEl = wrap.querySelector('.jr-settings-checkbox-count');
+      if (countEl) countEl.textContent = `${count} выбрано`;
+    });
+
     return wrap;
   };
 
@@ -176,51 +195,91 @@
     container.querySelectorAll(`[data-field-path="${path}"] input[type="checkbox"]:checked`).forEach((el) => {
       values.push(el.value);
     });
-    return values;
+    return values.sort((a, b) => a.localeCompare(b, 'ru'));
   };
 
-  const buildForm = (schema, data, rootEl) => {
+  const groupIcons = {
+    server: 'bi-hdd-network',
+    api: 'bi-plug',
+    sync: 'bi-arrow-repeat',
+    logging: 'bi-journal-text',
+    tracks: 'bi-soundwave',
+    fdb: 'bi-database',
+    evercache: 'bi-lightning-charge',
+    torznab: 'bi-rss',
+    proxy: 'bi-shield'
+  };
+
+  const resolveActiveTab = (schema, activeTabId) => {
+    if (!activeTabId || !schema?.groups) return null;
+    const valid = new Set(schema.groups.map((g) => (g.id === 'trackers' ? 'tab-trackers' : `tab-${g.id}`)));
+    return valid.has(activeTabId) ? activeTabId : null;
+  };
+
+  const buildForm = (schema, data, rootEl, options = {}) => {
     if (!rootEl || !schema?.groups) return;
     rootEl.innerHTML = '';
 
+    const activeTabId = resolveActiveTab(schema, options.activeTabId);
+
+    const navWrap = document.createElement('div');
+    navWrap.className = 'jr-settings-nav-wrap';
     const nav = document.createElement('div');
-    nav.className = 'nav nav-pills jr-settings-nav flex-wrap gap-1 mb-3';
+    nav.className = 'nav nav-pills jr-settings-nav';
     nav.setAttribute('role', 'tablist');
+    navWrap.appendChild(nav);
 
     const content = document.createElement('div');
-    content.className = 'tab-content';
+    content.className = 'tab-content jr-settings-tab-content';
 
     schema.groups.forEach((group, idx) => {
+      const tabId = group.id === 'trackers' ? 'tab-trackers' : `tab-${group.id}`;
+      const isActive = activeTabId ? tabId === activeTabId : idx === 0;
+
       if (group.id === 'trackers') {
-        const tabId = `tab-trackers`;
         nav.insertAdjacentHTML('beforeend',
-          `<button class="nav-link${idx === 0 ? ' active' : ''}" id="${tabId}-btn" data-bs-toggle="pill"` +
-          ` data-bs-target="#${tabId}" type="button" role="tab">${escapeHtml(group.title)}</button>`);
+          `<button class="nav-link${isActive ? ' active' : ''}" id="${tabId}-btn" data-bs-toggle="pill"` +
+          ` data-bs-target="#${tabId}" type="button" role="tab"><i class="bi bi-collection me-1" aria-hidden="true"></i>${escapeHtml(group.title)}</button>`);
 
         const pane = document.createElement('div');
-        pane.className = `tab-pane fade${idx === 0 ? ' show active' : ''}`;
+        pane.className = `tab-pane fade jr-settings-section${isActive ? ' show active' : ''}`;
         pane.id = tabId;
         pane.setAttribute('role', 'tabpanel');
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'jr-settings-trackers-toolbar';
+        toolbar.innerHTML =
+          `<div class="jr-search-wrap jr-settings-tracker-search">` +
+          `<i class="bi bi-search jr-search-icon" aria-hidden="true"></i>` +
+          `<input type="search" class="form-control form-control-sm jr-search-input" id="trackerSearchInput"` +
+          ` placeholder="Поиск трекера…" autocomplete="off" aria-label="Поиск трекера">` +
+          `</div>` +
+          `<span class="small text-secondary jr-settings-trackers-count"></span>`;
+        pane.appendChild(toolbar);
 
         const accordion = document.createElement('div');
         accordion.className = 'accordion jr-settings-trackers';
         accordion.id = 'trackersAccordion';
 
-        (group.trackers || []).forEach((tracker, tIdx) => {
+        (group.trackers || []).forEach((tracker) => {
           const collapseId = `tracker-${tracker.id}`;
           const host = getByPath(data, `${tracker.id}.host`);
+          const logOn = getByPath(data, `${tracker.id}.log`);
           const item = document.createElement('div');
-          item.className = 'accordion-item';
+          item.className = 'accordion-item jr-settings-tracker-item';
+          item.dataset.trackerName = tracker.title.toLowerCase();
+          item.dataset.trackerHost = (host || '').toLowerCase();
           item.innerHTML =
             `<h3 class="accordion-header">` +
-            `<button class="accordion-button${tIdx > 0 ? ' collapsed' : ''}" type="button"` +
-            ` data-bs-toggle="collapse" data-bs-target="#${collapseId}">` +
-            `<span>${escapeHtml(tracker.title)}</span>` +
-            (host ? `<span class="small text-secondary ms-2">${escapeHtml(host)}</span>` : '') +
+            `<button class="accordion-button collapsed" type="button"` +
+            ` data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false">` +
+            `<span class="jr-settings-tracker-title">${escapeHtml(tracker.title)}</span>` +
+            (host ? `<span class="jr-settings-tracker-host">${escapeHtml(host)}</span>` : '') +
+            (logOn ? `<span class="jr-settings-tracker-badge"><i class="bi bi-journal-text" aria-hidden="true"></i> log</span>` : '') +
             `</button></h3>` +
-            `<div id="${collapseId}" class="accordion-collapse collapse${tIdx === 0 ? ' show' : ''}"` +
+            `<div id="${collapseId}" class="accordion-collapse collapse"` +
             ` data-bs-parent="#trackersAccordion">` +
-            `<div class="accordion-body"><div class="row g-2 fields-row"></div></div></div>`;
+            `<div class="accordion-body"><div class="row g-3 fields-row"></div></div></div>`;
 
           const row = item.querySelector('.fields-row');
           (tracker.fields || []).forEach((field) => {
@@ -229,30 +288,50 @@
           accordion.appendChild(item);
         });
 
+        const countEl = toolbar.querySelector('.jr-settings-trackers-count');
+        const updateCount = () => {
+          const visible = accordion.querySelectorAll('.jr-settings-tracker-item:not(.jr-settings-tracker-item--hidden)').length;
+          const total = group.trackers?.length || 0;
+          countEl.textContent = visible === total ? `${total} трекеров` : `${visible} из ${total}`;
+        };
+        updateCount();
+
+        const searchInput = toolbar.querySelector('#trackerSearchInput');
+        searchInput?.addEventListener('input', () => {
+          const q = searchInput.value.trim().toLowerCase();
+          accordion.querySelectorAll('.jr-settings-tracker-item').forEach((el) => {
+            const match = !q || el.dataset.trackerName.includes(q) || el.dataset.trackerHost.includes(q);
+            el.classList.toggle('jr-settings-tracker-item--hidden', !match);
+          });
+          updateCount();
+        });
+
         pane.appendChild(accordion);
         content.appendChild(pane);
         return;
       }
 
-      const tabId = `tab-${group.id}`;
+      const icon = groupIcons[group.id] || 'bi-sliders';
       nav.insertAdjacentHTML('beforeend',
-        `<button class="nav-link${idx === 0 ? ' active' : ''}" id="${tabId}-btn" data-bs-toggle="pill"` +
-        ` data-bs-target="#${tabId}" type="button" role="tab">${escapeHtml(group.title)}</button>`);
+        `<button class="nav-link${isActive ? ' active' : ''}" id="${tabId}-btn" data-bs-toggle="pill"` +
+        ` data-bs-target="#${tabId}" type="button" role="tab"><i class="bi ${icon} me-1" aria-hidden="true"></i>${escapeHtml(group.title)}</button>`);
 
       const pane = document.createElement('div');
-      pane.className = `tab-pane fade${idx === 0 ? ' show active' : ''}`;
+      pane.className = `tab-pane fade jr-settings-section${isActive ? ' show active' : ''}`;
       pane.id = tabId;
       pane.setAttribute('role', 'tabpanel');
 
       if (group.description) {
         const intro = document.createElement('p');
-        intro.className = 'small text-secondary mb-3';
+        intro.className = 'jr-settings-section-desc';
         intro.textContent = group.description;
         pane.appendChild(intro);
       }
 
+      const card = document.createElement('div');
+      card.className = 'jr-settings-fields-card';
       const row = document.createElement('div');
-      row.className = 'row g-2 fields-row';
+      row.className = 'row g-3 fields-row';
 
       (group.fields || []).forEach((field) => {
         if (field.type === 'stringList' && field.enumValues?.length && (field.key === 'synctrackers' || field.key === 'disable_trackers')) {
@@ -262,11 +341,12 @@
         }
       });
 
-      pane.appendChild(row);
+      card.appendChild(row);
+      pane.appendChild(card);
       content.appendChild(pane);
     });
 
-    rootEl.appendChild(nav);
+    rootEl.appendChild(navWrap);
     rootEl.appendChild(content);
   };
 

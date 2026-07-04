@@ -19,7 +19,7 @@ namespace JacRed.Engine.Indexers
             var baseEsc = EscapeXml(baseUrl.TrimEnd('/'));
             return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
-  <server version=""1.0"" title=""JacRed"" strapline=""Native Torznab API"" email=""info@localhost"" url=""{baseEsc}/api/v2.0/indexers/all/results/torznab/api""/>
+  <server version=""1.0"" title=""JacRed"" strapline=""Native Torznab API"" email=""info@localhost"" url=""{baseEsc}/torznab/api""/>
   <limits max=""1000"" default=""100""/>
   <searching>
     <search available=""yes"" supportedParams=""q,imdbid""/>

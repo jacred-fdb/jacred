@@ -136,7 +136,8 @@ namespace JacRed.Engine.Middlewares
             headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
 
             var path = httpContext.Request.Path.Value ?? "";
-            if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)
+                || path.Equals("/openapi.yaml", StringComparison.OrdinalIgnoreCase))
                 return;
 
             headers["Content-Security-Policy"] =

@@ -49,8 +49,8 @@ namespace JacRed.Engine
                     Group("sync", "Синхронизация", null, new[]
                     {
                         Field("syncapi", "string", "Sync API URL", "URL удалённого JacRed"),
-                        Field("synctrackers", "stringList", "Sync трекеры", "Один slug на строку", enumValues: KnownTrackerSlugs.OrderBy(x => x).ToArray()),
-                        Field("disable_trackers", "stringList", "Отключённые трекеры", "Slug трекеров", enumValues: KnownTrackerSlugs.OrderBy(x => x).ToArray()),
+                        Field("synctrackers", "stringList", "Sync трекеры", "Трекеры для синхронизации с удалённым JacRed", enumValues: KnownTrackerSlugs.OrderBy(x => x).ToArray()),
+                        Field("disable_trackers", "stringList", "Отключённые трекеры", "Трекеры, которые не должны работать на этом инстансе", enumValues: KnownTrackerSlugs.OrderBy(x => x).ToArray()),
                         Field("syncsport", "bool", "Sync sport", null),
                         Field("syncspidr", "bool", "Sync spidr", null),
                         Field("timeSync", "int", "Интервал sync (мин)", null, min: 1),
@@ -92,7 +92,7 @@ namespace JacRed.Engine
                     }),
                     Group("torznab", "Torznab", "Jackett-совместимость", new[]
                     {
-                        Field("torznab.enable", "bool", "Torznab XML", null),
+                        Field("torznab.enable", "bool", "Torznab XML", "/torznab/api"),
                         Field("torznab.mergeV1", "select", "Merge v1", null, enumValues: new[] { "auto", "true", "false" }),
                         Field("torznab.maxV1Pairs", "int", "Max v1 pairs", null, min: 1),
                         Field("torznab.v1Sort", "string", "V1 sort", "sid, pir, size…"),
@@ -286,7 +286,7 @@ namespace JacRed.Engine
                     if (curVal == null || propVal == null || curVal.Type != propVal.Type ||
                         (curVal is JValue && propVal is JValue))
                     {
-                        if (!JToken.DeepEquals(NormalizeToken(curVal), NormalizeToken(propVal)))
+                        if (!TokenValueEquals(curVal, propVal))
                         {
                             diffs.Add(new ConfigDiffEntry
                             {
@@ -308,7 +308,7 @@ namespace JacRed.Engine
 
             if (current is JArray curArr && proposed is JArray propArr)
             {
-                if (!JToken.DeepEquals(NormalizeToken(curArr), NormalizeToken(propArr)))
+                if (!ArrayValueEquals(pathPrefix.TrimEnd('.'), curArr, propArr))
                 {
                     diffs.Add(new ConfigDiffEntry
                     {
@@ -322,7 +322,7 @@ namespace JacRed.Engine
                 return diffs;
             }
 
-            if (!JToken.DeepEquals(NormalizeToken(current), NormalizeToken(proposed)))
+            if (!TokenValueEquals(current, proposed))
             {
                 diffs.Add(new ConfigDiffEntry
                 {
@@ -341,6 +341,58 @@ namespace JacRed.Engine
         {
             if (token == null || token.Type == JTokenType.Null) return JValue.CreateNull();
             return token;
+        }
+
+        private static bool TokenValueEquals(JToken a, JToken b)
+        {
+            if (JToken.DeepEquals(NormalizeToken(a), NormalizeToken(b)))
+                return true;
+
+            if (IsEmptyScalar(a) && IsEmptyScalar(b))
+                return true;
+
+            if (a is JValue va && b is JValue vb)
+            {
+                if (va.Type == JTokenType.Integer && vb.Type == JTokenType.String &&
+                    long.TryParse(vb.ToString(), out var n) && va.Value<long>() == n)
+                    return true;
+                if (vb.Type == JTokenType.Integer && va.Type == JTokenType.String &&
+                    long.TryParse(va.ToString(), out n) && vb.Value<long>() == n)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsEmptyScalar(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null) return true;
+            if (token.Type == JTokenType.String && string.IsNullOrEmpty(token.ToString())) return true;
+            if (token is JArray arr && arr.Count == 0) return true;
+            return false;
+        }
+
+        private static bool ArrayValueEquals(string path, JArray a, JArray b)
+        {
+            if (JToken.DeepEquals(NormalizeToken(a), NormalizeToken(b)))
+                return true;
+
+            if (IsTrackerSlugList(path))
+            {
+                var sa = a.Select(x => x?.ToString() ?? "").OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+                var sb = b.Select(x => x?.ToString() ?? "").OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+                return sa.SequenceEqual(sb, StringComparer.OrdinalIgnoreCase);
+            }
+
+            return false;
+        }
+
+        private static bool IsTrackerSlugList(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            var last = path.Split('.').LastOrDefault() ?? path;
+            return string.Equals(last, "synctrackers", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(last, "disable_trackers", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string FormatToken(JToken token)

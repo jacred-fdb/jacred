@@ -14,7 +14,7 @@ namespace JacRed.Controllers
     /// </summary>
     public class TorznabController : BaseController
     {
-        [Route("/api")]
+        [Route("/torznab/api")]
         [Route("/api/v2.0/indexers/{indexer}/results/torznab/api")]
         public async Task<IActionResult> Torznab(string indexer, string t, string apikey)
         {

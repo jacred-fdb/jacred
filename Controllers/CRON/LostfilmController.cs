@@ -798,7 +798,7 @@ namespace JacRed.Controllers.CRON
             return default;
         }
 
-        /// <summary>По прямой ссылке на страницу V (например /V/?c=589&s=4&e=999) возвращает все качества (SD, 1080p, 720p) для полного сезона.</summary>
+        /// <summary>По прямой ссылке на страницу V (например /V/?c=589&amp;s=4&amp;e=999) возвращает все качества (SD, 1080p, 720p) для полного сезона.</summary>
         static async Task<List<(string magnet, string quality, string sizeName)>> GetMagnetsFromVPage(string host, string cookie, string vPageUrl)
         {
             try

@@ -24,7 +24,7 @@
   <script src="./js/theme.js"></script>
 </head>
 
-<body class="text-body">
+<body class="text-body jr-settings-page">
   <a href="#main" class="visually-hidden-focusable jr-skip-link">К основному содержимому</a>
   <nav class="navbar jr-navbar sticky-top" aria-label="Навигация настроек">
     <div class="container jr-app jr-app--wide px-3 px-sm-4">
@@ -62,51 +62,68 @@
     <main id="main">
       <header class="jr-hero jr-hero--stats jr-hero--stats-compact text-center mb-3">
         <h1 class="jr-hero-title fw-bold mb-2">Настройки JacRed</h1>
-        <p class="jr-hero-sub text-secondary mb-0">Форма или YAML/JSON — с валидацией и diff перед сохранением</p>
+        <p class="jr-hero-sub text-secondary mb-0">Редактирование <code class="jr-inline-code">init.yaml</code> с проверкой и diff перед сохранением</p>
       </header>
 
-      <div id="accessDenied" class="alert alert-warning jr-panel d-none" role="alert">
-        <strong>Доступ ограничен.</strong> Редактирование конфигурации доступно только из локальной сети сервера.
-      </div>
-
-      <div id="settingsPanel" class="glass-card p-3 mb-3 gsap-rise jr-settings-panel d-none">
-        <div class="jr-settings-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
-          <ul class="nav nav-tabs jr-settings-mode-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="modeFormTab" data-bs-toggle="tab" data-bs-target="#modeFormPane"
-                type="button" role="tab">Форма</button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="modeRawTab" data-bs-toggle="tab" data-bs-target="#modeRawPane" type="button"
-                role="tab">YAML / JSON</button>
-            </li>
-          </ul>
-          <div class="d-flex align-items-center gap-2 flex-wrap ms-md-auto">
-            <button type="button" id="reloadBtn" class="btn btn-sm btn-jr-ghost tap-target">
-              <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Загрузить
-            </button>
-            <button type="button" id="validateBtn" class="btn btn-sm btn-jr-ghost tap-target">
-              <i class="bi bi-check2-circle" aria-hidden="true"></i> Проверить
-            </button>
-            <button type="button" id="saveBtn" class="btn btn-sm btn-jr-primary tap-target">
-              <i class="bi bi-save" aria-hidden="true"></i> Сохранить
-            </button>
+      <div id="accessDenied" class="jr-settings-denied glass-card p-4 mb-3 d-none" role="alert">
+        <div class="d-flex gap-3 align-items-start">
+          <span class="jr-settings-denied__icon" aria-hidden="true"><i class="bi bi-shield-exclamation"></i></span>
+          <div>
+            <h2 class="h6 fw-semibold mb-1">Доступ ограничен</h2>
+            <p class="small text-secondary mb-0">Редактирование конфигурации доступно только из локальной сети сервера. За туннелем может потребоваться dev-ключ.</p>
           </div>
         </div>
+      </div>
 
-        <div id="configMeta" class="jr-settings-meta small text-secondary mb-2" aria-live="polite"></div>
+      <div id="settingsPanel" class="glass-card jr-settings-panel d-none">
+        <div class="jr-settings-panel__head">
+          <div class="jr-settings-toolbar">
+            <ul class="nav nav-pills jr-settings-mode-tabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="modeFormTab" data-bs-toggle="tab" data-bs-target="#modeFormPane"
+                  type="button" role="tab"><i class="bi bi-ui-checks-grid me-1" aria-hidden="true"></i>Форма</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="modeRawTab" data-bs-toggle="tab" data-bs-target="#modeRawPane" type="button"
+                  role="tab"><i class="bi bi-code-slash me-1" aria-hidden="true"></i>YAML / JSON</button>
+              </li>
+            </ul>
+            <div class="jr-settings-toolbar__actions">
+              <span id="unsavedBadge" class="jr-settings-unsaved badge d-none" title="Есть несохранённые изменения">
+                <i class="bi bi-circle-fill" aria-hidden="true"></i> Не сохранено
+              </span>
+              <button type="button" id="reloadBtn" class="btn btn-sm btn-jr-ghost tap-target">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">Загрузить</span>
+              </button>
+              <button type="button" id="validateBtn" class="btn btn-sm btn-jr-ghost tap-target">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">Проверить</span>
+              </button>
+              <button type="button" id="formatBtn" class="btn btn-sm btn-jr-ghost tap-target" title="Отформатировать YAML/JSON">
+                <i class="bi bi-text-indent-left" aria-hidden="true"></i><span class="d-none d-sm-inline ms-1">Форматировать</span>
+              </button>
+              <button type="button" id="saveBtn" class="btn btn-sm btn-jr-primary tap-target">
+                <i class="bi bi-save" aria-hidden="true"></i> Сохранить
+              </button>
+            </div>
+          </div>
+          <div id="configMeta" class="jr-settings-meta" aria-live="polite"></div>
+        </div>
 
-        <div class="tab-content">
+        <div class="jr-settings-panel__body tab-content">
           <div class="tab-pane fade show active" id="modeFormPane" role="tabpanel">
-            <div id="configFormRoot"></div>
+            <div id="configFormRoot" class="jr-settings-form-root"></div>
           </div>
           <div class="tab-pane fade" id="modeRawPane" role="tabpanel">
-            <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="jr-settings-raw-toolbar">
               <label for="formatSelect" class="form-label jr-label mb-0">Формат файла</label>
               <select id="formatSelect" class="form-select form-select-sm jr-settings-format">
                 <option value="yaml">YAML</option>
                 <option value="json">JSON</option>
               </select>
+              <button type="button" id="formatRawBtn" class="btn btn-sm btn-jr-ghost tap-target">
+                <i class="bi bi-text-indent-left" aria-hidden="true"></i> Форматировать
+              </button>
+              <span class="small text-secondary ms-auto d-none d-md-inline">Перед сохранением конфиг будет отформатирован</span>
             </div>
             <label for="configEditor" class="visually-hidden">Редактор конфигурации</label>
             <textarea id="configEditor" class="form-control jr-config-editor font-monospace" rows="22"
@@ -114,27 +131,31 @@
           </div>
         </div>
 
-        <div id="validationResult" class="jr-settings-validation mt-3" role="status" aria-live="polite"></div>
+        <div id="validationResult" class="jr-settings-validation" role="status" aria-live="polite"></div>
       </div>
 
-      <div id="settingsLoading" class="glass-card p-4 text-center text-secondary">
-        <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
-        Загрузка конфигурации…
+      <div id="settingsLoading" class="glass-card jr-settings-loading p-4 p-md-5 text-center">
+        <div class="jr-settings-loading__inner">
+          <div class="spinner-border text-secondary mb-3" role="status" aria-hidden="true"></div>
+          <p class="text-secondary mb-0">Загрузка конфигурации…</p>
+        </div>
       </div>
     </main>
   </div>
 
   <div id="diffModal" class="modal fade" tabindex="-1" aria-labelledby="diffModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content glass-card border-0">
+      <div class="modal-content glass-card border-0 jr-settings-diff-modal">
         <div class="modal-header border-0 pb-0">
-          <h2 class="modal-title h5 fw-semibold" id="diffModalTitle">Изменения конфигурации</h2>
+          <h2 class="modal-title h5 fw-semibold" id="diffModalTitle">
+            <i class="bi bi-arrow-left-right me-2 text-secondary" aria-hidden="true"></i>Изменения конфигурации
+          </h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body pt-2">
-          <p id="diffSummary" class="small text-secondary mb-3"></p>
+          <p id="diffSummary" class="jr-settings-diff-summary small mb-3"></p>
           <div id="diffValidation" class="mb-3"></div>
-          <div class="table-responsive">
+          <div class="table-responsive jr-settings-diff-wrap">
             <table class="table table-sm jr-diff-table mb-0">
               <thead>
                 <tr>

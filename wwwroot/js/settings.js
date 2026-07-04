@@ -12,6 +12,8 @@
 
   const API_URL = '/api/v1.0/config';
   const FETCH_TIMEOUT_MS = 15000;
+  const LS_FORM_TAB = 'jacredSettingsFormTab';
+  const LS_MODE_TAB = 'jacredSettingsMode';
 
   const els = {
     accessDenied: document.getElementById('accessDenied'),
@@ -24,6 +26,8 @@
     validationResult: document.getElementById('validationResult'),
     reloadBtn: document.getElementById('reloadBtn'),
     validateBtn: document.getElementById('validateBtn'),
+    formatBtn: document.getElementById('formatBtn'),
+    formatRawBtn: document.getElementById('formatRawBtn'),
     saveBtn: document.getElementById('saveBtn'),
     devKeyBtn: document.getElementById('devKeyBtn'),
     devKeyInput: document.getElementById('devKeyInput'),
@@ -36,7 +40,8 @@
     diffSummary: document.getElementById('diffSummary'),
     diffValidation: document.getElementById('diffValidation'),
     diffEmpty: document.getElementById('diffEmpty'),
-    diffConfirmBtn: document.getElementById('diffConfirmBtn')
+    diffConfirmBtn: document.getElementById('diffConfirmBtn'),
+    unsavedBadge: document.getElementById('unsavedBadge')
   };
 
   let schema = null;
@@ -45,6 +50,12 @@
   let dirty = false;
   let diffModalInstance = null;
   let pendingSavePayload = null;
+
+  const setDirty = (value) => {
+    dirty = value;
+    els.unsavedBadge?.classList.toggle('d-none', !dirty);
+    document.body.classList.toggle('jr-settings-dirty', dirty);
+  };
 
   const isFormMode = () => els.modeFormTab?.classList.contains('active');
 
@@ -87,12 +98,75 @@
     };
   };
 
-  const setLoading = (state) => {
-    if (els.settingsLoading) {
-      els.settingsLoading.classList.toggle('d-none', !state);
+  const getOutputFormat = () => els.formatSelect?.value || activeFormat;
+
+  /** Always send structured data so save/diff use AppInit normalization and formatted output. */
+  const normalizePayload = (payload) => {
+    const format = payload.format || getOutputFormat();
+    if (payload.data) {
+      return Promise.resolve({ data: payload.data, format });
     }
+    return apiFetch(`${API_URL}/parse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ content: payload.content || '', format })
+    }).then(({ response, json }) => {
+      if (response.status === 403 || response.status === 401) {
+        showAccessDenied();
+        throw new Error('Доступ запрещён');
+      }
+      if (!json.ok) throw new Error(json.error || 'Не удалось разобрать конфигурацию');
+      return { data: json.data, format };
+    });
+  };
+
+  const applyFormattedConfig = (json) => {
+    if (json.data) baseData = deepClone(json.data);
+    if (els.configEditor) els.configEditor.value = json.content || '';
+    renderForm();
+    setDirty(true);
+  };
+
+  const showRawTab = () => {
+    if (!els.modeRawTab || typeof bootstrap === 'undefined') return;
+    bootstrap.Tab.getOrCreateInstance(els.modeRawTab).show();
+  };
+
+  const formatConfig = (options = {}) => {
+    const { switchToRaw = false } = options;
+    setLoading(true);
+    return normalizePayload(getPayload())
+      .then((payload) => apiFetch(`${API_URL}/format`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload)
+      }))
+      .then(({ response, json }) => {
+        if (response.status === 403 || response.status === 401) {
+          showAccessDenied();
+          return;
+        }
+        if (!json.ok) throw new Error(json.error || 'Ошибка форматирования');
+        applyFormattedConfig(json);
+        if (switchToRaw || isFormMode()) showRawTab();
+        showToast('Конфигурация отформатирована', { type: 'success' });
+      })
+      .catch((err) => {
+        showToast(err.message || 'Ошибка форматирования', { type: 'error' });
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const setLoading = (state) => {
+    const panelVisible = els.settingsPanel && !els.settingsPanel.classList.contains('d-none');
+    if (els.settingsLoading) {
+      els.settingsLoading.classList.toggle('d-none', !state || panelVisible);
+    }
+    els.settingsPanel?.classList.toggle('jr-settings-panel--loading', state && panelVisible);
     if (els.reloadBtn) els.reloadBtn.disabled = state;
     if (els.validateBtn) els.validateBtn.disabled = state;
+    if (els.formatBtn) els.formatBtn.disabled = state;
+    if (els.formatRawBtn) els.formatRawBtn.disabled = state;
     if (els.saveBtn) els.saveBtn.disabled = state;
   };
 
@@ -115,11 +189,26 @@
 
   const renderMeta = (data) => {
     if (!els.configMeta) return;
-    const parts = [];
-    if (data.path) parts.push(`Файл: <code>${escapeHtml(data.path)}</code>`);
-    if (data.format) parts.push(`Источник: ${escapeHtml(String(data.format).toUpperCase())}`);
-    if (data.lastModifiedUtc) parts.push(`Изменён: ${escapeHtml(formatDate(data.lastModifiedUtc))}`);
-    els.configMeta.innerHTML = parts.join(' · ');
+    const chips = [];
+    if (data.path) {
+      chips.push(
+        `<span class="jr-settings-meta-chip"><i class="bi bi-file-earmark-code" aria-hidden="true"></i>` +
+        `Файл <code>${escapeHtml(data.path)}</code></span>`
+      );
+    }
+    if (data.format) {
+      chips.push(
+        `<span class="jr-settings-meta-chip"><i class="bi bi-braces" aria-hidden="true"></i>` +
+        `${escapeHtml(String(data.format).toUpperCase())}</span>`
+      );
+    }
+    if (data.lastModifiedUtc) {
+      chips.push(
+        `<span class="jr-settings-meta-chip"><i class="bi bi-clock" aria-hidden="true"></i>` +
+        `${escapeHtml(formatDate(data.lastModifiedUtc))}</span>`
+      );
+    }
+    els.configMeta.innerHTML = chips.join('');
   };
 
   const renderValidation = (result) => {
@@ -153,12 +242,17 @@
       `<div class="alert alert-warning mb-0 py-2 small"><strong>Есть предупреждения:</strong><ul class="mb-0 mt-1">${list}</ul></div>`;
   };
 
+  const restoreModeTab = () => {
+    if (LS.get(LS_MODE_TAB) !== 'raw' || !els.modeRawTab || typeof bootstrap === 'undefined') return;
+    bootstrap.Tab.getOrCreateInstance(els.modeRawTab).show();
+  };
+
   const renderForm = () => {
     if (!schema || !baseData || !els.configFormRoot) return;
-    buildForm(schema, baseData, els.configFormRoot);
+    buildForm(schema, baseData, els.configFormRoot, { activeTabId: LS.get(LS_FORM_TAB) });
     els.configFormRoot.querySelectorAll('input, select, textarea').forEach((el) => {
-      el.addEventListener('input', () => { dirty = true; });
-      el.addEventListener('change', () => { dirty = true; });
+      el.addEventListener('input', () => { setDirty(true); });
+      el.addEventListener('change', () => { setDirty(true); });
     });
   };
 
@@ -184,7 +278,8 @@
         if (els.configEditor) els.configEditor.value = json.content || '';
         renderForm();
         renderMeta(json);
-        dirty = false;
+        setDirty(false);
+        restoreModeTab();
       })
       .catch((err) => {
         showEditor();
@@ -195,17 +290,18 @@
 
   const validateConfig = () => {
     setLoading(true);
-    apiFetch(`${API_URL}/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(getPayload())
-    })
+    normalizePayload(getPayload())
+      .then((payload) => apiFetch(`${API_URL}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload)
+      }))
       .then(({ response, json }) => {
         if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
         renderValidation(json);
         showToast(json.ok ? 'Проверка пройдена' : (json.error || 'Ошибка валидации'), { type: json.ok ? 'success' : 'error' });
       })
-      .catch(() => showToast('Ошибка проверки', { type: 'error' }))
+      .catch((err) => showToast(err.message || 'Ошибка проверки', { type: 'error' }))
       .finally(() => setLoading(false));
   };
 
@@ -262,7 +358,7 @@
           showToast(json.error || 'Ошибка сохранения', { type: 'error' });
           return;
         }
-        dirty = false;
+        setDirty(false);
         diffModalInstance?.hide();
         showToast('Конфигурация сохранена', { type: 'success' });
         loadConfig();
@@ -272,29 +368,29 @@
   };
 
   const saveConfig = () => {
-    const payload = getPayload();
     setLoading(true);
 
-    apiFetch(`${API_URL}/diff`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(({ response, json }) => {
-        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
-        if (!json.ok) {
-          renderValidation({ error: json.error });
-          showToast(json.error || 'Ошибка diff', { type: 'error' });
-          return;
-        }
-        pendingSavePayload = payload;
-        renderDiffModal(json);
-        if (!diffModalInstance && els.diffModal) {
-          diffModalInstance = new bootstrap.Modal(els.diffModal);
-        }
-        diffModalInstance?.show();
+    normalizePayload(getPayload())
+      .then((payload) => apiFetch(`${API_URL}/diff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload)
       })
-      .catch(() => showToast('Ошибка подготовки diff', { type: 'error' }))
+        .then(({ response, json }) => {
+          if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+          if (!json.ok) {
+            renderValidation({ error: json.error });
+            showToast(json.error || 'Ошибка diff', { type: 'error' });
+            return;
+          }
+          pendingSavePayload = payload;
+          renderDiffModal(json);
+          if (!diffModalInstance && els.diffModal) {
+            diffModalInstance = new bootstrap.Modal(els.diffModal);
+          }
+          diffModalInstance?.show();
+        }))
+      .catch((err) => showToast(err.message || 'Ошибка подготовки diff', { type: 'error' }))
       .finally(() => setLoading(false));
   };
 
@@ -313,15 +409,76 @@
     });
   };
 
+  const syncFormToRaw = () => {
+    if (!schema || !els.configEditor) return Promise.resolve();
+    const data = collectFormData(schema, baseData, els.configFormRoot);
+    const format = els.formatSelect?.value || activeFormat;
+    return apiFetch(`${API_URL}/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ data, format })
+    })
+      .then(({ response, json }) => {
+        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+        if (!json.ok) throw new Error(json.error || 'Не удалось сериализовать конфиг');
+        els.configEditor.value = json.content || '';
+      });
+  };
+
+  const syncRawToForm = () => {
+    if (!schema || !els.configEditor) return Promise.resolve();
+    const content = els.configEditor.value || '';
+    const format = els.formatSelect?.value || activeFormat;
+    return apiFetch(`${API_URL}/parse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ content, format })
+    })
+      .then(({ response, json }) => {
+        if (response.status === 403 || response.status === 401) { showAccessDenied(); return; }
+        if (!json.ok) throw new Error(json.error || 'Не удалось разобрать конфиг');
+        baseData = deepClone(json.data);
+        renderForm();
+      });
+  };
+
   const initUi = () => {
     els.reloadBtn?.addEventListener('click', loadConfig);
     els.validateBtn?.addEventListener('click', validateConfig);
+    els.formatBtn?.addEventListener('click', () => formatConfig({ switchToRaw: true }));
+    els.formatRawBtn?.addEventListener('click', () => formatConfig());
     els.saveBtn?.addEventListener('click', saveConfig);
     els.diffConfirmBtn?.addEventListener('click', () => {
       if (pendingSavePayload) performSave(pendingSavePayload);
     });
-    els.configEditor?.addEventListener('input', () => { dirty = true; });
-    els.formatSelect?.addEventListener('change', () => { dirty = true; });
+    els.configEditor?.addEventListener('input', () => { setDirty(true); });
+    els.formatSelect?.addEventListener('change', () => {
+      setDirty(true);
+      if (!els.modeRawTab?.classList.contains('active')) return;
+      syncFormToRaw().catch((err) => {
+        showToast(err.message || 'Ошибка обновления редактора', { type: 'error' });
+      });
+    });
+
+    els.modeRawTab?.addEventListener('shown.bs.tab', () => {
+      LS.set(LS_MODE_TAB, 'raw');
+      syncFormToRaw().catch((err) => {
+        showToast(err.message || 'Ошибка синхронизации с редактором', { type: 'error' });
+      });
+    });
+    els.modeFormTab?.addEventListener('shown.bs.tab', () => {
+      LS.set(LS_MODE_TAB, 'form');
+      syncRawToForm().catch((err) => {
+        showToast(err.message || 'Ошибка синхронизации с формой', { type: 'error' });
+      });
+    });
+
+    els.configFormRoot?.addEventListener('shown.bs.tab', (e) => {
+      const btn = e.target?.closest?.('.jr-settings-nav .nav-link');
+      if (!btn) return;
+      const tabId = btn.getAttribute('data-bs-target')?.replace('#', '');
+      if (tabId) LS.set(LS_FORM_TAB, tabId);
+    });
 
     window.addEventListener('beforeunload', (e) => {
       if (!dirty) return;

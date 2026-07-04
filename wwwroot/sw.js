@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'jacred-static-2.6.0-8-g73e9bba-dirty';
+const CACHE_NAME = 'jacred-static-2.6.0-10-g38699c3-dirty';
 
 const VENDOR_PRECACHE = [
   '/css/fonts.css',
