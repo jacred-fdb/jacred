@@ -65,41 +65,10 @@ namespace JacRed.Engine
         public static DateTime? GetExportStatsUpdatedAt() => _statsCacheUpdatedAt;
         public static bool LastExportStatsFromCache => _lastExportStatsFromCache;
 
-        static string pathDb(string infohash, bool createfolder = false)
-        {
-            infohash = NormalizeInfohash(infohash);
-            string folder = $"Data/tracks/{infohash.Substring(0, 2)}/{infohash[2]}";
-
-            if (createfolder)
-                Directory.CreateDirectory(folder);
-
-            return $"{folder}/{infohash.Substring(3)}.json";
-        }
-
-        static string LegacyPathDb(string infohash)
-        {
-            infohash = NormalizeInfohash(infohash);
-            return $"Data/tracks/{infohash.Substring(0, 2)}/{infohash[2]}/{infohash.Substring(3)}";
-        }
-
         /// <summary>
-        /// Layout экспорта / lampa-tracks: uppercase hex + .json.
+        /// Canonical layout (JacRed + lampa-tracks): {aa}/{b}/{hash}.json — lowercase hex.
         /// </summary>
-        static string ExportLayoutPathDb(string infohash, string tracksDir = "Data/tracks")
-        {
-            infohash = NormalizeInfohash(infohash);
-            var upper = infohash.ToUpperInvariant();
-            return Path.Combine(tracksDir, upper.Substring(0, 2), upper.Substring(2, 1), $"{upper.Substring(3)}.json");
-        }
-
-        static string ExportLayoutLegacyPathDb(string infohash, string tracksDir = "Data/tracks")
-        {
-            infohash = NormalizeInfohash(infohash);
-            var upper = infohash.ToUpperInvariant();
-            return Path.Combine(tracksDir, upper.Substring(0, 2), upper.Substring(2, 1), upper.Substring(3));
-        }
-
-        static string TrackFilePath(string tracksDir, string infohash, bool withExtension = true)
+        static string TrackLayoutPath(string tracksDir, string infohash, bool withExtension = true)
         {
             infohash = NormalizeInfohash(infohash);
             string folder = Path.Combine(tracksDir, infohash.Substring(0, 2), infohash[2].ToString());
@@ -107,24 +76,57 @@ namespace JacRed.Engine
             return Path.Combine(folder, filename);
         }
 
+        /// <summary>
+        /// Legacy uppercase layout — read fallback only.
+        /// </summary>
+        static string UppercaseLayoutPath(string tracksDir, string infohash, bool withExtension = true)
+        {
+            infohash = NormalizeInfohash(infohash);
+            var upper = infohash.ToUpperInvariant();
+            string folder = Path.Combine(tracksDir, upper.Substring(0, 2), upper.Substring(2, 1));
+            string filename = withExtension ? $"{upper.Substring(3)}.json" : upper.Substring(3);
+            return Path.Combine(folder, filename);
+        }
+
+        static string pathDb(string infohash, bool createfolder = false)
+        {
+            string path = TrackLayoutPath("Data/tracks", infohash, withExtension: true);
+
+            if (createfolder)
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+            return path;
+        }
+
         static bool IsLegacyTrackFile(string filename) =>
             !filename.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
 
-        static bool ShouldSkipLegacyTrackFile(string folder, string filename)
+        static bool ShouldSkipLegacyTrackFile(string folder2Path, string filename, string tracksDir = "Data/tracks")
         {
             if (!IsLegacyTrackFile(filename))
                 return false;
 
-            return File.Exists(Path.Combine(folder, $"{filename}.json"));
+            if (File.Exists(Path.Combine(folder2Path, $"{filename}.json")))
+                return true;
+
+            string infohash = InfohashFromTrackRelPath(
+                Path.GetFileName(Path.GetDirectoryName(folder2Path)),
+                Path.GetFileName(folder2Path),
+                filename);
+
+            if (IsValidInfohash(infohash) && File.Exists(TrackLayoutPath(tracksDir, infohash, withExtension: true)))
+                return true;
+
+            return false;
         }
 
         static string ResolveTrackJsonPath(string infohash, string tracksDir = "Data/tracks")
         {
-            string jsonPath = TrackFilePath(tracksDir, infohash, withExtension: true);
+            string jsonPath = TrackLayoutPath(tracksDir, infohash, withExtension: true);
             if (File.Exists(jsonPath))
                 return jsonPath;
 
-            jsonPath = ExportLayoutPathDb(infohash, tracksDir);
+            jsonPath = UppercaseLayoutPath(tracksDir, infohash, withExtension: true);
             if (File.Exists(jsonPath))
                 return jsonPath;
 
@@ -133,11 +135,11 @@ namespace JacRed.Engine
 
         static string ResolveLegacyTrackPath(string infohash, string tracksDir = "Data/tracks")
         {
-            string legacyPath = TrackFilePath(tracksDir, infohash, withExtension: false);
+            string legacyPath = TrackLayoutPath(tracksDir, infohash, withExtension: false);
             if (File.Exists(legacyPath))
                 return legacyPath;
 
-            legacyPath = ExportLayoutLegacyPathDb(infohash, tracksDir);
+            legacyPath = UppercaseLayoutPath(tracksDir, infohash, withExtension: false);
             if (File.Exists(legacyPath))
                 return legacyPath;
 
@@ -153,7 +155,10 @@ namespace JacRed.Engine
             return ResolveLegacyTrackPath(infohash);
         }
 
-        static int MigrateLegacyTrackFilesInPlace(string tracksDir, bool dryRun)
+        /// <summary>
+        /// Legacy без .json → canonical .json; uppercase/mixed paths → lowercase canonical layout.
+        /// </summary>
+        static int MigrateTrackLayoutInPlace(string tracksDir, bool dryRun)
         {
             if (!Directory.Exists(tracksDir))
                 return 0;
@@ -167,9 +172,6 @@ namespace JacRed.Engine
                     foreach (var file in Directory.GetFiles(folder2))
                     {
                         string filename = Path.GetFileName(file);
-                        if (!IsLegacyTrackFile(filename))
-                            continue;
-
                         if (ShouldSkipLegacyTrackFile(folder2, filename))
                             continue;
 
@@ -181,12 +183,27 @@ namespace JacRed.Engine
                         if (!IsValidInfohash(infohash))
                             continue;
 
-                        string jsonPath = Path.Combine(folder2, $"{filename}.json");
-                        if (File.Exists(jsonPath))
+                        string targetPath = TrackLayoutPath(tracksDir, infohash, withExtension: true);
+                        if (string.Equals(file, targetPath, StringComparison.Ordinal))
                             continue;
 
+                        if (File.Exists(targetPath))
+                        {
+                            if (!dryRun)
+                            {
+                                try { File.Delete(file); }
+                                catch { }
+                            }
+
+                            migrated++;
+                            continue;
+                        }
+
                         if (!dryRun)
-                            File.Move(file, jsonPath);
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+                            File.Move(file, targetPath);
+                        }
 
                         migrated++;
                     }
@@ -1021,6 +1038,13 @@ namespace JacRed.Engine
                     catch { }
                 }
 
+                string uppercaseJson = UppercaseLayoutPath("Data/tracks", infohash, withExtension: true);
+                if (File.Exists(uppercaseJson) && !string.Equals(uppercaseJson, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(uppercaseJson); }
+                    catch { }
+                }
+
                 // Логирование информации о языках
                 var audioLanguages = result.streams
                     .Where(s => s.codec_type == "audio" && s.tags?.language != null)
@@ -1151,11 +1175,11 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// R2 / lampa-tracks layout: {HASH[0:2]}/{HASH[2]}/{HASH[3:40]}.json — uppercase hex.
+        /// R2 / lampa-tracks layout: {hash[0:2]}/{hash[2]}/{hash[3:40]}.json — lowercase hex.
         /// </summary>
         static string ExportFilePath(string outputDir, string infohash)
         {
-            string path = ExportLayoutPathDb(infohash, outputDir);
+            string path = TrackLayoutPath(outputDir, infohash, withExtension: true);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             return path;
         }
@@ -1710,7 +1734,7 @@ namespace JacRed.Engine
             result.stats.total = data.Count;
 
             if (migrateLegacy)
-                result.migratedLegacy = MigrateLegacyTrackFilesInPlace(tracksDir, dryRun);
+                result.migratedLegacy = MigrateTrackLayoutInPlace(tracksDir, dryRun);
 
             if (dryRun)
             {
@@ -1737,7 +1761,7 @@ namespace JacRed.Engine
                         continue;
                     }
 
-                    string jsonPath = TrackFilePath(tracksDir, item.Key, withExtension: true);
+                    string jsonPath = TrackLayoutPath(tracksDir, item.Key, withExtension: true);
                     Directory.CreateDirectory(Path.GetDirectoryName(jsonPath));
 
                     string json = JsonConvert.SerializeObject(item.Value, Formatting.Indented);

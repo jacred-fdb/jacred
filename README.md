@@ -504,16 +504,17 @@ REST API и страница **`/settings`** для редактирования
 | **`/dev/RemoveDuplicateAniliberty`** | Удаляет дубликаты Aniliberty по хешу magnet, оставляет запись с последним `updateTime`. |
 | **`/dev/FixAnimelayerDuplicates`** | Устраняет дубликаты Animelayer: нормализует HTTP→HTTPS, удаляет HTTP-дубликаты. |
 | **`/dev/TracksStats`** | Статистика ffprobe/tracks (кэш `Data/temp/tracks-stats.json`, обновляется вместе с `stats.json` по `timeStatsUpdate`). Параметры: `?includeTorrentDb=true`, `?refresh=true` — принудительный пересчёт. |
-| **`/dev/ExportTracks`** | Экспорт ffprobe в JSON для lampa-tracks/R2. Параметры: `?dir=Data/tracks-export`, `?dryRun=true`, `?includeTorrentDb=true`, `?background=true`. Формат: `{AA}/{B}/{HASH}.json`, тело `{ "streams": [ ... ] }`. |
+| **`/dev/ExportTracks`** | Экспорт ffprobe в JSON для lampa-tracks/R2. Параметры: `?dir=Data/tracks-export`, `?dryRun=true`, `?includeTorrentDb=true`, `?background=true`. Формат: `{aa}/{b}/{hash}.json`, тело `{ "streams": [ ... ] }`. |
 | **`/dev/ExportTracksStatus`** | Статус фонового экспорта (см. `ExportTracks` с `background=true`). |
 | **`/dev/BackfillTracks`** | Миграция `Data/tracks`: legacy без расширения → `.json`, дописывание недостающих из FileDB. Параметры: `?dryRun=true`, `?migrateLegacy=true`, `?includeTorrentDb=true`. |
 
 **Хранение tracks (`Data/tracks/`):**
 
-- Новые файлы пишутся как `{aa}/{b}/{hash}.json` (lowercase hex); чтение поддерживает и legacy без расширения, и uppercase layout экспорта.
-- **`BackfillTracks`** переименовывает legacy **на месте**: `00/A/HASH` → `00/A/HASH.json` (регистр папок и имени не меняется).
-- При сохранении через модуль tracks legacy-файл без расширения удаляется автоматически.
-- Для массовой миграции существующих файлов без `.json` — **`/dev/BackfillTracks`** (сначала `?dryRun=true`).
+- Канонический layout (JacRed + lampa-tracks): `{aa}/{b}/{hash}.json` — **lowercase hex** (совпадает с hash-значением).
+- Чтение поддерживает и legacy uppercase export, и файлы без `.json`.
+- **`BackfillTracks`** мигрирует legacy → `.json` и нормализует регистр в canonical lowercase layout.
+- При сохранении через модуль tracks старые uppercase/legacy файлы удаляются автоматически.
+- Для массовой миграции — **`/dev/BackfillTracks`** (сначала `?dryRun=true`).
 
 Примеры:
 

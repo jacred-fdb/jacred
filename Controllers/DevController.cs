@@ -1183,7 +1183,7 @@ namespace JacRed.Controllers
         }
 
         /// <summary>
-        /// Backfill в Data/tracks: .json для новых файлов, миграция legacy без расширения, данные из FileDB.
+        /// Backfill в Data/tracks: .json для новых файлов, миграция legacy → canonical lowercase layout, данные из FileDB.
         /// </summary>
         public JsonResult BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true)
         {
