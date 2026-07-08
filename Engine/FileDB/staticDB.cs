@@ -152,6 +152,21 @@ namespace JacRed.Engine
                 masterDb.TryAdd(key, md);
             }
         }
+
+        /// <summary>Bump collection fileTime for sync_spidr without changing updateTime (avoids full metadata resync).</summary>
+        public static void TouchMasterDbForSpidr(TorrentDetails torrent)
+        {
+            string key = keyDb(torrent.name, torrent.originalname);
+            if (string.IsNullOrEmpty(key))
+                return;
+
+            long fileTime = DateTime.UtcNow.ToFileTimeUtc();
+
+            if (masterDb.TryGetValue(key, out TorrentInfo info))
+                masterDb[key] = new TorrentInfo { updateTime = info.updateTime, fileTime = fileTime };
+            else
+                masterDb.TryAdd(key, new TorrentInfo { updateTime = torrent.updateTime, fileTime = fileTime });
+        }
         #endregion
 
         #region OpenRead / OpenWrite

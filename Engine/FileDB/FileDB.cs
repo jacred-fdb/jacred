@@ -128,6 +128,7 @@ namespace JacRed.Engine
                             t = kv.Value;
                             t.url = torrent.url;
                             foundById = true;
+                            TouchMasterDbForSpidr(t);
                             break;
                         }
                     }
@@ -198,6 +199,11 @@ namespace JacRed.Engine
                     upt();
                 }
 
+                void touchSpidr()
+                {
+                    TouchMasterDbForSpidr(t);
+                }
+
                 if (torrent.sid != t.sid)
                 {
                     if (t.sid == 0 && torrent.sid >= 2 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
@@ -206,12 +212,14 @@ namespace JacRed.Engine
                     }
                     t.sid = torrent.sid;
                     upt(updatetime: false);
+                    touchSpidr();
                 }
 
                 if (torrent.pir != t.pir)
                 {
                     t.pir = torrent.pir;
                     upt(updatetime: false);
+                    touchSpidr();
                 }
 
                 if (!string.IsNullOrWhiteSpace(torrent.sizeName) && torrent.sizeName != t.sizeName)
