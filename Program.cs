@@ -33,9 +33,17 @@ namespace JacRed
             Directory.CreateDirectory("Data/log");
             Directory.CreateDirectory("Data/tracks");
 
-            TracksDB.Configuration();
+            // masterDb (~58MB) loads here; fast enough to keep before Kestrel
             SyncController.Configuration();
-            ApiController.getFastdb(update: true);
+
+            ThreadPool.QueueUserWorkItem(async _ =>
+            {
+                try { TracksDB.StartupInit(); }
+                catch (Exception ex) { Console.WriteLine($"tracks startup: {ex.Message}"); }
+
+                try { ApiController.getFastdb(update: true); }
+                catch (Exception ex) { Console.WriteLine($"fastdb startup: {ex.Message}"); }
+            });
 
             ThreadPool.QueueUserWorkItem(async _ =>
             {
