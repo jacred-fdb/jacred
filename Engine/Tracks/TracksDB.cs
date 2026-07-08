@@ -44,7 +44,7 @@ namespace JacRed.Engine
         const string TracksStatsPath = "Data/temp/tracks-stats.json";
         const string TracksIndexPath = "Data/temp/tracks-index.bz";
 
-        static ConcurrentDictionary<string, byte> TrackIndex = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+        static readonly ConcurrentDictionary<string, byte> TrackIndex = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
         static int _indexDirty;
         static int _indexBuildRunning;
         static readonly object _indexPersistLock = new object();
@@ -129,7 +129,12 @@ namespace JacRed.Engine
                 if (Directory.GetDirectories("Data/tracks").Length == 0)
                     return;
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
                 return;
@@ -148,8 +153,7 @@ namespace JacRed.Engine
                     if (Volatile.Read(ref _indexDirty) == 0)
                         continue;
 
-                    try { PersistTracksIndex(); }
-                    catch (Exception ex) { Console.WriteLine($"tracks index: persist loop error / {ex.Message}"); }
+                    PersistTracksIndex();
                 }
             });
         }
