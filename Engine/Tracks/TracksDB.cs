@@ -230,6 +230,37 @@ namespace JacRed.Engine
             return ResolveTrackPath(infohash) != null;
         }
 
+        /// <summary>
+        /// Whether torrent has ffprobe data without loading track JSON from disk.
+        /// </summary>
+        public static bool HasTrackForTorrent(TorrentDetails t)
+        {
+            if (t?.ffprobe != null && t.ffprobe.Count > 0)
+                return true;
+
+            if (string.IsNullOrEmpty(t?.magnet))
+                return false;
+
+            return TryGetInfohashFromMagnet(t.magnet, out var infohash) && HasTrackOnDisk(infohash);
+        }
+
+        public static bool TryGetInfohashFromMagnet(string magnet, out string infohash)
+        {
+            infohash = null;
+            if (string.IsNullOrEmpty(magnet))
+                return false;
+
+            try
+            {
+                infohash = NormalizeInfohash(MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex());
+                return IsValidInfohash(infohash);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static int TrackIndexCount => TrackIndex.Count;
         static readonly object _statsCacheLock = new object();
         static DateTime? _statsCacheUpdatedAt;
@@ -1628,12 +1659,15 @@ namespace JacRed.Engine
             }
         }
 
-        static TracksExportStats CollectStatsOnly(bool includeTorrentDb)
+        static TracksExportStats CollectStatsOnly(bool includeTorrentDb) =>
+            BuildExportStats(includeTorrentDb, null);
+
+        static TracksExportStats BuildExportStats(bool includeTorrentDb, StatsFdbScanResult scan)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var stats = new TracksExportStats();
 
-            CollectStatsFromTracksDir("Data/tracks", seen, stats);
+            ApplyTrackIndexToSeen(seen, stats);
 
             foreach (var item in Database)
             {
@@ -1645,10 +1679,67 @@ namespace JacRed.Engine
             }
 
             if (includeTorrentDb)
-                CollectStatsFromTorrentDb(seen, stats);
+            {
+                if (scan != null)
+                {
+                    stats.torrentsScanned = scan.TorrentsScanned;
+                    stats.torrentDbErrors = scan.TorrentDbErrors;
+                    stats.magnetErrors = scan.MagnetErrors;
+
+                    foreach (var hash in scan.FfprobeHashesFromFdb)
+                    {
+                        if (seen.Add(hash))
+                            stats.fromTorrentDb++;
+                    }
+                }
+                else
+                {
+                    CollectStatsFromTorrentDb(seen, stats);
+                }
+            }
 
             stats.total = seen.Count;
             return stats;
+        }
+
+        static void ApplyTrackIndexToSeen(HashSet<string> seen, TracksExportStats stats)
+        {
+            if (TrackIndexCount > 0)
+            {
+                stats.filesScanned = TrackIndexCount;
+                foreach (var key in TrackIndex.Keys)
+                {
+                    if (seen.Add(key))
+                        stats.fromTracksFiles++;
+                }
+
+                return;
+            }
+
+            CollectStatsFromTracksDir("Data/tracks", seen, stats);
+        }
+
+        /// <summary>
+        /// Writes tracks-stats.json from a shared FDB scan (see <see cref="StatsCollector"/>).
+        /// </summary>
+        public static DateTime PublishExportStatsCache(DateTime updatedAt, StatsFdbScanResult scan)
+        {
+            lock (_statsCacheLock)
+            {
+                var cache = new TracksStatsCacheFile
+                {
+                    updatedAt = updatedAt,
+                    entries = new List<TracksStatsCacheEntry>
+                    {
+                        new TracksStatsCacheEntry { includeTorrentDb = true, stats = BuildExportStats(true, scan) },
+                        new TracksStatsCacheEntry { includeTorrentDb = false, stats = BuildExportStats(false, scan) }
+                    }
+                };
+
+                WriteStatsCacheFile(cache);
+                Console.WriteLine($"tracks stats: wrote cache to {TracksStatsPath} / total={cache.entries[0].stats.total} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                return updatedAt;
+            }
         }
 
         static bool TryLoadStatsCache(bool includeTorrentDb, out TracksExportStats stats, out DateTime? updatedAt)
@@ -1691,27 +1782,9 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Пересчитывает статистику tracks и пишет в Data/temp/tracks-stats.json (оба варианта includeTorrentDb).
+        /// Пересчитывает stats.json и tracks-stats.json одним проходом FDB.
         /// </summary>
-        public static DateTime RefreshExportStatsCache()
-        {
-            lock (_statsCacheLock)
-            {
-                var cache = new TracksStatsCacheFile
-                {
-                    updatedAt = DateTime.UtcNow,
-                    entries = new List<TracksStatsCacheEntry>
-                    {
-                        new TracksStatsCacheEntry { includeTorrentDb = true, stats = CollectStatsOnly(true) },
-                        new TracksStatsCacheEntry { includeTorrentDb = false, stats = CollectStatsOnly(false) }
-                    }
-                };
-
-                WriteStatsCacheFile(cache);
-                Console.WriteLine($"tracks stats: wrote cache to {TracksStatsPath} / total={cache.entries[0].stats.total} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                return cache.updatedAt;
-            }
-        }
+        public static DateTime RefreshExportStatsCache() => StatsCollector.CollectAndWrite();
 
         public static TracksExportStats GetExportStats(bool includeTorrentDb = true, bool refresh = false)
         {
@@ -1730,12 +1803,12 @@ namespace JacRed.Engine
                 }
 
                 _lastExportStatsFromCache = false;
-                RefreshExportStatsCache();
+                StatsCollector.CollectAndWrite();
 
                 if (TryLoadStatsCache(includeTorrentDb, out cached, out _))
                     return cached;
 
-                return CollectStatsOnly(includeTorrentDb);
+                return BuildExportStats(includeTorrentDb, null);
             }
         }
 
