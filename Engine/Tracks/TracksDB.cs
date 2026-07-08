@@ -237,7 +237,9 @@ namespace JacRed.Engine
         }
 
         /// <summary>
-        /// Whether torrent has ffprobe data without loading track JSON from disk.
+        /// Fast track presence for stats confirm/wait counters (no full JSON load into <see cref="Database"/>).
+        /// True when ffprobe is on the torrent record, in-memory streams exist, track index has the hash,
+        /// or a on-disk track file has a non-empty streams array (same validity rule as <see cref="Get"/>, lighter I/O).
         /// </summary>
         public static bool HasTrackForTorrent(TorrentDetails t)
         {
@@ -250,10 +252,14 @@ namespace JacRed.Engine
             if (!TryGetInfohashFromMagnet(t.magnet, out var infohash))
                 return false;
 
-            if (Database.ContainsKey(infohash))
+            if (Database.TryGetValue(infohash, out var model) && model?.streams != null && model.streams.Count > 0)
                 return true;
 
-            return HasTrackOnDisk(infohash);
+            if (TrackIndex.ContainsKey(infohash))
+                return true;
+
+            var path = ResolveTrackPath(infohash);
+            return path != null && TrackFileHasStreams(path);
         }
 
         /// <summary>
@@ -1807,10 +1813,7 @@ namespace JacRed.Engine
 
         static void WriteStatsCacheFile(TracksStatsCacheFile cache)
         {
-            if (!Directory.Exists("Data/temp"))
-                Directory.CreateDirectory("Data/temp");
-
-            File.WriteAllText(TracksStatsPath, JsonConvert.SerializeObject(cache, Formatting.Indented), Encoding.UTF8);
+            StatsCollector.WriteTextAtomic(TracksStatsPath, JsonConvert.SerializeObject(cache, Formatting.Indented));
             _statsCacheUpdatedAt = cache.updatedAt;
         }
 
@@ -1835,10 +1838,14 @@ namespace JacRed.Engine
                     _lastExportStatsFromCache = true;
                     return cached;
                 }
+            }
 
-                _lastExportStatsFromCache = false;
-                StatsCollector.CollectAndWrite(force: true);
+            // Collect outside _statsCacheLock: CollectAndWrite holds _collectLock and calls PublishExportStatsCache.
+            _lastExportStatsFromCache = false;
+            StatsCollector.CollectAndWrite(force: true);
 
+            lock (_statsCacheLock)
+            {
                 if (TryLoadStatsCache(includeTorrentDb, out cached, out _))
                     return cached;
 

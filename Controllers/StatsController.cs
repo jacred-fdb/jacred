@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using JacRed.Engine;
 using JacRed.Models.Details;
@@ -69,8 +70,8 @@ namespace JacRed.Controllers
                 try
                 {
                     var jo = JObject.Parse(System.IO.File.ReadAllText(StatsCollector.StatsMetaPath));
-                    if (jo.TryGetValue("updatedAt", out var token) && token.Type == JTokenType.Date)
-                        updatedAt = token.Value<DateTime>();
+                    if (jo.TryGetValue("updatedAt", out var token))
+                        updatedAt = ParseMetaUpdatedAt(token);
                 }
                 catch { }
             }
@@ -114,6 +115,20 @@ namespace JacRed.Controllers
 
             var list = CollectTorrents(trackerName, newtoday: 0, updatedtoday: 1, limit);
             return Json(list);
+        }
+
+        static DateTime? ParseMetaUpdatedAt(JToken token)
+        {
+            if (token == null)
+                return null;
+
+            if (token.Type == JTokenType.Date)
+                return token.Value<DateTime>();
+
+            if (DateTime.TryParse(token.ToString(), null, DateTimeStyles.RoundtripKind, out var dt))
+                return dt;
+
+            return null;
         }
 
         static List<object> CollectTorrents(string trackerName, int newtoday, int updatedtoday, int limit)

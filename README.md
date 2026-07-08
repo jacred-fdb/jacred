@@ -220,6 +220,8 @@ evercache:
 
 **Старт сервиса:** HTTP (`/health`) доступен через ~10–30 с после загрузки `masterDb.bz`. Индекс треков `Data/temp/tracks-index.bz` и первый сбор stats выполняются **в фоне**; пока индекс пуст, cron stats **откладывается** (в логе: `stats: deferred`). После rebuild индекса stats запускается автоматически.
 
+**Счётчики tracks (confirm/wait/skip)** в `stats.json`: `confirm` — ffprobe в записи торрента, трек в RAM/индексе или файл с непустым `streams` (без полной загрузки JSON, как `TracksDB.Get`); `wait` — magnet есть, трека нет; `skip` — `ffprobe_tryingdata ≥ 3`.
+
 Результаты анализа сохраняются в **`Data/tracks/{aa}/{b}/{hash}.json`**. Экспорт, backfill и статистика — эндпоинты **`/dev/TracksStats`**, **`/dev/ExportTracks`**, **`/dev/BackfillTracks`** (см. раздел **«Разработка и отладка»**).
 
 ### Трекеры (блоки в конфиге)

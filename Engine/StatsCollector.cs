@@ -160,7 +160,7 @@ namespace JacRed.Engine
             }, Formatting.Indented));
         }
 
-        static void WriteTextAtomic(string path, string content)
+        public static void WriteTextAtomic(string path, string content)
         {
             var fullPath = Path.GetFullPath(path);
             var dir = Path.GetDirectoryName(fullPath);
