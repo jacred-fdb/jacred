@@ -39,10 +39,10 @@ namespace JacRed
             ThreadPool.QueueUserWorkItem(async _ =>
             {
                 try { TracksDB.StartupInit(); }
-                catch (Exception ex) { Console.WriteLine($"tracks startup: {ex.Message}"); }
+                catch (Exception ex) { Console.WriteLine($"tracks startup: {ex}"); }
 
                 try { ApiController.getFastdb(update: true); }
-                catch (Exception ex) { Console.WriteLine($"fastdb startup: {ex.Message}"); }
+                catch (Exception ex) { Console.WriteLine($"fastdb startup: {ex}"); }
             });
 
             ThreadPool.QueueUserWorkItem(async _ =>

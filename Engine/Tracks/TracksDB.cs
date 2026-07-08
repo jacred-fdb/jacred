@@ -39,9 +39,7 @@ namespace JacRed.Engine
             StartIndexPersistLoop();
         }
 
-        static Random random = new Random();
-
-        static ConcurrentDictionary<string, FfprobeModel> Database = new ConcurrentDictionary<string, FfprobeModel>();
+        static readonly ConcurrentDictionary<string, FfprobeModel> Database = new ConcurrentDictionary<string, FfprobeModel>();
 
         const string TracksStatsPath = "Data/temp/tracks-stats.json";
         const string TracksIndexPath = "Data/temp/tracks-index.bz";
@@ -131,7 +129,11 @@ namespace JacRed.Engine
                 if (Directory.GetDirectories("Data/tracks").Length == 0)
                     return;
             }
-            catch { return; }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
+                return;
+            }
 
             ThreadPool.QueueUserWorkItem(_ => _ = BuildTracksIndexAsync());
         }
@@ -143,11 +145,11 @@ namespace JacRed.Engine
                 while (true)
                 {
                     await Task.Delay(TimeSpan.FromMinutes(30));
-                    if (_indexDirty == 0)
+                    if (Volatile.Read(ref _indexDirty) == 0)
                         continue;
 
                     try { PersistTracksIndex(); }
-                    catch { }
+                    catch (Exception ex) { Console.WriteLine($"tracks index: persist loop error / {ex.Message}"); }
                 }
             });
         }
@@ -165,11 +167,13 @@ namespace JacRed.Engine
                 var built = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
                 await Task.Run(() => ScanTracksDirForIndex("Data/tracks", built));
 
-                TrackIndex = built;
+                foreach (var hash in built.Keys)
+                    TrackIndex.TryAdd(hash, 0);
+
                 Interlocked.Exchange(ref _indexDirty, 1);
                 PersistTracksIndex();
 
-                Console.WriteLine($"tracks index: rebuild done / count={built.Count} / {sw.Elapsed.TotalMinutes:F1} min");
+                Console.WriteLine($"tracks index: rebuild done / count={TrackIndex.Count} / {sw.Elapsed.TotalMinutes:F1} min");
             }
             catch (Exception ex)
             {
@@ -389,6 +393,8 @@ namespace JacRed.Engine
             return false;
         }
 
+        /// <param name="magnet">Magnet URI of the torrent.</param>
+        /// <param name="types">Content types; sport/tvshow/docuserial are skipped.</param>
         /// <param name="memoryOnly">If true, return streams only when already in the in-memory cache; skip disk lookup.</param>
         public static List<ffStream> Get(string magnet, string[] types = null, bool memoryOnly = false)
         {
