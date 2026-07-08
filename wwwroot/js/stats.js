@@ -10,6 +10,7 @@
 
   const CONFIG = Object.freeze({
     API_URL: '/stats/torrents',
+    STATS_META_URL: '/stats/meta',
     LAST_UPDATE_URL: '/lastupdatedb',
     DEBOUNCE_DELAY: 300,
     RETRY_ATTEMPTS: 3,
@@ -508,9 +509,67 @@
     throw lastError ?? new Error(`Не удалось загрузить данные («${label}») после ${attempts} попыток.`);
   };
 
+  const renderLastUpdate = (formattedDate, title = '') => {
+    const titleAttr = title ? ' title="' + escapeAttr(title) + '"' : '';
+    elements.lastUpdate.innerHTML =
+      '<i class="bi bi-clock" aria-hidden="true"></i><span' + titleAttr + '>' + escapeHtml(formattedDate) + '</span>';
+  };
+
   const renderLastUpdateFallback = (title = 'Не удалось загрузить время обновления') => {
     elements.lastUpdate.innerHTML =
       '<i class="bi bi-clock" aria-hidden="true"></i><span title="' + escapeAttr(title) + '">—</span>';
+  };
+
+  const loadLastUpdateFromMeta = async (signal) => {
+    const response = await fetchWithApiKey(CONFIG.STATS_META_URL, { signal });
+    if (!response.ok)
+      return false;
+
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return false;
+    }
+
+    if (!data || !data.ok)
+      return false;
+
+    if (data.updatedAtLocal) {
+      renderLastUpdate(String(data.updatedAtLocal), 'Время последнего сбора статистики');
+      return true;
+    }
+
+    if (data.updatedAt) {
+      const utcDate = parseUTCDate(data.updatedAt);
+      const formattedDate = utcDate ? formatLocalDateTime(utcDate) : String(data.updatedAt);
+      renderLastUpdate(formattedDate, 'Время последнего сбора статистики');
+      return true;
+    }
+
+    return false;
+  };
+
+  const loadLastUpdateFromFdb = async (signal) => {
+    const response = await fetchWithApiKey(CONFIG.LAST_UPDATE_URL, { signal });
+    if (!response.ok)
+      return false;
+
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return false;
+    }
+
+    if (data && data.lastupdatedb) {
+      const utcDate = parseUTCDate(data.lastupdatedb);
+      const formattedDate = utcDate ? formatLocalDateTime(utcDate) : String(data.lastupdatedb);
+      renderLastUpdate(formattedDate, 'Последнее обновление базы торрентов');
+      return true;
+    }
+
+    return false;
   };
 
   const loadLastUpdate = async () => {
@@ -518,32 +577,18 @@
     const timerId = setTimeout(() => controller.abort(), CONFIG.LAST_UPDATE_TIMEOUT_MS);
 
     try {
-      const response = await fetchWithApiKey(CONFIG.LAST_UPDATE_URL, { signal: controller.signal });
+      if (await loadLastUpdateFromMeta(controller.signal)) {
+        clearTimeout(timerId);
+        return;
+      }
+
+      if (await loadLastUpdateFromFdb(controller.signal)) {
+        clearTimeout(timerId);
+        return;
+      }
+
       clearTimeout(timerId);
-
-      if (!response.ok) {
-        console.warn(`Не удалось загрузить время обновления (HTTP ${response.status}).`);
-        renderLastUpdateFallback();
-        return;
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        console.warn('Некорректный JSON от /lastupdatedb.');
-        renderLastUpdateFallback();
-        return;
-      }
-
-      if (data && data.lastupdatedb) {
-        const utcDate = parseUTCDate(data.lastupdatedb);
-        const formattedDate = utcDate ? formatLocalDateTime(utcDate) : String(data.lastupdatedb);
-        elements.lastUpdate.innerHTML =
-          '<i class="bi bi-clock" aria-hidden="true"></i><span>' + escapeHtml(formattedDate) + '</span>';
-      } else {
-        renderLastUpdateFallback('Время обновления недоступно');
-      }
+      renderLastUpdateFallback('Время обновления недоступно');
     } catch (err) {
       clearTimeout(timerId);
       console.warn('Ошибка при загрузке времени обновления:', err);

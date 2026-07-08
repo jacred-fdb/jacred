@@ -197,7 +197,7 @@ evercache:
 
 | Параметр | Описание | По умолчанию |
 | ---------- | ---------- | -------------- |
-| `timeStatsUpdate` | Интервал обновления статистики, мин | `90` |
+| `timeStatsUpdate` | Интервал полного пересчёта статистики (`stats.json` + `tracks-stats.json`), мин. `-1` — отключить cron | `90` |
 | `tracks` | Включить сбор метаданных треков (tsuri) | `false` |
 | `trackslog` | Включить логи модуля tracks (Data/log/tracks.log) | `false` |
 | `trackscategory` | Категория для торрентов из jacred (рекомендуется задавать уникально для каждого инстанса) | `jacred` |
@@ -206,6 +206,19 @@ evercache:
 | `tracksdelay` | Задержка между запросами к tsuri, мс | `20000` |
 | `tracksinterval` | Интервалы запуска задач tracks (task1 — за последние сутки, task0 — остальные), мин | `task1: 60, task0: 180` |
 | `tsuri` | URL сервиса анализа треков (массив) | `["http://127.0.0.1:8090"]` |
+
+**Файлы статистики** (каталог `Data/temp/`, один проход FDB по `timeStatsUpdate`):
+
+| Файл | Назначение |
+| ------ | ------------ |
+| `stats.json` | Сводка по трекерам для UI `/stats` |
+| `stats-meta.json` | `{ updatedAt, trackerCount }` — время последнего сбора |
+| `tracks-stats.json` | Кэш export-статистики ffprobe/tracks (dev/sync) |
+| `tracks-index.bz` | Gzip-индекс infohash в `Data/tracks` (быстрый старт и stats без walk всех JSON) |
+
+**Эндпоинт:** `GET /stats/meta` — JSON с `updatedAt` / `updatedAtLocal` (тот же момент, что и `tracks-stats.json`).
+
+**Старт сервиса:** HTTP (`/health`) доступен через ~10–30 с после загрузки `masterDb.bz`. Индекс треков `Data/temp/tracks-index.bz` и первый сбор stats выполняются **в фоне**; пока индекс пуст, cron stats **откладывается** (в логе: `stats: deferred`). После rebuild индекса stats запускается автоматически.
 
 Результаты анализа сохраняются в **`Data/tracks/{aa}/{b}/{hash}.json`**. Экспорт, backfill и статистика — эндпоинты **`/dev/TracksStats`**, **`/dev/ExportTracks`**, **`/dev/BackfillTracks`** (см. раздел **«Разработка и отладка»**).
 
@@ -503,7 +516,7 @@ REST API и страница **`/settings`** для редактирования
 | **`/dev/MigrateAnilibertyUrls`** | Мигрирует торренты Aniliberty на URL с хешем из magnet (`?hash=...`). |
 | **`/dev/RemoveDuplicateAniliberty`** | Удаляет дубликаты Aniliberty по хешу magnet, оставляет запись с последним `updateTime`. |
 | **`/dev/FixAnimelayerDuplicates`** | Устраняет дубликаты Animelayer: нормализует HTTP→HTTPS, удаляет HTTP-дубликаты. |
-| **`/dev/TracksStats`** | Статистика ffprobe/tracks (кэш `Data/temp/tracks-stats.json`, обновляется вместе с `stats.json` по `timeStatsUpdate`). Параметры: `?includeTorrentDb=true`, `?refresh=true` — принудительный пересчёт. |
+| **`/dev/TracksStats`** | Статистика ffprobe/tracks (кэш `Data/temp/tracks-stats.json`, обновляется вместе с `stats.json` по `timeStatsUpdate`). Параметры: `?includeTorrentDb=true`, `?refresh=true` — принудительный пересчёт (игнорирует отложенный сбор при пустом index). |
 | **`/dev/ExportTracks`** | Экспорт ffprobe в JSON для lampa-tracks/R2. Параметры: `?dir=Data/tracks-export`, `?dryRun=true`, `?includeTorrentDb=true`, `?background=true`. Формат: `{aa}/{b}/{hash}.json`, тело `{ "streams": [ ... ] }`. |
 | **`/dev/ExportTracksStatus`** | Статус фонового экспорта (см. `ExportTracks` с `background=true`). |
 | **`/dev/BackfillTracks`** | Миграция `Data/tracks`: legacy без расширения → `.json`, дописывание недостающих из FileDB. Параметры: `?dryRun=true`, `?migrateLegacy=true`, `?includeTorrentDb=true`. |
@@ -530,6 +543,8 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 ### Статистика и синхронизация
 
 - **`GET /stats/*`** — статистика (если `openstats: true`).
+  - **`GET /stats/torrents`** — сводка из `Data/temp/stats.json` (массив по трекерам).
+  - **`GET /stats/meta`** — время последнего сбора stats + tracks-stats (`updatedAt`, `updatedAtLocal`).
 - **`GET /sync/*`** — эндпоинты синхронизации (если `opensync: true`).
   - Поддерживаются форматы v1 и v2 (v1 требует `opensync_v1: true`).
   - **`GET /sync/tracks/stats`** — та же статистика ffprobe/tracks, что и `/dev/TracksStats` (при `opensync: true`; доступ по `apikey`, без ограничения localhost).

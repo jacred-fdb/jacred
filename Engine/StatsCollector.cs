@@ -16,26 +16,40 @@ namespace JacRed.Engine
         public const string StatsPath = "Data/temp/stats.json";
         public const string StatsMetaPath = "Data/temp/stats-meta.json";
 
+        static readonly object _collectLock = new object();
         static DateTime? _lastCollectedAtUtc;
 
         public static DateTime? LastCollectedAtUtc => _lastCollectedAtUtc;
 
-        /// <summary>Full collect: one FDB pass, write stats.json + tracks-stats.json.</summary>
-        public static DateTime CollectAndWrite()
+        /// <summary>
+        /// Full collect: one FDB pass, write stats.json + tracks-stats.json.
+        /// Returns null when deferred (empty track index). Use <paramref name="force"/> to skip deferral.
+        /// </summary>
+        public static DateTime? CollectAndWrite(bool force = false)
         {
-            var sw = Stopwatch.StartNew();
-            var updatedAt = DateTime.UtcNow;
-            var today = updatedAt.Date;
+            lock (_collectLock)
+            {
+                if (!force && !TracksDB.IsTrackIndexReadyForStats())
+                {
+                    Console.WriteLine(
+                        $"stats: deferred — tracks index empty (index={TracksDB.TrackIndexCount}), waiting for index rebuild / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    return _lastCollectedAtUtc;
+                }
 
-            var scan = ScanFdb(today);
-            WriteTrackerStats(scan.Trackers, updatedAt);
-            TracksDB.PublishExportStatsCache(updatedAt, scan);
+                var sw = Stopwatch.StartNew();
+                var updatedAt = DateTime.UtcNow;
+                var today = updatedAt.Date;
 
-            _lastCollectedAtUtc = updatedAt;
-            Console.WriteLine(
-                $"stats: collected {scan.Trackers.Count} trackers, tracks total index={TracksDB.TrackIndexCount} / {sw.Elapsed.TotalSeconds:F1}s / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                var scan = ScanFdb(today);
+                WriteTrackerStats(scan.Trackers, updatedAt);
+                TracksDB.PublishExportStatsCache(updatedAt, scan);
 
-            return updatedAt;
+                _lastCollectedAtUtc = updatedAt;
+                Console.WriteLine(
+                    $"stats: collected {scan.Trackers.Count} trackers, tracks total index={TracksDB.TrackIndexCount} / {sw.Elapsed.TotalSeconds:F1}s / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+                return updatedAt;
+            }
         }
 
         public static StatsFdbScanResult ScanFdb(DateTime todayUtc)
@@ -118,9 +132,6 @@ namespace JacRed.Engine
 
         static void WriteTrackerStats(Dictionary<string, TrackerStatsRow> trackers, DateTime updatedAt)
         {
-            if (!Directory.Exists("Data/temp"))
-                Directory.CreateDirectory("Data/temp");
-
             var payload = trackers
                 .OrderByDescending(i => i.Value.AllTorrents)
                 .Select(i => new
@@ -139,14 +150,30 @@ namespace JacRed.Engine
                     }
                 });
 
-            File.WriteAllText(StatsPath, JsonConvert.SerializeObject(payload, Formatting.Indented));
+            WriteTextAtomic(StatsPath, JsonConvert.SerializeObject(payload, Formatting.Indented));
 
-            File.WriteAllText(StatsMetaPath, JsonConvert.SerializeObject(new
+            WriteTextAtomic(StatsMetaPath, JsonConvert.SerializeObject(new
             {
                 updatedAt = updatedAt,
                 updatedAtLocal = updatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
                 trackerCount = trackers.Count
             }, Formatting.Indented));
+        }
+
+        static void WriteTextAtomic(string path, string content)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var dir = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            var tempPath = fullPath + ".tmp";
+            File.WriteAllText(tempPath, content);
+
+            if (File.Exists(fullPath))
+                File.Replace(tempPath, fullPath, null);
+            else
+                File.Move(tempPath, fullPath);
         }
     }
 

@@ -178,6 +178,12 @@ namespace JacRed.Engine
                 PersistTracksIndex();
 
                 Console.WriteLine($"tracks index: rebuild done / count={TrackIndex.Count} / {sw.Elapsed.TotalMinutes:F1} min");
+
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try { StatsCollector.CollectAndWrite(); }
+                    catch (Exception ex) { Console.WriteLine($"stats: post-index collect error / {ex.Message}"); }
+                });
             }
             catch (Exception ex)
             {
@@ -241,7 +247,34 @@ namespace JacRed.Engine
             if (string.IsNullOrEmpty(t?.magnet))
                 return false;
 
-            return TryGetInfohashFromMagnet(t.magnet, out var infohash) && HasTrackOnDisk(infohash);
+            if (!TryGetInfohashFromMagnet(t.magnet, out var infohash))
+                return false;
+
+            if (Database.ContainsKey(infohash))
+                return true;
+
+            return HasTrackOnDisk(infohash);
+        }
+
+        /// <summary>
+        /// True when track index is loaded or tracks dir is empty (safe to run stats without per-file File.Exists storm).
+        /// </summary>
+        public static bool IsTrackIndexReadyForStats()
+        {
+            if (TrackIndexCount > 0)
+                return true;
+
+            if (!Directory.Exists("Data/tracks"))
+                return true;
+
+            try
+            {
+                return Directory.GetDirectories("Data/tracks").Length == 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public static bool TryGetInfohashFromMagnet(string magnet, out string infohash)
@@ -1784,7 +1817,8 @@ namespace JacRed.Engine
         /// <summary>
         /// Пересчитывает stats.json и tracks-stats.json одним проходом FDB.
         /// </summary>
-        public static DateTime RefreshExportStatsCache() => StatsCollector.CollectAndWrite();
+        public static DateTime RefreshExportStatsCache() =>
+            StatsCollector.CollectAndWrite(force: true) ?? DateTime.UtcNow;
 
         public static TracksExportStats GetExportStats(bool includeTorrentDb = true, bool refresh = false)
         {
@@ -1803,7 +1837,7 @@ namespace JacRed.Engine
                 }
 
                 _lastExportStatsFromCache = false;
-                StatsCollector.CollectAndWrite();
+                StatsCollector.CollectAndWrite(force: true);
 
                 if (TryLoadStatsCache(includeTorrentDb, out cached, out _))
                     return cached;
