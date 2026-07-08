@@ -15,7 +15,21 @@ namespace JacRed.Engine
         const string SyncTempDir = "Data/temp";
         static readonly string LastSyncPath = Path.Combine(SyncTempDir, "lastsync.txt");
         static readonly string StarSyncPath = Path.Combine(SyncTempDir, "starsync.txt");
-        static long lastsync = -1, starsync = -1;
+        static readonly string LastSyncSpidrPath = Path.Combine(SyncTempDir, "lastsync_spidr.txt");
+        static long lastsync = -1, starsync = -1, lastsync_spidr = -1;
+
+        static long LoadSyncCursor(string path)
+        {
+            if (!File.Exists(path))
+                return -1;
+            return long.Parse(File.ReadAllText(path).Trim());
+        }
+
+        static void SaveSyncCursor(string path, long value, string label)
+        {
+            File.WriteAllText(path, value.ToString());
+            Console.WriteLine($"sync: saved state ({label})");
+        }
 
         static string FormatFileTime(long fileTime)
         {
@@ -51,15 +65,15 @@ namespace JacRed.Engine
 
                         Console.WriteLine($"sync: start / {DateTime.Now.ToString(TimeFormat)}");
 
-                        if (lastsync == -1 && File.Exists(LastSyncPath))
-                            lastsync = long.Parse(File.ReadAllText(LastSyncPath));
+                        if (lastsync == -1)
+                            lastsync = LoadSyncCursor(LastSyncPath);
 
                         var conf = await HttpClient.Get<JObject>($"{AppInit.conf.syncapi}/sync/conf");
                         if (conf != null && conf.ContainsKey("fbd") && conf.Value<bool>("fbd"))
                         {
                             #region Sync.v2
-                            if (starsync == -1 && File.Exists(StarSyncPath))
-                                starsync = long.Parse(File.ReadAllText(StarSyncPath));
+                            if (starsync == -1)
+                                starsync = LoadSyncCursor(StarSyncPath);
 
                             Console.WriteLine($"sync: loaded state lastsync={lastsync} ({FormatFileTime(lastsync)}) starsync={starsync} ({FormatFileTime(starsync)})");
 
@@ -123,21 +137,18 @@ namespace JacRed.Engine
                                     {
                                         lastSave = DateTime.Now;
                                         FileDB.SaveChangesToFile();
-                                        File.WriteAllText(LastSyncPath, lastsync.ToString());
-                                        Console.WriteLine($"sync: saved state (lastsync.txt)");
+                                        SaveSyncCursor(LastSyncPath, lastsync, "lastsync.txt");
                                     }
                                     goto next;
                                 }
 
                                 starsync = lastsync;
-                                File.WriteAllText(StarSyncPath, starsync.ToString());
-                                Console.WriteLine($"sync: saved state (starsync.txt)");
+                                SaveSyncCursor(StarSyncPath, starsync, "starsync.txt");
                             }
                             else if (root.collections.Count == 0)
                             {
                                 starsync = lastsync;
-                                File.WriteAllText(StarSyncPath, starsync.ToString());
-                                Console.WriteLine($"sync: saved state (starsync.txt)");
+                                SaveSyncCursor(StarSyncPath, starsync, "starsync.txt");
                             }
                             #endregion
                         }
@@ -160,7 +171,8 @@ namespace JacRed.Engine
                         }
 
                         FileDB.SaveChangesToFile();
-                        File.WriteAllText(LastSyncPath, lastsync.ToString());
+                        if (lastsync > 0)
+                            File.WriteAllText(LastSyncPath, lastsync.ToString());
 
                         var cycleElapsed = DateTime.Now - cycleStart;
                         Console.WriteLine($"sync: end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
@@ -211,23 +223,44 @@ namespace JacRed.Engine
 
                     if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi) && AppInit.conf.syncspidr)
                     {
-                        long lastsync_spidr = -1;
-
                         var conf = await HttpClient.Get<JObject>($"{AppInit.conf.syncapi}/sync/conf");
                         if (conf != null && conf.ContainsKey("spidr") && conf.Value<bool>("spidr"))
                         {
+                            if (lastsync_spidr == -1)
+                            {
+                                lastsync_spidr = LoadSyncCursor(LastSyncSpidrPath);
+                                if (lastsync_spidr == -1 && File.Exists(LastSyncPath))
+                                {
+                                    lastsync_spidr = LoadSyncCursor(LastSyncPath);
+                                    Console.WriteLine($"sync_spidr: seeded state from lastsync.txt");
+                                }
+                            }
+
                             var cycleStart = DateTime.Now;
                             var cycleTotal = 0;
                             int batchIndex = 0;
+                            DateTime lastSave = DateTime.Now;
+                            bool reset = true;
 
                             Console.WriteLine($"sync_spidr: start / {DateTime.Now.ToString(TimeFormat)}");
+                            Console.WriteLine($"sync_spidr: loaded state lastsync_spidr={lastsync_spidr} ({FormatFileTime(lastsync_spidr)})");
 
                         next: batchIndex++;
                             var batchStart = DateTime.Now;
                             var root = await HttpClient.Get<Models.Sync.v2.RootObject>($"{AppInit.conf.syncapi}/sync/fdb/torrents?time={lastsync_spidr}&spidr=true", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
 
-                            if (root?.collections != null && root.collections.Count > 0)
+                            if (root?.collections == null)
                             {
+                                if (reset)
+                                {
+                                    reset = false;
+                                    await Task.Delay(TimeSpan.FromMinutes(1));
+                                    goto next;
+                                }
+                            }
+                            else if (root.collections.Count > 0)
+                            {
+                                reset = true;
                                 var batchCount = root.collections.Sum(c => c.Value?.torrents?.Count ?? 0);
 
                                 foreach (var collection in root.collections)
@@ -241,14 +274,25 @@ namespace JacRed.Engine
                                 var batchElapsed = DateTime.Now - batchStart;
                                 Console.WriteLine($"sync_spidr: [{batchIndex}] time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)}) | {root.collections.Count} collections, {batchCount} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
 
-                                var lastCollection = root.collections.LastOrDefault();
-                                if (lastCollection?.Value != null)
-                                    lastsync_spidr = lastCollection.Value.fileTime;
+                                lastsync_spidr = root.collections.Last().Value.fileTime;
 
                                 if (root.nextread)
                                 {
+                                    if (DateTime.Now > lastSave.AddMinutes(5))
+                                    {
+                                        lastSave = DateTime.Now;
+                                        FileDB.SaveChangesToFile();
+                                        File.WriteAllText(LastSyncSpidrPath, lastsync_spidr.ToString());
+                                        Console.WriteLine($"sync_spidr: saved state (lastsync_spidr.txt)");
+                                    }
                                     goto next;
                                 }
+                            }
+
+                            if (lastsync_spidr > 0)
+                            {
+                                FileDB.SaveChangesToFile();
+                                File.WriteAllText(LastSyncSpidrPath, lastsync_spidr.ToString());
                             }
 
                             var cycleElapsed = DateTime.Now - cycleStart;
@@ -261,7 +305,20 @@ namespace JacRed.Engine
                         continue;
                     }
                 }
-                catch (Exception ex) { Console.WriteLine($"sync_spidr: error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        if (lastsync_spidr > 0)
+                        {
+                            FileDB.SaveChangesToFile();
+                            File.WriteAllText(LastSyncSpidrPath, lastsync_spidr.ToString());
+                        }
+                    }
+                    catch { }
+
+                    Console.WriteLine($"sync_spidr: error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}");
+                }
             }
         }
         #endregion
