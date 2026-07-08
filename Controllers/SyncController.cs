@@ -92,7 +92,7 @@ namespace JacRed.Controllers
 
                     if (t.Value.ffprobe == null || t.Value.languages == null)
                     {
-                        var streams = TracksDB.Get(t.Value.magnet, t.Value.types, onlydb: true);
+                        var streams = TracksDB.Get(t.Value.magnet, t.Value.types);
                         if (streams != null)
                         {
                             var _t = (TorrentDetails)t.Value.Clone();
@@ -157,7 +157,7 @@ namespace JacRed.Controllers
                     var _t = (TorrentDetails)torrent.Value.Clone();
                     _t.updateTime = item.Value.updateTime;
 
-                    var streams = TracksDB.Get(_t.magnet, _t.types, onlydb: true);
+                    var streams = TracksDB.Get(_t.magnet, _t.types);
                     if (streams != null)
                     {
                         _t.ffprobe = streams;

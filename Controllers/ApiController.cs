@@ -711,7 +711,7 @@ namespace JacRed.Controllers
                     return t.ffprobe;
                 }
 
-                var streams = TracksDB.Get(t.magnet, t.types, onlydb: true);
+                var streams = TracksDB.Get(t.magnet, t.types);
                 langs = TracksDB.Languages(t, streams ?? t.ffprobe);
                 if (streams == null)
                     return null;
@@ -973,7 +973,7 @@ namespace JacRed.Controllers
                     langs = TracksDB.Languages(t, t.ffprobe);
                 else
                 {
-                    var streams = TracksDB.Get(t.magnet, t.types, onlydb: true);
+                    var streams = TracksDB.Get(t.magnet, t.types);
                     langs = TracksDB.Languages(t, streams ?? t.ffprobe);
                 }
 
@@ -1071,11 +1071,18 @@ namespace JacRed.Controllers
 
         #region getFastdb
         static Dictionary<string, List<string>> _fastdb = null;
+        static readonly object _fastdbLock = new object();
 
         public static Dictionary<string, List<string>> getFastdb(bool update = false)
         {
-            if (_fastdb == null || update)
+            if (_fastdb != null && !update)
+                return _fastdb;
+
+            lock (_fastdbLock)
             {
+                if (_fastdb != null && !update)
+                    return _fastdb;
+
                 if (update)
                     Console.WriteLine($"fastdb: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 var fastdb = new Dictionary<string, List<string>>();

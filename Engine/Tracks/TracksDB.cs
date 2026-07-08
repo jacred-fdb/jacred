@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,11 +18,183 @@ namespace JacRed.Engine
 {
     public static class TracksDB
     {
-        public static void Configuration()
-        {
-            Console.WriteLine("TracksDB load");
+        /// <summary>Legacy entry point — calls <see cref="StartupInit"/>.</summary>
+        public static void Configuration() => StartupInit();
 
-            foreach (var folder1 in Directory.GetDirectories("Data/tracks"))
+        /// <summary>
+        /// Fast startup: load stats cache + compact tracks index. Full index rebuild and JSON preload run in background.
+        /// Individual tracks are loaded on demand via <see cref="Get"/>.
+        /// </summary>
+        public static void StartupInit()
+        {
+            var sw = Stopwatch.StartNew();
+            Console.WriteLine($"tracks: startup init / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            TryLoadStatsCache(true, out _, out _);
+            LoadTracksIndex();
+
+            Console.WriteLine($"tracks: startup init done / index={TrackIndex.Count} / {sw.Elapsed.TotalSeconds:F1}s");
+
+            ScheduleIndexRebuildIfNeeded();
+            StartIndexPersistLoop();
+        }
+
+        static readonly ConcurrentDictionary<string, FfprobeModel> Database = new ConcurrentDictionary<string, FfprobeModel>();
+
+        const string TracksStatsPath = "Data/temp/tracks-stats.json";
+        const string TracksIndexPath = "Data/temp/tracks-index.bz";
+
+        static readonly ConcurrentDictionary<string, byte> TrackIndex = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+        static int _indexDirty;
+        static int _indexBuildRunning;
+        static readonly object _indexPersistLock = new object();
+
+        sealed class TracksIndexFile
+        {
+            public DateTime builtAt { get; set; }
+            public List<string> hashes { get; set; }
+        }
+
+        static void LoadTracksIndex()
+        {
+            if (!File.Exists(TracksIndexPath))
+                return;
+
+            try
+            {
+                var data = JsonStream.Read<TracksIndexFile>(TracksIndexPath);
+                if (data?.hashes == null || data.hashes.Count == 0)
+                    return;
+
+                foreach (var hash in data.hashes)
+                {
+                    if (IsValidInfohash(hash))
+                        TrackIndex.TryAdd(NormalizeInfohash(hash), 0);
+                }
+
+                Console.WriteLine($"tracks index: loaded {TrackIndex.Count} hashes (built {data.builtAt:yyyy-MM-dd HH:mm:ss} UTC)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"tracks index: load error / {ex.Message}");
+            }
+        }
+
+        static void PersistTracksIndex()
+        {
+            lock (_indexPersistLock)
+            {
+                try
+                {
+                    if (!Directory.Exists("Data/temp"))
+                        Directory.CreateDirectory("Data/temp");
+
+                    var file = new TracksIndexFile
+                    {
+                        builtAt = DateTime.UtcNow,
+                        hashes = TrackIndex.Keys.ToList()
+                    };
+
+                    JsonStream.Write(TracksIndexPath, file);
+                    Interlocked.Exchange(ref _indexDirty, 0);
+                    Console.WriteLine($"tracks index: saved {file.hashes.Count} hashes / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"tracks index: save error / {ex.Message}");
+                }
+            }
+        }
+
+        static void RegisterTrackHash(string infohash)
+        {
+            infohash = NormalizeInfohash(infohash);
+            if (!IsValidInfohash(infohash))
+                return;
+
+            if (TrackIndex.TryAdd(infohash, 0))
+                Interlocked.Exchange(ref _indexDirty, 1);
+        }
+
+        static void ScheduleIndexRebuildIfNeeded()
+        {
+            if (TrackIndex.Count > 0)
+                return;
+
+            if (!Directory.Exists("Data/tracks"))
+                return;
+
+            try
+            {
+                if (Directory.GetDirectories("Data/tracks").Length == 0)
+                    return;
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
+                return;
+            }
+
+            ThreadPool.QueueUserWorkItem(_ => _ = BuildTracksIndexAsync());
+        }
+
+        static void StartIndexPersistLoop()
+        {
+            ThreadPool.QueueUserWorkItem(async _ =>
+            {
+                while (true)
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(30));
+                    if (Volatile.Read(ref _indexDirty) == 0)
+                        continue;
+
+                    PersistTracksIndex();
+                }
+            });
+        }
+
+        static async Task BuildTracksIndexAsync()
+        {
+            if (Interlocked.CompareExchange(ref _indexBuildRunning, 1, 0) != 0)
+                return;
+
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                Console.WriteLine($"tracks index: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+                var built = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+                await Task.Run(() => ScanTracksDirForIndex("Data/tracks", built));
+
+                foreach (var hash in built.Keys)
+                    TrackIndex.TryAdd(hash, 0);
+
+                Interlocked.Exchange(ref _indexDirty, 1);
+                PersistTracksIndex();
+
+                Console.WriteLine($"tracks index: rebuild done / count={TrackIndex.Count} / {sw.Elapsed.TotalMinutes:F1} min");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"tracks index: rebuild error / {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _indexBuildRunning, 0);
+            }
+        }
+
+        static void ScanTracksDirForIndex(string tracksDir, ConcurrentDictionary<string, byte> target)
+        {
+            if (!Directory.Exists(tracksDir))
+                return;
+
+            foreach (var folder1 in Directory.GetDirectories(tracksDir))
             {
                 foreach (var folder2 in Directory.GetDirectories(folder1))
                 {
@@ -39,25 +212,25 @@ namespace JacRed.Engine
                         if (!IsValidInfohash(infohash))
                             continue;
 
-                        try
-                        {
-                            var res = JsonConvert.DeserializeObject<FfprobeModel>(File.ReadAllText(file));
-                            if (res?.streams != null && res.streams.Count > 0)
-                                Database.TryAdd(infohash, res);
-                        }
-                        catch { }
+                        if (!TrackFileHasStreams(file))
+                            continue;
+
+                        target.TryAdd(NormalizeInfohash(infohash), 0);
                     }
                 }
             }
-
-            TryLoadStatsCache(true, out _, out _);
         }
 
-        static Random random = new Random();
+        public static bool HasTrackOnDisk(string infohash)
+        {
+            infohash = NormalizeInfohash(infohash);
+            if (TrackIndex.ContainsKey(infohash))
+                return true;
 
-        static ConcurrentDictionary<string, FfprobeModel> Database = new ConcurrentDictionary<string, FfprobeModel>();
+            return ResolveTrackPath(infohash) != null;
+        }
 
-        const string TracksStatsPath = "Data/temp/tracks-stats.json";
+        public static int TrackIndexCount => TrackIndex.Count;
         static readonly object _statsCacheLock = new object();
         static DateTime? _statsCacheUpdatedAt;
         static bool _lastExportStatsFromCache;
@@ -224,7 +397,10 @@ namespace JacRed.Engine
             return false;
         }
 
-        public static List<ffStream> Get(string magnet, string[] types = null, bool onlydb = false)
+        /// <param name="magnet">Magnet URI of the torrent.</param>
+        /// <param name="types">Content types; sport/tvshow/docuserial are skipped.</param>
+        /// <param name="memoryOnly">If true, return streams only when already in the in-memory cache; skip disk lookup.</param>
+        public static List<ffStream> Get(string magnet, string[] types = null, bool memoryOnly = false)
         {
             if (types != null && theBad(types))
                 return null;
@@ -232,6 +408,9 @@ namespace JacRed.Engine
             string infohash = NormalizeInfohash(MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex());
             if (Database.TryGetValue(infohash, out FfprobeModel res))
                 return res.streams;
+
+            if (memoryOnly)
+                return null;
 
             string path = ResolveTrackPath(infohash);
             if (path == null)
@@ -246,6 +425,7 @@ namespace JacRed.Engine
             catch { return null; }
 
             Database.AddOrUpdate(infohash, res, (k, v) => res);
+            RegisterTrackHash(infohash);
             return res.streams;
         }
 
@@ -1030,6 +1210,7 @@ namespace JacRed.Engine
                 string path = pathDb(infohash, createfolder: true);
                 string json = JsonConvert.SerializeObject(result, Formatting.Indented);
                 await File.WriteAllTextAsync(path, json, Encoding.UTF8);
+                RegisterTrackHash(infohash);
 
                 string legacyPath = ResolveLegacyTrackPath(infohash);
                 if (legacyPath != null && !string.Equals(path, legacyPath, StringComparison.OrdinalIgnoreCase))
@@ -1767,6 +1948,7 @@ namespace JacRed.Engine
                     string json = JsonConvert.SerializeObject(item.Value, Formatting.Indented);
                     File.WriteAllText(jsonPath, json, Encoding.UTF8);
                     Database.AddOrUpdate(item.Key, item.Value, (k, v) => item.Value);
+                    RegisterTrackHash(item.Key);
                     result.written++;
                 }
                 catch (Exception ex)
