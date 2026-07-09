@@ -1,0 +1,88 @@
+using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
+using JacRed.Engine;
+using System;
+using System.Text;
+using Microsoft.AspNetCore.Http;
+
+namespace JacRed.Controllers
+{
+    public class HealthController : Controller
+    {
+        [Route("health")]
+        public IActionResult Health()
+        {
+            return Json(new Dictionary<string, string>
+            {
+                ["status"] = "OK"
+            });
+        }
+
+        [Route("version")]
+        public IActionResult Version()
+        {
+            return Json(new Dictionary<string, string>
+            {
+                ["version"] = VersionInfo.Version,
+                ["gitSha"] = VersionInfo.GitSha,
+                ["gitBranch"] = VersionInfo.GitBranch,
+                ["buildDate"] = VersionInfo.BuildDate
+            });
+        }
+
+        [Route("lastupdatedb")]
+        public IActionResult LastUpdateDB()
+        {
+            string lastUpdate = "01.01.2000 01:01";
+            if (FileDB.masterDb != null && FileDB.masterDb.Count > 0)
+                lastUpdate = FileDB.masterDb.OrderByDescending(i => i.Value.updateTime).First().Value.updateTime.ToString("dd.MM.yyyy HH:mm");
+
+            return Json(new Dictionary<string, string>
+            {
+                ["lastupdatedb"] = lastUpdate
+            });
+        }
+
+        [Route("api/v1.0/conf")]
+        public JsonResult JacRedConf([FromQuery] string apikey = null)
+        {
+            var provided = ResolveProvidedApiKey(apikey);
+            var configured = AppInit.conf?.apikey;
+            return Json(new
+            {
+                apikey = string.IsNullOrWhiteSpace(configured) || KeysMatch(provided, configured)
+            });
+        }
+
+        /// <summary>apikey query param, X-Api-Key header, or Authorization: Bearer (same as ModHeaders).</summary>
+        static string ResolveProvidedApiKey(HttpRequest request, string queryApiKey)
+        {
+            if (!string.IsNullOrWhiteSpace(queryApiKey))
+                return queryApiKey.Trim();
+
+            if (request.Headers.TryGetValue("X-Api-Key", out var header) && !string.IsNullOrEmpty(header))
+                return header.ToString().Trim();
+
+            if (request.Headers.TryGetValue("Authorization", out var auth))
+            {
+                var s = auth.ToString();
+                if (s.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    return s.Substring(7).Trim();
+            }
+
+            return null;
+        }
+
+        string ResolveProvidedApiKey(string queryApiKey)
+            => ResolveProvidedApiKey(Request, queryApiKey);
+
+        static bool KeysMatch(string provided, string configured)
+        {
+            if (provided == null || configured == null) return provided == configured;
+            var a = Encoding.UTF8.GetBytes(provided);
+            var b = Encoding.UTF8.GetBytes(configured);
+            return a.Length == b.Length && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
+        }
+    }
+}

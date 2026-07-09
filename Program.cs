@@ -44,7 +44,7 @@ namespace JacRed
                 catch (IOException ex) { Console.WriteLine($"tracks startup: {ex}"); }
                 catch (UnauthorizedAccessException ex) { Console.WriteLine($"tracks startup: {ex}"); }
 
-                // FastDbIndex.Default — same as ApiController.getFastdb shim (Phase 3: IHostedService + DI)
+                // FastDbIndex.Default.Rebuild() — Phase 3: IHostedService + DI
                 try { FastDbIndex.Default.Rebuild(); }
                 catch (Exception ex) { Console.WriteLine($"fastdb startup: {ex}"); }
             });

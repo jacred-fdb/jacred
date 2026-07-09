@@ -44,18 +44,18 @@ namespace JacRed.Engine.Indexers
 
             if (req.CardMode)
             {
-                var card = ApiController.JackettSearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache);
+                var card = JackettController.JackettSearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache);
                 batches.Add(card);
                 if (card.Count == 0)
                 {
                     foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                        batches.Add(ApiController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
+                        batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
                 }
             }
             else
             {
                 foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                    batches.Add(ApiController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
+                    batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
             }
 
             foreach (var pair in V1Pairs(query, titleRu, titleEn, settings, req.CardMode))

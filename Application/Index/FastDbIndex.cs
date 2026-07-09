@@ -51,5 +51,9 @@ namespace JacRed.Application.Index
         }
 
         public void Rebuild() => Get(update: true);
+
+        /// <summary>Backward compat shim (Phase 1A). Prefer Default.Get / Rebuild.</summary>
+        public static Dictionary<string, List<string>> getFastdb(bool update = false)
+            => Default.Get(update);
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using JacRed.Application.Index;
 using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
@@ -261,7 +262,7 @@ namespace JacRed.Controllers
             }
 
             FileDB.SaveChangesToFile();
-            try { Controllers.ApiController.getFastdb(update: true); } catch { }
+            try { FastDbIndex.getFastdb(update: true); } catch { }
 
             return Json(new { ok = true, processed, updated, migrated });
         }
@@ -328,7 +329,7 @@ namespace JacRed.Controllers
             }
 
             FileDB.SaveChangesToFile();
-            try { Controllers.ApiController.getFastdb(update: true); } catch { }
+            try { FastDbIndex.getFastdb(update: true); } catch { }
 
             return Json(new { ok = true, processed, updated, migrated });
         }
@@ -762,7 +763,7 @@ namespace JacRed.Controllers
             FileDB.SaveChangesToFile();
 
             // Пересобираем fastdb после исправлений
-            try { Controllers.ApiController.getFastdb(update: true); } catch { }
+            try { FastDbIndex.getFastdb(update: true); } catch { }
 
             return Json(new
             {
