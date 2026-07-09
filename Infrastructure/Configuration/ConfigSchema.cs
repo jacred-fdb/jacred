@@ -43,7 +43,6 @@ namespace JacRed.Infrastructure.Configuration
                     {
                         Field("openstats", "bool", "Открытая статистика", null),
                         Field("opensync", "bool", "Открытый sync", null),
-                        Field("opensync_v1", "bool", "Sync v1", "Старый формат sync"),
                         Field("mergeduplicates", "bool", "Объединять дубликаты", null),
                         Field("mergenumduplicates", "bool", "Объединять по номеру", "Серии и т.п.")
                     }),

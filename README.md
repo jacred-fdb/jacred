@@ -142,8 +142,7 @@ sudo -u myservice ./jacred.sh --remove
 | `mergeduplicates` | Объединять дубликаты в выдаче | `true` |
 | `mergenumduplicates` | Объединять дубликаты по номеру (серии и т.п.) | `true` |
 | `openstats` | Открыть доступ к `/stats/*` | `true` |
-| `opensync` | Разрешить синхронизацию базы через sync API | `false` |
-| `opensync_v1` | Разрешить старый формат sync v1 | `false` |
+| `opensync` | Разрешить синхронизацию базы через sync API (v2: `/sync/fdb/torrents`) | `false` |
 | `web` | Раздавать статику (веб-интерфейс) | `true` |
 | `maxreadfile` | Макс. число открытых файлов за один поисковый запрос | `200` |
 | `evercache` | Кеш открытых файлов (рекомендуется при высокой нагрузке) | см. ниже |
@@ -546,8 +545,9 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 - **`GET /stats/*`** — статистика (если `openstats: true`).
   - **`GET /stats/torrents`** — сводка из `Data/temp/stats.json` (массив по трекерам).
   - **`GET /stats/meta`** — время последнего сбора stats + tracks-stats (`updatedAt`, `updatedAtLocal`).
-- **`GET /sync/*`** — эндпоинты синхронизации (если `opensync: true`).
-  - Поддерживаются форматы v1 и v2 (v1 требует `opensync_v1: true`).
+- **`GET /sync/*`** — эндпоинты синхронизации v2 (если `opensync: true`).
+  - **`GET /sync/fdb/torrents`** — основной протокол синхронизации (collections + pagination).
+  - **`GET /sync/torrents`** — удалён (sync v1); возвращает `{ error: "sync v1 removed, …" }`.
   - **`GET /sync/tracks/stats`** — та же статистика ffprobe/tracks, что и `/dev/TracksStats` (при `opensync: true`; доступ по `apikey`, без ограничения localhost).
 
 ### Парсинг трекеров

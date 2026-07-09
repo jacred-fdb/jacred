@@ -630,17 +630,6 @@ paths:
               schema:
                 type: object
 
-  /sync/torrents:
-    get:
-      tags: [Sync]
-      summary: Sync torrents batch
-      operationId: syncTorrents
-      parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
-      responses:
-        '200':
-          description: Torrent sync data
-
   /sync/tracks/stats:
     get:
       tags: [Sync]

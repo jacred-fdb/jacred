@@ -59,7 +59,11 @@ namespace JacRed.Infrastructure.Background
                             lastsync = long.Parse(File.ReadAllText(LastSyncPath));
 
                         var conf = await HttpClient.Get<JObject>($"{AppInit.conf.syncapi}/sync/conf");
-                        if (conf != null && conf.ContainsKey("fbd") && conf.Value<bool>("fbd"))
+                        if (conf == null || !conf.ContainsKey("fbd") || !conf.Value<bool>("fbd"))
+                        {
+                            JacRedLog.Warning(JacRedLogCategories.Sync, "remote /sync/conf missing fbd — sync v1 removed; upgrade syncapi host to v2");
+                        }
+                        else
                         {
                             #region Sync.v2
                             if (starsync == -1 && File.Exists(StarSyncPath))
@@ -142,23 +146,6 @@ namespace JacRed.Infrastructure.Background
                                 starsync = lastsync;
                                 File.WriteAllText(StarSyncPath, starsync.ToString());
                                 JacRedLog.Information(JacRedLogCategories.Sync, "saved state (starsync.txt)");
-                            }
-                            #endregion
-                        }
-                        else
-                        {
-                            #region Sync.v1
-                        next: var root = await HttpClient.Get<Models.Sync.v1.RootObject>($"{AppInit.conf.syncapi}/sync/torrents?time={lastsync}", timeoutSeconds: 300, MaxResponseContentBufferSize: 100_000_000);
-                            if (root?.torrents != null && root.torrents.Count > 0)
-                            {
-                                var v1Torrents = root.torrents.Select(i => i.value).ToList();
-                                FileDB.AddOrUpdate(v1Torrents);
-                                cycleTotal += v1Torrents.Count;
-
-                                lastsync = root.torrents.Last().value.updateTime.ToFileTimeUtc();
-
-                                if (root.take == root.torrents.Count)
-                                    goto next;
                             }
                             #endregion
                         }

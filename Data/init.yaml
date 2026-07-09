@@ -6,7 +6,6 @@ mergeduplicates: true
 mergenumduplicates: true
 openstats: true
 opensync: false
-opensync_v1: false
 web: true
 logFdb: true
 logFdbRetentionDays: 7

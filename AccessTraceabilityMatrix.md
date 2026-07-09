@@ -57,7 +57,7 @@
 | `GET /sync/conf` | SyncController | — |
 | `GET /sync/fdb` | SyncController | `opensync` |
 | `GET /sync/fdb/torrents` | SyncController | `opensync` |
-| `GET /sync/torrents` | SyncController | `opensync_v1` |
+| `GET /sync/torrents` | SyncController | deprecated — returns v1 removed error |
 | `GET /sync/tracks/stats` | SyncController | `opensync` |
 | `GET /swagger`, `/openapi.yaml` | Startup / Swagger | — |
 
