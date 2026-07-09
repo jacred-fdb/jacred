@@ -1,4 +1,4 @@
-using JacRed.Engine;
+using JacRed.Application.Dev;
 using Microsoft.AspNetCore.Mvc;
 using JacRed.Controllers.Filters;
 
@@ -8,64 +8,22 @@ namespace JacRed.Controllers.Dev
     [LocalhostOnly]
     public class DevTracksController : Controller
     {
-        /// <summary>
-        /// Статистика по ffprobe/tracks (файлы Data/tracks + поле ffprobe в FileDB).
-        /// </summary>
-        public JsonResult TracksStats(bool includeTorrentDb = true, bool refresh = false)
-        {
+        readonly ITracksAdminService _tracksAdminService;
 
-            var stats = TracksDB.GetExportStats(includeTorrentDb, refresh);
-            return Json(new
-            {
-                ok = true,
-                updatedAt = TracksDB.GetExportStatsUpdatedAt(),
-                fromCache = TracksDB.LastExportStatsFromCache,
-                stats
-            });
+        public DevTracksController(ITracksAdminService tracksAdminService)
+        {
+            _tracksAdminService = tracksAdminService;
         }
 
-        /// <summary>
-        /// Экспорт всех ffprobe/tracks в JSON (layout для lampa-tracks: AA/B/HASH.json).
-        /// dryRun=true — только статистика; иначе по умолчанию фоновый экспорт (background=true).
-        /// </summary>
-        public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, bool background = true)
-        {
+        public JsonResult TracksStats(bool includeTorrentDb = true, bool refresh = false) =>
+            Json(_tracksAdminService.TracksStats(includeTorrentDb, refresh));
 
-            if (dryRun)
-            {
-                var result = TracksDB.ExportAll(dir, dryRun: true, includeTorrentDb);
-                return Json(new { ok = true, result });
-            }
+        public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, bool background = true) =>
+            Json(_tracksAdminService.ExportTracks(dir, dryRun, includeTorrentDb, background));
 
-            if (!background)
-            {
-                var result = TracksDB.ExportAll(dir, dryRun: false, includeTorrentDb);
-                return Json(new { ok = true, result });
-            }
+        public JsonResult ExportTracksStatus() => Json(_tracksAdminService.ExportTracksStatus());
 
-            if (!TracksDB.TryStartExport(dir, includeTorrentDb))
-                return Json(new { ok = false, alreadyRunning = true, status = TracksDB.GetExportJobStatus() });
-
-            return Json(new { ok = true, started = true, status = TracksDB.GetExportJobStatus() });
-        }
-
-        /// <summary>
-        /// Статус фонового экспорта tracks (см. ExportTracks).
-        /// </summary>
-        public JsonResult ExportTracksStatus()
-        {
-
-            return Json(new { ok = true, status = TracksDB.GetExportJobStatus() });
-        }
-
-        /// <summary>
-        /// Backfill в Data/tracks: .json для новых файлов, миграция legacy → canonical lowercase layout, данные из FileDB.
-        /// </summary>
-        public JsonResult BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true)
-        {
-
-            var result = TracksDB.BackfillTracks("Data/tracks", dryRun, includeTorrentDb, migrateLegacy);
-            return Json(new { ok = true, result });
-        }
+        public JsonResult BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true) =>
+            Json(_tracksAdminService.BackfillTracks(dryRun, migrateLegacy, includeTorrentDb));
     }
 }

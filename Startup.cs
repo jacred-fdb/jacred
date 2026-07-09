@@ -13,6 +13,8 @@ using System.Text.Json.Serialization;
 using JacRed.Engine;
 using JacRed.Engine.Middlewares;
 using JacRed.Application.Index;
+using JacRed.Application.Search;
+using JacRed.Application.Dev;
 
 namespace JacRed
 {
@@ -62,6 +64,13 @@ namespace JacRed
 
             services.AddMemoryCache();
             services.AddSingleton<IFastDbIndex>(FastDbIndex.Default);
+
+            services.AddScoped<IJackettSearchService, JackettSearchService>();
+            services.AddScoped<ITorrentQueryService, TorrentQueryService>();
+            services.AddScoped<IDevMaintenanceService, DevMaintenanceService>();
+            services.AddScoped<IDevDiagnosticsService, DevDiagnosticsService>();
+            services.AddScoped<IDevMigrationService, DevMigrationService>();
+            services.AddScoped<ITracksAdminService, TracksAdminService>();
 
             services.AddJacRedSwagger();
         }

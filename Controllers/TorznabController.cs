@@ -1,4 +1,5 @@
 using JacRed.Application.Index;
+using JacRed.Application.Search;
 using JacRed.Engine;
 using JacRed.Engine.Indexers;
 using JacRed.Models.Api;
@@ -18,10 +19,12 @@ namespace JacRed.Controllers
     public class TorznabController : BaseController
     {
         readonly IFastDbIndex _fastDbIndex;
+        readonly IJackettSearchService _searchService;
 
-        public TorznabController(IMemoryCache memoryCache, IFastDbIndex fastDbIndex) : base(memoryCache)
+        public TorznabController(IMemoryCache memoryCache, IFastDbIndex fastDbIndex, IJackettSearchService searchService) : base(memoryCache)
         {
             _fastDbIndex = fastDbIndex;
+            _searchService = searchService;
         }
 
         public static bool IsTorznabXmlEnabled() =>
@@ -63,7 +66,7 @@ namespace JacRed.Controllers
                 return XmlSearchResult(new List<Result>(), t, query, origin, torznabApiUrl);
 
             var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false, boundQuery: resolvedQuery);
-            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _fastDbIndex);
+            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _fastDbIndex, _searchService);
             results = IndexerSearchHelper.ApplyPostFilters(results, query, req, t);
             return XmlSearchResult(results, t, query, origin, torznabApiUrl);
         }

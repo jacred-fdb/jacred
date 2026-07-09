@@ -1,6 +1,6 @@
 using JacRed.Application.Index;
+using JacRed.Application.Search;
 using JacRed.Engine;
-using JacRed.Controllers;
 using JacRed.Engine.CORE;
 using JacRed.Models.Api;
 using JacRed.Models.AppConf;
@@ -17,7 +17,7 @@ namespace JacRed.Engine.Indexers
 {
     public static class IndexerSearchEngine
     {
-        public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache, IFastDbIndex fastDbIndex)
+        public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache, IFastDbIndex fastDbIndex, IJackettSearchService jackettSearch)
         {
             var settings = IndexerSearchOptions.Resolve();
             string query = IndexerRequestParams.NormalizeQuery(req.Query);
@@ -45,18 +45,18 @@ namespace JacRed.Engine.Indexers
 
             if (req.CardMode)
             {
-                var card = JackettController.JackettSearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, fastDbIndex);
+                var card = jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache);
                 batches.Add(card);
                 if (card.Count == 0)
                 {
                     foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                        batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache, fastDbIndex));
+                        batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
                 }
             }
             else
             {
                 foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                    batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache, fastDbIndex));
+                    batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
             }
 
             foreach (var pair in V1Pairs(query, titleRu, titleEn, settings, req.CardMode))
