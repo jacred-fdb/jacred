@@ -16,11 +16,22 @@ using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
 using JacRed.Engine.Background;
+using JacRed.Engine.Trackers.Anidub;
+using JacRed.Engine.Trackers.Aniliberty;
 using JacRed.Engine.Trackers.AnimeLayer;
+using JacRed.Engine.Trackers.Baibako;
 using JacRed.Engine.Trackers.Bitru;
 using JacRed.Engine.Trackers.Knaben;
 using JacRed.Engine.Trackers.Lostfilm;
+using JacRed.Engine.Trackers.Mazepa;
+using JacRed.Engine.Trackers.Megapeer;
+using JacRed.Engine.Trackers.Rutor;
+using JacRed.Engine.Trackers.Kinozal;
+using JacRed.Engine.Trackers.NNMClub;
 using JacRed.Engine.Trackers.Rutracker;
+using JacRed.Engine.Trackers.Toloka;
+using JacRed.Engine.Trackers.TorrentBy;
+using JacRed.Engine.Trackers.Selezen;
 
 namespace JacRed
 {
@@ -87,10 +98,21 @@ namespace JacRed
 
             services.AddSingleton<KnabenSyncService>();
             services.AddSingleton<AnimeLayerSyncService>();
+            services.AddSingleton<AnilibertySyncService>();
             services.AddSingleton<LostfilmSyncService>();
             services.AddSingleton<RutrackerSyncService>();
             services.AddSingleton<BitruApiSyncService>();
             services.AddSingleton<BitruSyncService>();
+            services.AddSingleton<TorrentBySyncService>();
+            services.AddSingleton<MegapeerSyncService>();
+            services.AddSingleton<BaibakoSyncService>();
+            services.AddSingleton<AnidubSyncService>();
+            services.AddSingleton<SelezenSyncService>();
+            services.AddSingleton<MazepaSyncService>();
+            services.AddSingleton<RutorSyncService>();
+            services.AddSingleton<NNMClubSyncService>();
+            services.AddSingleton<KinozalSyncService>();
+            services.AddSingleton<TolokaSyncService>();
 
             services.AddJacRedSwagger();
         }
