@@ -17,12 +17,15 @@ using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using System.Text;
 using JacRed.Models.Details;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/megapeer/[action]")]
     public class MegapeerController : BaseController
     {
+        public MegapeerController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         /// <summary>Delay between page/category requests (ms): 30s, 60s, 90s, then repeat. Reduces 429 rate limit.</summary>
         static readonly int[] ParseDelayCycleMs = new[] { 30_000, 60_000, 90_000 };
         static int _parseDelayIndex = 0;

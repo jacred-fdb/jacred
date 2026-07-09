@@ -16,12 +16,15 @@ using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
 using System.Linq;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/nnmclub/[action]")]
     public class NNMClubController : BaseController
     {
+        public NNMClubController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static NNMClubController()

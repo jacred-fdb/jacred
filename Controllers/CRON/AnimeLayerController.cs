@@ -19,6 +19,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/animelayer/[action]")]
     public class AnimeLayerController : BaseController
     {
+        public AnimeLayerController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         #region Cookie synchronization
         // Use SemaphoreSlim for async-safe synchronization (lock doesn't work well with async/await)
         // IMemoryCache is thread-safe, so we only need semaphore for login operations

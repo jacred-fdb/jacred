@@ -22,6 +22,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/rutracker/[action]")]
     public class RutrackerController : BaseController
     {
+        public RutrackerController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static readonly HashSet<string> firstPageCats = new HashSet<string>()

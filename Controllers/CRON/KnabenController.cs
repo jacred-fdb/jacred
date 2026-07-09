@@ -15,6 +15,7 @@ using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
 using JacRed.Models.tParse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
@@ -28,6 +29,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/knaben/[action]")]
     public class KnabenController : BaseController
     {
+        public KnabenController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         const string TrackerName = "knaben";
         const int MinApiDelayMs = 500;
         const int MaxSize = 300;

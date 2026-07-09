@@ -21,6 +21,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/baibako/[action]")]
     public class BaibakoController : BaseController
     {
+        public BaibakoController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         #region Constants
         private static class BaibakoConstants
         {

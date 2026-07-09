@@ -19,6 +19,13 @@ namespace JacRed.Controllers
 {
     public class JackettController : BaseController
     {
+        readonly IFastDbIndex _fastDbIndex;
+
+        public JackettController(IMemoryCache memoryCache, IFastDbIndex fastDbIndex) : base(memoryCache)
+        {
+            _fastDbIndex = fastDbIndex;
+        }
+
         #region Jackett
         [Route("/api/v2.0/indexers/{status}/results")]
         async public Task<ActionResult> Jackett(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial = -1)
@@ -34,19 +41,19 @@ namespace JacRed.Controllers
                 return Json(new RootObject() { Results = new List<Result>() });
 
             var req = IndexerSearchHelper.BuildRequest(q, apikey, rqnum, query, title, title_original, year, is_serial);
-            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache);
+            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _fastDbIndex);
             results = IndexerSearchHelper.ApplyPostFilters(results, q, req);
 
             return Json(new RootObject() { Results = results });
         }
 
-        public static List<Result> JackettSearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache)
+        public static List<Result> JackettSearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache, IFastDbIndex fastDbIndex)
         {
             string cachekey = $"api:v2.0:indexers:{query}:{title}:{title_original}:{year}:{(category != null && category.Count > 0 ? string.Join(",", category.Select(i => $"{i.Key}={i.Value}")) : "null")}:{is_serial}";
             if (memoryCache != null && memoryCache.TryGetValue(cachekey, out List<Result> _cacheResult))
                 return _cacheResult;
 
-            var fastdb = FastDbIndex.Default.Get();
+            var fastdb = fastDbIndex.Get();
             var torrents = new Dictionary<string, TorrentDetails>();
 
             #region Запрос с NUM

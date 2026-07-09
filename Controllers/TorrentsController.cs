@@ -14,6 +14,8 @@ namespace JacRed.Controllers
 {
     public class TorrentsController : BaseController
     {
+        public TorrentsController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         #region Torrents
         [Route("/api/v1.0/torrents")]
         async public Task<JsonResult> Torrents(string search, string altname, bool exact, string type, string sort, string tracker, string voice, string videotype, long relased, long quality, long season)

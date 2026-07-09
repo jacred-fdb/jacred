@@ -22,6 +22,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/toloka/[action]")]
     public class TolokaController : BaseController
     {
+        public TolokaController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static TolokaController()

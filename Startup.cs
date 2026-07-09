@@ -12,6 +12,7 @@ using System.Net;
 using System.Text.Json.Serialization;
 using JacRed.Engine;
 using JacRed.Engine.Middlewares;
+using JacRed.Application.Index;
 
 namespace JacRed
 {
@@ -19,8 +20,6 @@ namespace JacRed
     {
         #region Startup
         public IConfiguration Configuration { get; }
-
-        public static IServiceProvider ApplicationServices { get; private set; }
 
         public Startup(IConfiguration configuration)
         {
@@ -61,6 +60,9 @@ namespace JacRed
                 //options.JsonSerializerOptions.WriteIndented = true;
             });
 
+            services.AddMemoryCache();
+            services.AddSingleton<IFastDbIndex>(FastDbIndex.Default);
+
             services.AddJacRedSwagger();
         }
         #endregion
@@ -68,8 +70,6 @@ namespace JacRed
 
         public void Configure(IApplicationBuilder app)
         {
-            ApplicationServices = app.ApplicationServices;
-
             var env = app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             if (env?.EnvironmentName == Microsoft.Extensions.Hosting.Environments.Development)
                 app.UseDeveloperExceptionPage();

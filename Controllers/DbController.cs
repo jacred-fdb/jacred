@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using JacRed.Engine;
 
 namespace JacRed.Controllers
@@ -6,6 +7,8 @@ namespace JacRed.Controllers
     [Route("/jsondb/[action]")]
     public class DbController : BaseController
     {
+        public DbController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static bool _saveDbWork = false;
 
         public string Save()

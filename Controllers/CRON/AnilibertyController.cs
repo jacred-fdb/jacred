@@ -11,12 +11,15 @@ using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
 using JacRed.Models.tParse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/aniliberty/[action]")]
     public class AnilibertyController : BaseController
     {
+        public AnilibertyController(IMemoryCache memoryCache) : base(memoryCache) { }
+
 
         #region Parse
         static volatile bool workParse = false;

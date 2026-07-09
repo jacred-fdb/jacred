@@ -19,6 +19,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/selezen/[action]")]
     public class SelezenController : BaseController
     {
+        public SelezenController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         #region Cookie / TakeLogin
 
         private static readonly SemaphoreSlim _loginSemaphore = new SemaphoreSlim(1, 1);

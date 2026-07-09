@@ -12,12 +12,15 @@ using JacRed.Engine;
 using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/anidub/[action]")]
     public class AnidubController : BaseController
     {
+        public AnidubController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         #region Parse
         static volatile bool workParse = false;
         private static readonly object workParseLock = new object();

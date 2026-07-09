@@ -1,9 +1,11 @@
+using JacRed.Application.Index;
 using JacRed.Engine;
 using JacRed.Engine.Indexers;
 using JacRed.Models.Api;
 using JacRed.Models.AppConf;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,6 +17,13 @@ namespace JacRed.Controllers
     /// </summary>
     public class TorznabController : BaseController
     {
+        readonly IFastDbIndex _fastDbIndex;
+
+        public TorznabController(IMemoryCache memoryCache, IFastDbIndex fastDbIndex) : base(memoryCache)
+        {
+            _fastDbIndex = fastDbIndex;
+        }
+
         public static bool IsTorznabXmlEnabled() =>
             AppInit.conf.torznab == null || AppInit.conf.torznab.enable;
 
@@ -54,7 +63,7 @@ namespace JacRed.Controllers
                 return XmlSearchResult(new List<Result>(), t, query, origin, torznabApiUrl);
 
             var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false, boundQuery: resolvedQuery);
-            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache);
+            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _fastDbIndex);
             results = IndexerSearchHelper.ApplyPostFilters(results, query, req, t);
             return XmlSearchResult(results, t, query, origin, torznabApiUrl);
         }
@@ -84,6 +93,8 @@ namespace JacRed.Controllers
     /// <summary>Jackett/Prowlarr metadata endpoints.</summary>
     public class JackettMetaController : BaseController
     {
+        public JackettMetaController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         [Route("/api/v2.0/indexers")]
         public IActionResult IndexersList()
         {

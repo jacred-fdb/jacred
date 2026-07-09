@@ -1,32 +1,20 @@
-﻿using System;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace JacRed.Controllers
 {
-    public class BaseController : Controller, IDisposable
+    public class BaseController : Controller
     {
-        IServiceScope serviceScope;
+        public IMemoryCache memoryCache { get; }
 
-        public IMemoryCache memoryCache { get; private set; }
-
-        public BaseController()
+        protected BaseController(IMemoryCache memoryCache)
         {
-            serviceScope = Startup.ApplicationServices.CreateScope();
-            var scopeServiceProvider = serviceScope.ServiceProvider;
-            memoryCache = scopeServiceProvider.GetService<IMemoryCache>();
+            this.memoryCache = memoryCache;
         }
 
         public JsonResult OnError(string msg)
         {
             return new JsonResult(new { success = false, msg });
-        }
-
-        public new void Dispose()
-        {
-            serviceScope?.Dispose();
-            base.Dispose();
         }
     }
 }

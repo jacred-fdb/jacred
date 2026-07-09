@@ -15,12 +15,15 @@ using JacRed.Engine;
 using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/rutor/[action]")]
     public class RutorController : BaseController
     {
+        public RutorController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static RutorController()

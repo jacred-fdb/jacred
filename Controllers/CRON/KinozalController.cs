@@ -22,6 +22,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/kinozal/[action]")]
     public class KinozalController : BaseController
     {
+        public KinozalController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, Dictionary<string, List<TaskParse>>> taskParse = new Dictionary<string, Dictionary<string, List<TaskParse>>>();
 
         static KinozalController()

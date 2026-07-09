@@ -15,6 +15,7 @@ using JacRed.Engine;
 using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
@@ -25,6 +26,8 @@ namespace JacRed.Controllers.CRON
     [Route("/cron/bitruapi/[action]")]
     public class BitruApiController : BaseController
     {
+        public BitruApiController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         const string ApiGetTorrents = "torrents";
         /// <summary>Задержка между запросами к API и скачиванием файлов (5 req/sec → 250 ms)</summary>
         const int ApiDelayMs = 250;

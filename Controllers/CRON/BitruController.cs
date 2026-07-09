@@ -15,12 +15,15 @@ using JacRed.Engine;
 using JacRed.Controllers;
 using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.CRON
 {
     [Route("/cron/bitru/[action]")]
     public class BitruController : BaseController
     {
+        public BitruController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static BitruController()

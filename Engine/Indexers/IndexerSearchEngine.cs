@@ -1,3 +1,4 @@
+using JacRed.Application.Index;
 using JacRed.Engine;
 using JacRed.Controllers;
 using JacRed.Engine.CORE;
@@ -16,7 +17,7 @@ namespace JacRed.Engine.Indexers
 {
     public static class IndexerSearchEngine
     {
-        public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache)
+        public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache, IFastDbIndex fastDbIndex)
         {
             var settings = IndexerSearchOptions.Resolve();
             string query = IndexerRequestParams.NormalizeQuery(req.Query);
@@ -44,18 +45,18 @@ namespace JacRed.Engine.Indexers
 
             if (req.CardMode)
             {
-                var card = JackettController.JackettSearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache);
+                var card = JackettController.JackettSearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, fastDbIndex);
                 batches.Add(card);
                 if (card.Count == 0)
                 {
                     foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                        batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
+                        batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache, fastDbIndex));
                 }
             }
             else
             {
                 foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                    batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache));
+                    batches.Add(JackettController.JackettSearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, false, cache, fastDbIndex));
             }
 
             foreach (var pair in V1Pairs(query, titleRu, titleEn, settings, req.CardMode))

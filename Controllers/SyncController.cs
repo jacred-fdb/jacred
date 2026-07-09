@@ -4,6 +4,7 @@ using JacRed.Models;
 using JacRed.Models.Details;
 using JacRed.Models.Sync.v2;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,8 @@ namespace JacRed.Controllers
 {
     public class SyncController : BaseController
     {
+        public SyncController(IMemoryCache memoryCache) : base(memoryCache) { }
+
         static Dictionary<string, TorrentInfo> masterDbCache;
 
         public static void Configuration()

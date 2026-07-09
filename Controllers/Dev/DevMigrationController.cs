@@ -16,6 +16,13 @@ namespace JacRed.Controllers.Dev
     [LocalhostOnly]
     public class DevMigrationController : Controller
     {
+        readonly IFastDbIndex _fastDbIndex;
+
+        public DevMigrationController(IFastDbIndex fastDbIndex)
+        {
+            _fastDbIndex = fastDbIndex;
+        }
+
         /// <summary>
         /// Мигрирует Knaben: name/originalname/relased/title по ParseNameAndYear и BuildTitleForFileDB.
         /// Dynasty 2017 → Dynasty (relased 2017), [2026, ...] → relased 2026, нормализация title для FileDB.
@@ -87,7 +94,7 @@ namespace JacRed.Controllers.Dev
             }
 
             FileDB.SaveChangesToFile();
-            try { FastDbIndex.getFastdb(update: true); } catch { }
+            try { _fastDbIndex.Rebuild(); } catch { }
 
             return Json(new { ok = true, processed, updated, migrated });
         }
@@ -152,7 +159,7 @@ namespace JacRed.Controllers.Dev
             }
 
             FileDB.SaveChangesToFile();
-            try { FastDbIndex.getFastdb(update: true); } catch { }
+            try { _fastDbIndex.Rebuild(); } catch { }
 
             return Json(new { ok = true, processed, updated, migrated });
         }
@@ -383,7 +390,7 @@ namespace JacRed.Controllers.Dev
             FileDB.SaveChangesToFile();
 
             // Пересобираем fastdb после исправлений
-            try { FastDbIndex.getFastdb(update: true); } catch { }
+            try { _fastDbIndex.Rebuild(); } catch { }
 
             return Json(new
             {
