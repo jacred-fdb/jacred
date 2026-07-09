@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JacRed.Engine.Workers
@@ -31,17 +32,17 @@ namespace JacRed.Engine.Workers
         }
 
         #region Torrents
-        async public static Task Torrents()
+        async public static Task Torrents(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(20_000);
+            await Task.Delay(20_000, cancellationToken);
 
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     if (AppInit.conf == null)
                     {
-                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                         continue;
                     }
 
@@ -77,7 +78,7 @@ namespace JacRed.Engine.Workers
                                 if (reset)
                                 {
                                     reset = false;
-                                    await Task.Delay(TimeSpan.FromMinutes(1));
+                                    await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                                     goto next;
                                 }
                             }
@@ -168,7 +169,7 @@ namespace JacRed.Engine.Workers
                     }
                     else
                     {
-                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                         continue;
                     }
                 }
@@ -187,28 +188,28 @@ namespace JacRed.Engine.Workers
                     Console.WriteLine($"sync: error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}");
                 }
 
-                await Task.Delay(1000 * Random.Shared.Next(60, 300));
+                await Task.Delay(1000 * Random.Shared.Next(60, 300), cancellationToken);
                 if (AppInit.conf != null)
-                    await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync));
+                    await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync), cancellationToken);
             }
         }
         #endregion
 
         #region Spidr
-        async public static Task Spidr()
+        async public static Task Spidr(CancellationToken cancellationToken = default)
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     if (AppInit.conf == null)
                     {
-                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                         continue;
                     }
 
                     int spidrMinutes = 20 > AppInit.conf.timeSyncSpidr ? 20 : AppInit.conf.timeSyncSpidr;
-                    await Task.Delay(1000 * 60 * spidrMinutes);
+                    await Task.Delay(1000 * 60 * spidrMinutes, cancellationToken);
 
                     if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi) && AppInit.conf.syncspidr)
                     {
@@ -258,7 +259,7 @@ namespace JacRed.Engine.Workers
                     }
                     else
                     {
-                        await Task.Delay(TimeSpan.FromMinutes(1));
+                        await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                         continue;
                     }
                 }

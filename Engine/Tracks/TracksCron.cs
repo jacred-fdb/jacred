@@ -28,15 +28,16 @@ namespace JacRed.Engine
         /// 4 - остальное
         /// 5 - обновления
         /// </param>
-        async public static Task Run(int typetask)
+        /// <param name="cancellationToken">Host shutdown token.</param>
+        async public static Task Run(int typetask, CancellationToken cancellationToken = default)
         {
             bool firstRun = (typetask == 1); // Для задачи 1 сразу выполняем первый запуск
 
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 if (!firstRun)
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? AppInit.conf.TracksInterval.task1 : AppInit.conf.TracksInterval.task0 + typetask));
+                    await Task.Delay(TimeSpan.FromMinutes(typetask == 1 ? AppInit.conf.TracksInterval.task1 : AppInit.conf.TracksInterval.task0 + typetask), cancellationToken);
                 }
                 firstRun = false;
 
@@ -166,7 +167,7 @@ namespace JacRed.Engine
                                 string torrentKey = FileDB.KeyForTorrent(t.name, t.originalname);
 
                                 int delay = GetRandomDelay();
-                                await Task.Delay(delay);
+                                await Task.Delay(delay, cancellationToken);
 
                                 await TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask);
                                 //await TracksDB.Add(t.magnet, t.ffprobe_tryingdata);

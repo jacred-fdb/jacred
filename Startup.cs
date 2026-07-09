@@ -15,6 +15,7 @@ using JacRed.Engine.Middlewares;
 using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
+using JacRed.Engine.Background;
 
 namespace JacRed
 {
@@ -71,6 +72,13 @@ namespace JacRed
             services.AddScoped<IDevDiagnosticsService, DevDiagnosticsService>();
             services.AddScoped<IDevMigrationService, DevMigrationService>();
             services.AddScoped<ITracksAdminService, TracksAdminService>();
+
+            services.AddHostedService<FastDbRefreshWorker>();
+            services.AddHostedService<SyncWorker>();
+            services.AddHostedService<TrackersWorker>();
+            services.AddHostedService<StatsWorker>();
+            services.AddHostedService<FileDbWorker>();
+            services.AddHostedService<TracksWorker>();
 
             services.AddJacRedSwagger();
         }

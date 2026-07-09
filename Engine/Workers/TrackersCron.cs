@@ -13,19 +13,19 @@ namespace JacRed.Engine.Workers
 {
     public static class TrackersCron
     {
-        async public static Task Run()
+        async public static Task Run(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(20_000);
+            await Task.Delay(20_000, cancellationToken);
 
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(1));
+                    await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
                     continue;
                 }
 
-                await Task.Delay(TimeSpan.FromHours(1));
+                await Task.Delay(TimeSpan.FromHours(1), cancellationToken);
 
                 try
                 {

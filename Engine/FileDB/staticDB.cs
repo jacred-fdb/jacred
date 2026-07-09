@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Engine.CORE;
 using JacRed.Models;
@@ -285,11 +286,11 @@ namespace JacRed.Engine
             return true;
         }
 
-        async public static Task Cron()
+        async public static Task Cron(CancellationToken cancellationToken = default)
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromMinutes(10));
+                await Task.Delay(TimeSpan.FromMinutes(10), cancellationToken);
 
                 if (!AppInit.conf.evercache.enable || 0 >= AppInit.conf.evercache.validHour)
                     continue;
@@ -312,11 +313,11 @@ namespace JacRed.Engine
             }
         }
 
-        async public static Task CronFast()
+        async public static Task CronFast(CancellationToken cancellationToken = default)
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(20));
+                await Task.Delay(TimeSpan.FromSeconds(20), cancellationToken);
 
                 if (!AppInit.conf.evercache.enable || 0 >= AppInit.conf.evercache.validHour)
                     continue;
