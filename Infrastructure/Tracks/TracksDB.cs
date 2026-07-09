@@ -318,6 +318,9 @@ namespace JacRed.Infrastructure.Tracks
         static string TrackLayoutPath(string tracksDir, string infohash, bool withExtension = true)
         {
             infohash = NormalizeInfohash(infohash);
+            if (!IsValidInfohash(infohash))
+                throw new ArgumentException("Invalid infohash.", nameof(infohash));
+
             string folder = Path.Combine(tracksDir, infohash.Substring(0, 2), infohash[2].ToString());
             string filename = withExtension ? $"{infohash.Substring(3)}.json" : infohash.Substring(3);
             return Path.Combine(folder, filename);
@@ -329,6 +332,9 @@ namespace JacRed.Infrastructure.Tracks
         static string UppercaseLayoutPath(string tracksDir, string infohash, bool withExtension = true)
         {
             infohash = NormalizeInfohash(infohash);
+            if (!IsValidInfohash(infohash))
+                throw new ArgumentException("Invalid infohash.", nameof(infohash));
+
             var upper = infohash.ToUpperInvariant();
             string folder = Path.Combine(tracksDir, upper.Substring(0, 2), upper.Substring(2, 1));
             string filename = withExtension ? $"{upper.Substring(3)}.json" : upper.Substring(3);
@@ -1466,6 +1472,53 @@ namespace JacRed.Infrastructure.Tracks
 
         static string NormalizeInfohash(string infohash) => infohash?.ToLowerInvariant();
 
+        static bool IsPathWithinDirectory(string rootDirectory, string fullPath)
+        {
+            try
+            {
+                var root = Path.GetFullPath(rootDirectory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var path = Path.GetFullPath(fullPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                return path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(path, root, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Resolves and validates export output directory — must stay under <c>Data/</c>.
+        /// </summary>
+        static string ResolveExportOutputDir(string outputDir)
+        {
+            if (string.IsNullOrWhiteSpace(outputDir))
+                throw new ArgumentException("Export output directory is required.", nameof(outputDir));
+
+            if (outputDir.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+                throw new ArgumentException("Export output directory contains invalid path characters.", nameof(outputDir));
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(Path.IsPathRooted(outputDir)
+                    ? outputDir
+                    : Path.Combine(Directory.GetCurrentDirectory(), outputDir));
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException("Export output directory is not a valid path.", nameof(outputDir), ex);
+            }
+
+            if (!IsPathWithinDirectory("Data", fullPath))
+                throw new ArgumentException("Export output directory must be inside Data.", nameof(outputDir));
+
+            return fullPath;
+        }
+
         static string InfohashFromTrackRelPath(string prefix2, string prefix1, string filename)
         {
             var stem = filename;
@@ -1918,6 +1971,8 @@ namespace JacRed.Infrastructure.Tracks
         /// </summary>
         public static bool TryStartExport(string outputDir = "Data/tracks-export", bool includeTorrentDb = true)
         {
+            outputDir = ResolveExportOutputDir(outputDir);
+
             lock (_exportLock)
             {
                 if (_exportRunning)
@@ -1977,6 +2032,8 @@ namespace JacRed.Infrastructure.Tracks
         /// </summary>
         public static TracksExportResult ExportAll(string outputDir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, TracksExportJobStatus progress = null)
         {
+            outputDir = ResolveExportOutputDir(outputDir);
+
             var result = new TracksExportResult
             {
                 outputDir = outputDir,
@@ -2021,6 +2078,12 @@ namespace JacRed.Infrastructure.Tracks
 
             foreach (var item in data)
             {
+                if (!IsValidInfohash(item.Key))
+                {
+                    result.writeErrors++;
+                    continue;
+                }
+
                 try
                 {
                     string path = ExportFilePath(outputDir, item.Key);
