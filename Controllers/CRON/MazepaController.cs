@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using System.Net;

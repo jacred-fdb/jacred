@@ -9,6 +9,8 @@ using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using JacRed.Engine.CORE;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using Microsoft.Extensions.Caching.Memory;
 using JacRed.Models.Details;
 

@@ -13,6 +13,8 @@ using JacRed.Engine.CORE;
 using JacRed.Models.tParse;
 using IO = System.IO;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using System.Text;
 using JacRed.Models.Details;
 

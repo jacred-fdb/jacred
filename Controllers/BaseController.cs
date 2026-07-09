@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace JacRed.Engine
+namespace JacRed.Controllers
 {
     public class BaseController : Controller, IDisposable
     {

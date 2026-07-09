@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using Microsoft.AspNetCore.Mvc;

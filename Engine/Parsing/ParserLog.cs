@@ -5,7 +5,7 @@ using System.Linq;
 using System.Security;
 using JacRed.Models.Details;
 
-namespace JacRed.Engine
+namespace JacRed.Engine.Parsing
 {
     public static class ParserLog
     {

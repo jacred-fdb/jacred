@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using JacRed.Engine.CORE;
 using System.Collections.Generic;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
 using System.Net.Sockets;

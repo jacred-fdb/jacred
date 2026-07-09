@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using JacRed.Engine.CORE;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
 using JacRed.Models.tParse;
 

@@ -7,8 +7,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using JacRed.Engine;
 
-namespace JacRed.Engine
+namespace JacRed.Engine.Workers
 {
     public static class TrackersCron
     {

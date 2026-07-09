@@ -1,4 +1,5 @@
 using JacRed.Engine.CORE;
+using JacRed.Engine;
 using JacRed.Models.Details;
 using Newtonsoft.Json.Linq;
 using System;
@@ -7,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace JacRed.Engine
+namespace JacRed.Engine.Workers
 {
     public static class SyncCron
     {

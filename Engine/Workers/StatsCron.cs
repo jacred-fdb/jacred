@@ -1,7 +1,8 @@
 using System;
 using System.Threading.Tasks;
+using JacRed.Engine;
 
-namespace JacRed.Engine
+namespace JacRed.Engine.Workers
 {
     public static class StatsCron
     {

@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using JacRed.Engine.CORE;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using JacRed.Models.Details;
 using JacRed.Models.tParse;
 

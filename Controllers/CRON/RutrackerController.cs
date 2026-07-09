@@ -12,6 +12,8 @@ using JacRed.Engine.CORE;
 using JacRed.Models.tParse;
 using IO = System.IO;
 using JacRed.Engine;
+using JacRed.Controllers;
+using JacRed.Engine.Parsing;
 using Microsoft.Extensions.Caching.Memory;
 using JacRed.Models.Details;
 

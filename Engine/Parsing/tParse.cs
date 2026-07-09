@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace JacRed.Engine
+namespace JacRed.Engine.Parsing
 {
     public static class tParse
     {
