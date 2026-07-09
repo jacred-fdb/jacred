@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using JacRed.Application.Index;
@@ -9,186 +8,14 @@ using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using Microsoft.AspNetCore.Mvc;
 using JacRed.Controllers.CRON;
+using JacRed.Controllers.Filters;
 
-namespace JacRed.Controllers
+namespace JacRed.Controllers.Dev
 {
     [Route("/dev/[action]")]
-    public class DevController : Controller
+    [LocalhostOnly]
+    public class DevMigrationController : Controller
     {
-        public JsonResult UpdateSize()
-        {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            #region getSizeInfo
-            long getSizeInfo(string sizeName)
-            {
-                if (string.IsNullOrWhiteSpace(sizeName))
-                    return 0;
-
-                try
-                {
-                    double size = 0.1;
-                    var gsize = Regex.Match(sizeName, "([0-9\\.,]+) (Mb|МБ|GB|ГБ|TB|ТБ)", RegexOptions.IgnoreCase).Groups;
-                    if (!string.IsNullOrWhiteSpace(gsize[2].Value))
-                    {
-                        if (double.TryParse(gsize[1].Value.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out size) && size != 0)
-                        {
-                            if (gsize[2].Value.ToLower() is "gb" or "гб")
-                                size *= 1024;
-
-                            if (gsize[2].Value.ToLower() is "tb" or "тб")
-                                size *= 1048576;
-
-                            return (long)(size * 1048576);
-                        }
-                    }
-                }
-                catch { }
-
-                return 0;
-            }
-            #endregion
-
-            foreach (var item in FileDB.masterDb.OrderBy(i => i.Value.fileTime).ToArray())
-            {
-                using (var fdb = FileDB.OpenWrite(item.Key))
-                {
-                    var keysToRemove = new List<string>();
-                    foreach (var torrent in fdb.Database)
-                    {
-                        if (torrent.Value == null)
-                        {
-                            keysToRemove.Add(torrent.Key);
-                            continue;
-                        }
-                        torrent.Value.size = getSizeInfo(torrent.Value.sizeName);
-                        torrent.Value.updateTime = DateTime.UtcNow;
-                        FileDB.masterDb[item.Key] = new Models.TorrentInfo() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
-                    }
-                    foreach (var k in keysToRemove)
-                        fdb.Database.Remove(k);
-
-                    fdb.savechanges = true;
-                }
-            }
-
-            FileDB.SaveChangesToFile();
-            return Json(new { ok = true });
-        }
-
-        public JsonResult ResetCheckTime()
-        {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            foreach (var item in FileDB.masterDb.ToArray())
-            {
-                using (var fdb = FileDB.OpenWrite(item.Key))
-                {
-                    var keysToRemove = new List<string>();
-                    foreach (var torrent in fdb.Database)
-                    {
-                        if (torrent.Value == null)
-                        {
-                            keysToRemove.Add(torrent.Key);
-                            continue;
-                        }
-                        torrent.Value.checkTime = DateTime.Today.AddDays(-1);
-                    }
-                    foreach (var k in keysToRemove)
-                        fdb.Database.Remove(k);
-
-                    fdb.savechanges = true;
-                }
-            }
-
-            FileDB.SaveChangesToFile();
-            return Json(new { ok = true });
-        }
-
-        public JsonResult UpdateDetails()
-        {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            foreach (var item in FileDB.masterDb.ToArray())
-            {
-                using (var fdb = FileDB.OpenWrite(item.Key))
-                {
-                    var keysToRemove = new List<string>();
-                    foreach (var torrent in fdb.Database)
-                    {
-                        if (torrent.Value == null)
-                        {
-                            keysToRemove.Add(torrent.Key);
-                            continue;
-                        }
-                        FileDB.updateFullDetails(torrent.Value);
-                        torrent.Value.languages = null;
-
-                        torrent.Value.updateTime = DateTime.UtcNow;
-                        FileDB.masterDb[item.Key] = new Models.TorrentInfo() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
-                    }
-                    foreach (var k in keysToRemove)
-                        fdb.Database.Remove(k);
-
-                    fdb.savechanges = true;
-                }
-            }
-
-            FileDB.SaveChangesToFile();
-            return Json(new { ok = true });
-        }
-
-        public JsonResult UpdateSearchName()
-        {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            foreach (var item in FileDB.masterDb.ToArray())
-            {
-                using (var fdb = FileDB.OpenWrite(item.Key))
-                {
-                    var keysToRemove = new List<string>();
-                    var toMigrate = new List<(string url, TorrentDetails t, string newKey)>();
-                    foreach (var torrent in fdb.Database)
-                    {
-                        if (torrent.Value == null)
-                        {
-                            keysToRemove.Add(torrent.Key);
-                            continue;
-                        }
-
-                        if (string.IsNullOrWhiteSpace(torrent.Value.name))
-                            torrent.Value.name = torrent.Value.title ?? "";
-
-                        if (string.IsNullOrWhiteSpace(torrent.Value.originalname))
-                            torrent.Value.originalname = torrent.Value.title ?? torrent.Value.name ?? "";
-                        torrent.Value._sn = StringConvert.SearchName(torrent.Value.name);
-                        torrent.Value._so = StringConvert.SearchName(torrent.Value.originalname);
-                        // Если ключ бакета изменился (например починили name) — переносим торрент в правильный бакет, чтобы поиск находил по новому ключу
-                        string newKey = FileDB.KeyForTorrent(torrent.Value.name, torrent.Value.originalname);
-                        if (!string.IsNullOrEmpty(newKey) && newKey != item.Key && newKey.IndexOf(':') > 0)
-                            toMigrate.Add((torrent.Key, torrent.Value, newKey));
-                    }
-                    foreach (var k in keysToRemove)
-                        fdb.Database.Remove(k);
-                    foreach (var (url, t, newKey) in toMigrate)
-                    {
-                        fdb.Database.Remove(url);
-                        FileDB.MigrateTorrentToNewKey(t, newKey);
-                    }
-                    if (fdb.Database.Count == 0)
-                        FileDB.RemoveKeyFromMasterDb(item.Key);
-                    fdb.savechanges = true;
-                }
-            }
-
-            FileDB.SaveChangesToFile();
-            return Json(new { ok = true });
-        }
-
         /// <summary>
         /// Мигрирует Knaben: name/originalname/relased/title по ParseNameAndYear и BuildTitleForFileDB.
         /// Dynasty 2017 → Dynasty (relased 2017), [2026, ...] → relased 2026, нормализация title для FileDB.
@@ -196,8 +23,6 @@ namespace JacRed.Controllers
         /// </summary>
         public JsonResult FixKnabenNames()
         {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             const string trackerName = "knaben";
             int processed = 0, updated = 0, migrated = 0;
@@ -274,8 +99,6 @@ namespace JacRed.Controllers
         /// </summary>
         public JsonResult FixBitruNames()
         {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             const string trackerName = "bitru";
             int processed = 0, updated = 0, migrated = 0;
@@ -333,89 +156,11 @@ namespace JacRed.Controllers
 
             return Json(new { ok = true, processed, updated, migrated });
         }
-
-        /// <summary>
-        /// Scan DB for corrupt entries (null Value, missing name/originalname/trackerName). Read-only, no changes.
-        /// </summary>
-        public JsonResult FindCorrupt(int sampleSize = 20)
-        {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            int totalTorrents = 0;
-            int nullValueCount = 0;
-            int missingNameCount = 0;
-            int missingOriginalnameCount = 0;
-            int missingTrackerNameCount = 0;
-            var nullValueSample = new List<object>();
-            var missingNameSample = new List<object>();
-            var missingOriginalnameSample = new List<object>();
-            var missingTrackerNameSample = new List<object>();
-
-            foreach (var item in FileDB.masterDb.ToArray())
-            {
-                var db = FileDB.OpenRead(item.Key, cache: false);
-                if (db == null)
-                    continue;
-
-                foreach (var kv in db)
-                {
-                    totalTorrents++;
-                    string fdbKey = item.Key;
-                    string url = kv.Key;
-                    var t = kv.Value;
-
-                    if (t == null)
-                    {
-                        nullValueCount++;
-                        if (nullValueSample.Count < sampleSize)
-                            nullValueSample.Add(new { fdbKey, url });
-                        continue;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(t.trackerName))
-                    {
-                        missingTrackerNameCount++;
-                        if (missingTrackerNameSample.Count < sampleSize)
-                            missingTrackerNameSample.Add(new { fdbKey, url, title = t.title });
-                    }
-                    if (string.IsNullOrWhiteSpace(t.name))
-                    {
-                        missingNameCount++;
-                        if (missingNameSample.Count < sampleSize)
-                            missingNameSample.Add(new { fdbKey, url, title = t.title });
-                    }
-                    if (string.IsNullOrWhiteSpace(t.originalname))
-                    {
-                        missingOriginalnameCount++;
-                        if (missingOriginalnameSample.Count < sampleSize)
-                            missingOriginalnameSample.Add(new { fdbKey, url, title = t.title });
-                    }
-                }
-            }
-
-            return Json(new
-            {
-                ok = true,
-                totalFdbKeys = FileDB.masterDb.Count,
-                totalTorrents,
-                corrupt = new
-                {
-                    nullValue = new { count = nullValueCount, sample = nullValueSample },
-                    missingName = new { count = missingNameCount, sample = missingNameSample },
-                    missingOriginalname = new { count = missingOriginalnameCount, sample = missingOriginalnameSample },
-                    missingTrackerName = new { count = missingTrackerNameCount, sample = missingTrackerNameSample }
-                }
-            });
-        }
-
         /// <summary>
         /// Remove only corrupt entries where torrent.Value == null (e.g. empty url, broken refs). No other repairs.
         /// </summary>
         public JsonResult RemoveNullValues()
         {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             int totalRemoved = 0;
             int affectedFiles = 0;
@@ -444,54 +189,6 @@ namespace JacRed.Controllers
             FileDB.SaveChangesToFile();
             return Json(new { ok = true, removed = totalRemoved, affectedFiles });
         }
-
-        /// <summary>
-        /// Find duplicate keys X:X (name == originalname after normalization), for example ponies:ponies. Only localhost.
-        /// ?tracker=lostfilm — only buckets with torrents of this tracker.
-        /// ?excludeNumeric=false — include keys that are purely numeric (1899:1899, 911:911); by default they are excluded, as they are usually valid same-name series.
-        /// </summary>
-        public JsonResult FindDuplicateKeys(string tracker = null, bool excludeNumeric = true)
-        {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            var duplicateKeys = new List<object>();
-            foreach (var item in FileDB.masterDb.ToArray())
-            {
-                string key = item.Key;
-                int colon = key.IndexOf(':');
-                if (colon <= 0 || colon >= key.Length - 1)
-                    continue;
-                string part1 = key.Substring(0, colon);
-                string part2 = key.Substring(colon + 1);
-                if (!string.Equals(part1, part2, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (excludeNumeric && part1.Length > 0 && part1.All(char.IsDigit))
-                    continue;
-
-                int count = 0;
-                try
-                {
-                    var db = FileDB.OpenRead(key, cache: false);
-                    count = db.Count;
-                    if (!string.IsNullOrWhiteSpace(tracker))
-                    {
-                        bool hasTracker = db.Values.Any(t => t != null && string.Equals(t.trackerName, tracker.Trim(), StringComparison.OrdinalIgnoreCase));
-                        if (!hasTracker)
-                            continue;
-                    }
-                }
-                catch
-                {
-                    continue;
-                }
-
-                duplicateKeys.Add(new { key, count });
-            }
-
-            return Json(new { ok = true, count = duplicateKeys.Count, keys = duplicateKeys });
-        }
-
         /// <summary>
         /// Remove bucket by key (e.g. old ponies:ponies). Only localhost.
         /// ?key=ponies:ponies — simply remove all records and key.
@@ -499,8 +196,6 @@ namespace JacRed.Controllers
         /// </summary>
         public JsonResult RemoveBucket(string key, string migrateName = null, string migrateOriginalname = null)
         {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             if (string.IsNullOrWhiteSpace(key) || key.IndexOf(':') < 0)
                 return Json(new { error = "key required, format: name:originalname (e.g. ponies:ponies)" });
@@ -559,87 +254,12 @@ namespace JacRed.Controllers
                 newKey = doMigrate ? newKey : (string)null
             });
         }
-
-        /// <summary>
-        /// Находит торренты с пустыми _sn или _so полями. Только localhost, read-only.
-        /// ?sampleSize=20 — количество примеров для каждого типа проблемы.
-        /// </summary>
-        public JsonResult FindEmptySearchFields(int sampleSize = 20)
-        {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            int totalTorrents = 0;
-            int emptySnCount = 0;
-            int emptySoCount = 0;
-            int emptyBothCount = 0;
-            var emptySnSample = new List<object>();
-            var emptySoSample = new List<object>();
-            var emptyBothSample = new List<object>();
-
-            foreach (var item in FileDB.masterDb.ToArray())
-            {
-                var db = FileDB.OpenRead(item.Key, cache: false);
-                if (db == null)
-                    continue;
-
-                foreach (var kv in db)
-                {
-                    totalTorrents++;
-                    string fdbKey = item.Key;
-                    string url = kv.Key;
-                    var t = kv.Value;
-
-                    if (t == null)
-                        continue;
-
-                    bool hasEmptySn = string.IsNullOrWhiteSpace(t._sn);
-                    bool hasEmptySo = string.IsNullOrWhiteSpace(t._so);
-
-                    if (hasEmptySn && hasEmptySo)
-                    {
-                        emptyBothCount++;
-                        if (emptyBothSample.Count < sampleSize)
-                            emptyBothSample.Add(new { fdbKey, url, title = t.title, name = t.name, originalname = t.originalname });
-                    }
-                    else if (hasEmptySn)
-                    {
-                        emptySnCount++;
-                        if (emptySnSample.Count < sampleSize)
-                            emptySnSample.Add(new { fdbKey, url, title = t.title, name = t.name, originalname = t.originalname });
-                    }
-                    else if (hasEmptySo)
-                    {
-                        emptySoCount++;
-                        if (emptySoSample.Count < sampleSize)
-                            emptySoSample.Add(new { fdbKey, url, title = t.title, name = t.name, originalname = t.originalname });
-                    }
-                }
-            }
-
-            return Json(new
-            {
-                ok = true,
-                totalFdbKeys = FileDB.masterDb.Count,
-                totalTorrents,
-                emptySearchFields = new
-                {
-                    emptySn = new { count = emptySnCount, sample = emptySnSample },
-                    emptySo = new { count = emptySoCount, sample = emptySoSample },
-                    emptyBoth = new { count = emptyBothCount, sample = emptyBothSample },
-                    total = emptySnCount + emptySoCount + emptyBothCount
-                }
-            });
-        }
-
         /// <summary>
         /// Исправляет пустые _sn и _so поля, вычисляя их из name/originalname/title. Только localhost.
         /// Также обновляет ключи бакетов если они изменились после исправления.
         /// </summary>
         public JsonResult FixEmptySearchFields()
         {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             int totalFixed = 0;
             int snFixed = 0;
@@ -775,15 +395,12 @@ namespace JacRed.Controllers
                 affectedBuckets
             });
         }
-
         /// <summary>
         /// Migrates existing aniliberty torrents to use hash-based URLs.
         /// Extracts hash from magnet link and appends it as query parameter to URL.
         /// </summary>
         public JsonResult MigrateAnilibertyUrls()
         {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             int totalProcessed = 0;
             int totalUpdated = 0;
@@ -891,15 +508,12 @@ namespace JacRed.Controllers
                 errors = errors.Take(10).ToList() // Return first 10 errors if any
             });
         }
-
         /// <summary>
         /// Removes duplicate aniliberty torrents based on magnet hash.
         /// Keeps the torrent with the most recent updateTime, removes others.
         /// </summary>
         public JsonResult RemoveDuplicateAniliberty()
         {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             int totalProcessed = 0;
             int totalRemoved = 0;
@@ -1004,15 +618,12 @@ namespace JacRed.Controllers
                 duplicates = duplicatesInfo.Take(50).ToList() // Return first 50 duplicates info
             });
         }
-
         /// <summary>
         /// Fixes animelayer duplicates by normalizing HTTP URLs to HTTPS.
         /// Removes HTTP duplicates and keeps HTTPS versions.
         /// </summary>
         public JsonResult FixAnimelayerDuplicates()
         {
-            if (HttpContext.Connection.RemoteIpAddress.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
 
             int totalProcessed = 0;
             int totalFixed = 0;
@@ -1125,74 +736,6 @@ namespace JacRed.Controllers
                 totalErrors = errors.Count,
                 errors = errors.Take(10).ToList()
             });
-        }
-
-        /// <summary>
-        /// Статистика по ffprobe/tracks (файлы Data/tracks + поле ffprobe в FileDB).
-        /// </summary>
-        public JsonResult TracksStats(bool includeTorrentDb = true, bool refresh = false)
-        {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            var stats = TracksDB.GetExportStats(includeTorrentDb, refresh);
-            return Json(new
-            {
-                ok = true,
-                updatedAt = TracksDB.GetExportStatsUpdatedAt(),
-                fromCache = TracksDB.LastExportStatsFromCache,
-                stats
-            });
-        }
-
-        /// <summary>
-        /// Экспорт всех ffprobe/tracks в JSON (layout для lampa-tracks: AA/B/HASH.json).
-        /// dryRun=true — только статистика; иначе по умолчанию фоновый экспорт (background=true).
-        /// </summary>
-        public JsonResult ExportTracks(string dir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, bool background = true)
-        {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            if (dryRun)
-            {
-                var result = TracksDB.ExportAll(dir, dryRun: true, includeTorrentDb);
-                return Json(new { ok = true, result });
-            }
-
-            if (!background)
-            {
-                var result = TracksDB.ExportAll(dir, dryRun: false, includeTorrentDb);
-                return Json(new { ok = true, result });
-            }
-
-            if (!TracksDB.TryStartExport(dir, includeTorrentDb))
-                return Json(new { ok = false, alreadyRunning = true, status = TracksDB.GetExportJobStatus() });
-
-            return Json(new { ok = true, started = true, status = TracksDB.GetExportJobStatus() });
-        }
-
-        /// <summary>
-        /// Статус фонового экспорта tracks (см. ExportTracks).
-        /// </summary>
-        public JsonResult ExportTracksStatus()
-        {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            return Json(new { ok = true, status = TracksDB.GetExportJobStatus() });
-        }
-
-        /// <summary>
-        /// Backfill в Data/tracks: .json для новых файлов, миграция legacy → canonical lowercase layout, данные из FileDB.
-        /// </summary>
-        public JsonResult BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true)
-        {
-            if (HttpContext.Connection.RemoteIpAddress?.ToString() != "127.0.0.1")
-                return Json(new { badip = true });
-
-            var result = TracksDB.BackfillTracks("Data/tracks", dryRun, includeTorrentDb, migrateLegacy);
-            return Json(new { ok = true, result });
         }
     }
 }
