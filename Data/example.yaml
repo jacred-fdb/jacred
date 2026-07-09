@@ -34,7 +34,7 @@ synctrackers:
   - anidub
   - aniliberty
   - knaben
-# RIP (retired) trackers — do not add to synctrackers; keep in disable_trackers
+# Retired trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers: []
 syncsport: true
 syncspidr: true

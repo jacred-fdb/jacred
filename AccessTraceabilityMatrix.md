@@ -1,70 +1,70 @@
-# JacRed — Access Traceability Matrix
+# JacRed — матрица трассировки доступа
 
-**Source of truth (code):** `Infrastructure/Security/JacRedEndpointRegistry.cs`  
-**Verification:** `JacRedAccessCatalog.VerifyRegistry()` — run at startup (logged on mismatch)  
-**Last verified:** 2026-07-09 — all catalog routes match registry
-
----
-
-## Policy definitions
-
-| Policy | Middleware rule | Keys |
-|--------|-----------------|------|
-| **Public** | Always allow | — |
-| **ConfigApi** | LAN client **OR** valid devkey (same-host proxy alone **not** enough) | `X-Dev-Key`, `?devkey=` |
-| **DevAdmin** | LAN client **OR** valid devkey (same-host proxy alone **not** enough) | `X-Dev-Key`, `?devkey=` |
-| **ApiKeyWhenConfigured** | Allow if `apikey` unset in config; else require valid key | `?apikey=`, `X-Api-Key`, `Bearer` |
-
-**Deny codes:** OPTIONS → 204; key configured → 401; else 403.
-
-**Network context:** Client IP = after `X-Forwarded-For`; Peer IP = direct TCP (see `ClientNetworkContext`).
+**Источник истины (код):** `Infrastructure/Security/JacRedEndpointRegistry.cs`  
+**Проверка:** `JacRedAccessCatalog.VerifyRegistry()` — выполняется при старте (несовпадения пишутся в лог)  
+**Последняя проверка:** 2026-07-09 — все маршруты каталога совпадают с реестром  
+**README (оператор):** [Безопасность и доступ](README.md#безопасность-и-доступ-к-api) · [Логирование](README.md#консольное-логирование-logging)
 
 ---
 
-## Path prefix → policy (registry)
+## Определения политик
 
-| Path prefix / pattern | Policy | Notes |
-|----------------------|--------|-------|
-| `/dev/` | DevAdmin | All dev maintenance/diagnostics |
-| `/cron/` | DevAdmin | Tracker sync triggers |
-| `/jsondb`, `/jsondb/` | DevAdmin | FileDB admin |
-| `/api/v1.0/config` | ConfigApi | Settings API (secrets in response) |
-| `/`, `/stats`, `/settings` | Public | HTML shells only |
-| `/health`, `/version`, `/lastupdatedb` | Public | Health probes |
-| `/api/v1.0/conf` | Public | Jackett apikey probe |
-| `/sync/` | Public | Middleware open; `opensync` in SyncController |
-| `/swagger`, `/openapi.yaml` | Public | API docs |
-| `/css/`, `/js/`, `/img/`, `/vendor/`, `/fonts/` | Public | Static assets (when `web=true`) |
-| `/opensearch.xml`, `/manifest.json`, `/sw.js` | Public | PWA metadata |
-| *everything else* | ApiKeyWhenConfigured | Search, stats JSON, torznab, jackett |
+| Политика | Правило middleware | Ключи |
+|----------|-------------------|-------|
+| **Public** | Всегда разрешено | — |
+| **ConfigApi** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
+| **DevAdmin** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
+| **ApiKeyWhenConfigured** | Если `apikey` в конфиге не задан — открыто; иначе нужен валидный ключ | `?apikey=`, `X-Api-Key`, `Bearer` |
+
+**Коды отказа:** OPTIONS → 204; ключ задан, но не передан → 401; иначе → 403.
+
+**Сетевой контекст:** Client IP — после `X-Forwarded-For`; Peer IP — прямое TCP-подключение (см. `ClientNetworkContext`).
 
 ---
 
-## Endpoint traceability (controller → policy)
+## Префикс пути → политика (реестр)
+
+| Префикс / шаблон пути | Политика | Примечания |
+|----------------------|----------|------------|
+| `/dev/` | DevAdmin | Обслуживание и диагностика |
+| `/cron/` | DevAdmin | Запуск синхронизации трекеров |
+| `/jsondb`, `/jsondb/` | DevAdmin | Администрирование FileDB |
+| `/api/v1.0/config` | ConfigApi | API настроек (секреты в ответе) |
+| `/`, `/stats`, `/settings` | Public | Только HTML-оболочки |
+| `/health`, `/version`, `/lastupdatedb` | Public | Health-пробы |
+| `/api/v1.0/conf` | Public | Проверка apikey (Jackett) |
+| `/sync/` | Public | Middleware пропускает; `opensync` в SyncController |
+| `/swagger`, `/openapi.yaml` | Public | Документация API |
+| `/css/`, `/js/`, `/img/`, `/vendor/`, `/fonts/` | Public | Статика (при `web=true`) |
+| `/opensearch.xml`, `/manifest.json`, `/sw.js` | Public | Метаданные PWA |
+| *всё остальное* | ApiKeyWhenConfigured | Поиск, JSON stats, torznab, jackett |
+
+---
+
+## Трассировка эндпоинтов (контроллер → политика)
 
 ### Public
 
-| Route | Controller | Secondary gate |
-|-------|------------|----------------|
+| Маршрут | Контроллер | Вторичная проверка |
+|---------|------------|-------------------|
 | `GET /` | HomeController | — |
-| `GET /stats` | HomeController | HTML shell (JSON at `/stats/*` is not public) |
-| `GET /settings` | HomeController | HTML shell |
+| `GET /stats` | HomeController | HTML-оболочка (JSON на `/stats/*` не публичный) |
+| `GET /settings` | HomeController | HTML-оболочка |
 | `GET /opensearch.xml` | HomeController | — |
 | `GET /health` | HealthController | — |
 | `GET /version` | HealthController | — |
 | `GET /lastupdatedb` | HealthController | — |
-| `GET /api/v1.0/conf` | HealthController | Returns apikey validity hint |
+| `GET /api/v1.0/conf` | HealthController | Подсказка о валидности apikey |
 | `GET /sync/conf` | SyncController | — |
 | `GET /sync/fdb` | SyncController | `opensync` |
 | `GET /sync/fdb/torrents` | SyncController | `opensync` |
-| `GET /sync/torrents` | SyncController | deprecated — returns v1 removed error |
 | `GET /sync/tracks/stats` | SyncController | `opensync` |
 | `GET /swagger`, `/openapi.yaml` | Startup / Swagger | — |
 
 ### ConfigApi
 
-| Route | Controller |
-|-------|------------|
+| Маршрут | Контроллер |
+|---------|------------|
 | `GET/POST /api/v1.0/config` | ConfigController |
 | `GET /api/v1.0/config/schema` | ConfigController |
 | `POST /api/v1.0/config/validate` | ConfigController |
@@ -75,16 +75,16 @@
 
 ### DevAdmin
 
-| Route pattern | Controller |
-|---------------|------------|
+| Шаблон маршрута | Контроллер |
+|-----------------|------------|
 | `/dev/*` | DevMaintenanceController, DevDiagnosticsController, DevMigrationController, DevTracksController |
 | `/jsondb/*` | DbController |
-| `/cron/{tracker}/*` | Controllers/Cron/* (17 trackers) |
+| `/cron/{tracker}/*` | Controllers/Cron/* (17 трекеров) |
 
 ### ApiKeyWhenConfigured
 
-| Route | Controller | Secondary gate |
-|-------|------------|----------------|
+| Маршрут | Контроллер | Вторичная проверка |
+|---------|------------|-------------------|
 | `GET /api/v1.0/torrents` | TorrentsController | — |
 | `GET /api/v1.0/qualitys` | TorrentsController | — |
 | `GET /api/v2.0/indexers/{status}/results` | JackettController | — |
@@ -102,22 +102,22 @@
 
 ---
 
-## Access by client context
+## Доступ по контексту клиента
 
-| Policy | Loopback / LAN | Same-host proxy (no devkey) | Remote / tunnel |
-|--------|----------------|----------------------------|-----------------|
+| Политика | Loopback / LAN | Same-host proxy (без devkey) | Удалённый / туннель |
+|----------|----------------|------------------------------|---------------------|
 | Public | ✓ | ✓ | ✓ |
-| ConfigApi | ✓ | ✗ | devkey required |
-| DevAdmin | ✓ | ✗ | devkey required if set |
-| ApiKeyWhenConfigured | apikey if configured | apikey if configured | apikey if configured |
+| ConfigApi | ✓ | ✗ | нужен devkey |
+| DevAdmin | ✓ | ✗ | нужен devkey (если задан в конфиге) |
+| ApiKeyWhenConfigured | apikey, если задан | apikey, если задан | apikey, если задан |
 
 ---
 
-## Registry verification result
+## Результат проверки реестра
 
-All routes in `JacRedAccessCatalog.Routes` were checked against `JacRedEndpointRegistry.ResolvePolicy()` — **0 mismatches** (verified at build/startup).
+Все маршруты из `JacRedAccessCatalog.Routes` сверены с `JacRedEndpointRegistry.ResolvePolicy()` — **0 расхождений** (проверено при сборке/старте).
 
-To re-check after changes:
+Повторная проверка после изменений:
 
 ```csharp
 var errors = JacRedAccessCatalog.VerifyRegistry();
@@ -125,30 +125,20 @@ var errors = JacRedAccessCatalog.VerifyRegistry();
 
 ---
 
-## Removed legacy (Phase S cleanup)
+## Операционное логирование (journalctl)
 
-- `ModHeaders` middleware facade — replaced by `UseJacRedSecurity()`
-- `LocalhostOnlyAttribute` — LAN now handled by DevAdmin policy
-- `[JacRedAuthorize]` attributes — unused; registry is single source of truth
-- Duplicate apikey extraction in HealthController — uses `JacRedKeyUtils`
-- `Engine/**` excluded from compile (stale pre-refactor tree)
-
----
-
-## Operational logging (journalctl)
-
-Console output uses grep-friendly category prefixes (`tracks:`, `sync:`, `sync_spidr:`, `cron:`, `fdb:`, …). **File logs** under `Data/log/` are **on by default** (`logFdb`, `logParsers`, `trackslog`). Optional console tuning in `init.yaml`:
+Консольный вывод использует префиксы категорий для grep (`tracks:`, `sync:`, `sync_spidr:`, `cron:`, `fdb:`, …). **Файловые логи** в `Data/log/` **включены по умолчанию** (`logFdb`, `logParsers`, `trackslog`). Настройка консоли в `init.yaml`:
 
 ```yaml
 logging:
   defaultLevel: Information
   consoleTimestamp: false
-  tracksConsoleDetail: false   # compact tracks console (failures only)
-  cronSkipFastMs: 100          # sub-100ms HTTP 200 /cron/ → Debug
+  tracksConsoleDetail: false   # компактный вывод tracks (только ошибки)
+  cronSkipFastMs: 100          # HTTP 200 /cron/ быстрее 100 мс → Debug
   categories:
     tracks: Warning
     fdb: Warning
-    parsers: None              # file-only (ParserLog)
+    parsers: None              # только в файл (ParserLog)
 ```
 
 ```bash

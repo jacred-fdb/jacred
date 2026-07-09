@@ -146,7 +146,7 @@ namespace JacRed.Controllers
         [Route("/sync/torrents")]
         public JsonResult Torrents(long time)
         {
-            return Json(new { error = "sync v1 removed, use GET /sync/fdb/torrents" });
+            return Json(new { error = "use GET /sync/fdb/torrents" });
         }
 
 

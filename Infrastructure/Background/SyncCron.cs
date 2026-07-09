@@ -61,7 +61,7 @@ namespace JacRed.Infrastructure.Background
                         var conf = await HttpClient.Get<JObject>($"{AppInit.conf.syncapi}/sync/conf");
                         if (conf == null || !conf.ContainsKey("fbd") || !conf.Value<bool>("fbd"))
                         {
-                            JacRedLog.Warning(JacRedLogCategories.Sync, "remote /sync/conf missing fbd — sync v1 removed; upgrade syncapi host to v2");
+                            JacRedLog.Warning(JacRedLogCategories.Sync, "remote /sync/conf missing fbd — upgrade syncapi host");
                         }
                         else
                         {

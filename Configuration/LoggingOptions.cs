@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace JacRed.Configuration
 {
-    /// <summary>Optional logging tuning (init.yaml logging: block). Absent = legacy console behavior.</summary>
+    /// <summary>Optional logging tuning (init.yaml logging: block). Absent = default console behavior.</summary>
     public class LoggingOptions
     {
         public string defaultLevel = "Information";

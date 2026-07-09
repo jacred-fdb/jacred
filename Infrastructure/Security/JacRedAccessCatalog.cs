@@ -28,7 +28,7 @@ namespace JacRed.Infrastructure.Security
             new("/sync/conf", JacRedAccessPolicy.Public, "SyncController"),
             new("/sync/fdb", JacRedAccessPolicy.Public, "SyncController", "+ opensync in controller"),
             new("/sync/fdb/torrents", JacRedAccessPolicy.Public, "SyncController", "+ opensync in controller"),
-            new("/sync/torrents", JacRedAccessPolicy.Public, "SyncController", "deprecated v1 — returns error"),
+            new("/sync/torrents", JacRedAccessPolicy.Public, "SyncController", "returns error"),
             new("/sync/tracks/stats", JacRedAccessPolicy.Public, "SyncController", "+ opensync in controller"),
 
             // Config API
