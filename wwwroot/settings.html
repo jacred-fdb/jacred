@@ -70,7 +70,7 @@
           <span class="jr-settings-denied__icon" aria-hidden="true"><i class="bi bi-shield-exclamation"></i></span>
           <div class="flex-grow-1">
             <h2 class="h6 fw-semibold mb-1">Доступ ограничен</h2>
-            <p id="accessDeniedMessage" class="small text-secondary mb-3">Через Cloudflare Tunnel или LAN доступ открыт без ключа. Из интернета или при заданном <code class="jr-inline-code">devkey</code> — введите ключ кнопкой «Dev ключ».</p>
+            <p id="accessDeniedMessage" class="small text-secondary mb-3">Config API доступен из LAN без ключа или с <code class="jr-inline-code">devkey</code> (кнопка «Dev ключ»). Same-host туннель без devkey не открывает сохранение конфига.</p>
             <div id="accessDeniedActions" class="d-flex flex-wrap gap-2">
               <button type="button" id="accessDeniedDevKeyBtn" class="btn btn-sm btn-jr-primary tap-target d-none">
                 <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Ввести dev-ключ

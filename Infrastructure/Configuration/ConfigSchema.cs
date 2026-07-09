@@ -36,7 +36,7 @@ namespace JacRed.Infrastructure.Configuration
                         Field("listenip", "string", "IP прослушивания", "any или конкретный IP"),
                         Field("listenport", "int", "Порт", "1–65535", min: 1, max: 65535),
                         Field("apikey", "password", "API ключ", "Пусто — без проверки", sensitive: true),
-                        Field("devkey", "password", "Dev ключ", "Для /settings, /dev/, /cron/, /jsondb из интернета и через туннель", sensitive: true),
+                        Field("devkey", "password", "Dev ключ", "LAN или ключ для /dev/, /cron/, /jsondb, /api/v1.0/config/* из интернета и через туннель", sensitive: true),
                         Field("web", "bool", "Веб-интерфейс", "Раздавать статику (PWA)")
                     }),
                     Group("api", "API и дубликаты", null, new[]
@@ -57,13 +57,18 @@ namespace JacRed.Infrastructure.Configuration
                         Field("timeSyncSpidr", "int", "Интервал sync spidr (мин)", null, min: 1),
                         Field("maxreadfile", "int", "Max read file", "Лимит чтения fdb", min: 1)
                     }),
-                    Group("logging", "Логирование", null, new[]
+                    Group("logging", "Логирование", "Файлы в Data/log/ и уровни консоли (journalctl)", new[]
                     {
                         Field("logFdb", "bool", "Лог FileDB", "Data/log/fdb.*.log, default: true"),
                         Field("logFdbRetentionDays", "int", "Хранение fdb логов (дней)", "0 — все", min: 0),
                         Field("logFdbMaxSizeMb", "int", "Max размер fdb логов (MB)", "0 — без лимита", min: 0),
                         Field("logFdbMaxFiles", "int", "Max файлов fdb логов", "0 — без лимита", min: 0),
-                        Field("logParsers", "bool", "Лог парсеров", "Data/log/{tracker}.log, default: true")
+                        Field("logParsers", "bool", "Лог парсеров", "Data/log/{tracker}.log, default: true"),
+                        Field("logging.defaultLevel", "select", "Уровень консоли", "Минимальный уровень для journalctl", enumValues: new[] { "Trace", "Debug", "Information", "Warning", "Error", "Critical", "None" }),
+                        Field("logging.consoleTimestamp", "bool", "Время в консоли", "Дублировать timestamp в строке сообщения"),
+                        Field("logging.tracksConsoleDetail", "bool", "Подробный tracks в консоли", "false — только ошибки и итоги"),
+                        Field("logging.cronSkipFastMs", "int", "Cron: быстрые 200 → Debug", "HTTP /cron/ быстрее N ms, 0 — логировать все", min: 0),
+                        Field("logging.categories", "json", "Уровни по категориям", "JSON: tracks, sync, sync_spidr, cron, fdb, stats, parsers (None = выкл.)")
                     }),
                     Group("tracks", "Tracks (ffprobe)", null, new[]
                     {
@@ -222,6 +227,15 @@ namespace JacRed.Infrastructure.Configuration
             }
 
             ValidateMergeV1(config.search?.mergeV1, "search.mergeV1", errors);
+
+            if (config.logging != null)
+            {
+                if (config.logging.cronSkipFastMs < 0)
+                    errors.Add("logging.cronSkipFastMs: не может быть отрицательным");
+                if (!string.IsNullOrWhiteSpace(config.logging.defaultLevel) &&
+                    !Enum.TryParse<Microsoft.Extensions.Logging.LogLevel>(config.logging.defaultLevel, true, out _))
+                    warnings.Add("logging.defaultLevel: ожидается Trace, Debug, Information, Warning, Error, Critical или None");
+            }
 
             if (config.evercache != null)
             {

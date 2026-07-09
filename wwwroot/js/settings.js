@@ -58,7 +58,7 @@
   let devKeyModalInstance = null;
 
   const ACCESS_MESSAGES = {
-    network: 'Доступ закрыт. Откройте через Cloudflare Tunnel / LAN, или задайте devkey в init.yaml и введите его кнопкой «Dev ключ».',
+    network: 'Доступ к Config API: LAN без ключа или devkey из init.yaml (кнопка «Dev ключ»). Через туннель без devkey — недоступно.',
     devkey: 'Требуется dev-ключ из init.yaml. Укажите его — кнопка «Dev ключ» в шапке или ниже.',
     apikey: 'Требуется API-ключ. Задайте его на главной (кнопка «API ключ»), затем обновите страницу.'
   };

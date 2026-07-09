@@ -19,10 +19,14 @@ info:
     | `apikey` query | Search, stats (when `apikey` is set in config) |
     | `X-Api-Key` header | Same as query apikey |
     | `Authorization: Bearer` | Same as apikey |
-    | `X-Dev-Key` header | /settings (config API), /dev/, /cron/, /jsondb из интернета или через туннель |
+    | `X-Dev-Key` header | /dev/, /cron/, /jsondb, `/api/v1.0/config/*` из интернета или через туннель |
 
-    Config endpoints (`/api/v1.0/config/*`): LAN; same-host Cloudflare Tunnel / nginx без devkey;
-    из интернета или при заданном devkey — заголовок `X-Dev-Key`.
+    **Config API** (`/api/v1.0/config/*`): LAN-клиент **или** `X-Dev-Key` / `?devkey=`.
+    Same-host reverse proxy (Cloudflare Tunnel, nginx) **сам по себе не заменяет** devkey.
+
+    **Sync** (`/sync/*`): middleware пропускает без ключей; данные sync требуют `opensync: true` в конфиге.
+
+    Полная матрица: [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
     ## Config files
 
@@ -50,7 +54,7 @@ tags:
   - name: Sync
     description: Remote sync protocol (requires opensync)
   - name: Config
-    description: init.yaml / init.conf read/write (local network only)
+    description: init.yaml / init.conf read/write (LAN or X-Dev-Key)
   - name: Web
     description: PWA HTML shells
 
@@ -587,8 +591,9 @@ paths:
       tags: [Sync]
       summary: Sync FileDB key listing
       operationId: syncFdb
+      security: []
+      description: 'Requires `opensync: true` in server config.'
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
         - name: key
           in: query
           schema:
@@ -600,11 +605,11 @@ paths:
   /sync/fdb/torrents:
     get:
       tags: [Sync]
-      summary: Sync FileDB torrent collections (v2)
-      description: Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`.
+      summary: Sync FileDB torrent collections
+      description: 'Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`. Requires `opensync: true`.'
       operationId: syncFdbTorrents
+      security: []
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
         - name: time
           in: query
           required: true
@@ -635,8 +640,9 @@ paths:
       tags: [Sync]
       summary: Tracks export statistics for sync
       operationId: syncTracksStats
+      security: []
+      description: 'Requires `opensync: true`.'
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
         - name: includeTorrentDb
           in: query
           schema:
@@ -663,7 +669,7 @@ paths:
       summary: Get current configuration
       description: |
         Returns parsed config as JSON object and serialized content (secrets included).
-        **Local network only.**
+        **LAN or valid X-Dev-Key** (same-host proxy alone is not sufficient).
       operationId: configGet
       security:
         - DevKeyHeader: []
@@ -685,12 +691,12 @@ paths:
         '401':
           description: Invalid or missing devkey
         '403':
-          description: Not from local/private network
+          description: Forbidden (LAN or devkey required)
 
     post:
       tags: [Config]
       summary: Save configuration
-      description: Writes to init.yaml or init.conf. Hot-reload within ~10s. **Local network only.**
+      description: Writes to init.yaml or init.conf. Hot-reload within ~10s. **LAN or valid X-Dev-Key.**
       operationId: configSave
       security:
         - DevKeyHeader: []
@@ -710,7 +716,7 @@ paths:
         '401':
           description: Invalid devkey
         '403':
-          description: Not from local network
+          description: Forbidden (LAN or devkey required)
 
   /api/v1.0/config/schema:
     get:
@@ -938,7 +944,7 @@ components:
       type: apiKey
       in: header
       name: X-Dev-Key
-      description: Required for /api/v1.0/config when devkey is set in config
+      description: Admin/dev key — required from internet or tunnel when `devkey` is set; LAN clients may omit it.
 
   parameters:
     ApiKeyQuery:
@@ -1072,7 +1078,7 @@ components:
           format: date-time
         data:
           type: object
-          description: Parsed config (includes secrets; LAN-only API)
+          description: Parsed config (includes secrets; LAN or devkey)
           additionalProperties: true
         content:
           type: string

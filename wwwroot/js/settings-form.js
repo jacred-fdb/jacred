@@ -112,7 +112,7 @@
     let inputValue = raw;
     if (field.type === 'stringList') inputValue = stringListToText(raw);
     if (field.type === 'json') {
-      inputValue = raw != null ? JSON.stringify(raw, null, 2) : '[]';
+      inputValue = raw != null ? JSON.stringify(raw, null, 2) : (field.key.endsWith('.categories') ? '{}' : '[]');
       wrap.className = 'col-12 mb-3 jr-settings-field jr-settings-field--json';
     }
 
@@ -206,7 +206,7 @@
     tracks: 'bi-soundwave',
     fdb: 'bi-database',
     evercache: 'bi-lightning-charge',
-    torznab: 'bi-rss',
+    search: 'bi-search',
     proxy: 'bi-shield'
   };
 
