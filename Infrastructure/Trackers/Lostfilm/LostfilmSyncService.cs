@@ -68,9 +68,8 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
 
                 ParserLog.Write(TrackerName, $"ParsePages start pageFrom={pageFrom} pageTo={pageTo} host={host}");
 
-                int totalPages = 1;
                 string firstPageHtml = await HttpClient.Get($"{host}/new/", cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy, httpversion: 2);
-                totalPages = LostfilmParser.ExtractTotalPagesFromNewPageHtml(firstPageHtml);
+                int totalPages = LostfilmParser.ExtractTotalPagesFromNewPageHtml(firstPageHtml);
                 if (pageTo > totalPages)
                     pageTo = totalPages;
                 ParserLog.Write(TrackerName, $"Pagination: totalPages={totalPages} will parse pages {pageFrom}..{pageTo}");
