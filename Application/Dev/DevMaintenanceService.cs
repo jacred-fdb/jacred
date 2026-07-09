@@ -177,6 +177,6 @@ namespace JacRed.Application.Dev
             FileDB.SaveChangesToFile();
             return new { ok = true };
         }
-    
+
     }
 }

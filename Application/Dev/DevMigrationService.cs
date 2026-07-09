@@ -740,6 +740,6 @@ namespace JacRed.Application.Dev
                 errors = errors.Take(10).ToList()
             };
         }
-    
+
     }
 }
