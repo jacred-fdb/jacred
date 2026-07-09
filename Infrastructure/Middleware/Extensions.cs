@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using JacRed.Infrastructure.Security;
+using Microsoft.AspNetCore.Builder;
 
 namespace JacRed.Infrastructure.Middleware
 {
@@ -6,7 +7,9 @@ namespace JacRed.Infrastructure.Middleware
     {
         public static IApplicationBuilder UseModHeaders(this IApplicationBuilder builder)
         {
-            return builder.UseMiddleware<ModHeaders>();
+            return builder
+                .UseMiddleware<SecurityHeadersMiddleware>()
+                .UseMiddleware<JacRedAuthorizationMiddleware>();
         }
     }
 }

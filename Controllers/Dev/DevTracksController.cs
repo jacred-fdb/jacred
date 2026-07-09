@@ -1,11 +1,11 @@
 using JacRed.Application.Dev;
+using JacRed.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
-using JacRed.Controllers.Filters;
 
 namespace JacRed.Controllers.Dev
 {
     [Route("/dev/[action]")]
-    [LocalhostOnly]
+    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     public class DevTracksController : Controller
     {
         readonly ITracksAdminService _tracksAdminService;

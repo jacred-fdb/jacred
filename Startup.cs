@@ -12,6 +12,7 @@ using System.Net;
 using System.Text.Json.Serialization;
 using JacRed.Configuration;
 using JacRed.Infrastructure.OpenApi;
+using JacRed.Infrastructure.Security;
 using JacRed.Infrastructure.Middleware;
 using JacRed.Application.Index;
 using JacRed.Application.Search;
@@ -36,6 +37,7 @@ namespace JacRed
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddJacRedConfiguration();
+            services.AddJacRedSecurity();
 
             services.Configure<CookiePolicyOptions>(options =>
             {
@@ -110,16 +112,17 @@ namespace JacRed
             }
 
 
-            // Реальный IP клиента за cloudflared/прокси: доверяем X-Forwarded-For от loopback
+            // Client IP behind cloudflared/nginx — see temp/SecurityAnalysis.md
             app.Use(async (context, next) =>
             {
-                ModHeaders.CaptureOriginalRemoteIp(context);
+                ClientNetworkContext.CaptureOriginalRemoteIp(context);
                 await next();
             });
 
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+                ForwardLimit = 1,
                 KnownIPNetworks =
                 {
                     new System.Net.IPNetwork(IPAddress.Loopback, 8),
@@ -186,7 +189,7 @@ namespace JacRed
 
                 app.Use(async (context, next) =>
                 {
-                    ModHeaders.ApplySecurityHeaders(context);
+                    SecurityHeaders.Apply(context);
                     await next();
                 });
 

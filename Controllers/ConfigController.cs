@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using JacRed;
 using JacRed.Infrastructure.Configuration;
+using JacRed.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -29,6 +30,7 @@ namespace JacRed.Controllers
     /// Uses Newtonsoft.Json end-to-end (System.Text.Json breaks JObject → [] on the client).
     /// </summary>
     [Route("/api/v1.0/config")]
+    [JacRedAuthorize(JacRedAccessPolicy.ConfigApi)]
     public class ConfigController : Controller
     {
         static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings

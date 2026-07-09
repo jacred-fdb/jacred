@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Knaben;
 using Microsoft.AspNetCore.Mvc;
+using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
@@ -13,6 +14,7 @@ namespace JacRed.Controllers.Cron
     /// Name: Call the Midwife S15E08→Call the Midwife; War.Machine.2026→War Machine; [2026, ...]→relased.
     /// Title normalized for FileDB (2160p, .HDR→ HDR). Migrate: /dev/fixKnabenNames.
     /// </summary>
+    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/knaben/[action]")]
     public class KnabenController : BaseController
     {

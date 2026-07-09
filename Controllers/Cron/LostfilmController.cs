@@ -1,9 +1,11 @@
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Trackers.Lostfilm;
 using Microsoft.AspNetCore.Mvc;
+using JacRed.Infrastructure.Security;
 
 namespace JacRed.Controllers.Cron
 {
+    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/lostfilm/[action]")]
     public class LostfilmController : Controller
     {

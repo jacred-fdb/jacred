@@ -2,10 +2,12 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Kinozal;
 using Microsoft.AspNetCore.Mvc;
+using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
 {
+    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/kinozal/[action]")]
     public class KinozalController : BaseController
     {

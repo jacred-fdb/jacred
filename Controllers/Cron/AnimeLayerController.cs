@@ -2,10 +2,12 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.AnimeLayer;
 using Microsoft.AspNetCore.Mvc;
+using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
 {
+    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/animelayer/[action]")]
     public class AnimeLayerController : BaseController
     {
