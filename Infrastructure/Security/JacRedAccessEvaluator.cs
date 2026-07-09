@@ -56,35 +56,13 @@ namespace JacRed.Infrastructure.Security
         }
 
         JacRedAccessResult EvaluateConfigApi(IClientNetworkContext network, HttpContext httpContext, string method)
-        {
-            if (IsConfigApiAccessAllowed(network, httpContext))
-                return JacRedAccessResult.Allow;
-            return JacRedAccessResult.Deny(DenyStatus(_devKeyValidator.IsConfigured, method));
-        }
+            => EvaluateDevAdmin(network, httpContext, method);
 
         static bool IsDevEndpointAccessAllowed(IClientNetworkContext network, HttpContext httpContext)
         {
             if (network.IsDirectLocalClient)
                 return true;
             return JacRedKeyUtils.DevKeyMatches(httpContext, AppInit.conf?.devkey);
-        }
-
-        static bool IsConfigApiAccessAllowed(IClientNetworkContext network, HttpContext httpContext)
-        {
-            if (network.IsDirectLocalClient)
-                return true;
-
-            if (network.IsViaLocalPeer)
-            {
-                if (string.IsNullOrEmpty(AppInit.conf?.devkey))
-                    return true;
-                return JacRedKeyUtils.DevKeyMatches(httpContext, AppInit.conf?.devkey);
-            }
-
-            if (!string.IsNullOrEmpty(AppInit.conf?.devkey) && JacRedKeyUtils.DevKeyMatches(httpContext, AppInit.conf?.devkey))
-                return true;
-
-            return false;
         }
 
         public static int DenyStatus(bool keyConfigured, string method)

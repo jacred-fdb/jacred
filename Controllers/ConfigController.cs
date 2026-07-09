@@ -25,7 +25,7 @@ namespace JacRed.Controllers
 
     /// <summary>
     /// Configuration management API (init.yaml / init.conf).
-    /// LAN, same-host proxy, or X-Dev-Key when devkey is configured.
+    /// LAN or X-Dev-Key when devkey is configured.
     /// Uses Newtonsoft.Json end-to-end (System.Text.Json breaks JObject → [] on the client).
     /// </summary>
     [Route("/api/v1.0/config")]

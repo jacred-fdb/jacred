@@ -8,7 +8,7 @@ namespace JacRed.Infrastructure.Security
         /// <summary>Search and API paths — apikey enforced when configured in init.yaml.</summary>
         ApiKeyWhenConfigured,
 
-        /// <summary>/api/v1.0/config — LAN, same-host proxy, or devkey.</summary>
+        /// <summary>/api/v1.0/config — LAN or devkey (same-host proxy alone is not enough).</summary>
         ConfigApi,
 
         /// <summary>/dev/, /cron/, /jsondb — LAN or devkey (same-host proxy alone is not enough).</summary>
