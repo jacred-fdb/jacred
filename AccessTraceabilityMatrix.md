@@ -96,6 +96,7 @@
 | `GET /api/v1/indexer/{id}` | TorznabController | — |
 | `GET /stats/trackers` | StatsController | `openstats` |
 | `GET /stats/meta` | StatsController | `openstats` |
+| `GET /stats/tracks` | StatsController | `openstats` |
 | `GET /stats/torrents` | StatsController | `openstats` |
 | `GET /stats/trackers/{name}/new` | StatsController | `openstats` |
 | `GET /stats/trackers/{name}/updated` | StatsController | `openstats` |

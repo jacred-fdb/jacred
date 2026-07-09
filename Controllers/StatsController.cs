@@ -88,6 +88,25 @@ namespace JacRed.Controllers
         }
 
         /// <summary>
+        /// Агрегат ffprobe/tracks из кэша Data/temp/tracks-stats.json (read-only).
+        /// </summary>
+        [Route("/stats/tracks")]
+        public ActionResult Tracks(bool includeTorrentDb = true)
+        {
+            if (!AppInit.conf.openstats)
+                return Json(new { ok = false });
+
+            var stats = TracksDB.GetExportStats(includeTorrentDb, refresh: false);
+            return Json(new
+            {
+                ok = true,
+                updatedAt = TracksDB.GetExportStatsUpdatedAt(),
+                fromCache = TracksDB.LastExportStatsFromCache,
+                stats
+            });
+        }
+
+        /// <summary>
         /// Получить новые раздачи для конкретного трекера (созданные сегодня).
         /// </summary>
         [Route("/stats/trackers/{trackerName}/new")]

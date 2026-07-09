@@ -260,7 +260,7 @@ journalctl -u jacred -g 'fdb:' -p warning
 | `tracks-stats.json` | Кэш export-статистики ffprobe/tracks (dev/sync) |
 | `tracks-index.bz` | Gzip-индекс infohash в `Data/tracks` (быстрый старт и stats без walk всех JSON) |
 
-**Эндпоинт:** `GET /stats/meta` — JSON с `updatedAt` / `updatedAtLocal` (тот же момент, что и `tracks-stats.json`).
+**Эндпоинты:** `GET /stats/torrents` — по трекерам из `stats.json`; `GET /stats/tracks` — агрегат из `tracks-stats.json`; `GET /stats/meta` — `updatedAt`.
 
 **Старт сервиса:** HTTP (`/health`) доступен через ~10–30 с после загрузки `masterDb.bz`. Индекс треков `Data/temp/tracks-index.bz` и первый сбор stats выполняются **в фоне**; пока индекс пуст, cron stats **откладывается** (в логе: `stats: deferred`). После rebuild индекса stats запускается автоматически.
 
@@ -535,7 +535,7 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 | `GET /api/v2.0/indexers/.../results` | ApiKeyWhenConfigured | — |
 | `GET /torznab/api` | ApiKeyWhenConfigured | — |
 | `GET /api/v1.0/torrents` | ApiKeyWhenConfigured | — |
-| `GET /stats/torrents`, `/stats/meta` | ApiKeyWhenConfigured | `openstats` |
+| `GET /stats/torrents`, `/stats/tracks`, `/stats/meta` | ApiKeyWhenConfigured | `openstats` |
 | `GET /sync/fdb/torrents` | Public | `opensync` |
 | `GET/POST /api/v1.0/config/*` | ConfigApi | — |
 | `GET /cron/{tracker}/parse` | DevAdmin | — |
@@ -672,11 +672,12 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 ### Статистика и синхронизация
 
 - **`GET /stats/*`** — статистика (если `openstats: true`).
-  - **`GET /stats/torrents`** — сводка из `Data/temp/stats.json` (массив по трекерам).
+  - **`GET /stats/torrents`** — сводка **по трекерам** из `Data/temp/stats.json` (в т.ч. `tracks.confirm/wait/skip`).
+  - **`GET /stats/tracks`** — агрегат ffprobe/tracks из кэша `Data/temp/tracks-stats.json` (read-only).
   - **`GET /stats/meta`** — время последнего сбора stats + tracks-stats (`updatedAt`, `updatedAtLocal`).
 - **`GET /sync/*`** — эндпоинты синхронизации (если `opensync: true`).
   - **`GET /sync/fdb/torrents`** — основной протокол синхронизации (collections + pagination).
-  - **`GET /sync/tracks/stats`** — та же статистика ffprobe/tracks, что и `/dev/TracksStats` (при `opensync: true`; доступ по `apikey`, без ограничения localhost).
+  - **`GET /sync/tracks/stats`** — агрегат из `tracks-stats.json` (как `/dev/TracksStats`; при `opensync: true`).
 
 ### Парсинг трекеров
 

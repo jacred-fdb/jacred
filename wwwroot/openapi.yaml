@@ -515,6 +515,87 @@ paths:
               schema:
                 type: array
 
+  /stats/meta:
+    get:
+      tags: [Stats]
+      summary: Last stats collection time
+      description: 'Requires `openstats: true`. Returns updatedAt for stats.json and tracks-stats.json.'
+      operationId: statsMeta
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+      responses:
+        '200':
+          description: Collection timestamps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  updatedAtLocal:
+                    type: string
+                  tracksStatsUpdatedAt:
+                    type: string
+                    format: date-time
+
+  /stats/tracks:
+    get:
+      tags: [Stats]
+      summary: Tracks export aggregate (tracks-stats.json cache)
+      description: 'Read-only cache from Data/temp/tracks-stats.json. Requires `openstats: true`. Per-tracker breakdown is on `/stats/torrents`.'
+      operationId: statsTracks
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: includeTorrentDb
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Tracks export aggregate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  fromCache:
+                    type: boolean
+                  stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      filesScanned:
+                        type: integer
+                      fromTracksFiles:
+                        type: integer
+                      fromMemory:
+                        type: integer
+                      fromTorrentDb:
+                        type: integer
+                      torrentsScanned:
+                        type: integer
+                      invalidPath:
+                        type: integer
+                      emptyStreams:
+                        type: integer
+                      readErrors:
+                        type: integer
+                      magnetErrors:
+                        type: integer
+                      torrentDbErrors:
+                        type: integer
+
   /stats/trackers/{trackerName}/new:
     get:
       tags: [Stats]

@@ -54,6 +54,7 @@ namespace JacRed.Infrastructure.Security
             // Stats JSON — apikey + openstats in controller
             new("/stats/trackers", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
             new("/stats/meta", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
+            new("/stats/tracks", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
             new("/stats/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
         };
 
