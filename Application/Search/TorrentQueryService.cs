@@ -213,8 +213,7 @@ namespace JacRed.Application.Search
 
                 string key = $"{StringConvert.SearchName(t.name)}:{StringConvert.SearchName(t.originalname)}";
 
-                var langs = t.languages;
-
+                HashSet<string> langs;
                 if (t.ffprobe != null || !AppInit.conf.tracks)
                     langs = TracksDB.Languages(t, t.ffprobe);
                 else
