@@ -16,6 +16,7 @@ using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
 using JacRed.Engine.Background;
+using JacRed.Engine.Trackers.Knaben;
 
 namespace JacRed
 {
@@ -79,6 +80,8 @@ namespace JacRed
             services.AddHostedService<StatsWorker>();
             services.AddHostedService<FileDbWorker>();
             services.AddHostedService<TracksWorker>();
+
+            services.AddSingleton<KnabenSyncService>();
 
             services.AddJacRedSwagger();
         }

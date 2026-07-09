@@ -8,6 +8,7 @@ using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
 using JacRed.Controllers.CRON;
+using JacRed.Engine.Trackers.Knaben;
 
 namespace JacRed.Application.Dev
 {
@@ -45,14 +46,14 @@ namespace JacRed.Application.Dev
                         string source = !string.IsNullOrWhiteSpace(t.title) ? t.title : (t.name ?? "");
                         if (string.IsNullOrWhiteSpace(source)) continue;
 
-                        var (newName, newRelased) = KnabenController.ParseNameAndYear(source);
+                        var (newName, newRelased) = KnabenParser.ParseNameAndYear(source);
                         if (string.IsNullOrWhiteSpace(newName)) continue;
 
                         string trackerSuffix = "";
                         var suffixMatch = Regex.Match(source, @"\s+\|\s+[^|]+$");
                         if (suffixMatch.Success) trackerSuffix = suffixMatch.Value;
 
-                        string newTitle = KnabenController.BuildTitleForFileDB(source.TrimEnd()) + trackerSuffix;
+                        string newTitle = KnabenParser.BuildTitleForFileDB(source.TrimEnd()) + trackerSuffix;
 
                         bool nameChanged = newName != t.name || newName != t.originalname;
                         bool relasedChanged = newRelased != t.relased;
