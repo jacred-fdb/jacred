@@ -293,7 +293,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
-                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
+                if (db.TryGetValue(t.url, out TorrentDetails cached) && ShouldSkipHashFetch(cached, t))
                     return true;
 
                 string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
@@ -312,6 +312,28 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             });
 
             return torrents.Count > 0;
+        }
+
+        /// <summary>
+        /// Кинозал при добавлении серий/озвучек перехеширует .torrent (новый info hash),
+        /// но title в списке часто не меняется — раньше hash не перезапрашивался.
+        /// </summary>
+        static bool ShouldSkipHashFetch(TorrentDetails cached, TorrentDetails parsed)
+        {
+            if (string.IsNullOrWhiteSpace(cached.magnet))
+                return false;
+
+            if (cached.title != parsed.title)
+                return false;
+
+            if (cached.sizeName != parsed.sizeName)
+                return false;
+
+            // В колонке даты показывается время последнего обновления раздачи («вчера», «сегодня», …)
+            if (parsed.createTime.Date > cached.createTime.Date)
+                return false;
+
+            return true;
         }
     }
 }
