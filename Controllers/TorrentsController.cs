@@ -22,7 +22,7 @@ namespace JacRed.Controllers
             return Json(result);
         }
 
-        [Route("/api/v1.0/torrents/qualitys")]
+        [Route("/api/v1.0/qualitys")]
         public JsonResult Qualitys(string name, string originalname, string type, int page = 1, int take = 1000)
         {
             return Json(_torrentQueryService.QueryQualitys(name, originalname, type, page, take));
