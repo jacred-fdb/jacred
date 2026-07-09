@@ -16,7 +16,11 @@ using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
 using JacRed.Engine.Background;
+using JacRed.Engine.Trackers.AnimeLayer;
+using JacRed.Engine.Trackers.Bitru;
 using JacRed.Engine.Trackers.Knaben;
+using JacRed.Engine.Trackers.Lostfilm;
+using JacRed.Engine.Trackers.Rutracker;
 
 namespace JacRed
 {
@@ -82,6 +86,11 @@ namespace JacRed
             services.AddHostedService<TracksWorker>();
 
             services.AddSingleton<KnabenSyncService>();
+            services.AddSingleton<AnimeLayerSyncService>();
+            services.AddSingleton<LostfilmSyncService>();
+            services.AddSingleton<RutrackerSyncService>();
+            services.AddSingleton<BitruApiSyncService>();
+            services.AddSingleton<BitruSyncService>();
 
             services.AddJacRedSwagger();
         }

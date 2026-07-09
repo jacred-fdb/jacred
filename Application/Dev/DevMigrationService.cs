@@ -7,7 +7,7 @@ using JacRed.Application.Index;
 using JacRed.Engine;
 using JacRed.Engine.CORE;
 using JacRed.Models.Details;
-using JacRed.Controllers.CRON;
+using JacRed.Engine.Trackers.Bitru;
 using JacRed.Engine.Trackers.Knaben;
 
 namespace JacRed.Application.Dev
@@ -119,8 +119,8 @@ namespace JacRed.Application.Dev
                             continue;
 
                         processed++;
-                        string newName = BitruApiController.CleanTitleForSearch(t.name ?? "")?.Trim();
-                        string newOriginalname = BitruApiController.CleanTitleForSearch(t.originalname ?? "")?.Trim();
+                        string newName = BitruApiParser.CleanTitleForSearch(t.name ?? "")?.Trim();
+                        string newOriginalname = BitruApiParser.CleanTitleForSearch(t.originalname ?? "")?.Trim();
                         if (string.IsNullOrWhiteSpace(newName)) newName = (t.name ?? "").Trim();
                         if (string.IsNullOrWhiteSpace(newOriginalname)) newOriginalname = (t.originalname ?? "").Trim();
                         if (string.IsNullOrWhiteSpace(newOriginalname)) newOriginalname = newName;
