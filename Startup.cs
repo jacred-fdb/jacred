@@ -120,14 +120,14 @@ namespace JacRed
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-                KnownNetworks =
+                KnownIPNetworks =
                 {
-                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Loopback, 8),
-                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.IPv6Loopback, 128),
+                    new System.Net.IPNetwork(IPAddress.Loopback, 8),
+                    new System.Net.IPNetwork(IPAddress.IPv6Loopback, 128),
                     // cloudflared / reverse proxy в Docker на том же хосте
-                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("10.0.0.0"), 8),
-                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("172.16.0.0"), 12),
-                    new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("192.168.0.0"), 16)
+                    new System.Net.IPNetwork(IPAddress.Parse("10.0.0.0"), 8),
+                    new System.Net.IPNetwork(IPAddress.Parse("172.16.0.0"), 12),
+                    new System.Net.IPNetwork(IPAddress.Parse("192.168.0.0"), 16)
                 }
             });
 

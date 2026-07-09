@@ -11,10 +11,10 @@ on:
         default: ""
 
       dotnet_version:
-        description: "Dotnet version (e.g. 9.0.x)"
+        description: "Dotnet version (e.g. 10.0.x)"
         type: string
         required: false
-        default: "9.0.x"
+        default: "10.0.x"
 
       project_file:
         description: "Path to .csproj file"

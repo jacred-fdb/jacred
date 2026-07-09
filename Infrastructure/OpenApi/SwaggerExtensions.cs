@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Newtonsoft.Json.Linq;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System;
@@ -70,33 +70,33 @@ namespace JacRed.Infrastructure.OpenApi
 
                 options.MapType<JObject>(() => new OpenApiSchema
                 {
-                    Type = "object",
+                    Type = JsonSchemaType.Object,
                     AdditionalPropertiesAllowed = true,
                     Description = "JSON object"
                 });
 
                 options.MapType<JToken>(() => new OpenApiSchema
                 {
-                    Type = "object",
+                    Type = JsonSchemaType.Object,
                     AdditionalPropertiesAllowed = true
                 });
 
-                options.MapType(typeof(System.Collections.Generic.Dictionary<string, string>), () => new OpenApiSchema
+                options.MapType(typeof(Dictionary<string, string>), () => new OpenApiSchema
                 {
-                    Type = "object",
-                    AdditionalProperties = new OpenApiSchema { Type = "string" }
+                    Type = JsonSchemaType.Object,
+                    AdditionalProperties = new OpenApiSchema { Type = JsonSchemaType.String }
                 });
 
                 options.MapType(typeof(HashSet<int>), () => new OpenApiSchema
                 {
-                    Type = "array",
-                    Items = new OpenApiSchema { Type = "integer" }
+                    Type = JsonSchemaType.Array,
+                    Items = new OpenApiSchema { Type = JsonSchemaType.Integer }
                 });
 
                 options.MapType(typeof(HashSet<string>), () => new OpenApiSchema
                 {
-                    Type = "array",
-                    Items = new OpenApiSchema { Type = "string" }
+                    Type = JsonSchemaType.Array,
+                    Items = new OpenApiSchema { Type = JsonSchemaType.String }
                 });
 
                 options.SchemaFilter<ReadOnlyPropertySchemaFilter>();
@@ -136,29 +136,11 @@ namespace JacRed.Infrastructure.OpenApi
                     Description = "Dev key for /api/v1.0/config, /dev/, /cron/, /jsondb from internet or tunnel"
                 });
 
-                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
                 {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKeyQuery" }
-                        },
-                        Array.Empty<string>()
-                    },
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKeyHeader" }
-                        },
-                        Array.Empty<string>()
-                    },
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-                        },
-                        Array.Empty<string>()
-                    }
+                    [new OpenApiSecuritySchemeReference("ApiKeyQuery", document)] = [],
+                    [new OpenApiSecuritySchemeReference("ApiKeyHeader", document)] = [],
+                    [new OpenApiSecuritySchemeReference("Bearer", document)] = []
                 });
 
                 // XML comments disabled — see note above.
@@ -170,14 +152,15 @@ namespace JacRed.Infrastructure.OpenApi
         /// <summary>Skip get-only properties (e.g. RootObject.jacred) that break schema generation.</summary>
         sealed class ReadOnlyPropertySchemaFilter : ISchemaFilter
         {
-            public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+            public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
             {
-                if (schema?.Properties == null || context?.Type == null) return;
+                if (schema is not OpenApiSchema openApiSchema || openApiSchema.Properties == null || context?.Type == null)
+                    return;
 
                 foreach (var prop in context.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                 {
-                    if (prop.CanRead && !prop.CanWrite && schema.Properties.ContainsKey(prop.Name))
-                        schema.Properties.Remove(prop.Name);
+                    if (prop.CanRead && !prop.CanWrite && openApiSchema.Properties.ContainsKey(prop.Name))
+                        openApiSchema.Properties.Remove(prop.Name);
                 }
             }
         }

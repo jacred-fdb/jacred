@@ -1,5 +1,5 @@
 ARG ALPINE_VERSION=3.23.3
-ARG DOTNET_VERSION=9.0
+ARG DOTNET_VERSION=10.0
 
 ################################################################################
 # Builder stage – build from repository context

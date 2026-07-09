@@ -44,7 +44,7 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       checkout_ref: ${{ needs.extract-version.outputs.checkout_ref }}
-      dotnet_version: ${{ vars.DOTNET_VERSION || '9.0.x' }}
+      dotnet_version: ${{ vars.DOTNET_VERSION || '10.0.x' }}
       retention_days: ${{ needs.extract-version.outputs.is_release == 'true' && 30 || 7 }}
     secrets: inherit
 
