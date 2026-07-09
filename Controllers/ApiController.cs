@@ -14,6 +14,7 @@ using JacRed.Engine.Indexers;
 using JacRed.Models.Details;
 using JacRed.Models.Tracks;
 using JacRed.Models.Api;
+using JacRed.Application.Index;
 using Microsoft.AspNetCore.Http;
 using System.Text;
 using System.Security;
@@ -172,7 +173,7 @@ namespace JacRed.Controllers
             if (memoryCache != null && memoryCache.TryGetValue(cachekey, out List<Result> _cacheResult))
                 return _cacheResult;
 
-            var fastdb = getFastdb();
+            var fastdb = FastDbIndex.Default.Get();
             var torrents = new Dictionary<string, TorrentDetails>();
 
             #region Запрос с NUM
@@ -1069,49 +1070,9 @@ namespace JacRed.Controllers
         }
         #endregion
 
-        #region getFastdb
-        static Dictionary<string, List<string>> _fastdb = null;
-        static readonly object _fastdbLock = new object();
-
+        #region getFastdb compat (Phase 1A — shim until Phase 3 DI)
         public static Dictionary<string, List<string>> getFastdb(bool update = false)
-        {
-            if (_fastdb != null && !update)
-                return _fastdb;
-
-            lock (_fastdbLock)
-            {
-                if (_fastdb != null && !update)
-                    return _fastdb;
-
-                if (update)
-                    Console.WriteLine($"fastdb: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                var fastdb = new Dictionary<string, List<string>>();
-
-                foreach (var item in FileDB.masterDb.ToArray())
-                {
-                    foreach (string k in item.Key.Split(":"))
-                    {
-                        if (string.IsNullOrEmpty(k))
-                            continue;
-
-                        if (fastdb.TryGetValue(k, out List<string> keys))
-                        {
-                            keys.Add(item.Key);
-                        }
-                        else
-                        {
-                            fastdb.Add(k, new List<string>() { item.Key });
-                        }
-                    }
-                }
-
-                _fastdb = fastdb;
-                if (update)
-                    Console.WriteLine($"fastdb: rebuild end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} keys={fastdb.Count}");
-            }
-
-            return _fastdb;
-        }
+            => FastDbIndex.Default.Get(update);
         #endregion
     }
 }

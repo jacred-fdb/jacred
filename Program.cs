@@ -8,6 +8,7 @@ using System.Threading;
 using JacRed.Engine;
 using System.Threading.Tasks;
 using System;
+using JacRed.Application.Index;
 using JacRed.Controllers;
 using System.IO;
 
@@ -42,7 +43,8 @@ namespace JacRed
                 catch (IOException ex) { Console.WriteLine($"tracks startup: {ex}"); }
                 catch (UnauthorizedAccessException ex) { Console.WriteLine($"tracks startup: {ex}"); }
 
-                try { ApiController.getFastdb(update: true); }
+                // FastDbIndex.Default — same as ApiController.getFastdb shim (Phase 3: IHostedService + DI)
+                try { FastDbIndex.Default.Rebuild(); }
                 catch (Exception ex) { Console.WriteLine($"fastdb startup: {ex}"); }
             });
 
@@ -51,7 +53,7 @@ namespace JacRed
                 while (true)
                 {
                     await Task.Delay(TimeSpan.FromMinutes(10));
-                    try { ApiController.getFastdb(update: true); } catch { }
+                    try { FastDbIndex.Default.Rebuild(); } catch { }
                 }
             });
 
