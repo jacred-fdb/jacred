@@ -1,3 +1,4 @@
+using JacRed.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -168,7 +169,7 @@ namespace JacRed.Infrastructure.Configuration
                 enumValues
             };
 
-        public static void ValidateAgainstSchema(AppInit config, List<string> errors, List<string> warnings)
+        public static void ValidateAgainstSchema(AppOptions config, List<string> errors, List<string> warnings)
         {
             if (config == null)
             {

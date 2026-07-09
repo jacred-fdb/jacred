@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.Json.Serialization;
+using JacRed.Configuration;
 using JacRed.Infrastructure.OpenApi;
 using JacRed.Infrastructure.Middleware;
 using JacRed.Application.Index;
@@ -49,6 +50,8 @@ namespace JacRed
         #region ConfigureServices
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddJacRedConfiguration();
+
             services.Configure<CookiePolicyOptions>(options =>
             {
                 options.CheckConsentNeeded = context => true;
