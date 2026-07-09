@@ -2,7 +2,6 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Bitru;
 using Microsoft.AspNetCore.Mvc;
-using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
@@ -11,7 +10,6 @@ namespace JacRed.Controllers.Cron
     /// Парсинг Bitru через официальный API (api.php?get=torrents).
     /// Лимит: макс. 5 запросов в сек на IP — между запросами задержка 250 ms.
     /// </summary>
-    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/bitruapi/[action]")]
     public class BitruApiController : BaseController
     {

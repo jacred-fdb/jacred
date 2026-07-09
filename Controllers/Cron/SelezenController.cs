@@ -2,12 +2,10 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Selezen;
 using Microsoft.AspNetCore.Mvc;
-using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
 {
-    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/selezen/[action]")]
     public class SelezenController : BaseController
     {

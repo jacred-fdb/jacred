@@ -2,12 +2,10 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Rutracker;
 using Microsoft.AspNetCore.Mvc;
-using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
 {
-    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/rutracker/[action]")]
     public class RutrackerController : BaseController
     {

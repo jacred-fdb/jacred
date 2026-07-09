@@ -1,10 +1,8 @@
+using JacRed.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
 using JacRed.Infrastructure.Persistence;
-using System;
-using System.Text;
-using Microsoft.AspNetCore.Http;
 
 namespace JacRed.Controllers
 {
@@ -47,42 +45,14 @@ namespace JacRed.Controllers
         [Route("api/v1.0/conf")]
         public JsonResult JacRedConf([FromQuery] string apikey = null)
         {
-            var provided = ResolveProvidedApiKey(apikey);
+            var provided = !string.IsNullOrWhiteSpace(apikey)
+                ? apikey.Trim()
+                : JacRedKeyUtils.GetApiKeyFromRequest(HttpContext);
             var configured = AppInit.conf?.apikey;
             return Json(new
             {
-                apikey = string.IsNullOrWhiteSpace(configured) || KeysMatch(provided, configured)
+                apikey = string.IsNullOrWhiteSpace(configured) || JacRedKeyUtils.SecureEquals(provided, configured)
             });
-        }
-
-        /// <summary>apikey query param, X-Api-Key header, or Authorization: Bearer (same as ModHeaders).</summary>
-        static string ResolveProvidedApiKey(HttpRequest request, string queryApiKey)
-        {
-            if (!string.IsNullOrWhiteSpace(queryApiKey))
-                return queryApiKey.Trim();
-
-            if (request.Headers.TryGetValue("X-Api-Key", out var header) && !string.IsNullOrEmpty(header))
-                return header.ToString().Trim();
-
-            if (request.Headers.TryGetValue("Authorization", out var auth))
-            {
-                var s = auth.ToString();
-                if (s.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                    return s.Substring(7).Trim();
-            }
-
-            return null;
-        }
-
-        string ResolveProvidedApiKey(string queryApiKey)
-            => ResolveProvidedApiKey(Request, queryApiKey);
-
-        static bool KeysMatch(string provided, string configured)
-        {
-            if (provided == null || configured == null) return provided == configured;
-            var a = Encoding.UTF8.GetBytes(provided);
-            var b = Encoding.UTF8.GetBytes(configured);
-            return a.Length == b.Length && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
         }
     }
 }

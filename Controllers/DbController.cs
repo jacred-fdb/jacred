@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using JacRed.Infrastructure.Persistence;
-using JacRed.Infrastructure.Security;
 
 namespace JacRed.Controllers
 {
     [Route("/jsondb/[action]")]
-    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     public class DbController : BaseController
     {
         public DbController(IMemoryCache memoryCache) : base(memoryCache) { }

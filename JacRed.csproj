@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <Compile Remove="Data\**" />
+    <Compile Remove="Engine\**" />
     <Compile Remove="VersionInfo.g.cs" />
     <Content Remove="Data\**" />
     <Content Remove="temp\**" />

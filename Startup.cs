@@ -13,7 +13,6 @@ using System.Text.Json.Serialization;
 using JacRed.Configuration;
 using JacRed.Infrastructure.OpenApi;
 using JacRed.Infrastructure.Security;
-using JacRed.Infrastructure.Middleware;
 using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
@@ -89,6 +88,13 @@ namespace JacRed
             services.AddJacRedTrackers();
 
             services.AddJacRedSwagger();
+
+            var registryErrors = JacRedAccessCatalog.VerifyRegistry();
+            if (registryErrors.Count > 0)
+            {
+                foreach (var err in registryErrors)
+                    Console.WriteLine($"security: registry mismatch: {err}");
+            }
         }
         #endregion
 
@@ -112,7 +118,7 @@ namespace JacRed
             }
 
 
-            // Client IP behind cloudflared/nginx — see temp/SecurityAnalysis.md
+            // Client IP behind cloudflared/nginx (peer vs client — ClientNetworkContext)
             app.Use(async (context, next) =>
             {
                 ClientNetworkContext.CaptureOriginalRemoteIp(context);
@@ -210,7 +216,7 @@ namespace JacRed
                 });
             }
 
-            app.UseModHeaders();
+            app.UseJacRedSecurity();
 
             app.UseEndpoints(endpoints =>
             {

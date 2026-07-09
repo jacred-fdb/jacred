@@ -1,11 +1,10 @@
-﻿using JacRed.Infrastructure.Security;
 using Microsoft.AspNetCore.Builder;
 
-namespace JacRed.Infrastructure.Middleware
+namespace JacRed.Infrastructure.Security
 {
-    public static class Extensions
+    public static class SecurityApplicationExtensions
     {
-        public static IApplicationBuilder UseModHeaders(this IApplicationBuilder builder)
+        public static IApplicationBuilder UseJacRedSecurity(this IApplicationBuilder builder)
         {
             return builder
                 .UseMiddleware<SecurityHeadersMiddleware>()

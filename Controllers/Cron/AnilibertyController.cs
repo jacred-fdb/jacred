@@ -2,7 +2,6 @@ using System.Threading.Tasks;
 using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Aniliberty;
 using Microsoft.AspNetCore.Mvc;
-using JacRed.Infrastructure.Security;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace JacRed.Controllers.Cron
@@ -12,7 +11,6 @@ namespace JacRed.Controllers.Cron
     /// Config: init.yaml Aniliberty (host, parseDelay, useproxy).
     /// Parse: /cron/aniliberty/parse?parseFrom=1&amp;parseTo=5
     /// </summary>
-    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     [Route("/cron/aniliberty/[action]")]
     public class AnilibertyController : BaseController
     {

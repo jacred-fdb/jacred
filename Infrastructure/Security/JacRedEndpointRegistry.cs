@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace JacRed.Infrastructure.Security
 {
-    /// <summary>Maps request paths to access policies (parity with legacy ModHeaders path rules).</summary>
+    /// <summary>Maps request paths to access policies enforced by JacRedAuthorizationMiddleware.</summary>
     public static partial class JacRedEndpointRegistry
     {
         [GeneratedRegex("^/(api/v1\\.0/conf|sync/)")]

@@ -1,11 +1,9 @@
 using JacRed.Application.Dev;
-using JacRed.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JacRed.Controllers.Dev
 {
     [Route("/dev/[action]")]
-    [JacRedAuthorize(JacRedAccessPolicy.DevAdmin)]
     public class DevMaintenanceController : Controller
     {
         readonly IDevMaintenanceService _maintenanceService;
