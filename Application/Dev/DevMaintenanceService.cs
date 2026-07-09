@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using JacRed.Engine;
-using JacRed.Engine.CORE;
+using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Networking;
+using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
 
 namespace JacRed.Application.Dev

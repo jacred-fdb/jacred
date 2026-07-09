@@ -1,7 +1,7 @@
 using JacRed.Application.Index;
 using JacRed.Application.Search;
-using JacRed.Engine;
-using JacRed.Engine.Indexers;
+using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Models.Api;
 using JacRed.Models.AppConf;
 using Microsoft.AspNetCore.Http;

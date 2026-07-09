@@ -4,11 +4,12 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using JacRed.Application.Index;
-using JacRed.Engine;
-using JacRed.Engine.CORE;
+using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Networking;
+using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
-using JacRed.Engine.Trackers.Bitru;
-using JacRed.Engine.Trackers.Knaben;
+using JacRed.Infrastructure.Trackers.Bitru;
+using JacRed.Infrastructure.Trackers.Knaben;
 
 namespace JacRed.Application.Dev
 {

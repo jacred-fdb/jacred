@@ -3,7 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using JacRed.Engine;
+using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Tracks;
+using JacRed.Infrastructure;
 using JacRed.Models.Details;
 using Newtonsoft.Json.Linq;
 

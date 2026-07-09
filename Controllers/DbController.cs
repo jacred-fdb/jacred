@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using JacRed.Engine;
+using JacRed.Infrastructure.Persistence;
 
 namespace JacRed.Controllers
 {
