@@ -196,6 +196,7 @@ namespace JacRed.Infrastructure.Persistence
                 if (!string.IsNullOrWhiteSpace(torrent.magnet) && torrent.magnet != t.magnet)
                 {
                     t.ffprobe_tryingdata = 0;
+                    t.ffprobe = null;
                     t.magnet = torrent.magnet;
                     upt();
                 }
