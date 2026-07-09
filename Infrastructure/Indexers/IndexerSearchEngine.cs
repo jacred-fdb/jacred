@@ -1,4 +1,3 @@
-using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -18,7 +17,7 @@ namespace JacRed.Infrastructure.Indexers
 {
     public static class IndexerSearchEngine
     {
-        public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache, IFastDbIndex fastDbIndex, IJackettSearchService jackettSearch)
+        public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache, IJackettSearchService jackettSearch)
         {
             var settings = IndexerSearchOptions.Resolve();
             string query = IndexerRequestParams.NormalizeQuery(req.Query);

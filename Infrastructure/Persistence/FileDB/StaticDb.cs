@@ -122,7 +122,7 @@ namespace JacRed.Infrastructure.Persistence
 
         #endregion
 
-        /// <summary>Перенос торрента в бакет с ключом newKey (после смены name/originalname). Вызывается из FileDB и из DevController.UpdateSearchName.</summary>
+        /// <summary>Перенос торрента в бакет с ключом newKey (после смены name/originalname). Вызывается из FileDB и из DevMaintenanceService.UpdateSearchName.</summary>
         public static void MigrateTorrentToNewKey(TorrentDetails t, string newKey)
         {
             using (var fdb = OpenWrite(newKey))

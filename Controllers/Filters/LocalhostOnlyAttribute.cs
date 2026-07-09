@@ -4,10 +4,9 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace JacRed.Controllers.Filters
 {
     /// <summary>
-    /// Restricts action to loopback clients (127.0.0.1). Matches legacy DevController guard.
+    /// Restricts action to loopback clients (127.0.0.1). Used on Dev controllers.
     /// </summary>
     /// <example>
-    /// Apply on Dev controllers in Phase 2:
     /// <code>
     /// [LocalhostOnly]
     /// public JsonResult UpdateSize() { ... }

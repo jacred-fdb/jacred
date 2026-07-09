@@ -6,7 +6,7 @@ namespace JacRed.Application.Index
 {
     public class FastDbIndex : IFastDbIndex
     {
-        /// <summary>Process-wide instance until Phase 3 DI registration.</summary>
+        /// <summary>Singleton instance registered as <see cref="IFastDbIndex"/> in Startup.</summary>
         public static FastDbIndex Default { get; } = new FastDbIndex();
 
         Dictionary<string, List<string>> _fastdb;
