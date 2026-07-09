@@ -60,7 +60,6 @@ namespace JacRed.Infrastructure.Configuration
                     }),
                     Group("logging", "Логирование", null, new[]
                     {
-                        Field("log", "bool", "Лог (legacy)", "Включает logFdb и logParsers"),
                         Field("logFdb", "bool", "Лог FileDB", "Data/log/fdb.*.log, default: true"),
                         Field("logFdbRetentionDays", "int", "Хранение fdb логов (дней)", "0 — все", min: 0),
                         Field("logFdbMaxSizeMb", "int", "Max размер fdb логов (MB)", "0 — без лимита", min: 0),

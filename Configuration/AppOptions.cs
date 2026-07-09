@@ -55,8 +55,6 @@ namespace JacRed.Configuration
 
         public string[] tsuri = new string[] { "http://127.0.0.1:8090" };
 
-        // Deprecated: use logFdb and logParsers. When true, enables both fdb and parser logs for backward compatibility.
-        public bool log = false;
 
         // When true, write FileDB add/update entries to Data/log/fdb.YYYY-MM-DD.log as JSON Lines (one JSON array per line; subject to retention/size/file limits).
         public bool logFdb = true;

@@ -289,10 +289,10 @@ namespace JacRed.Infrastructure.Persistence
                 if (updateFull)
                 {
                     updateFullDetails(t);
-                    if (AppInit.conf.logFdb || AppInit.conf.log)
+                    if (AppInit.conf.logFdb)
                         AppendFdbLog(torrent, t);
                 }
-                else if (AppInit.conf.logFdb || AppInit.conf.log)
+                else if (AppInit.conf.logFdb)
                     AppendFdbLog(torrent, t);
 
                 t.checkTime = DateTime.Now;
@@ -368,7 +368,7 @@ namespace JacRed.Infrastructure.Persistence
                 savechanges = true;
                 updateFullDetails(t);
 
-                if (AppInit.conf.logFdb || AppInit.conf.log)
+                if (AppInit.conf.logFdb)
                     AppendFdbLog(torrent, t);
 
                 Database.TryAdd(t.url, t);

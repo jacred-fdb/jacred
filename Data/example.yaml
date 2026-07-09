@@ -12,7 +12,6 @@ openstats: true
 opensync: true
 opensync_v1: false # Разрешить старый формат sync v1
 web: true # Раздавать статику (веб-интерфейс)
-log: false
 logFdb: true
 logFdbRetentionDays: 7
 logFdbMaxSizeMb: 0

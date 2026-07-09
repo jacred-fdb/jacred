@@ -67,7 +67,7 @@ namespace JacRed.Configuration
 
         public static bool TrackerLogEnabled(AppOptions config, string trackerName)
         {
-            bool parserLogEnabled = config?.logParsers == true || config?.log == true;
+            bool parserLogEnabled = config?.logParsers == true;
             if (!parserLogEnabled || string.IsNullOrWhiteSpace(trackerName))
                 return false;
             switch (trackerName.ToLowerInvariant())

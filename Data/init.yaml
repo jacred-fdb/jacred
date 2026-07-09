@@ -8,7 +8,6 @@ openstats: true
 opensync: false
 opensync_v1: false
 web: true
-log: false
 logFdb: true
 logFdbRetentionDays: 7
 logFdbMaxSizeMb: 0
