@@ -18,6 +18,7 @@ namespace JacRed.Infrastructure.Background
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("fdb worker started");
             var cron = RunCron(stoppingToken);
             var cronFast = RunCronFast(stoppingToken);
             await Task.WhenAll(cron, cronFast);

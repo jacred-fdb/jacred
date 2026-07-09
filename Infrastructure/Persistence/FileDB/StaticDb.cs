@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
+using JacRed.Infrastructure.Logging;
 using JacRed.Models;
 using JacRed.Models.Details;
 using System.Linq;
@@ -309,7 +310,7 @@ namespace JacRed.Infrastructure.Persistence
                         }
                     }
                     if (evicted > 0)
-                        Console.WriteLine($"fdb_cron: evicted {evicted} cache entries (validHour) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        JacRedLog.Warning(JacRedLogCategories.Fdb, $"evicted {evicted} cache entries (validHour) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }
                 catch { }
             }
@@ -338,7 +339,7 @@ namespace JacRed.Infrastructure.Persistence
                                 dropped++;
                         }
                         if (dropped > 0)
-                            Console.WriteLine($"fdb_cron_fast: dropped {dropped} cache entries (maxOpenWriteTask) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                            JacRedLog.Warning(JacRedLogCategories.Fdb, $"dropped {dropped} cache entries (maxOpenWriteTask) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     }
                 }
                 catch { }
@@ -402,7 +403,7 @@ namespace JacRed.Infrastructure.Persistence
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при обновлении ffprobe информации: {ex.Message}");
+                JacRedLog.Error(JacRedLogCategories.Fdb, $"Ошибка при обновлении ffprobe информации: {ex.Message}");
             }
         }
 

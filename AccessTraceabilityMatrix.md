@@ -132,3 +132,28 @@ var errors = JacRedAccessCatalog.VerifyRegistry();
 - `[JacRedAuthorize]` attributes — unused; registry is single source of truth
 - Duplicate apikey extraction in HealthController — uses `JacRedKeyUtils`
 - `Engine/**` excluded from compile (stale pre-refactor tree)
+
+---
+
+## Operational logging (journalctl)
+
+Console output uses grep-friendly category prefixes (`tracks:`, `sync:`, `sync_spidr:`, `cron:`, `fdb:`, …). **File logs** under `Data/log/` are **on by default** (`logFdb`, `logParsers`, `trackslog`). Optional console tuning in `init.yaml`:
+
+```yaml
+logging:
+  defaultLevel: Information
+  consoleTimestamp: false
+  tracksConsoleDetail: false   # compact tracks console (failures only)
+  cronSkipFastMs: 100          # sub-100ms HTTP 200 /cron/ → Debug
+  categories:
+    tracks: Warning
+    fdb: Warning
+    parsers: None              # file-only (ParserLog)
+```
+
+```bash
+journalctl -u jacred -g 'sync_spidr:'
+journalctl -u jacred -g 'cron:' -p warning
+journalctl -u jacred -g 'tracks:' -p warning
+journalctl -u jacred -g 'fdb:' -p warning
+```

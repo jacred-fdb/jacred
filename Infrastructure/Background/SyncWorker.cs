@@ -18,6 +18,7 @@ namespace JacRed.Infrastructure.Background
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("sync worker started");
             var torrents = RunTorrents(stoppingToken);
             var spidr = RunSpidr(stoppingToken);
             await Task.WhenAll(torrents, spidr);

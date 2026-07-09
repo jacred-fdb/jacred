@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Logging;
 
 namespace JacRed.Infrastructure.Background
 {
@@ -29,7 +30,7 @@ namespace JacRed.Infrastructure.Background
 
                 try
                 {
-                    Console.WriteLine($"trackers: start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    JacRedLog.Information(JacRedLogCategories.Trackers, $"start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     HashSet<string> trackers = new HashSet<string>();
 
                     foreach (var item in FileDB.masterDb.ToArray())
@@ -62,9 +63,9 @@ namespace JacRed.Infrastructure.Background
                     }
 
                     File.WriteAllLines("wwwroot/trackers.txt", trackers);
-                    Console.WriteLine($"trackers: end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} wrote {trackers.Count} trackers to wwwroot/trackers.txt");
+                    JacRedLog.Information(JacRedLogCategories.Trackers, $"end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} wrote {trackers.Count} trackers to wwwroot/trackers.txt");
                 }
-                catch (Exception ex) { Console.WriteLine($"trackers: error / {ex.Message}"); }
+                catch (Exception ex) { JacRedLog.Error(JacRedLogCategories.Trackers, $"error / {ex.Message}"); }
             }
         }
 

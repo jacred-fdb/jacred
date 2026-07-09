@@ -1,5 +1,6 @@
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
+using JacRed.Infrastructure.Logging;
 using JacRed.Models.Details;
 using Newtonsoft.Json;
 using System;
@@ -33,8 +34,8 @@ namespace JacRed.Infrastructure
             {
                 if (!force && !TracksDB.IsTrackIndexReadyForStats())
                 {
-                    Console.WriteLine(
-                        $"stats: deferred — tracks index empty (index={TracksDB.TrackIndexCount}), waiting for index rebuild / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    JacRedLog.Information(JacRedLogCategories.Stats,
+                        $"deferred — tracks index empty (index={TracksDB.TrackIndexCount}), waiting for index rebuild / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     return _lastCollectedAtUtc;
                 }
 
@@ -47,8 +48,8 @@ namespace JacRed.Infrastructure
                 TracksDB.PublishExportStatsCache(updatedAt, scan);
 
                 _lastCollectedAtUtc = updatedAt;
-                Console.WriteLine(
-                    $"stats: collected {scan.Trackers.Count} trackers, tracks total index={TracksDB.TrackIndexCount} / {sw.Elapsed.TotalSeconds:F1}s / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                JacRedLog.Information(JacRedLogCategories.Stats,
+                    $"collected {scan.Trackers.Count} trackers, tracks total index={TracksDB.TrackIndexCount} / {sw.Elapsed.TotalSeconds:F1}s / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
 
                 return updatedAt;
             }

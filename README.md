@@ -187,11 +187,11 @@ evercache:
 | Параметр | Описание | По умолчанию |
 | ---------- | ---------- | -------------- |
 | `log` | Устаревший: включить логи fdb и парсеров | `false` |
-| `logFdb` | Писать лог добавлений/обновлений в Data/log/fdb.*.log | `false` |
+| `logFdb` | Писать лог добавлений/обновлений в Data/log/fdb.*.log | `true` |
 | `logFdbRetentionDays` | Хранить логи fdb не более N дней (0 — без ограничения) | `7` |
 | `logFdbMaxSizeMb` | Макс. суммарный размер логов fdb, МБ (0 — без ограничения) | `0` |
 | `logFdbMaxFiles` | Макс. число файлов логов fdb (0 — без ограничения) | `0` |
-| `logParsers` | Включить логи парсеров по трекерам (Data/log/{tracker}.log) | `false` |
+| `logParsers` | Включить логи парсеров по трекерам (Data/log/{tracker}.log) | `true` |
 
 ### Статистика и треки
 
@@ -199,7 +199,7 @@ evercache:
 | ---------- | ---------- | -------------- |
 | `timeStatsUpdate` | Интервал полного пересчёта статистики (`stats.json` + `tracks-stats.json`), мин. `-1` — отключить cron | `90` |
 | `tracks` | Включить сбор метаданных треков (tsuri) | `false` |
-| `trackslog` | Включить логи модуля tracks (Data/log/tracks.log) | `false` |
+| `trackslog` | Включить логи модуля tracks (Data/log/tracks.log) | `true` |
 | `trackscategory` | Категория для торрентов из jacred (рекомендуется задавать уникально для каждого инстанса) | `jacred` |
 | `tracksatempt` | Количество неудачных попыток извлечь дорожки, после этого торрент исключается из tracks | `20` |
 | `tracksmod` | Режим треков: 0 — все, 1 — только за текущие сутки | `0` |
@@ -235,7 +235,7 @@ evercache:
 | `useproxy` | Использовать прокси для этого трекера | `true` / `false` |
 | `reqMinute` | Максимальное число запросов в минуту | `8` |
 | `parseDelay` | Задержка между запросами при парсинге, мс | `7000` |
-| `log` | Включить логи парсера для этого трекера | `true` / `false` |
+| `log` | Включить логи парсера для этого трекера (Data/log/{tracker}.log) | `true` |
 | `login` | Учётные данные (u — username, p — password) | `{u: "user", p: "pass"}` |
 | `cookie` | Cookie для аутентификации | `"session=value"` |
 
@@ -409,8 +409,8 @@ Anifilm, AniLibria, HDRezka.
 3. **Важно:** В crontab по умолчанию используется порт **9117** — при смене порта измените URL в crontab. Если в конфиге задан **`apikey`**, добавьте его в каждый вызов `curl` к **`/cron/*`** и **`/jsondb/save`** (см. раздел **«Парсинг трекеров»**).
 
 4. Мониторинг парсинга:
-   - Логи парсеров: `Data/log/{tracker}.log` (если `logParsers: true` или `log: true` для конкретного трекера)
-   - Логи БД: `Data/log/fdb.*.log` (если `logFdb: true`)
+   - Логи парсеров: `Data/log/{tracker}.log` (по умолчанию `logParsers: true`, per-tracker `log: true`)
+   - Логи БД: `Data/log/fdb.*.log` (по умолчанию `logFdb: true`)
    - Статистика: `GET /stats/*` (если `openstats: true`)
 
 ---

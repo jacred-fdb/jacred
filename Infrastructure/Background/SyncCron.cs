@@ -1,6 +1,7 @@
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
+using JacRed.Infrastructure.Logging;
 using JacRed.Models.Details;
 using Newtonsoft.Json.Linq;
 using System;
@@ -52,7 +53,7 @@ namespace JacRed.Infrastructure.Background
                         var cycleStart = DateTime.Now;
                         var cycleTotal = 0;
 
-                        Console.WriteLine($"sync: start / {DateTime.Now.ToString(TimeFormat)}");
+                        JacRedLog.Information(JacRedLogCategories.Sync, $"start / {DateTime.Now.ToString(TimeFormat)}");
 
                         if (lastsync == -1 && File.Exists(LastSyncPath))
                             lastsync = long.Parse(File.ReadAllText(LastSyncPath));
@@ -64,7 +65,7 @@ namespace JacRed.Infrastructure.Background
                             if (starsync == -1 && File.Exists(StarSyncPath))
                                 starsync = long.Parse(File.ReadAllText(StarSyncPath));
 
-                            Console.WriteLine($"sync: loaded state lastsync={lastsync} ({FormatFileTime(lastsync)}) starsync={starsync} ({FormatFileTime(starsync)})");
+                            JacRedLog.Information(JacRedLogCategories.Sync, $"loaded state lastsync={lastsync} ({FormatFileTime(lastsync)}) starsync={starsync} ({FormatFileTime(starsync)})");
 
                             bool reset = true;
                             DateTime lastSave = DateTime.Now;
@@ -110,13 +111,13 @@ namespace JacRed.Infrastructure.Background
                                 }
 
                                 if (filteredByTracker > 0 || filteredBySport > 0)
-                                    Console.WriteLine($"sync:   incoming {root.countread}; filtered out {filteredByTracker} by tracker, {filteredBySport} by sport");
+                                    JacRedLog.Information(JacRedLogCategories.Sync, $"  incoming {root.countread}; filtered out {filteredByTracker} by tracker, {filteredBySport} by sport");
 
                                 FileDB.AddOrUpdate(torrents);
 
                                 cycleTotal += torrents.Count;
                                 var batchElapsed = DateTime.Now - batchStart;
-                                Console.WriteLine($"sync: [{batchIndex}] time={lastsync} ({FormatFileTime(lastsync)}) | {torrents.Count} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
+                                JacRedLog.Information(JacRedLogCategories.Sync, $"[{batchIndex}] time={lastsync} ({FormatFileTime(lastsync)}) | {torrents.Count} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
 
                                 lastsync = root.collections.Last().Value.fileTime;
 
@@ -127,20 +128,20 @@ namespace JacRed.Infrastructure.Background
                                         lastSave = DateTime.Now;
                                         FileDB.SaveChangesToFile();
                                         File.WriteAllText(LastSyncPath, lastsync.ToString());
-                                        Console.WriteLine($"sync: saved state (lastsync.txt)");
+                                        JacRedLog.Information(JacRedLogCategories.Sync, "saved state (lastsync.txt)");
                                     }
                                     goto next;
                                 }
 
                                 starsync = lastsync;
                                 File.WriteAllText(StarSyncPath, starsync.ToString());
-                                Console.WriteLine($"sync: saved state (starsync.txt)");
+                                JacRedLog.Information(JacRedLogCategories.Sync, "saved state (starsync.txt)");
                             }
                             else if (root.collections.Count == 0)
                             {
                                 starsync = lastsync;
                                 File.WriteAllText(StarSyncPath, starsync.ToString());
-                                Console.WriteLine($"sync: saved state (starsync.txt)");
+                                JacRedLog.Information(JacRedLogCategories.Sync, "saved state (starsync.txt)");
                             }
                             #endregion
                         }
@@ -166,7 +167,7 @@ namespace JacRed.Infrastructure.Background
                         File.WriteAllText(LastSyncPath, lastsync.ToString());
 
                         var cycleElapsed = DateTime.Now - cycleStart;
-                        Console.WriteLine($"sync: end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
+                        JacRedLog.Information(JacRedLogCategories.Sync, $"end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
                     }
                     else
                     {
@@ -186,7 +187,7 @@ namespace JacRed.Infrastructure.Background
                     }
                     catch { }
 
-                    Console.WriteLine($"sync: error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}");
+                    JacRedLog.Error(JacRedLogCategories.Sync, $"error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}");
                 }
 
                 await Task.Delay(1000 * Random.Shared.Next(60, 300), cancellationToken);
@@ -223,7 +224,7 @@ namespace JacRed.Infrastructure.Background
                             var cycleTotal = 0;
                             int batchIndex = 0;
 
-                            Console.WriteLine($"sync_spidr: start / {DateTime.Now.ToString(TimeFormat)}");
+                            JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"start / {DateTime.Now.ToString(TimeFormat)}");
 
                         next: batchIndex++;
                             var batchStart = DateTime.Now;
@@ -242,7 +243,7 @@ namespace JacRed.Infrastructure.Background
 
                                 cycleTotal += batchCount;
                                 var batchElapsed = DateTime.Now - batchStart;
-                                Console.WriteLine($"sync_spidr: [{batchIndex}] time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)}) | {root.collections.Count} collections, {batchCount} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
+                                JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"[{batchIndex}] time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)}) | {root.collections.Count} collections, {batchCount} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
 
                                 var lastCollection = root.collections.LastOrDefault();
                                 if (lastCollection?.Value != null)
@@ -255,7 +256,7 @@ namespace JacRed.Infrastructure.Background
                             }
 
                             var cycleElapsed = DateTime.Now - cycleStart;
-                            Console.WriteLine($"sync_spidr: end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
+                            JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
                         }
                     }
                     else
@@ -264,7 +265,7 @@ namespace JacRed.Infrastructure.Background
                         continue;
                     }
                 }
-                catch (Exception ex) { Console.WriteLine($"sync_spidr: error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}"); }
+                catch (Exception ex) { JacRedLog.Error(JacRedLogCategories.SyncSpidr, $"error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}"); }
             }
         }
         #endregion

@@ -13,11 +13,11 @@ opensync: true
 opensync_v1: false # Разрешить старый формат sync v1
 web: true # Раздавать статику (веб-интерфейс)
 log: false
-logFdb: false
+logFdb: true
 logFdbRetentionDays: 7
 logFdbMaxSizeMb: 0
 logFdbMaxFiles: 0
-logParsers: false
+logParsers: true
 syncapi: https://sync.jacred.stream
 synctrackers:
   - rutracker
@@ -43,7 +43,7 @@ syncspidr: true
 maxreadfile: 250
 fdbPathLevels: 2 # Уровни вложенности каталогов fdb
 tracks: false # Включить сбор метаданных треков (tsuri)
-trackslog: false # Включить логи модуля tracks (Data/log/tracks.log)
+trackslog: true # Логи модуля tracks (Data/log/tracks.log)
 trackscategory: jacred # Категория для торрентов из jacred (рекомендуется задавать уникально для каждого инстанса)
 tracksdelay: 20000 # Задержка между запросами к tsuri, мс
 tracksatempt: 20 # Количество неудачных попыток извлечь дорожки, после этого торрент исключается из tracks
@@ -75,6 +75,13 @@ torznab:
   enable: true # false → 404 на /torznab/api и Prowlarr meta
   enrichTitles: true # Озвучки в Torznab XML <title>
 
+# Console logging (journalctl). File logs: Data/log/* — logFdb, logParsers, trackslog (on by default).
+logging:
+  tracksConsoleDetail: false
+  cronSkipFastMs: 100
+  categories:
+    parsers: None # parser detail → Data/log/{tracker}.log only
+
 # Tracker settings (optional; defaults are used if omitted)
 Rutor:
   host: http://rutor.info
@@ -82,7 +89,7 @@ Rutor:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Megapeer:
   host: http://megapeer.vip
@@ -90,7 +97,7 @@ Megapeer:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 TorrentBy:
   host: https://torrent.by
@@ -98,14 +105,14 @@ TorrentBy:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Kinozal:
   host: https://kinozal.tv
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
   login:
     u: ""
     p: ""
@@ -116,7 +123,7 @@ NNMClub:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Bitru:
   host: https://bitru.org
@@ -124,14 +131,14 @@ Bitru:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Toloka:
   host: https://toloka.to
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
   login:
     u: ""
     p: ""
@@ -141,7 +148,7 @@ Mazepa:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
   login:
     u: ""
     p: ""
@@ -152,7 +159,7 @@ Rutracker:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Selezen:
   host: https://open.selezen.org
@@ -160,7 +167,7 @@ Selezen:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
   login:
     u: ""
     p: ""
@@ -170,7 +177,7 @@ Animelayer:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
   cookie: "" # Статический cookie (если указан, используется вместо логина)
   login: # Альтернатива cookie: логин и пароль (предпочтительно)
     u: ""
@@ -181,27 +188,27 @@ Anidub:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Aniliberty:
   host: https://aniliberty.top
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 Knaben:
   host: https://api.knaben.org
   useproxy: false
   reqMinute: 120
-  log: false
+  log: true
 
 Baibako:
   host: http://baibako.tv
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
   cookie: "PHPSESSID=your_session_id; uid=your_user_id; pass=your_pass_hash"
   login:
     u: ""
@@ -213,7 +220,7 @@ Lostfilm:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  log: false
+  log: true
 
 proxy:
   pattern: ""

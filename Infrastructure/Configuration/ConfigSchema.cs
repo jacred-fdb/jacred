@@ -61,16 +61,16 @@ namespace JacRed.Infrastructure.Configuration
                     Group("logging", "Логирование", null, new[]
                     {
                         Field("log", "bool", "Лог (legacy)", "Включает logFdb и logParsers"),
-                        Field("logFdb", "bool", "Лог FileDB", null),
+                        Field("logFdb", "bool", "Лог FileDB", "Data/log/fdb.*.log, default: true"),
                         Field("logFdbRetentionDays", "int", "Хранение fdb логов (дней)", "0 — все", min: 0),
                         Field("logFdbMaxSizeMb", "int", "Max размер fdb логов (MB)", "0 — без лимита", min: 0),
                         Field("logFdbMaxFiles", "int", "Max файлов fdb логов", "0 — без лимита", min: 0),
-                        Field("logParsers", "bool", "Лог парсеров", null)
+                        Field("logParsers", "bool", "Лог парсеров", "Data/log/{tracker}.log, default: true")
                     }),
                     Group("tracks", "Tracks (ffprobe)", null, new[]
                     {
                         Field("tracks", "bool", "Включить tracks", "Сбор метаданных через tsuri"),
-                        Field("trackslog", "bool", "Лог tracks", null),
+                        Field("trackslog", "bool", "Лог tracks", "Data/log/tracks.log, default: true"),
                         Field("trackscategory", "string", "Категория tracks", "Уникально для инстанса"),
                         Field("tracksdelay", "int", "Задержка tsuri (мс)", null, min: 0),
                         Field("tracksatempt", "int", "Попыток tracks", null, min: 1),
@@ -132,7 +132,7 @@ namespace JacRed.Infrastructure.Configuration
                     Field("alias", "string", "Alias URL", "Onion/worker URL"),
                     Field("useproxy", "bool", "Use proxy", null),
                     Field("reqMinute", "int", "Запросов/мин", "-1 — отключить", min: -1),
-                    Field("log", "bool", "Лог парсера", null),
+                    Field("log", "bool", "Лог парсера", "Data/log/{tracker}.log, default: true"),
                     Field("cookie", "password", "Cookie", "Статический cookie", sensitive: true),
                     Field("login.u", "password", "Login", null, sensitive: true),
                     Field("login.p", "password", "Password", null, sensitive: true)

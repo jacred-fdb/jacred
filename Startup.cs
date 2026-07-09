@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
 using JacRed.Infrastructure.Background;
+using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Trackers;
 
 namespace JacRed
@@ -37,6 +39,7 @@ namespace JacRed
         {
             services.AddJacRedConfiguration();
             services.AddJacRedSecurity();
+            services.AddJacRedLogging();
 
             services.Configure<CookiePolicyOptions>(options =>
             {
@@ -93,7 +96,7 @@ namespace JacRed
             if (registryErrors.Count > 0)
             {
                 foreach (var err in registryErrors)
-                    Console.WriteLine($"security: registry mismatch: {err}");
+                    JacRedLog.Warning("security", $"registry mismatch: {err}");
             }
         }
         #endregion
@@ -101,6 +104,9 @@ namespace JacRed
 
         public void Configure(IApplicationBuilder app)
         {
+            JacRedLog.Configure(app.ApplicationServices.GetRequiredService<ILoggerFactory>());
+            JacRedLogSettings.Apply(AppInit.conf);
+
             var env = app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             if (env?.EnvironmentName == Microsoft.Extensions.Hosting.Environments.Development)
                 app.UseDeveloperExceptionPage();
@@ -168,7 +174,7 @@ namespace JacRed
                         return;
                     }
 
-                    Console.WriteLine($"swagger: openapi.yaml → json failed ({error})");
+                    JacRedLog.Warning("swagger", $"openapi.yaml → json failed ({error})");
                     context.Response.StatusCode = 503;
                     context.Response.ContentType = "application/json; charset=utf-8";
                     await context.Response.WriteAsync($"{{\"error\":\"{error?.Replace("\"", "\\\"")}\"}}");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Persistence;
 
 namespace JacRed.Application.Index
@@ -23,7 +24,7 @@ namespace JacRed.Application.Index
                     return _fastdb;
 
                 if (update)
-                    Console.WriteLine($"fastdb: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    JacRedLog.Information("fastdb", $"rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
 
                 var fastdb = new Dictionary<string, List<string>>();
 
@@ -44,7 +45,7 @@ namespace JacRed.Application.Index
                 _fastdb = fastdb;
 
                 if (update)
-                    Console.WriteLine($"fastdb: rebuild end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} keys={fastdb.Count}");
+                    JacRedLog.Information("fastdb", $"rebuild end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} keys={fastdb.Count}");
             }
 
             return _fastdb;

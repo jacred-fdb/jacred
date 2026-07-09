@@ -1,6 +1,7 @@
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
+using JacRed.Infrastructure.Logging;
 using JacRed.Models.Details;
 using JacRed.Models.Tracks;
 using MonoTorrent;
@@ -13,6 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -30,12 +32,12 @@ namespace JacRed.Infrastructure.Tracks
         public static void StartupInit()
         {
             var sw = Stopwatch.StartNew();
-            Console.WriteLine($"tracks: startup init / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            JacRedLog.Information(JacRedLogCategories.Tracks, $"startup init / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
 
             TryLoadStatsCache(true, out _, out _);
             LoadTracksIndex();
 
-            Console.WriteLine($"tracks: startup init done / index={TrackIndex.Count} / {sw.Elapsed.TotalSeconds:F1}s");
+            JacRedLog.Information(JacRedLogCategories.Tracks, $"startup init done / index={TrackIndex.Count} / {sw.Elapsed.TotalSeconds:F1}s");
 
             ScheduleIndexRebuildIfNeeded();
             StartIndexPersistLoop();
@@ -74,11 +76,11 @@ namespace JacRed.Infrastructure.Tracks
                         TrackIndex.TryAdd(NormalizeInfohash(hash), 0);
                 }
 
-                Console.WriteLine($"tracks index: loaded {TrackIndex.Count} hashes (built {data.builtAt:yyyy-MM-dd HH:mm:ss} UTC)");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"loaded {TrackIndex.Count} hashes (built {data.builtAt:yyyy-MM-dd HH:mm:ss} UTC)");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"tracks index: load error / {ex.Message}");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"load error / {ex.Message}");
             }
         }
 
@@ -99,11 +101,11 @@ namespace JacRed.Infrastructure.Tracks
 
                     JsonStream.Write(TracksIndexPath, file);
                     Interlocked.Exchange(ref _indexDirty, 0);
-                    Console.WriteLine($"tracks index: saved {file.hashes.Count} hashes / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    JacRedLog.Information(JacRedLogCategories.TracksIndex, $"saved {file.hashes.Count} hashes / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"tracks index: save error / {ex.Message}");
+                    JacRedLog.Information(JacRedLogCategories.TracksIndex, $"save error / {ex.Message}");
                 }
             }
         }
@@ -133,12 +135,12 @@ namespace JacRed.Infrastructure.Tracks
             }
             catch (IOException ex)
             {
-                Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"schedule rebuild skipped / {ex.Message}");
                 return;
             }
             catch (UnauthorizedAccessException ex)
             {
-                Console.WriteLine($"tracks index: schedule rebuild skipped / {ex.Message}");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"schedule rebuild skipped / {ex.Message}");
                 return;
             }
 
@@ -168,7 +170,7 @@ namespace JacRed.Infrastructure.Tracks
             try
             {
                 var sw = Stopwatch.StartNew();
-                Console.WriteLine($"tracks index: rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"rebuild start / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
 
                 var built = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
                 await Task.Run(() => ScanTracksDirForIndex("Data/tracks", built));
@@ -179,17 +181,17 @@ namespace JacRed.Infrastructure.Tracks
                 Interlocked.Exchange(ref _indexDirty, 1);
                 PersistTracksIndex();
 
-                Console.WriteLine($"tracks index: rebuild done / count={TrackIndex.Count} / {sw.Elapsed.TotalMinutes:F1} min");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"rebuild done / count={TrackIndex.Count} / {sw.Elapsed.TotalMinutes:F1} min");
 
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
                     try { StatsCollector.CollectAndWrite(); }
-                    catch (Exception ex) { Console.WriteLine($"stats: post-index collect error / {ex.Message}"); }
+                    catch (Exception ex) { JacRedLog.Error(JacRedLogCategories.Stats, $"post-index collect error / {ex.Message}"); }
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"tracks index: rebuild error / {ex.Message}");
+                JacRedLog.Information(JacRedLogCategories.TracksIndex, $"rebuild error / {ex.Message}");
             }
             finally
             {
@@ -844,7 +846,7 @@ namespace JacRed.Infrastructure.Tracks
                     if (NewAttepmt != currentAttempt)
                         FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, NewAttepmt);
 
-                    Log($"Анализ треков для {infohash} без результата. Код ответа API: {apiStatusCode}. Осталось {AppInit.conf.tracksatempt - NewAttepmt} попыток.", typetask);
+                    LogAnalysisFailure(typetask, infohash, apiStatusCode, AppInit.conf.tracksatempt - NewAttepmt, errorMessage);
                 }
             }
             catch (Exception ex)
@@ -1320,18 +1322,64 @@ namespace JacRed.Infrastructure.Tracks
         /// <summary>
         /// Логирование в консоль и файл
         /// </summary>
-        public static void Log(string message, int? typetask = null)
+        public static void Log(string message, int? typetask = null, LogLevel? level = null)
         {
+            var logLevel = level ?? JacRedLog.ClassifyTracksMessage(message);
+            if (logLevel == LogLevel.Debug && !JacRedLogSettings.TracksConsoleDetail)
+            {
+                if (AppInit.conf?.trackslog == true)
+                    LogToFile(message, typetask);
+                return;
+            }
+
+            if (!JacRedLogSettings.TracksConsoleDetail && logLevel == LogLevel.Warning
+                && !message.Contains("без результата", StringComparison.Ordinal))
+            {
+                if (AppInit.conf?.trackslog == true)
+                    LogToFile(message, typetask);
+                return;
+            }
+
             string timeNow = DateTime.Now.ToString("HH:mm:ss");
             string typetaskInfo = typetask.HasValue ? $" [task:{typetask.Value}]" : "";
-            string fullMessage = $"tracks: [{timeNow}]{typetaskInfo} {message}";
+            string body = $"[{timeNow}]{typetaskInfo} {message}";
 
-            Console.WriteLine(fullMessage);
+            JacRedLog.Write(JacRedLogCategories.Tracks, logLevel, body);
 
             if (AppInit.conf?.trackslog == true)
-            {
                 LogToFile(message, typetask);
+        }
+
+        static string TracksFailureMsgKey(string errorMessage, int apiStatusCode)
+        {
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                if (errorMessage.Contains("Нет данных", StringComparison.Ordinal)) return "no_track_data";
+                if (errorMessage.Contains("таймаут", StringComparison.OrdinalIgnoreCase)) return "timeout";
+                if (errorMessage.Contains("JSON", StringComparison.Ordinal)) return "json_error";
             }
+
+            return apiStatusCode switch
+            {
+                400 => "no_track_data",
+                408 => "timeout",
+                _ => "error"
+            };
+        }
+
+        static void LogAnalysisFailure(int typetask, string infohash, int apiStatusCode, int remaining, string errorMessage)
+        {
+            var detail = $"Анализ треков для {infohash} без результата. Код ответа API: {apiStatusCode}. Осталось {remaining} попыток.";
+            if (!JacRedLogSettings.TracksConsoleDetail)
+            {
+                var body = $"[task:{typetask}] hash={infohash} code={apiStatusCode} remaining={remaining} msg={TracksFailureMsgKey(errorMessage, apiStatusCode)}";
+                JacRedLog.Write(JacRedLogCategories.Tracks, LogLevel.Warning, body);
+                if (AppInit.conf?.trackslog == true)
+                    LogToFile(detail, typetask);
+                return;
+            }
+
+            Log(detail, typetask);
         }
 
         /// <summary>
@@ -1377,7 +1425,7 @@ namespace JacRed.Infrastructure.Tracks
                 try
                 {
                     string timeNow = DateTime.Now.ToString("HH:mm:ss");
-                    Console.WriteLine($"tracks: [{timeNow}] Ошибка записи в лог файл: {ex.Message}");
+                    JacRedLog.Error(JacRedLogCategories.Tracks, $"[{timeNow}] Ошибка записи в лог файл: {ex.Message}");
                 }
                 catch { }
             }
@@ -1778,7 +1826,7 @@ namespace JacRed.Infrastructure.Tracks
                 };
 
                 WriteStatsCacheFile(cache);
-                Console.WriteLine($"tracks stats: wrote cache to {TracksStatsPath} / total={cache.entries[0].stats.total} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                JacRedLog.Information(JacRedLogCategories.TracksStats, $"wrote cache to {TracksStatsPath} / total={cache.entries[0].stats.total} / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 return updatedAt;
             }
         }
@@ -1913,7 +1961,7 @@ namespace JacRed.Infrastructure.Tracks
                         job.error = ex.Message;
                     }
 
-                    Console.WriteLine($"tracks export: {ex}");
+                    JacRedLog.Error(JacRedLogCategories.TracksExport, ex.ToString());
                 }
                 finally
                 {

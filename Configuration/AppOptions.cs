@@ -38,7 +38,7 @@ namespace JacRed.Configuration
 
         public int tracksdelay = 20_000;
 
-        public bool trackslog = false;
+        public bool trackslog = true;
 
         public int tracksatempt = 20;
 
@@ -59,7 +59,7 @@ namespace JacRed.Configuration
         public bool log = false;
 
         // When true, write FileDB add/update entries to Data/log/fdb.YYYY-MM-DD.log as JSON Lines (one JSON array per line; subject to retention/size/file limits).
-        public bool logFdb = false;
+        public bool logFdb = true;
 
         // Keep fdb log files only for this many days (0 = keep all). Applied when logFdb is true.
         public int logFdbRetentionDays = 7;
@@ -71,7 +71,7 @@ namespace JacRed.Configuration
         public int logFdbMaxFiles = 0;
 
         // When true, parsers write to Data/log/{tracker}.log for trackers that have log enabled in their settings.
-        public bool logParsers = false;
+        public bool logParsers = true;
 
         public string syncapi = null;
 
@@ -133,6 +133,14 @@ namespace JacRed.Configuration
         public SearchSettings search = new SearchSettings();
 
         public TorznabSettings torznab = new TorznabSettings();
+
+        public LoggingOptions logging = new LoggingOptions
+        {
+            categories = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["parsers"] = "None"
+            }
+        };
 
         public System.Collections.Generic.List<ProxySettings> globalproxy;
     }

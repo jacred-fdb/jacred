@@ -22,6 +22,7 @@ namespace JacRed.Infrastructure.Background
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("fastdb worker started");
             try { TracksDB.StartupInit(); }
             catch (IOException ex) { _logger.LogWarning(ex, "tracks startup"); }
             catch (UnauthorizedAccessException ex) { _logger.LogWarning(ex, "tracks startup"); }

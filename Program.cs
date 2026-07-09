@@ -8,6 +8,7 @@ using JacRed.Controllers;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using JacRed.Infrastructure.Logging;
 
 namespace JacRed
 {
@@ -39,11 +40,11 @@ namespace JacRed
 
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             {
-                Console.WriteLine($"[fatal] UnhandledException: {e.ExceptionObject}");
+                JacRedLog.Error(JacRedLogCategories.Host, $"[fatal] UnhandledException: {e.ExceptionObject}");
             };
             TaskScheduler.UnobservedTaskException += (_, e) =>
             {
-                Console.WriteLine($"[fatal] UnobservedTaskException: {e.Exception}");
+                JacRedLog.Error(JacRedLogCategories.Host, $"[fatal] UnobservedTaskException: {e.Exception}");
                 e.SetObserved();
             };
 

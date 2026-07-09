@@ -1,4 +1,5 @@
 using JacRed.Infrastructure.Configuration;
+using JacRed.Infrastructure.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -87,7 +88,7 @@ namespace JacRed.Configuration
                 case "selezen": return config.Selezen.log;
                 case "toloka": return config.Toloka.log;
                 case "torrentby": return config.TorrentBy.log;
-                default: return false;
+                default: return parserLogEnabled;
             }
         }
 
@@ -137,6 +138,7 @@ namespace JacRed.Configuration
                     LogSafeConfig(logLabel, logPath);
 
                 var current = Current;
+                JacRedLogSettings.Apply(current);
                 if (!ReferenceEquals(previous, current) && previous != null && forceLogLabel == null)
                     NotifyChange(current);
             }
@@ -150,6 +152,7 @@ namespace JacRed.Configuration
                 _cache = (AppConfigurationLoader.LoadFromFile(path), path, File.GetLastWriteTimeUtc(path));
             }
             LogSafeConfig("config (saved)", path);
+            JacRedLogSettings.Apply(Current);
             NotifyChange(Current);
         }
 
@@ -170,8 +173,8 @@ namespace JacRed.Configuration
             try
             {
                 var src = string.IsNullOrEmpty(source) ? "" : $" from {source}";
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {label}{src} applied (sensitive data redacted):");
-                Console.WriteLine(GetSafeConfigJson());
+                JacRedLog.Information(JacRedLogCategories.Config, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {label}{src} applied (sensitive data redacted):");
+                JacRedLog.Information(JacRedLogCategories.Config, GetSafeConfigJson());
             }
             catch { }
         }

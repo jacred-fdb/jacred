@@ -1,4 +1,6 @@
+using JacRed.Infrastructure.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -51,12 +53,16 @@ namespace JacRed.Infrastructure.Security
         {
             stopwatch.Stop();
             var label = path.Substring(6);
-            var elapsed = stopwatch.ElapsedMilliseconds >= 1000
-                ? $"{stopwatch.ElapsedMilliseconds / 1000.0:F1}s"
-                : $"{stopwatch.ElapsedMilliseconds}ms";
+            var elapsedMs = stopwatch.ElapsedMilliseconds;
+            var elapsed = elapsedMs >= 1000
+                ? $"{elapsedMs / 1000.0:F1}s"
+                : $"{elapsedMs}ms";
             var ts = DateTime.Now.ToString("HH:mm:ss");
             var fail = status >= 400 ? " FAIL" : "";
-            Console.WriteLine($"cron: [{ts}] {label} {elapsed} {status}{fail}");
+            var level = status == 200 && JacRedLogSettings.CronSkipFastMs > 0 && elapsedMs < JacRedLogSettings.CronSkipFastMs
+                ? LogLevel.Debug
+                : LogLevel.Information;
+            JacRedLog.Write(JacRedLogCategories.CronHttp, level, $"[{ts}] {label} {elapsed} {status}{fail}");
         }
     }
 }

@@ -18,6 +18,7 @@ namespace JacRed.Infrastructure.Background
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("stats worker started");
             try
             {
                 await StatsCron.Run(stoppingToken);

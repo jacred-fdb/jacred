@@ -9,11 +9,11 @@ opensync: false
 opensync_v1: false
 web: true
 log: false
-logFdb: false
+logFdb: true
 logFdbRetentionDays: 7
 logFdbMaxSizeMb: 0
 logFdbMaxFiles: 0
-logParsers: false
+logParsers: true
 syncapi: ""
 synctrackers:
   - rutracker
@@ -38,7 +38,7 @@ syncspidr: false
 maxreadfile: 250
 fdbPathLevels: 2
 tracks: false
-trackslog: false
+trackslog: true
 trackscategory: jacred
 tracksdelay: 20000
 tracksatempt: 20
@@ -65,3 +65,8 @@ search:
 torznab:
   enable: true
   enrichTitles: true
+logging:
+  tracksConsoleDetail: false
+  cronSkipFastMs: 100
+  categories:
+    parsers: None

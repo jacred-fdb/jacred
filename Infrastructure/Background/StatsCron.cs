@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure;
+using JacRed.Infrastructure.Logging;
 
 namespace JacRed.Infrastructure.Background
 {
@@ -12,7 +13,7 @@ namespace JacRed.Infrastructure.Background
             await Task.Delay(20_000, cancellationToken);
 
             try { StatsCollector.CollectAndWrite(); }
-            catch (Exception ex) { Console.WriteLine($"stats: startup collect error / {ex.Message}"); }
+            catch (Exception ex) { JacRedLog.Error(JacRedLogCategories.Stats, $"startup collect error / {ex.Message}"); }
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -28,9 +29,9 @@ namespace JacRed.Infrastructure.Background
                 try { StatsCollector.CollectAndWrite(); }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"stats: error / {ex.Message}");
+                    JacRedLog.Error(JacRedLogCategories.Stats, $"error / {ex.Message}");
                     if (ex.StackTrace != null)
-                        Console.WriteLine(ex.StackTrace);
+                        JacRedLog.Debug(JacRedLogCategories.Stats, ex.StackTrace);
                 }
             }
         }
