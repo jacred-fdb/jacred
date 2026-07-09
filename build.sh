@@ -157,6 +157,8 @@ PUBLISH_OPTS=(
   --configuration Release
   --self-contained true
   -p:PublishTrimmed=false
+  -p:PublishSingleFile=true
+  -p:EnableCompressionInSingleFile=false
   -p:DebugType=None
   -p:OptimizationPreference=Speed
   -p:SuppressTrimAnalysisWarnings=true
@@ -164,35 +166,15 @@ PUBLISH_OPTS=(
   -p:IlcFoldIdenticalMethodBodies=true
 )
 
-# dotnet/runtime#123324 — EnableCompressionInSingleFile on osx-arm64 corrupts the heap
-# (random AccessViolationException in Kestrel routing, FrozenDictionary, etc.).
-# Deploy macOS as a standard self-contained directory instead of a bundled executable.
-PUBLISH_OPTS_FOR=()
-
-publish_opts_for() {
-  local rid="$1"
-  PUBLISH_OPTS_FOR=("${PUBLISH_OPTS[@]}")
-  case "$rid" in
-    osx-*)
-      PUBLISH_OPTS_FOR+=(-p:PublishSingleFile=false)
-      ;;
-    *)
-      PUBLISH_OPTS_FOR+=(-p:PublishSingleFile=true)
-      PUBLISH_OPTS_FOR+=(-p:EnableCompressionInSingleFile=true)
-      ;;
-  esac
-}
-
 build_for() {
   local rid="$1"
   local out_dir="$2"
   local name="$3"
-  publish_opts_for "$rid"
   echo "==> Building for $name (RID: $rid) -> $out_dir"
   dotnet publish JacRed.csproj \
     --runtime "$rid" \
     --output "$out_dir" \
-    "${PUBLISH_OPTS_FOR[@]}" \
+    "${PUBLISH_OPTS[@]}" \
     --verbosity minimal
   echo "    Done: $out_dir"
 }

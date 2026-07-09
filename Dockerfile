@@ -40,7 +40,7 @@ RUN set -eu; \
     -p:PublishTrimmed=false \
     -p:PublishSingleFile=true \
     -p:DebugType=None \
-    -p:EnableCompressionInSingleFile=true \
+    -p:EnableCompressionInSingleFile=false \
     -p:OptimizationPreference=Speed \
     -p:SuppressTrimAnalysisWarnings=true \
     -p:IlcOptimizationPreference=Speed \
