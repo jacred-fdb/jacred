@@ -52,7 +52,9 @@ namespace JacRed.Infrastructure.Security
             new("/api/v1/indexer", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorznabController"),
 
             // Stats JSON — apikey + openstats in controller
-            new("/stats/trackers", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
+            new("/stats/trackers", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats; summary"),
+            new("/stats/trackers/new", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
+            new("/stats/trackers/updated", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
             new("/stats/meta", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
             new("/stats/tracks", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
             new("/stats/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),

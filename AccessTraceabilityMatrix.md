@@ -94,7 +94,10 @@
 | `GET /api/v2.0/indexers` | TorznabController | — |
 | `GET /api/v1/indexer` | TorznabController | — |
 | `GET /api/v1/indexer/{id}` | TorznabController | — |
-| `GET /stats/trackers` | StatsController | `openstats` |
+| `GET /stats/trackers` | StatsController | `openstats`; summary stats.json |
+| `GET /stats/trackers/new` | StatsController | `openstats`; create shard today |
+| `GET /stats/trackers/updated` | StatsController | `openstats`; update shard today |
+| `GET /stats/trackers/{name}` | StatsController | `openstats`; one tracker summary |
 | `GET /stats/meta` | StatsController | `openstats` |
 | `GET /stats/tracks` | StatsController | `openstats` |
 | `GET /stats/torrents` | StatsController | `openstats` |

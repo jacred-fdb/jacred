@@ -43,19 +43,27 @@ namespace JacRed.Infrastructure
                 var updatedAt = DateTime.UtcNow;
                 var today = updatedAt.Date;
 
-                var scan = ScanFdb(today);
+                StatsFdbScanResult scan;
+                long indexEntries;
+                using (var index = StatsTorrentIndex.OpenBuilder(today))
+                {
+                    scan = ScanFdb(today, index);
+                    index.Complete(updatedAt);
+                }
+
+                indexEntries = StatsTorrentIndex.TryLoadMeta()?.entryCount ?? scan.TorrentsScanned;
                 WriteTrackerStats(scan.Trackers, updatedAt);
                 TracksDB.PublishExportStatsCache(updatedAt, scan);
 
                 _lastCollectedAtUtc = updatedAt;
                 JacRedLog.Information(JacRedLogCategories.Stats,
-                    $"collected {scan.Trackers.Count} trackers, tracks total index={TracksDB.TrackIndexCount} / {sw.Elapsed.TotalSeconds:F1}s / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    $"collected {scan.Trackers.Count} trackers, index={indexEntries}, tracks total index={TracksDB.TrackIndexCount} / {sw.Elapsed.TotalSeconds:F1}s / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
 
                 return updatedAt;
             }
         }
 
-        public static StatsFdbScanResult ScanFdb(DateTime todayUtc)
+        public static StatsFdbScanResult ScanFdb(DateTime todayUtc, StatsTorrentIndex.IndexBuilder indexBuilder = null)
         {
             var result = new StatsFdbScanResult();
 
@@ -83,6 +91,7 @@ namespace JacRed.Infrastructure
                     try
                     {
                         AccumulateTracker(result, t, todayUtc);
+                        indexBuilder?.Write(t);
                         result.TorrentsScanned++;
 
                         if (t.ffprobe != null && t.ffprobe.Count > 0 && !string.IsNullOrEmpty(t.magnet))

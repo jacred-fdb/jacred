@@ -453,8 +453,8 @@ paths:
   /stats/Torrents:
     get:
       tags: [Stats]
-      summary: Tracker statistics or torrent list
-      description: Without trackerName — summary from Data/temp/stats.json. With trackerName — torrent list.
+      summary: Tracker summary
+      description: Without trackerName — all trackers from stats.json. With trackerName — one tracker summary object.
       operationId: statsTorrents
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
@@ -462,46 +462,41 @@ paths:
           in: query
           schema:
             type: string
-        - name: newtoday
-          in: query
-          schema:
-            type: integer
-            enum: [0, 1]
-        - name: updatedtoday
-          in: query
-          schema:
-            type: integer
-            enum: [0, 1]
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 200
       responses:
         '200':
-          description: Stats JSON or torrent array
+          description: Tracker summary
           content:
             application/json:
               schema:
                 oneOf:
                   - type: array
                   - type: object
+        '404':
+          description: Unknown tracker (when trackerName set)
 
   /stats/trackers:
     get:
       tags: [Stats]
-      summary: All trackers torrent list
+      summary: Tracker summary (all)
+      description: Array from stats.json (counters per tracker).
       operationId: statsTrackers
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: newtoday
-          in: query
-          schema:
-            type: integer
-        - name: updatedtoday
-          in: query
-          schema:
-            type: integer
+      responses:
+        '200':
+          description: Tracker summary array
+          content:
+            application/json:
+              schema:
+                type: array
+
+  /stats/trackers/new:
+    get:
+      tags: [Stats]
+      summary: New torrents today (all trackers)
+      operationId: statsTrackersNew
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
         - name: limit
           in: query
           schema:
@@ -509,11 +504,53 @@ paths:
             default: 200
       responses:
         '200':
-          description: Torrent list
+          description: Torrent list from create shard
           content:
             application/json:
               schema:
                 type: array
+
+  /stats/trackers/updated:
+    get:
+      tags: [Stats]
+      summary: Updated torrents today (all trackers)
+      operationId: statsTrackersUpdated
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: Torrent list from update shard
+          content:
+            application/json:
+              schema:
+                type: array
+
+  /stats/trackers/{trackerName}:
+    get:
+      tags: [Stats]
+      summary: Tracker summary (one)
+      operationId: statsTrackerSummary
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: trackerName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Single tracker summary
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Unknown tracker
 
   /stats/meta:
     get:
@@ -541,6 +578,11 @@ paths:
                   tracksStatsUpdatedAt:
                     type: string
                     format: date-time
+                  torrentIndexUpdatedAt:
+                    type: string
+                    format: date-time
+                  torrentIndexEntries:
+                    type: integer
 
   /stats/tracks:
     get:

@@ -1,71 +1,91 @@
+using JacRed.Infrastructure;
+using JacRed.Infrastructure.Http;
+using JacRed.Infrastructure.Tracks;
 using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using JacRed.Infrastructure.Persistence;
-using JacRed.Infrastructure.Tracks;
-using JacRed.Infrastructure;
-using JacRed.Models.Details;
 using Newtonsoft.Json.Linq;
 
 namespace JacRed.Controllers
 {
+    /// <summary>
+    /// Stats API: /stats/torrents &amp; /stats/trackers — сводка; /stats/trackers/new|updated &amp; /{name}/new|updated — списки за сегодня.
+    /// </summary>
     [Route("/stats/[action]")]
     public class StatsController : Controller
     {
-        const string StatsPath = StatsCollector.StatsPath;
-
-        /// <summary>
-        /// Список раздач по всем трекерам из БД — для сверки с тем, что на трекере. newtoday=1, updatedtoday=1, limit (по умолчанию 200).
-        /// </summary>
         [Route("/stats/trackers")]
-        public ActionResult Trackers(int newtoday = 0, int updatedtoday = 0, int limit = 200)
+        public IActionResult Trackers()
         {
             if (!AppInit.conf.openstats)
                 return Content("[]", "application/json");
 
-            var list = CollectTorrents(trackerName: null, newtoday, updatedtoday, limit);
-            return Json(list);
+            return Content(StatsSummary.ReadAllJson(), "application/json");
         }
 
-        /// <summary>
-        /// Без параметров — сводка из Data/temp/stats.json (newtor, update, check, alltorrents по трекерам).
-        /// С trackerName — список раздач этого трекера. newtoday=1, updatedtoday=1, limit (по умолчанию 200).
-        /// </summary>
-        public ActionResult Torrents(string trackerName, int newtoday = 0, int updatedtoday = 0, int limit = 200)
+        [Route("/stats/trackers/new")]
+        public IActionResult TrackersNewToday(int limit = 200)
+        {
+            if (!AppInit.conf.openstats)
+                return Content("[]", "application/json");
+
+            return TorrentList(StatsTorrentIndex.Query.ForDay(StatsTorrentIndex.TorrentDayFilter.CreatedToday, limit: limit));
+        }
+
+        [Route("/stats/trackers/updated")]
+        public IActionResult TrackersUpdatedToday(int limit = 200)
+        {
+            if (!AppInit.conf.openstats)
+                return Content("[]", "application/json");
+
+            return TorrentList(StatsTorrentIndex.Query.ForDay(StatsTorrentIndex.TorrentDayFilter.UpdatedToday, limit: limit));
+        }
+
+        [Route("/stats/trackers/{trackerName}")]
+        public IActionResult Tracker(string trackerName)
         {
             if (!AppInit.conf.openstats)
                 return Content("[]", "application/json");
 
             if (string.IsNullOrWhiteSpace(trackerName))
-            {
-                if (!System.IO.File.Exists(StatsPath))
-                    return Content("[]", "application/json");
-                try
-                {
-                    return Content(System.IO.File.ReadAllText(StatsPath), "application/json");
-                }
-                catch
-                {
-                    return Content("[]", "application/json");
-                }
-            }
+                return Content("[]", "application/json");
 
-            var list = CollectTorrents(trackerName, newtoday, updatedtoday, limit);
-            return Json(list);
+            return TrackerSummary(trackerName);
         }
 
-        /// <summary>
-        /// Время последнего сбора stats.json и tracks-stats.json (общий updatedAt).
-        /// </summary>
+        /// <summary>Сводка: без trackerName — все трекеры; с trackerName — один трекер.</summary>
+        public IActionResult Torrents(string trackerName)
+        {
+            if (!AppInit.conf.openstats)
+                return Content("[]", "application/json");
+
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return Content(StatsSummary.ReadAllJson(), "application/json");
+
+            return TrackerSummary(trackerName);
+        }
+
+        static IActionResult TrackerSummary(string trackerName)
+        {
+            var row = StatsSummary.TryFindTracker(trackerName);
+            if (row == null)
+                return new NotFoundObjectResult(new { ok = false, error = "unknown tracker", trackerName });
+
+            return new ContentResult
+            {
+                Content = row.ToString(Newtonsoft.Json.Formatting.None),
+                ContentType = "application/json; charset=utf-8"
+            };
+        }
+
         [Route("/stats/meta")]
-        public ActionResult Meta()
+        public JsonResult Meta()
         {
             if (!AppInit.conf.openstats)
                 return Json(new { ok = false });
 
             DateTime? updatedAt = StatsCollector.LastCollectedAtUtc ?? TracksDB.GetExportStatsUpdatedAt();
+            var indexMeta = StatsTorrentIndex.TryLoadMeta();
 
             if (updatedAt == null && System.IO.File.Exists(StatsCollector.StatsMetaPath))
             {
@@ -83,15 +103,17 @@ namespace JacRed.Controllers
                 ok = true,
                 updatedAt,
                 updatedAtLocal = updatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
-                tracksStatsUpdatedAt = TracksDB.GetExportStatsUpdatedAt()
+                tracksStatsUpdatedAt = TracksDB.GetExportStatsUpdatedAt(),
+                torrentIndexUpdatedAt = indexMeta?.updatedAt,
+                torrentIndexEntries = indexMeta?.entryCount ?? 0,
+                torrentIndexShardDay = indexMeta?.shardDay,
+                torrentIndexCreateToday = indexMeta?.createTodayCount ?? 0,
+                torrentIndexUpdateToday = indexMeta?.updateTodayCount ?? 0
             });
         }
 
-        /// <summary>
-        /// Агрегат ffprobe/tracks из кэша Data/temp/tracks-stats.json (read-only).
-        /// </summary>
         [Route("/stats/tracks")]
-        public ActionResult Tracks(bool includeTorrentDb = true)
+        public JsonResult Tracks(bool includeTorrentDb = true)
         {
             if (!AppInit.conf.openstats)
                 return Json(new { ok = false });
@@ -106,11 +128,8 @@ namespace JacRed.Controllers
             });
         }
 
-        /// <summary>
-        /// Получить новые раздачи для конкретного трекера (созданные сегодня).
-        /// </summary>
         [Route("/stats/trackers/{trackerName}/new")]
-        public ActionResult NewTorrents(string trackerName, int limit = 200)
+        public IActionResult NewTorrents(string trackerName, int limit = 200)
         {
             if (!AppInit.conf.openstats)
                 return Content("[]", "application/json");
@@ -118,15 +137,12 @@ namespace JacRed.Controllers
             if (string.IsNullOrWhiteSpace(trackerName))
                 return Content("[]", "application/json");
 
-            var list = CollectTorrents(trackerName, newtoday: 1, updatedtoday: 0, limit);
-            return Json(list);
+            return TorrentList(StatsTorrentIndex.Query.ForDay(
+                StatsTorrentIndex.TorrentDayFilter.CreatedToday, trackerName, limit));
         }
 
-        /// <summary>
-        /// Получить обновленные раздачи для конкретного трекера (обновленные сегодня).
-        /// </summary>
         [Route("/stats/trackers/{trackerName}/updated")]
-        public ActionResult UpdatedTorrents(string trackerName, int limit = 200)
+        public IActionResult UpdatedTorrents(string trackerName, int limit = 200)
         {
             if (!AppInit.conf.openstats)
                 return Content("[]", "application/json");
@@ -134,9 +150,12 @@ namespace JacRed.Controllers
             if (string.IsNullOrWhiteSpace(trackerName))
                 return Content("[]", "application/json");
 
-            var list = CollectTorrents(trackerName, newtoday: 0, updatedtoday: 1, limit);
-            return Json(list);
+            return TorrentList(StatsTorrentIndex.Query.ForDay(
+                StatsTorrentIndex.TorrentDayFilter.UpdatedToday, trackerName, limit));
         }
+
+        static IActionResult TorrentList(StatsTorrentIndex.Query query) =>
+            new StreamingStatsTorrentsResult(query);
 
         static DateTime? ParseMetaUpdatedAt(JToken token)
         {
@@ -150,59 +169,6 @@ namespace JacRed.Controllers
                 return dt;
 
             return null;
-        }
-
-        static List<object> CollectTorrents(string trackerName, int newtoday, int updatedtoday, int limit)
-        {
-            var today = DateTime.UtcNow.Date;
-            var collected = new List<TorrentDetails>();
-            var filterByTracker = !string.IsNullOrWhiteSpace(trackerName);
-
-            try
-            {
-                foreach (var item in FileDB.masterDb.ToArray())
-                {
-                    var db = FileDB.OpenRead(item.Key, cache: false);
-                    if (db == null) continue;
-
-                    foreach (var t in db.Values)
-                    {
-                        if (t == null || string.IsNullOrEmpty(t.trackerName))
-                            continue;
-
-                        if (filterByTracker && !string.Equals(t.trackerName, trackerName, StringComparison.OrdinalIgnoreCase))
-                            continue;
-
-                        if (newtoday == 1 && t.createTime < today) continue;
-                        if (updatedtoday == 1 && t.updateTime < today) continue;
-
-                        collected.Add(t);
-                    }
-                }
-            }
-            catch { }
-
-            return collected
-                .OrderByDescending(t => t.createTime)
-                .Take(limit)
-                .Select(t => new
-                {
-                    t.trackerName,
-                    t.types,
-                    url = t.url,
-                    t.title,
-                    t.sid,
-                    t.pir,
-                    t.sizeName,
-                    createTime = t.createTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                    updateTime = t.updateTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                    hasMagnet = !string.IsNullOrEmpty(t.magnet),
-                    t.name,
-                    t.originalname,
-                    t.relased
-                })
-                .Cast<object>()
-                .ToList();
         }
     }
 }

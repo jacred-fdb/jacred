@@ -256,6 +256,10 @@ journalctl -u jacred -g 'fdb:' -p warning
 | Файл | Назначение |
 | ------ | ------------ |
 | `stats.json` | Сводка по трекерам для UI `/stats` |
+| `stats-torrent-index.jsonl.gz` | Полный индекс раздач для ad-hoc `/stats/trackers*` |
+| `stats-torrent-index/create/YYYY-MM-DD.jsonl.gz` | Созданные **сегодня** (UTC) — `/stats/trackers/new` |
+| `stats-torrent-index/update/YYYY-MM-DD.jsonl.gz` | Обновлённые **сегодня** (UTC) — `/stats/trackers/updated` |
+| `stats-torrent-index-meta.json` | `updatedAt`, `entryCount`, списки shard-дней |
 | `stats-meta.json` | `{ updatedAt, trackerCount }` — время последнего сбора |
 | `tracks-stats.json` | Кэш export-статистики ffprobe/tracks (dev/sync) |
 | `tracks-index.bz` | Gzip-индекс infohash в `Data/tracks` (быстрый старт и stats без walk всех JSON) |
@@ -671,10 +675,26 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 
 ### Статистика и синхронизация
 
+**Сводки (stats.json, быстро):**
+
+| Эндпоинт | Ответ |
+|----------|--------|
+| `GET /stats/torrents` | Сводка по всем трекерам (alias) |
+| `GET /stats/trackers` | То же |
+| `GET /stats/trackers/{name}` | Один трекер: newtor, update, tracks.* |
+
+**Списки раздач за сегодня (UTC, shard-индекс):**
+
+| Эндпоинт | Ответ |
+|----------|--------|
+| `GET /stats/trackers/new` | Новые по всем трекерам |
+| `GET /stats/trackers/updated` | Обновлённые по всем |
+| `GET /stats/trackers/{name}/new` | Новые для трекера |
+| `GET /stats/trackers/{name}/updated` | Обновлённые для трекера |
+
 - **`GET /stats/*`** — статистика (если `openstats: true`).
-  - **`GET /stats/torrents`** — сводка **по трекерам** из `Data/temp/stats.json` (в т.ч. `tracks.confirm/wait/skip`).
   - **`GET /stats/tracks`** — агрегат ffprobe/tracks из кэша `Data/temp/tracks-stats.json` (read-only).
-  - **`GET /stats/meta`** — время последнего сбора stats + tracks-stats (`updatedAt`, `updatedAtLocal`).
+  - **`GET /stats/meta`** — время последнего сбора stats + tracks-stats + torrent index (`updatedAt`, `torrentIndexUpdatedAt`).
 - **`GET /sync/*`** — эндпоинты синхронизации (если `opensync: true`).
   - **`GET /sync/fdb/torrents`** — основной протокол синхронизации (collections + pagination).
   - **`GET /sync/tracks/stats`** — агрегат из `tracks-stats.json` (как `/dev/TracksStats`; при `opensync: true`).
