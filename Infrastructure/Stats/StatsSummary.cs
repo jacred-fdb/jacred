@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Linq;
 
-namespace JacRed.Infrastructure
+namespace JacRed.Infrastructure.Stats
 {
     /// <summary>Read-only access to Data/temp/stats.json (per-tracker counters).</summary>
     public static class StatsSummary

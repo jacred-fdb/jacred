@@ -1,4 +1,4 @@
-using JacRed.Infrastructure;
+using JacRed.Infrastructure.Stats;
 using JacRed.Infrastructure.Http;
 using JacRed.Infrastructure.Tracks;
 using Microsoft.AspNetCore.Mvc;

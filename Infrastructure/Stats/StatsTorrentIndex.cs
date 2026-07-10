@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace JacRed.Infrastructure
+namespace JacRed.Infrastructure.Stats
 {
     /// <summary>
     /// Lightweight JSONL.gz index for ad-hoc /stats/* torrent list queries (built during StatsCollector scan).

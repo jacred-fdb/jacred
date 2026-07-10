@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using JacRed.Infrastructure;
+using JacRed.Infrastructure.Stats;
 using JacRed.Infrastructure.Logging;
 
 namespace JacRed.Infrastructure.Background

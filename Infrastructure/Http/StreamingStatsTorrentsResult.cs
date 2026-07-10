@@ -1,3 +1,4 @@
+using JacRed.Infrastructure.Stats;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 

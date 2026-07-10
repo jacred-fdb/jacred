@@ -1,4 +1,5 @@
 using JacRed.Infrastructure.Logging;
+using JacRed.Infrastructure.Stats;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Utils;
 using System;

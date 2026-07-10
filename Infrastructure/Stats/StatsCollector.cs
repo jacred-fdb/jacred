@@ -11,7 +11,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace JacRed.Infrastructure
+namespace JacRed.Infrastructure.Stats
 {
     /// <summary>
     /// Single-pass FDB scan: tracker stats (stats.json) + tracks export stats (tracks-stats.json) with one updatedAt.
