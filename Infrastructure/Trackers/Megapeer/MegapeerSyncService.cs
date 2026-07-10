@@ -21,7 +21,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
-        static volatile bool _workParse;
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static volatile bool _parseAllTaskWork;
         static readonly SemaphoreSlim _parseLatestSemaphore = new SemaphoreSlim(1, 1);
 
@@ -33,45 +33,35 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                 taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/megapeer_taskParse.json"));
         }
 
-        static bool IsDisabled()
-        {
-            return AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains(TrackerName, StringComparer.OrdinalIgnoreCase);
-        }
+        static bool IsDisabled() => TrackerSyncHelpers.IsTrackerDisabled(TrackerName);
 
         public async Task<string> ParseAsync(int page, CancellationToken cancellationToken = default)
         {
-            if (IsDisabled())
-                return "disabled";
-            if (_workParse)
-                return "work";
-
-            _workParse = true;
-            string log = "";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: true, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string baseUrl = $"{AppInit.conf.Megapeer.rqHost()}/browse.php";
-                ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                foreach (string cat in Categories)
+                string log = "";
+
+                try
                 {
-                    string pageUrl = $"{baseUrl}?cat={cat}&page={page}";
-                    ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                    bool res = await MegapeerParser.ParsePageAsync(cat, page);
-                    log += $"{cat} - {page} / {res}\n";
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = $"{AppInit.conf.Megapeer.rqHost()}/browse.php";
+                    ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
+                    foreach (string cat in Categories)
+                    {
+                        string pageUrl = $"{baseUrl}?cat={cat}&page={page}";
+                        ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
+                        bool res = await MegapeerParser.ParsePageAsync(cat, page);
+                        log += $"{cat} - {page} / {res}\n";
+                    }
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
-                ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-            }
-            finally
-            {
-                _workParse = false;
-            }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                }
 
-            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            });
         }
 
         public async Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)

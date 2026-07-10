@@ -21,7 +21,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
-        static volatile bool _workParse;
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static volatile bool _parseAllTaskWork;
         static readonly SemaphoreSlim _parseLatestSemaphore = new SemaphoreSlim(1, 1);
 
@@ -35,36 +35,31 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
         public async Task<string> ParseAsync(int page, CancellationToken cancellationToken = default)
         {
-            if (_workParse)
-                return "work";
-
-            string log = "";
-            _workParse = true;
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string baseUrl = AppInit.conf.TorrentBy.rqHost();
-                ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                foreach (string cat in Categories)
+                string log = "";
+
+                try
                 {
-                    string pageUrl = $"{baseUrl}/{cat}/?page={page}";
-                    ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                    await TorrentByParser.ParsePageAsync(cat, page);
-                    log += $"{cat} - {page}\n";
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = AppInit.conf.TorrentBy.rqHost();
+                    ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
+                    foreach (string cat in Categories)
+                    {
+                        string pageUrl = $"{baseUrl}/{cat}/?page={page}";
+                        ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
+                        await TorrentByParser.ParsePageAsync(cat, page);
+                        log += $"{cat} - {page}\n";
+                    }
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
-                ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-            }
-            finally
-            {
-                _workParse = false;
-            }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                }
 
-            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            });
         }
 
         public async Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)
