@@ -1,8 +1,6 @@
 using JacRed.Application.Search;
-using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Models.Api;
-using JacRed.Models.AppConf;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;

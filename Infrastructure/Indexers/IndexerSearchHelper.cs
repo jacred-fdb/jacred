@@ -1,7 +1,6 @@
 using JacRed.Models.Api;
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace JacRed.Infrastructure.Indexers
 {

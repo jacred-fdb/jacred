@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using JacRed.Application.Index;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Utils;

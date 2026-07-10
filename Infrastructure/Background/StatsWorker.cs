@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using JacRed.Infrastructure.Background;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 

@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.Knaben;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;

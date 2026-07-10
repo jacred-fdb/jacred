@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using JacRed.Controllers;
 using JacRed.Infrastructure.Trackers.AnimeLayer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;

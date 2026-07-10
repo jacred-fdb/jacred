@@ -1,8 +1,6 @@
-using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using JacRed;
 using JacRed.Configuration.Schema;
 using JacRed.Models;
 using Microsoft.AspNetCore.Mvc;

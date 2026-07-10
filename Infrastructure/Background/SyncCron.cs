@@ -1,6 +1,5 @@
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
-using JacRed.Infrastructure.Utils;
 using JacRed.Infrastructure.Logging;
 using JacRed.Models.Details;
 using Newtonsoft.Json.Linq;
