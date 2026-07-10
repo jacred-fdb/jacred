@@ -1,5 +1,5 @@
 using JacRed.Configuration;
-using JacRed.Infrastructure.Configuration;
+using JacRed.Configuration.Schema;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 

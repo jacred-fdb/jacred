@@ -1,4 +1,4 @@
-using JacRed.Infrastructure.Configuration;
+using JacRed.Configuration.Schema;
 using JacRed.Infrastructure.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
@@ -61,7 +61,7 @@ namespace JacRed.Configuration
             var c = Current;
             if (c == null) return "{}";
             var jo = JObject.FromObject(c);
-            RedactSensitive(jo);
+            AppConfigurationDiff.RedactSensitive(jo);
             return jo.ToString(Formatting.Indented);
         }
 
@@ -179,29 +179,6 @@ namespace JacRed.Configuration
             catch { }
         }
 
-        static void RedactSensitive(JToken token)
-        {
-            if (token is JObject obj)
-            {
-                foreach (var prop in obj.Properties().ToList())
-                {
-                    if (ConfigSchema.SensitiveFieldNames.Contains(prop.Name) && prop.Value != null && prop.Value.Type != JTokenType.Null && prop.Value.Type != JTokenType.Undefined)
-                    {
-                        var val = prop.Value.ToString();
-                        if (!string.IsNullOrEmpty(val))
-                            prop.Value = "***";
-                    }
-                    else
-                        RedactSensitive(prop.Value);
-                }
-            }
-            else if (token is JArray arr)
-            {
-                foreach (var item in arr)
-                    RedactSensitive(item);
-            }
-        }
-
         public ConfigSourceInfo GetConfigSourceInfo() => AppConfigurationLoader.GetConfigSourceInfo();
 
         public JObject GetConfigData(bool redactSensitive = false)
@@ -210,7 +187,7 @@ namespace JacRed.Configuration
             if (c == null) return new JObject();
             var jo = JObject.FromObject(c);
             if (redactSensitive)
-                RedactSensitive(jo);
+                AppConfigurationDiff.RedactSensitive(jo);
             return jo;
         }
 
@@ -221,103 +198,25 @@ namespace JacRed.Configuration
 
             var jo = JObject.FromObject(c);
             if (redactSensitive)
-                RedactSensitive(jo);
+                AppConfigurationDiff.RedactSensitive(jo);
 
             return AppConfigurationLoader.RenderConfigObject(jo, format ?? GetConfigSourceInfo().format ?? "yaml");
         }
 
-        public ConfigValidationResult ValidateConfigObject(JObject data)
-        {
-            var result = new ConfigValidationResult();
-            if (data == null)
-            {
-                result.error = "Данные конфигурации пусты";
-                return result;
-            }
+        public ConfigValidationResult ValidateConfigObject(JObject data) =>
+            AppConfigurationValidator.ValidateConfigObject(data);
 
-            try
-            {
-                var parsed = data.ToObject<AppInit>();
-                return ValidateConfigModel(parsed);
-            }
-            catch (JsonSerializationException ex)
-            {
-                result.error = ex.Message;
-                result.errors.Add(ex.Message);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.error = ex.Message;
-                return result;
-            }
-        }
-
-        public ConfigValidationResult ValidateConfigContent(string content, string format)
-        {
-            var result = new ConfigValidationResult();
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                result.error = "Конфигурация пуста";
-                return result;
-            }
-
-            try
-            {
-                var parsed = AppConfigurationLoader.TryParseConfigContent(content, format, out var error);
-                if (parsed == null)
-                {
-                    result.error = error ?? "Не удалось разобрать конфигурацию";
-                    return result;
-                }
-
-                return ValidateConfigModel(parsed);
-            }
-            catch (Exception ex)
-            {
-                result.error = ex.Message;
-            }
-
-            return result;
-        }
-
-        ConfigValidationResult ValidateConfigModel(AppInit parsed)
-        {
-            var result = new ConfigValidationResult();
-            ConfigSchema.ValidateAgainstSchema(parsed, result.errors, result.warnings);
-            result.ok = result.errors.Count == 0;
-            if (!result.ok)
-                result.error = result.errors[0];
-            return result;
-        }
+        public ConfigValidationResult ValidateConfigContent(string content, string format) =>
+            AppConfigurationValidator.ValidateConfigContent(content, format);
 
         public List<ConfigDiffEntry> ComputeConfigDiff(JObject proposed, bool redactSensitive = false)
         {
             var current = JObject.FromObject(Current ?? new AppInit());
-            var normalizedProposed = NormalizeConfigJObject(proposed);
-
-            if (redactSensitive)
-            {
-                RedactSensitive(current);
-                RedactSensitive(normalizedProposed);
-            }
-
-            return ConfigSchema.ComputeDiff(current, normalizedProposed);
+            return AppConfigurationDiff.ComputeConfigDiff(current, proposed, redactSensitive);
         }
 
-        public JObject NormalizeConfigJObject(JObject proposed)
-        {
-            if (proposed == null) return new JObject();
-            try
-            {
-                var model = proposed.ToObject<AppInit>();
-                return model == null ? (JObject)proposed.DeepClone() : JObject.FromObject(model);
-            }
-            catch (JsonException)
-            {
-                return (JObject)proposed.DeepClone();
-            }
-        }
+        public JObject NormalizeConfigJObject(JObject proposed) =>
+            AppConfigurationValidator.NormalizeConfigJObject(proposed);
 
         public (bool ok, string error, JObject data, string content) FormatConfigObject(JObject proposed, string format = null)
         {
@@ -330,7 +229,7 @@ namespace JacRed.Configuration
                 if (parsed == null)
                     return (false, "Не удалось преобразовать конфигурацию", null, null);
 
-                var validation = ValidateConfigModel(parsed);
+                var validation = AppConfigurationValidator.ValidateConfigModel(parsed);
                 if (!validation.ok)
                     return (false, validation.error ?? "Ошибка валидации", null, null);
 
@@ -356,7 +255,7 @@ namespace JacRed.Configuration
                 if (parsed == null)
                     return (false, "Не удалось преобразовать конфигурацию", null);
 
-                var validation = ValidateConfigModel(parsed);
+                var validation = AppConfigurationValidator.ValidateConfigModel(parsed);
                 if (!validation.ok)
                     return (false, validation.error ?? "Ошибка валидации", null);
 
@@ -381,7 +280,7 @@ namespace JacRed.Configuration
             if (parsed == null)
                 return (false, parseError ?? "Не удалось разобрать конфигурацию", sourceInfo);
 
-            var validation = ValidateConfigModel(parsed);
+            var validation = AppConfigurationValidator.ValidateConfigModel(parsed);
             if (!validation.ok)
                 return (false, validation.error ?? "Ошибка валидации", sourceInfo);
 

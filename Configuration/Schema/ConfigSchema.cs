@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
-namespace JacRed.Infrastructure.Configuration
+namespace JacRed.Configuration.Schema
 {
     public static class ConfigSchema
     {
