@@ -18,7 +18,17 @@ namespace JacRed.Infrastructure.Background
         const string SyncTempDir = "Data/temp";
         static readonly string LastSyncPath = Path.Combine(SyncTempDir, "lastsync.txt");
         static readonly string StarSyncPath = Path.Combine(SyncTempDir, "starsync.txt");
+        /// <summary>During catch-up (<c>nextread</c>), flush masterDb + lastsync every N batches (in addition to time-based save).</summary>
+        const int SaveCheckpointEveryNBatches = 5;
         static long lastsync = -1, starsync = -1;
+
+        static void SaveTorrentsCheckpoint()
+        {
+            FileDB.SaveChangesToFile();
+            if (lastsync > 0)
+                File.WriteAllText(LastSyncPath, lastsync.ToString());
+            JacRedLog.Information(JacRedLogCategories.Sync, "saved state (lastsync.txt)");
+        }
 
         static string FormatFileTime(long fileTime)
         {
@@ -126,12 +136,12 @@ namespace JacRed.Infrastructure.Background
 
                                 if (root.nextread)
                                 {
-                                    if (DateTime.Now > lastSave.AddMinutes(5))
+                                    bool saveByBatch = batchIndex % SaveCheckpointEveryNBatches == 0;
+                                    bool saveByTime = DateTime.Now > lastSave.AddMinutes(5);
+                                    if (saveByBatch || saveByTime)
                                     {
                                         lastSave = DateTime.Now;
-                                        FileDB.SaveChangesToFile();
-                                        File.WriteAllText(LastSyncPath, lastsync.ToString());
-                                        JacRedLog.Information(JacRedLogCategories.Sync, "saved state (lastsync.txt)");
+                                        SaveTorrentsCheckpoint();
                                     }
                                     goto next;
                                 }
@@ -209,6 +219,7 @@ namespace JacRed.Infrastructure.Background
                             var cycleStart = DateTime.Now;
                             var cycleTotal = 0;
                             int batchIndex = 0;
+                            DateTime lastSave = DateTime.Now;
 
                             JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"start / {DateTime.Now.ToString(TimeFormat)}");
 
@@ -237,10 +248,19 @@ namespace JacRed.Infrastructure.Background
 
                                 if (root.nextread)
                                 {
+                                    bool saveByBatch = batchIndex % SaveCheckpointEveryNBatches == 0;
+                                    bool saveByTime = DateTime.Now > lastSave.AddMinutes(5);
+                                    if (saveByBatch || saveByTime)
+                                    {
+                                        lastSave = DateTime.Now;
+                                        FileDB.SaveChangesToFile();
+                                        JacRedLog.Information(JacRedLogCategories.SyncSpidr, "saved state (masterDb)");
+                                    }
                                     goto next;
                                 }
                             }
 
+                            FileDB.SaveChangesToFile();
                             var cycleElapsed = DateTime.Now - cycleStart;
                             JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"end / {DateTime.Now.ToString(TimeFormat)} (cycle added {cycleTotal} torrents in {FormatElapsed(cycleElapsed)})");
                         }
