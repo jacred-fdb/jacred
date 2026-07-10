@@ -60,9 +60,24 @@ namespace JacRed.Infrastructure.Security
 
         static bool IsDevEndpointAccessAllowed(IClientNetworkContext network, HttpContext httpContext)
         {
-            if (network.IsDirectLocalClient)
+            if (IsTrustedLanClient(network, httpContext))
                 return true;
             return JacRedKeyUtils.DevKeyMatches(httpContext, AppInit.conf?.devkey);
+        }
+
+        /// <summary>
+        /// LAN / direct localhost. Same-host reverse proxy (cloudflared on 127.0.0.1) alone is not enough.
+        /// </summary>
+        static bool IsTrustedLanClient(IClientNetworkContext network, HttpContext httpContext)
+        {
+            if (!network.IsDirectLocalClient)
+                return false;
+
+            // cloudflared/nginx on loopback: peer is 127.0.0.1; without real client IP the request looks local.
+            if (network.IsSameHostReverseProxy && ClientNetworkContext.HasProxyClientIdentityHeaders(httpContext))
+                return false;
+
+            return true;
         }
 
         public static int DenyStatus(bool keyConfigured, string method)

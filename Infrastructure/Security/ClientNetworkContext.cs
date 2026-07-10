@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using System;
 using System.Net;
 using System.Net.Sockets;
 
@@ -10,11 +11,13 @@ namespace JacRed.Infrastructure.Security
         IPAddress PeerIp { get; }
         bool IsDirectLocalClient { get; }
         bool IsViaLocalPeer { get; }
+        /// <summary>cloudflared/nginx on 127.0.0.1 — same-host reverse proxy, not a direct LAN client.</summary>
+        bool IsSameHostReverseProxy { get; }
         bool IsTrustedContext { get; }
     }
 
     /// <summary>
-    /// Client IP (after X-Forwarded-For) vs peer IP (direct TCP to Kestrel).
+    /// Client IP (after X-Forwarded-For / CF-Connecting-IP) vs peer IP (direct TCP to Kestrel).
     /// Used with Startup UseForwardedHeaders for reverse-proxy deployments.
     /// </summary>
     public sealed class ClientNetworkContext : IClientNetworkContext
@@ -25,6 +28,7 @@ namespace JacRed.Infrastructure.Security
         public IPAddress PeerIp { get; }
         public bool IsDirectLocalClient { get; }
         public bool IsViaLocalPeer { get; }
+        public bool IsSameHostReverseProxy { get; }
         public bool IsTrustedContext { get; }
 
         ClientNetworkContext(IPAddress clientIp, IPAddress peerIp)
@@ -33,6 +37,7 @@ namespace JacRed.Infrastructure.Security
             PeerIp = peerIp;
             IsDirectLocalClient = IsLocalOrPrivate(clientIp);
             IsViaLocalPeer = IsLocalOrPrivate(peerIp);
+            IsSameHostReverseProxy = IsLoopback(peerIp);
             IsTrustedContext = IsDirectLocalClient || IsViaLocalPeer;
         }
 
@@ -45,7 +50,54 @@ namespace JacRed.Infrastructure.Security
         {
             httpContext.Items.TryGetValue(OriginalRemoteIpItemKey, out var peerValue);
             var peerIp = peerValue as IPAddress;
-            return new ClientNetworkContext(httpContext.Connection.RemoteIpAddress, peerIp);
+            var clientIp = ResolveClientIp(httpContext);
+            return new ClientNetworkContext(clientIp, peerIp);
+        }
+
+        /// <summary>
+        /// Prefer proxy client-identity headers (Cloudflare Tunnel sends CF-Connecting-IP, not always XFF).
+        /// UseForwardedHeaders already applies X-Forwarded-For to Connection.RemoteIpAddress.
+        /// </summary>
+        static IPAddress ResolveClientIp(HttpContext httpContext)
+        {
+            if (TryParseHeaderIp(httpContext.Request.Headers, "CF-Connecting-IP", out var cfIp))
+                return cfIp;
+            if (TryParseHeaderIp(httpContext.Request.Headers, "X-Real-IP", out var realIp))
+                return realIp;
+            return httpContext.Connection.RemoteIpAddress;
+        }
+
+        /// <summary>Headers that indicate the request was forwarded by a reverse proxy / tunnel.</summary>
+        public static bool HasProxyClientIdentityHeaders(HttpContext httpContext)
+        {
+            var headers = httpContext.Request.Headers;
+            if (headers.ContainsKey("CF-Connecting-IP") || headers.ContainsKey("CF-Ray"))
+                return true;
+            if (headers.ContainsKey("X-Forwarded-For") || headers.ContainsKey("X-Real-IP"))
+                return true;
+            if (headers.TryGetValue("X-Forwarded-Proto", out var proto)
+                && !string.Equals(proto.ToString(), "http", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }
+
+        static bool TryParseHeaderIp(IHeaderDictionary headers, string name, out IPAddress ip)
+        {
+            ip = null;
+            if (!headers.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
+                return false;
+            var raw = value.ToString().Split(',')[0].Trim();
+            return IPAddress.TryParse(raw, out ip);
+        }
+
+        public static bool IsLoopback(IPAddress ip)
+        {
+            if (ip == null) return false;
+            if (ip.IsIPv4MappedToIPv6)
+                return IsLoopback(ip.MapToIPv4());
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+                return ip.GetAddressBytes()[0] == 127;
+            return IPAddress.IPv6Loopback.Equals(ip);
         }
 
         public static bool IsLocalOrPrivate(IPAddress remoteIp)
