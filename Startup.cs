@@ -17,6 +17,7 @@ using JacRed.Infrastructure.Security;
 using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Application.Dev;
+using JacRed.Application.Dev.Migrations;
 using JacRed.Infrastructure.Background;
 using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Trackers;
@@ -79,6 +80,12 @@ namespace JacRed
             services.AddScoped<IDevMaintenanceService, DevMaintenanceService>();
             services.AddScoped<IDevDiagnosticsService, DevDiagnosticsService>();
             services.AddScoped<IDevMigrationService, DevMigrationService>();
+            services.AddScoped<FixKnabenNamesMigration>();
+            services.AddScoped<FixBitruNamesMigration>();
+            services.AddScoped<CleanupMigrations>();
+            services.AddScoped<FixAnilibertyUrlsMigration>();
+            services.AddScoped<RemoveDuplicateAnilibertyMigration>();
+            services.AddScoped<FixAnimelayerDuplicatesMigration>();
             services.AddScoped<ITracksAdminService, TracksAdminService>();
 
             services.AddHostedService<FastDbRefreshWorker>();
