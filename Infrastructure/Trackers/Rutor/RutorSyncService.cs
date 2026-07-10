@@ -24,8 +24,8 @@ namespace JacRed.Infrastructure.Trackers.Rutor
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
-        static bool _parseAllTaskWork = false;
-        static readonly SemaphoreSlim _parseLatestSemaphore = new SemaphoreSlim(1, 1);
+        static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static readonly List<string> Categories = new List<string>() { "1", "5", "4", "16", "12", "6", "7", "10", "17", "13", "15" };
 
@@ -108,12 +108,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
         public async Task<string> ParseAllTaskAsync()
         {
-            if (_parseAllTaskWork)
-                return "work";
-
-            _parseAllTaskWork = true;
-
-            try
+            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: false, async () =>
             {
                 foreach (var task in taskParse.ToArray())
                 {
@@ -129,56 +124,46 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                             val.updateTime = DateTime.Today;
                     }
                 }
-            }
-            catch { }
-
-            _parseAllTaskWork = false;
-            return "ok";
+            });
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5)
         {
-            if (!await _parseLatestSemaphore.WaitAsync(0))
-                return "work";
-
-            var log = new StringBuilder();
-
-            try
+            return await TrackerSyncHelpers.RunParseLatestAsync(TrackerName, _parseLatestLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
+                var log = new StringBuilder();
 
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    // Get first N pages sorted by page number
-                    var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
+                    var sw = Stopwatch.StartNew();
+                    ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
-                    foreach (var val in pagesToParse)
+                    foreach (var task in taskParse.ToArray())
                     {
-                        await Task.Delay(AppInit.conf.Rutor.parseDelay);
+                        var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
 
-                        bool res = await parsePage(task.Key, val.page);
-                        if (res)
+                        foreach (var val in pagesToParse)
                         {
-                            val.updateTime = DateTime.Today;
-                            log.AppendLine($"{task.Key} - {val.page}");
+                            await Task.Delay(AppInit.conf.Rutor.parseDelay);
+
+                            bool res = await parsePage(task.Key, val.page);
+                            if (res)
+                            {
+                                val.updateTime = DateTime.Today;
+                                log.AppendLine($"{task.Key} - {val.page}");
+                            }
                         }
                     }
+
+                    ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+                }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"ParseLatest Error: {ex.Message}");
                 }
 
-                ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"ParseLatest Error: {ex.Message}");
-            }
-            finally
-            {
-                _parseLatestSemaphore.Release();
-            }
-
-            var logText = log.ToString();
-            return string.IsNullOrWhiteSpace(logText) ? "ok" : logText;
+                return log.ToString();
+            });
         }
 
         async Task<bool> parsePage(string cat, int page)

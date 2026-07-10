@@ -8,6 +8,7 @@ using JacRed.Infrastructure.Tracks;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
+using JacRed.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json.Linq;
 
@@ -271,7 +272,7 @@ namespace JacRed.Application.Search
             }
             #endregion
 
-            IEnumerable<KeyValuePair<string, Models.TorrentInfo>> mdb = FileDB.masterDb;
+            IEnumerable<KeyValuePair<string, MasterDbShard>> mdb = FileDB.masterDb;
 
             if (!string.IsNullOrEmpty(_s) && !string.IsNullOrEmpty(_so))
             {

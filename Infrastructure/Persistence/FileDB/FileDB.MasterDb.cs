@@ -19,25 +19,25 @@ namespace JacRed.Infrastructure.Persistence
         /// $"{search_name}:{search_originalname}"
         /// Верхнее время изменения
         /// </summary>
-        public static ConcurrentDictionary<string, TorrentInfo> masterDb = new ConcurrentDictionary<string, TorrentInfo>();
+        public static ConcurrentDictionary<string, MasterDbShard> masterDb = new ConcurrentDictionary<string, MasterDbShard>();
 
         static ConcurrentDictionary<string, WriteTaskModel> openWriteTask = new ConcurrentDictionary<string, WriteTaskModel>();
 
         static FileDB()
         {
             if (File.Exists("Data/masterDb.bz"))
-                masterDb = JsonStream.Read<ConcurrentDictionary<string, TorrentInfo>>("Data/masterDb.bz");
+                masterDb = JsonStream.Read<ConcurrentDictionary<string, MasterDbShard>>("Data/masterDb.bz");
 
             if (masterDb == null)
             {
                 if (File.Exists($"Data/masterDb_{DateTime.Today:dd-MM-yyyy}.bz"))
-                    masterDb = JsonStream.Read<ConcurrentDictionary<string, TorrentInfo>>($"Data/masterDb_{DateTime.Today:dd-MM-yyyy}.bz");
+                    masterDb = JsonStream.Read<ConcurrentDictionary<string, MasterDbShard>>($"Data/masterDb_{DateTime.Today:dd-MM-yyyy}.bz");
 
                 if (masterDb == null && File.Exists($"Data/masterDb_{DateTime.Today.AddDays(-1):dd-MM-yyyy}.bz"))
-                    masterDb = JsonStream.Read<ConcurrentDictionary<string, TorrentInfo>>($"Data/masterDb_{DateTime.Today.AddDays(-1):dd-MM-yyyy}.bz");
+                    masterDb = JsonStream.Read<ConcurrentDictionary<string, MasterDbShard>>($"Data/masterDb_{DateTime.Today.AddDays(-1):dd-MM-yyyy}.bz");
 
                 if (masterDb == null)
-                    masterDb = new ConcurrentDictionary<string, TorrentInfo>();
+                    masterDb = new ConcurrentDictionary<string, MasterDbShard>();
 
                 #region переход с 29.08.2023
                 if (File.Exists("Data/masterDb.bz"))
@@ -46,7 +46,7 @@ namespace JacRed.Infrastructure.Persistence
                     {
                         foreach (var item in JsonStream.Read<Dictionary<string, DateTime>>("Data/masterDb.bz"))
                         {
-                            masterDb.TryAdd(item.Key, new TorrentInfo
+                            masterDb.TryAdd(item.Key, new MasterDbShard
                             {
                                 updateTime = item.Value,
                                 fileTime = item.Value.ToFileTimeUtc()
@@ -142,9 +142,9 @@ namespace JacRed.Infrastructure.Persistence
         static void AddOrUpdateMasterDb(TorrentDetails torrent)
         {
             string key = keyDb(torrent.name, torrent.originalname);
-            var md = new TorrentInfo() { updateTime = torrent.updateTime, fileTime = torrent.updateTime.ToFileTimeUtc() };
+            var md = new MasterDbShard() { updateTime = torrent.updateTime, fileTime = torrent.updateTime.ToFileTimeUtc() };
 
-            if (masterDb.TryGetValue(key, out TorrentInfo info))
+            if (masterDb.TryGetValue(key, out MasterDbShard info))
             {
                 if (torrent.updateTime > info.updateTime)
                     masterDb[key] = md;

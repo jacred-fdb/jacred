@@ -7,6 +7,7 @@ using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
+using JacRed.Models;
 
 namespace JacRed.Application.Dev
 {
@@ -60,7 +61,7 @@ namespace JacRed.Application.Dev
                         }
                         torrent.Value.size = getSizeInfo(torrent.Value.sizeName);
                         torrent.Value.updateTime = DateTime.UtcNow;
-                        FileDB.masterDb[item.Key] = new Models.TorrentInfo() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
+                        FileDB.masterDb[item.Key] = new MasterDbShard() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
                     }
                     foreach (var k in keysToRemove)
                         fdb.Database.Remove(k);
@@ -120,7 +121,7 @@ namespace JacRed.Application.Dev
                         torrent.Value.languages = null;
 
                         torrent.Value.updateTime = DateTime.UtcNow;
-                        FileDB.masterDb[item.Key] = new Models.TorrentInfo() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
+                        FileDB.masterDb[item.Key] = new MasterDbShard() { updateTime = torrent.Value.updateTime, fileTime = torrent.Value.updateTime.ToFileTimeUtc() };
                     }
                     foreach (var k in keysToRemove)
                         fdb.Database.Remove(k);
