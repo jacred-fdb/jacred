@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Web;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Models.Api;
@@ -104,23 +105,24 @@ namespace JacRed.Application.Search
                         #region UpdateMagnet
                         void UpdateMagnet()
                         {
-                            string magnet = $"magnet:?xt=urn:btih:{hex.ToLower()}";
+                            var magnet = new StringBuilder($"magnet:?xt=urn:btih:{hex.ToLower()}");
 
                             if (!string.IsNullOrWhiteSpace(t.Name))
-                                magnet += $"&dn={HttpUtility.UrlEncode(t.Name)}";
+                                magnet.Append($"&dn={HttpUtility.UrlEncode(t.Name)}");
 
                             if (t.AnnounceUrls.Count > 0)
                             {
+                                var addedTr = new HashSet<string>();
                                 foreach (string announce in t.AnnounceUrls)
                                 {
                                     string tr = announce.Contains("/") || announce.Contains(":") ? HttpUtility.UrlEncode(announce) : announce;
 
-                                    if (!magnet.Contains(tr))
-                                        magnet += $"&tr={tr}";
+                                    if (addedTr.Add(tr))
+                                        magnet.Append($"&tr={tr}");
                                 }
                             }
 
-                            t.torrent.magnet = magnet;
+                            t.torrent.magnet = magnet.ToString();
                         }
                         #endregion
 

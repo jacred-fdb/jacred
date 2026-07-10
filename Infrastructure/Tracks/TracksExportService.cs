@@ -69,14 +69,12 @@ namespace JacRed.Infrastructure.Tracks
         {
             CollectFromTracksDir("Data/tracks", result, stats);
 
-            foreach (var item in TracksAnalyzer.Database.Where(item => item.Value?.streams != null && item.Value.streams.Count > 0))
+            foreach (var item in TracksAnalyzer.Database.Where(item =>
+                item.Value?.streams != null && item.Value.streams.Count > 0 && !result.ContainsKey(item.Key)))
             {
-                if (!result.ContainsKey(item.Key))
-                {
-                    result[item.Key] = item.Value;
-                    if (stats != null)
-                        stats.fromMemory++;
-                }
+                result[item.Key] = item.Value;
+                if (stats != null)
+                    stats.fromMemory++;
             }
 
             if (includeTorrentDb)
