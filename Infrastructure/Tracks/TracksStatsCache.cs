@@ -33,11 +33,8 @@ namespace JacRed.Infrastructure.Tracks
 
             ApplyTrackIndexToSeen(seen, stats);
 
-            foreach (var item in TracksAnalyzer.Database)
+            foreach (var item in TracksAnalyzer.Database.Where(item => item.Value?.streams != null && item.Value.streams.Count > 0))
             {
-                if (item.Value?.streams == null || item.Value.streams.Count == 0)
-                    continue;
-
                 if (seen.Add(item.Key))
                     stats.fromMemory++;
             }
@@ -50,11 +47,8 @@ namespace JacRed.Infrastructure.Tracks
                     stats.torrentDbErrors = scan.TorrentDbErrors;
                     stats.magnetErrors = scan.MagnetErrors;
 
-                    foreach (var hash in scan.FfprobeHashesFromFdb)
-                    {
-                        if (seen.Add(hash))
-                            stats.fromTorrentDb++;
-                    }
+                    foreach (var hash in scan.FfprobeHashesFromFdb.Where(hash => seen.Add(hash)))
+                        stats.fromTorrentDb++;
                 }
                 else
                 {
@@ -71,11 +65,8 @@ namespace JacRed.Infrastructure.Tracks
             if (TracksIndexManager.TrackIndexCount > 0)
             {
                 stats.filesScanned = TracksIndexManager.TrackIndexCount;
-                foreach (var key in TracksIndexManager.TrackIndex.Keys)
-                {
-                    if (seen.Add(key))
-                        stats.fromTracksFiles++;
-                }
+                foreach (var _ in TracksIndexManager.TrackIndex.Keys.Where(seen.Add))
+                    stats.fromTracksFiles++;
 
                 return;
             }

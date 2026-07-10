@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -68,11 +69,8 @@ namespace JacRed.Infrastructure.Tracks
         {
             CollectFromTracksDir("Data/tracks", result, stats);
 
-            foreach (var item in TracksAnalyzer.Database)
+            foreach (var item in TracksAnalyzer.Database.Where(item => item.Value?.streams != null && item.Value.streams.Count > 0))
             {
-                if (item.Value?.streams == null || item.Value.streams.Count == 0)
-                    continue;
-
                 if (!result.ContainsKey(item.Key))
                 {
                     result[item.Key] = item.Value;

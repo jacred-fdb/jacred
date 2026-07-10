@@ -33,12 +33,9 @@ namespace JacRed.Infrastructure.Persistence
 
                 try
                 {
-                    int evicted = 0;
-                    foreach (var i in openWriteTask.ToArray().Where(i => DateTime.UtcNow > i.Value.lastread.AddHours(AppInit.conf.evercache.validHour)))
-                    {
-                        if (TryEvictCacheEntry(i.Key))
-                            evicted++;
-                    }
+                    int evicted = openWriteTask.ToArray()
+                        .Where(i => DateTime.UtcNow > i.Value.lastread.AddHours(AppInit.conf.evercache.validHour))
+                        .Count(i => TryEvictCacheEntry(i.Key));
                     if (evicted > 0)
                         JacRedLog.Warning(JacRedLogCategories.Fdb, $"evicted {evicted} cache entries (validHour) / {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }

@@ -35,11 +35,8 @@ namespace JacRed.Infrastructure.Tracks
                 if (data?.hashes == null || data.hashes.Count == 0)
                     return;
 
-                foreach (var hash in data.hashes)
-                {
-                    if (TracksPathResolver.IsValidInfohash(hash))
-                        TrackIndex.TryAdd(TracksPathResolver.NormalizeInfohash(hash), 0);
-                }
+                foreach (var hash in data.hashes.Where(TracksPathResolver.IsValidInfohash))
+                    TrackIndex.TryAdd(TracksPathResolver.NormalizeInfohash(hash), 0);
 
                 JacRedLog.Information(JacRedLogCategories.TracksIndex, $"loaded {TrackIndex.Count} hashes (built {data.builtAt:yyyy-MM-dd HH:mm:ss} UTC)");
             }

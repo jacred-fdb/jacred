@@ -86,10 +86,8 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                     result.Add((title, dateStr, relased, fullUrl, "new-movie"));
             }
 
-            foreach (string row in html.Split(new[] { "class=\"hor-breaker dashed\"" }, StringSplitOptions.None).Skip(1))
+            foreach (string row in html.Split(new[] { "class=\"hor-breaker dashed\"" }, StringSplitOptions.None).Skip(1).Where(row => !string.IsNullOrWhiteSpace(row)))
             {
-                if (string.IsNullOrWhiteSpace(row))
-                    continue;
                 string url = Regex.Match(row, @"href=""/([^""]+)""", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
                 string sinfo = Regex.Match(row, @"<div class=""left-part"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
                 string name = Regex.Match(row, @"<div class=""name-ru"">([^<]+)</div>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();

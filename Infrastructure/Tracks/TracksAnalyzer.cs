@@ -106,11 +106,8 @@ namespace JacRed.Infrastructure.Tracks
 
                 if (streams != null)
                 {
-                    foreach (var item in streams)
-                    {
-                        if (!string.IsNullOrEmpty(item.tags?.language) && item.codec_type == "audio")
-                            languages.Add(item.tags.language);
-                    }
+                    foreach (var item in streams.Where(s => !string.IsNullOrEmpty(s.tags?.language) && s.codec_type == "audio"))
+                        languages.Add(item.tags.language);
                 }
 
                 if (languages.Count == 0)
