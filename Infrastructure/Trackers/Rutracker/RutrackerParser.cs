@@ -21,218 +21,27 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 if (string.IsNullOrWhiteSpace(row))
                     continue;
 
-                #region Локальный метод - Match
-                string Match(string pattern, int index = 1)
-                {
-                    string res = HttpUtility.HtmlDecode(new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim());
-                    res = Regex.Replace(res, "[\n\r\t ]+", " ");
-                    return res.Trim();
-                }
-                #endregion
-
-                #region Дата создания
-                DateTime.TryParse(Match("<p>([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2})</p>"), out DateTime createTime);
-                if (createTime == default)
-                    continue;
-                #endregion
-
-                #region Данные раздачи
-                string url = Match("<a id=\"tt-([0-9]+)\"");
-                string title = Match("<a id=\"tt-[0-9]+\"[^>]+>([^\n\r]+)</a>");
-                title = Regex.Replace(title, "<[^>]+>", "");
-                string _sid = Match("<span class=\"seedmed\"[^>]+><b>([0-9]+)</b>");
-                string _pir = Match("<span class=\"leechmed\"[^>]+><b>([0-9]+)</b>");
-                string sizeName = Match("dl-stub\">([^<]+)</a>").Replace("&nbsp;", " ");
-
-                if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
+                if (!TryParseCreateTime(row, out DateTime createTime))
                     continue;
 
-                url = $"{AppInit.conf.Rutracker.host}/forum/viewtopic.php?t={url}";
-                #endregion
+                if (!TryParseRowFields(row, out string url, out string title, out string sid, out string pir, out string sizeName))
+                    continue;
 
-                #region Парсим раздачи
-                int relased = 0;
-                string name = null, originalname = null;
-
-                if (cat is "549" or "1213" or "2109" or "22" or "1666" or "941" or "1950" or "1950" or "2090" or "2221" or "2091" or "2092" or "2093" or "2200" or "2540" or "934" or "505" or "124" or "1457"
-                                or "2199" or "313" or "312" or "1247" or "2201" or "2339" or "140" or "2343" or "930" or "2365" or "208" or "539" or "209" or "709" or "252")
-                {
-                    #region Фильмы
-                    // Ниже нуля / Bajocero / Below Zero (Йуис Килес / Lluís Quílez) [2021, Испания, боевик, триллер, криминал, WEB-DLRip] MVO (MUZOBOZ) + Original (Spa) + Sub (Rus, Eng)
-                    var g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / ([^/\\(\\[]+) \\([^\\)]+\\) \\[([0-9]+), ").Groups;
-                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                    {
-                        name = g[1].Value;
-                        originalname = g[2].Value;
-
-                        if (int.TryParse(g[3].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    else
-                    {
-                        // Белый тигр / The White Tiger (Рамин Бахрани / Ramin Bahrani) [2021, Индия, США, драма, криминал, WEB-DLRip] MVO (HDRezka Studio) + Sub (Rus, Eng) + Original Eng
-                        g = Regex.Match(title, "^([^/\\(\\[]+) / ([^/\\(\\[]+) \\([^\\)]+\\) \\[([0-9]+), ").Groups;
-                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                        {
-                            name = g[1].Value;
-                            originalname = g[2].Value;
-
-                            if (int.TryParse(g[3].Value, out int _yer))
-                                relased = _yer;
-                        }
-                        else
-                        {
-                            // Дневной дозор (Тимур Бекмамбетов) [2006, Россия, боевик, триллер, фэнтези, BDRip-AVC]
-                            g = Regex.Match(title, "^([^/\\(\\[]+) \\([^\\)]+\\) \\[([0-9]+), ").Groups;
-                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
-                            {
-                                name = g[1].Value;
-                                if (int.TryParse(g[2].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                        }
-                    }
-                    #endregion
-
-                    if (name != null)
-                        name = name.Replace("в 3Д", "").Trim();
-
-                    if (originalname != null)
-                        originalname = originalname.Replace(" in 3D", "").Replace(" 3D", "").Trim();
-                }
-                else if (cat is "842" or "235" or "242" or "819" or "1531" or "721" or "1102" or "1120" or "1214" or "489" or "387" or "9" or "81" or "119" or "1803" or "266" or "193" or "1690" or "1459" or "825" or "1248" or "1288"
-                                      or "325" or "534" or "694" or "704" or "921" or "815" or "1460")
-                {
-                    #region Сериалы
-                    if (Regex.IsMatch(title, "(Сезон|Серии)", RegexOptions.IgnoreCase))
-                    {
-                        if (title.Contains("Сезон:"))
-                        {
-                            // Голяк / Без гроша / Без денег / Brassic / Сезон: 4 / Серии: 1-8 из 8 (Джон Райт, Дэниэл О’Хара, Сауль Метцштайн, Джон Хардвик) [2022, Великобритания, Комедия, криминал, WEB-DLRip] MVO (Ozz) + Original + Sub (Rus, Ukr, Eng)
-                            var g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / [^/\\(\\[]+ / ([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                            {
-                                name = g[1].Value;
-                                originalname = g[2].Value;
-
-                                if (int.TryParse(g[3].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                            else
-                            {
-                                // Уравнитель / Великий уравнитель / The Equalizer / Сезон: 1 / Серии: 1-3 из 4 (Лиз Фридлендер, Солван Наим) [2021, США, Боевик, триллер, драма, криминал, детектив, WEB-DLRip] MVO (TVShows) + Original
-                                g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / ([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                                {
-                                    name = g[1].Value;
-                                    originalname = g[2].Value;
-
-                                    if (int.TryParse(g[3].Value, out int _yer))
-                                        relased = _yer;
-                                }
-                                else
-                                {
-                                    // 911 служба спасения / 9-1-1 / Сезон: 4 / Серии: 1-6 из 9 (Брэдли Букер, Дженнифер Линч, Гвинет Хердер-Пэйтон) [2021, США, Боевик, триллер, драма, WEB-DLRip] MVO (LostFilm) + Original
-                                    g = Regex.Match(title, "^([^/\\(\\[]+) / ([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                                    {
-                                        name = g[1].Value;
-                                        originalname = g[2].Value;
-
-                                        if (int.TryParse(g[3].Value, out int _yer))
-                                            relased = _yer;
-                                    }
-                                    else
-                                    {
-                                        // Петербургский роман / Сезон: 1 / Серии: 1-8 из 8 (Александр Муратов) [2018, мелодрама, HDTV 1080i]
-                                        g = Regex.Match(title, "^([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
-                                        {
-                                            name = g[1].Value;
-                                            if (int.TryParse(g[2].Value, out int _yer))
-                                                relased = _yer;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Уравнитель / Великий уравнитель / The Equalizer / Серии: 1-3 из 4 (Лиз Фридлендер, Солван Наим) [2021, США, Боевик, триллер, драма, криминал, детектив, WEB-DLRip] MVO (TVShows) + Original
-                            var g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / ([^/\\(\\[]+) / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                            {
-                                name = g[1].Value;
-                                originalname = g[2].Value;
-
-                                if (int.TryParse(g[3].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                            else
-                            {
-                                // 911 служба спасения / 9-1-1 / Серии: 1-6 из 9 (Брэдли Букер, Дженнифер Линч, Гвинет Хердер-Пэйтон) [2021, США, Боевик, триллер, драма, WEB-DLRip] MVO (LostFilm) + Original
-                                g = Regex.Match(title, "^([^/\\(\\[]+) / ([^/\\(\\[]+) / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                                {
-                                    name = g[1].Value;
-                                    originalname = g[2].Value;
-
-                                    if (int.TryParse(g[3].Value, out int _yer))
-                                        relased = _yer;
-                                }
-                                else
-                                {
-                                    // Петербургский роман / Серии: 1-8 из 8 (Александр Муратов) [2018, мелодрама, HDTV 1080i]
-                                    g = Regex.Match(title, "^([^/\\(\\[]+) / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
-                                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
-                                    {
-                                        name = g[1].Value;
-                                        if (int.TryParse(g[2].Value, out int _yer))
-                                            relased = _yer;
-                                    }
-                                }
-                            }
-                        }
-
-                        if (Regex.IsMatch(name ?? "", "(Сезон|Серии)", RegexOptions.IgnoreCase) || Regex.IsMatch(originalname ?? "", "(Сезон|Серии)", RegexOptions.IgnoreCase))
-                        {
-                            relased = 0;
-                            name = null;
-                            originalname = null;
-                        }
-                    }
-                    #endregion
-                }
-                else if (cat is "1105" or "2491" or "1389" or "915" or "1939" or "46" or "671" or "2177" or "2538" or "251" or "98" or "97" or "851" or "2178" or "821" or "2076" or "56" or "2123" or "876" or "2139" or "1467"
-                                       or "1469" or "249" or "552" or "500" or "2112" or "1327" or "1468" or "2168" or "2160" or "314" or "1281" or "2110" or "979" or "2169" or "2164" or "2166" or "2163"
-                                       or "24" or "1959" or "939" or "1481" or "113" or "115" or "882" or "1482" or "393" or "2537" or "532" or "827")
-                {
-                    #region Нестандартные титлы
-                    name = Regex.Match(title, "^([^/\\(\\[]+) ").Groups[1].Value;
-
-                    if (int.TryParse(Regex.Match(title, " \\[([0-9]{4})(,|-) ").Groups[1].Value, out int _yer))
-                        relased = _yer;
-
-                    if (Regex.IsMatch(name ?? "", "(Сезон|Серии)", RegexOptions.IgnoreCase))
-                        continue;
-                    #endregion
-                }
-                #endregion
+                var (name, originalname, relased, skipRow) = ParseTitleNames(cat, title);
+                if (skipRow)
+                    continue;
 
                 if (string.IsNullOrWhiteSpace(name))
                     name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
 
                 if (!string.IsNullOrWhiteSpace(name))
                 {
-                    #region types
                     string[] types = GetTypesForCategory(cat);
-
                     if (types == null)
                         continue;
-                    #endregion
 
-                    int.TryParse(_sid, out int sid);
-                    int.TryParse(_pir, out int pir);
+                    int.TryParse(sid, out int sidNum);
+                    int.TryParse(pir, out int pirNum);
 
                     torrents.Add(new TorrentDetails()
                     {
@@ -240,8 +49,8 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                         types = types,
                         url = url,
                         title = title,
-                        sid = sid,
-                        pir = pir,
+                        sid = sidNum,
+                        pir = pirNum,
                         sizeName = sizeName,
                         createTime = createTime,
                         name = name,
@@ -272,6 +81,230 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             }
 
             return false;
+        }
+
+        static string MatchRow(string row, string pattern, int index = 1)
+        {
+            string res = HttpUtility.HtmlDecode(new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim());
+            res = Regex.Replace(res, "[\n\r\t ]+", " ");
+            return res.Trim();
+        }
+
+        static bool TryParseCreateTime(string row, out DateTime createTime)
+        {
+            if (!DateTime.TryParse(MatchRow(row, "<p>([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2})</p>"), out createTime) || createTime == default)
+            {
+                createTime = default;
+                return false;
+            }
+
+            return true;
+        }
+
+        static bool TryParseRowFields(string row, out string url, out string title, out string sid, out string pir, out string sizeName)
+        {
+            url = MatchRow(row, "<a id=\"tt-([0-9]+)\"");
+            title = MatchRow(row, "<a id=\"tt-[0-9]+\"[^>]+>([^\n\r]+)</a>");
+            title = Regex.Replace(title, "<[^>]+>", "");
+            sid = MatchRow(row, "<span class=\"seedmed\"[^>]+><b>([0-9]+)</b>");
+            pir = MatchRow(row, "<span class=\"leechmed\"[^>]+><b>([0-9]+)</b>");
+            sizeName = MatchRow(row, "dl-stub\">([^<]+)</a>").Replace("&nbsp;", " ");
+
+            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(pir) || string.IsNullOrWhiteSpace(sizeName))
+            {
+                url = title = sid = pir = sizeName = null;
+                return false;
+            }
+
+            url = $"{AppInit.conf.Rutracker.host}/forum/viewtopic.php?t={url}";
+            return true;
+        }
+
+        static (string name, string originalname, int relased, bool skipRow) ParseTitleNames(string cat, string title)
+        {
+            if (cat is "549" or "1213" or "2109" or "22" or "1666" or "941" or "1950" or "1950" or "2090" or "2221" or "2091" or "2092" or "2093" or "2200" or "2540" or "934" or "505" or "124" or "1457"
+                            or "2199" or "313" or "312" or "1247" or "2201" or "2339" or "140" or "2343" or "930" or "2365" or "208" or "539" or "209" or "709" or "252")
+                return ParseMovieTitle(title);
+
+            if (cat is "842" or "235" or "242" or "819" or "1531" or "721" or "1102" or "1120" or "1214" or "489" or "387" or "9" or "81" or "119" or "1803" or "266" or "193" or "1690" or "1459" or "825" or "1248" or "1288"
+                              or "325" or "534" or "694" or "704" or "921" or "815" or "1460")
+                return ParseSerialTitle(title);
+
+            if (cat is "1105" or "2491" or "1389" or "915" or "1939" or "46" or "671" or "2177" or "2538" or "251" or "98" or "97" or "851" or "2178" or "821" or "2076" or "56" or "2123" or "876" or "2139" or "1467"
+                               or "1469" or "249" or "552" or "500" or "2112" or "1327" or "1468" or "2168" or "2160" or "314" or "1281" or "2110" or "979" or "2169" or "2164" or "2166" or "2163"
+                               or "24" or "1959" or "939" or "1481" or "113" or "115" or "882" or "1482" or "393" or "2537" or "532" or "827")
+                return ParseNonStandardTitle(title);
+
+            return (null, null, 0, false);
+        }
+
+        static (string name, string originalname, int relased, bool skipRow) ParseMovieTitle(string title)
+        {
+            int relased = 0;
+            string name = null, originalname = null;
+
+            // Ниже нуля / Bajocero / Below Zero (Йуис Килес / Lluís Quílez) [2021, Испания, боевик, триллер, криминал, WEB-DLRip] MVO (MUZOBOZ) + Original (Spa) + Sub (Rus, Eng)
+            var g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / ([^/\\(\\[]+) \\([^\\)]+\\) \\[([0-9]+), ").Groups;
+            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+            {
+                name = g[1].Value;
+                originalname = g[2].Value;
+
+                if (int.TryParse(g[3].Value, out int _yer))
+                    relased = _yer;
+            }
+            else
+            {
+                // Белый тигр / The White Tiger (Рамин Бахрани / Ramin Bahrani) [2021, Индия, США, драма, криминал, WEB-DLRip] MVO (HDRezka Studio) + Sub (Rus, Eng) + Original Eng
+                g = Regex.Match(title, "^([^/\\(\\[]+) / ([^/\\(\\[]+) \\([^\\)]+\\) \\[([0-9]+), ").Groups;
+                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                {
+                    name = g[1].Value;
+                    originalname = g[2].Value;
+
+                    if (int.TryParse(g[3].Value, out int _yer))
+                        relased = _yer;
+                }
+                else
+                {
+                    // Дневной дозор (Тимур Бекмамбетов) [2006, Россия, боевик, триллер, фэнтези, BDRip-AVC]
+                    g = Regex.Match(title, "^([^/\\(\\[]+) \\([^\\)]+\\) \\[([0-9]+), ").Groups;
+                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
+                    {
+                        name = g[1].Value;
+                        if (int.TryParse(g[2].Value, out int _yer))
+                            relased = _yer;
+                    }
+                }
+            }
+
+            if (name != null)
+                name = name.Replace("в 3Д", "").Trim();
+
+            if (originalname != null)
+                originalname = originalname.Replace(" in 3D", "").Replace(" 3D", "").Trim();
+
+            return (name, originalname, relased, false);
+        }
+
+        static (string name, string originalname, int relased, bool skipRow) ParseSerialTitle(string title)
+        {
+            int relased = 0;
+            string name = null, originalname = null;
+
+            if (Regex.IsMatch(title, "(Сезон|Серии)", RegexOptions.IgnoreCase))
+            {
+                if (title.Contains("Сезон:"))
+                {
+                    // Голяк / Без гроша / Без денег / Brassic / Сезон: 4 / Серии: 1-8 из 8 (Джон Райт, Дэниэл О'Хара, Сауль Метцштайн, Джон Хардвик) [2022, Великобритания, Комедия, криминал, WEB-DLRip] MVO (Ozz) + Original + Sub (Rus, Ukr, Eng)
+                    var g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / [^/\\(\\[]+ / ([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                    {
+                        name = g[1].Value;
+                        originalname = g[2].Value;
+
+                        if (int.TryParse(g[3].Value, out int _yer))
+                            relased = _yer;
+                    }
+                    else
+                    {
+                        // Уравнитель / Великий уравнитель / The Equalizer / Сезон: 1 / Серии: 1-3 из 4 (Лиз Фридлендер, Солван Наим) [2021, США, Боевик, триллер, драма, криминал, детектив, WEB-DLRip] MVO (TVShows) + Original
+                        g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / ([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                        {
+                            name = g[1].Value;
+                            originalname = g[2].Value;
+
+                            if (int.TryParse(g[3].Value, out int _yer))
+                                relased = _yer;
+                        }
+                        else
+                        {
+                            // 911 служба спасения / 9-1-1 / Сезон: 4 / Серии: 1-6 из 9 (Брэдли Букер, Дженнифер Линч, Гвинет Хердер-Пэйтон) [2021, США, Боевик, триллер, драма, WEB-DLRip] MVO (LostFilm) + Original
+                            g = Regex.Match(title, "^([^/\\(\\[]+) / ([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                            {
+                                name = g[1].Value;
+                                originalname = g[2].Value;
+
+                                if (int.TryParse(g[3].Value, out int _yer))
+                                    relased = _yer;
+                            }
+                            else
+                            {
+                                // Петербургский роман / Сезон: 1 / Серии: 1-8 из 8 (Александр Муратов) [2018, мелодрама, HDTV 1080i]
+                                g = Regex.Match(title, "^([^/\\(\\[]+) / Сезон: [^/]+ / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
+                                {
+                                    name = g[1].Value;
+                                    if (int.TryParse(g[2].Value, out int _yer))
+                                        relased = _yer;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Уравнитель / Великий уравнитель / The Equalizer / Серии: 1-3 из 4 (Лиз Фридлендер, Солван Наим) [2021, США, Боевик, триллер, драма, криминал, детектив, WEB-DLRip] MVO (TVShows) + Original
+                    var g = Regex.Match(title, "^([^/\\(\\[]+) / [^/\\(\\[]+ / ([^/\\(\\[]+) / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                    {
+                        name = g[1].Value;
+                        originalname = g[2].Value;
+
+                        if (int.TryParse(g[3].Value, out int _yer))
+                            relased = _yer;
+                    }
+                    else
+                    {
+                        // 911 служба спасения / 9-1-1 / Серии: 1-6 из 9 (Брэдли Букер, Дженнифер Линч, Гвинет Хердер-Пэйтон) [2021, США, Боевик, триллер, драма, WEB-DLRip] MVO (LostFilm) + Original
+                        g = Regex.Match(title, "^([^/\\(\\[]+) / ([^/\\(\\[]+) / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                        {
+                            name = g[1].Value;
+                            originalname = g[2].Value;
+
+                            if (int.TryParse(g[3].Value, out int _yer))
+                                relased = _yer;
+                        }
+                        else
+                        {
+                            // Петербургский роман / Серии: 1-8 из 8 (Александр Муратов) [2018, мелодрама, HDTV 1080i]
+                            g = Regex.Match(title, "^([^/\\(\\[]+) / [^\\(\\[]+ \\([^\\)]+\\) \\[([0-9]+)(,|-)").Groups;
+                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
+                            {
+                                name = g[1].Value;
+                                if (int.TryParse(g[2].Value, out int _yer))
+                                    relased = _yer;
+                            }
+                        }
+                    }
+                }
+
+                if (Regex.IsMatch(name ?? "", "(Сезон|Серии)", RegexOptions.IgnoreCase) || Regex.IsMatch(originalname ?? "", "(Сезон|Серии)", RegexOptions.IgnoreCase))
+                {
+                    relased = 0;
+                    name = null;
+                    originalname = null;
+                }
+            }
+
+            return (name, originalname, relased, false);
+        }
+
+        static (string name, string originalname, int relased, bool skipRow) ParseNonStandardTitle(string title)
+        {
+            int relased = 0;
+            string name = Regex.Match(title, "^([^/\\(\\[]+) ").Groups[1].Value;
+
+            if (int.TryParse(Regex.Match(title, " \\[([0-9]{4})(,|-) ").Groups[1].Value, out int _yer))
+                relased = _yer;
+
+            if (Regex.IsMatch(name ?? "", "(Сезон|Серии)", RegexOptions.IgnoreCase))
+                return (name, null, relased, true);
+
+            return (name, null, relased, false);
         }
 
         static string[] GetTypesForCategory(string cat)

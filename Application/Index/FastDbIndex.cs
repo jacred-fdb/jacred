@@ -7,7 +7,7 @@ namespace JacRed.Application.Index
 {
     public class FastDbIndex : IFastDbIndex
     {
-        /// <summary>Singleton instance registered as <see cref="IFastDbIndex"/> in Startup.</summary>
+        /// <summary>Singleton instance registered as <see cref="IFastDbIndex"/> in Program.</summary>
         public static FastDbIndex Default { get; } = new FastDbIndex();
 
         Dictionary<string, List<string>> _fastdb;

@@ -18,7 +18,7 @@ namespace JacRed.Infrastructure.Security
 
     /// <summary>
     /// Client IP (after X-Forwarded-For / CF-Connecting-IP) vs peer IP (direct TCP to Kestrel).
-    /// Used with Startup UseForwardedHeaders for reverse-proxy deployments.
+    /// Used with Program UseForwardedHeaders for reverse-proxy deployments.
     /// </summary>
     public sealed class ClientNetworkContext : IClientNetworkContext
     {
