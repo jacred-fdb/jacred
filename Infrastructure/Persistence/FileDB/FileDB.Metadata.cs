@@ -21,7 +21,7 @@ namespace JacRed.Infrastructure.Persistence
 
                 try
                 {
-                    double size = 0.1;
+                    double size;
                     var gsize = Regex.Match(sizeName, "([0-9\\.,]+) (Mb|МБ|GB|ГБ|TB|ТБ)", RegexOptions.IgnoreCase).Groups;
                     if (!string.IsNullOrWhiteSpace(gsize[2].Value))
                     {

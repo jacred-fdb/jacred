@@ -107,16 +107,8 @@ namespace JacRed.Infrastructure.Tracks
 
                     if (!shouldAnalyze)
                     {
-                        if (torrentExistsInCorrectCategory == false)
-                        {
-                            errorMessage = $"Торрент не в категории '{expectedCategory}'";
-                            TracksDB.Log($"{errorMessage}. Анализ отменен.", typetask);
-                        }
-                        else
-                        {
-                            errorMessage = "Не удалось добавить торрент на сервер";
-                            TracksDB.Log($"{errorMessage} и он не существует в категории '{expectedCategory}'. Завершение.", typetask);
-                        }
+                        errorMessage = $"Торрент не в категории '{expectedCategory}'";
+                        TracksDB.Log($"{errorMessage}. Анализ отменен.", typetask);
                         return;
                     }
 
@@ -124,7 +116,7 @@ namespace JacRed.Infrastructure.Tracks
                     {
                         TracksDB.Log($"Торрент {infohash} уже существует на сервере в категории '{expectedCategory}'. Начинаем анализ...", typetask);
                     }
-                    else if (torrentAdded)
+                    else
                     {
                         TracksDB.Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...", typetask);
                     }

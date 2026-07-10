@@ -73,7 +73,7 @@ namespace JacRed.Application.Search
                         is_serial = 4; // док
                     else if (cat.Contains("5070"))
                         is_serial = 5; // аниме
-                    else if (is_serial == 0)
+                    else
                     {
                         if (cat.StartsWith("20"))
                             is_serial = 1; // фильм

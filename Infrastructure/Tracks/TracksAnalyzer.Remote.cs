@@ -47,7 +47,7 @@ namespace JacRed.Infrastructure.Tracks
         {
             try
             {
-                (bool exists, string actualCategory, bool serverError) = await CheckTorrentExistsWithCategory(server, null, token);
+                (_, _, bool serverError) = await CheckTorrentExistsWithCategory(server, null, token);
 
                 if (serverError)
                     return (server, 0, false);
@@ -79,7 +79,7 @@ namespace JacRed.Infrastructure.Tracks
                     action = "list"
                 });
 
-                var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+                using var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 using var response = await client.PostAsync($"{tsuri}/torrents", content, token);
 
@@ -146,7 +146,7 @@ namespace JacRed.Infrastructure.Tracks
                     action = "list"
                 });
 
-                var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+                using var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 using var response = await client.PostAsync($"{tsuri}/torrents", content, token);
 
@@ -225,7 +225,7 @@ namespace JacRed.Infrastructure.Tracks
                     category = expectedCategory
                 });
 
-                var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+                using var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 using var response = await client.PostAsync($"{tsuri}/torrents", content, token);
 
@@ -234,10 +234,9 @@ namespace JacRed.Infrastructure.Tracks
                     using var stream = await response.Content.ReadAsStreamAsync();
 
                     byte[] buffer = new byte[8192];
-                    int bytesRead;
-
-                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    while (await stream.ReadAsync(buffer, 0, buffer.Length) > 0)
                     {
+                        // drain response body
                     }
 
                     return (true, false, false);
@@ -337,7 +336,7 @@ namespace JacRed.Infrastructure.Tracks
                     hash = infohash
                 });
 
-                var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
+                using var content = new System.Net.Http.StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 using var response = await client.PostAsync($"{tsuri}/torrents", content);
 
