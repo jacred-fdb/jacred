@@ -18,9 +18,10 @@ namespace JacRed.Infrastructure.Background
         const string SyncTempDir = "Data/temp";
         static readonly string LastSyncPath = Path.Combine(SyncTempDir, "lastsync.txt");
         static readonly string StarSyncPath = Path.Combine(SyncTempDir, "starsync.txt");
-        /// <summary>During catch-up (<c>nextread</c>), flush masterDb + lastsync every N batches (in addition to time-based save).</summary>
-        const int SaveCheckpointEveryNBatches = 5;
         static long lastsync = -1, starsync = -1;
+
+        static int SaveCheckpointEveryNBatches =>
+            AppInit.conf?.saveCheckpointEveryNBatches > 0 ? AppInit.conf.saveCheckpointEveryNBatches : 0;
 
         static void SaveTorrentsCheckpoint()
         {
@@ -40,6 +41,18 @@ namespace JacRed.Infrastructure.Background
         static string FormatElapsed(TimeSpan ts)
         {
             return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}.{ts.Milliseconds / 100}";
+        }
+
+        static bool ShouldSaveCheckpoint(int batchIndex, ref DateTime lastSave)
+        {
+            int every = SaveCheckpointEveryNBatches;
+            bool saveByBatch = every > 0 && batchIndex % every == 0;
+            bool saveByTime = DateTime.Now > lastSave.AddMinutes(5);
+            if (!saveByBatch && !saveByTime)
+                return false;
+
+            lastSave = DateTime.Now;
+            return true;
         }
 
         #region Torrents
@@ -136,13 +149,8 @@ namespace JacRed.Infrastructure.Background
 
                                 if (root.nextread)
                                 {
-                                    bool saveByBatch = batchIndex % SaveCheckpointEveryNBatches == 0;
-                                    bool saveByTime = DateTime.Now > lastSave.AddMinutes(5);
-                                    if (saveByBatch || saveByTime)
-                                    {
-                                        lastSave = DateTime.Now;
+                                    if (ShouldSaveCheckpoint(batchIndex, ref lastSave))
                                         SaveTorrentsCheckpoint();
-                                    }
                                     goto next;
                                 }
 
@@ -248,11 +256,8 @@ namespace JacRed.Infrastructure.Background
 
                                 if (root.nextread)
                                 {
-                                    bool saveByBatch = batchIndex % SaveCheckpointEveryNBatches == 0;
-                                    bool saveByTime = DateTime.Now > lastSave.AddMinutes(5);
-                                    if (saveByBatch || saveByTime)
+                                    if (ShouldSaveCheckpoint(batchIndex, ref lastSave))
                                     {
-                                        lastSave = DateTime.Now;
                                         FileDB.SaveChangesToFile();
                                         JacRedLog.Information(JacRedLogCategories.SyncSpidr, "saved state (masterDb)");
                                     }

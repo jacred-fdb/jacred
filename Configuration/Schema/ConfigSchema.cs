@@ -54,6 +54,7 @@ namespace JacRed.Configuration.Schema
                         Field("syncspidr", "bool", "Sync spidr", null),
                         Field("timeSync", "int", "Интервал sync (мин)", null, min: 1),
                         Field("timeSyncSpidr", "int", "Интервал sync spidr (мин)", null, min: 1),
+                        Field("saveCheckpointEveryNBatches", "int", "Sync checkpoint (батчей)", "При catch-up: сохранять masterDb каждые N батчей; 0 — только по таймеру (5 мин)", min: 0),
                         Field("maxreadfile", "int", "Max read file", "Лимит чтения fdb", min: 1)
                     }),
                     Group("logging", "Логирование", "Файлы в Data/log/ и уровни консоли (journalctl)", new[]
@@ -192,6 +193,9 @@ namespace JacRed.Configuration.Schema
 
             if (config.timeSync < 1)
                 errors.Add("timeSync: должно быть ≥ 1");
+
+            if (config.saveCheckpointEveryNBatches < 0)
+                errors.Add("saveCheckpointEveryNBatches: не может быть отрицательным");
 
             if (config.timeStatsUpdate < 1)
                 errors.Add("timeStatsUpdate: должно быть ≥ 1");

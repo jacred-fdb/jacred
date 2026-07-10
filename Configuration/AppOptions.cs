@@ -91,6 +91,9 @@ namespace JacRed.Configuration
 
         public int timeSyncSpidr = 60; // минут (30, 60, 120 — без случайного смещения)
 
+        /// <summary>During sync catch-up, flush masterDb + lastsync every N batches (0 = only time-based save every 5 min).</summary>
+        public int saveCheckpointEveryNBatches = 5;
+
         public TrackerSettings Rutor = new TrackerSettings("http://rutor.info");
 
         public TrackerSettings Megapeer = new TrackerSettings("http://megapeer.vip");

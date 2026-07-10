@@ -49,6 +49,7 @@ tsuri:
 timeStatsUpdate: 15
 timeSync: 120
 timeSyncSpidr: 360
+saveCheckpointEveryNBatches: 5
 evercache:
   enable: false
   validHour: 1
