@@ -150,15 +150,15 @@ namespace JacRed.Infrastructure.Stats
             switch (query.DayFilter)
             {
                 case TorrentDayFilter.CreatedToday:
-                {
-                    var shard = CreateShardPath(today);
-                    return File.Exists(shard) ? new List<string> { shard } : new List<string>();
-                }
+                    {
+                        var shard = CreateShardPath(today);
+                        return File.Exists(shard) ? new List<string> { shard } : new List<string>();
+                    }
                 case TorrentDayFilter.UpdatedToday:
-                {
-                    var shard = UpdateShardPath(today);
-                    return File.Exists(shard) ? new List<string> { shard } : new List<string>();
-                }
+                    {
+                        var shard = UpdateShardPath(today);
+                        return File.Exists(shard) ? new List<string> { shard } : new List<string>();
+                    }
                 default:
                     return new List<string>();
             }
