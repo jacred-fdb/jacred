@@ -107,14 +107,8 @@ namespace JacRed.Infrastructure.Persistence
             var streams = TracksDB.Get(t.magnet, t.types);
             if (streams != null)
             {
-                foreach (var s in streams)
+                foreach (var s in streams.Where(s => !string.IsNullOrEmpty(s.tags?.title) && s.codec_type == "audio"))
                 {
-                    if (string.IsNullOrEmpty(s.tags?.title))
-                        continue;
-
-                    if (s.codec_type != "audio")
-                        continue;
-
                     foreach (string v in allVoices)
                     {
                         try
@@ -140,29 +134,11 @@ namespace JacRed.Infrastructure.Persistence
             if (t.trackerName == "lostfilm")
                 t.languages.Add("rus");
 
-            if (!t.languages.Contains("ukr"))
-            {
-                foreach (string v in ukrVoices)
-                {
-                    if (t.voices.Contains(v))
-                    {
-                        t.languages.Add("ukr");
-                        break;
-                    }
-                }
-            }
+            if (!t.languages.Contains("ukr") && ukrVoices.Any(v => t.voices.Contains(v)))
+                t.languages.Add("ukr");
 
-            if (!t.languages.Contains("rus"))
-            {
-                foreach (string v in rusVoices)
-                {
-                    if (t.voices.Contains(v))
-                    {
-                        t.languages.Add("rus");
-                        break;
-                    }
-                }
-            }
+            if (!t.languages.Contains("rus") && rusVoices.Any(v => t.voices.Contains(v)))
+                t.languages.Add("rus");
             #endregion
 
             #region seasons

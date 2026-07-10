@@ -59,11 +59,8 @@ namespace JacRed.Application.Dev.Migrations
             }
 
             // Second pass: remove duplicates, keeping the one with latest updateTime
-            foreach (var hashGroup in hashMap)
+            foreach (var hashGroup in hashMap.Where(g => g.Value.Count > 1))
             {
-                if (hashGroup.Value.Count <= 1)
-                    continue; // No duplicates
-
                 // Sort by updateTime descending, then by url (for consistency)
                 var sorted = hashGroup.Value.OrderByDescending(x => x.updateTime)
                                            .ThenBy(x => x.url)

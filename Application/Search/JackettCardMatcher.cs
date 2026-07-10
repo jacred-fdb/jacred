@@ -109,11 +109,8 @@ namespace JacRed.Application.Search
 
                 foreach (string key in keys)
                 {
-                    foreach (var t in FileDB.OpenRead(key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values.Where(t => t.types != null && !t.title.Contains(" КПК")))
                     {
-                        if (t.types == null || t.title.Contains(" КПК"))
-                            continue;
-
                         string name = t._sn ?? StringConvert.SearchName(t.name);
                         string originalname = t._so ?? StringConvert.SearchName(t.originalname);
 
@@ -283,16 +280,13 @@ namespace JacRed.Application.Search
                     {
                         foreach (string key in keys)
                         {
-                            foreach (var t in FileDB.OpenRead(key, true).Values)
+                            foreach (var t in FileDB.OpenRead(key, true).Values.Where(t => t.types != null && !t.title.Contains(" КПК")))
                             {
                                 if (exact)
                                 {
                                     if ((t._sn ?? StringConvert.SearchName(t.name)) != _s && (t._so ?? StringConvert.SearchName(t.originalname)) != _s)
                                         continue;
                                 }
-
-                                if (t.types == null || t.title.Contains(" КПК"))
-                                    continue;
 
                                 if (is_serial == 1)
                                 {

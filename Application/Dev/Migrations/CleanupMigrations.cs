@@ -25,11 +25,8 @@ namespace JacRed.Application.Dev.Migrations
                 using (var fdb = FileDB.OpenWrite(item.Key))
                 {
                     var keysToRemove = new List<string>();
-                    foreach (var torrent in fdb.Database)
-                    {
-                        if (torrent.Value == null)
-                            keysToRemove.Add(torrent.Key);
-                    }
+                    foreach (var torrent in fdb.Database.Where(torrent => torrent.Value == null))
+                        keysToRemove.Add(torrent.Key);
                     if (keysToRemove.Count > 0)
                     {
                         foreach (var k in keysToRemove)
