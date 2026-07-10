@@ -18,123 +18,99 @@ namespace JacRed.Infrastructure.Trackers.Aniliberty
     {
         const string TrackerName = "aniliberty";
 
-        static volatile bool workParse;
-        static readonly object workParseLock = new object();
-
-        static bool TryStartParse()
-        {
-            lock (workParseLock)
-            {
-                if (workParse)
-                    return false;
-                workParse = true;
-                return true;
-            }
-        }
-
-        static void EndParse()
-        {
-            lock (workParseLock)
-            {
-                workParse = false;
-            }
-        }
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         public async Task<string> ParseAsync(int parseFrom = 0, int parseTo = 0, CancellationToken cancellationToken = default)
         {
-            if (!TryStartParse())
-                return "work";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string baseUrl = AppInit.conf.Aniliberty.host;
-
-                int startPage = parseFrom > 0 ? parseFrom : 1;
-                int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
-
-                if (startPage > endPage)
+                try
                 {
-                    int temp = startPage;
-                    startPage = endPage;
-                    endPage = temp;
-                }
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = AppInit.conf.Aniliberty.host;
 
-                ParserLog.Write(TrackerName, "Starting parse", new Dictionary<string, object>
-                {
-                    { "parseFrom", parseFrom },
-                    { "parseTo", parseTo },
-                    { "startPage", startPage },
-                    { "endPage", endPage },
-                    { "baseUrl", baseUrl }
-                });
+                    int startPage = parseFrom > 0 ? parseFrom : 1;
+                    int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
 
-                int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
-                int lastPage = int.MaxValue;
-
-                for (int page = startPage; page <= endPage && page <= lastPage; page++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    if (page > startPage)
-                        await Task.Delay(AppInit.conf.Aniliberty.parseDelay, cancellationToken);
-
-                    ParserLog.Write(TrackerName, "Parsing page", new Dictionary<string, object>
+                    if (startPage > endPage)
                     {
-                        { "page", page },
-                        { "url", $"{baseUrl}/api/v1/anime/torrents?page={page}&limit=50" }
+                        int temp = startPage;
+                        startPage = endPage;
+                        endPage = temp;
+                    }
+
+                    ParserLog.Write(TrackerName, "Starting parse", new Dictionary<string, object>
+                    {
+                        { "parseFrom", parseFrom },
+                        { "parseTo", parseTo },
+                        { "startPage", startPage },
+                        { "endPage", endPage },
+                        { "baseUrl", baseUrl }
                     });
 
-                    var result = await ParsePageAsync(page, cancellationToken);
-                    totalParsed += result.parsed;
-                    totalAdded += result.added;
-                    totalUpdated += result.updated;
-                    totalSkipped += result.skipped;
-                    totalFailed += result.failed;
+                    int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
+                    int lastPage = int.MaxValue;
 
-                    if (result.lastPage > 0)
-                        lastPage = result.lastPage;
+                    for (int page = startPage; page <= endPage && page <= lastPage; page++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    if (page >= lastPage)
-                        break;
+                        if (page > startPage)
+                            await Task.Delay(AppInit.conf.Aniliberty.parseDelay, cancellationToken);
+
+                        ParserLog.Write(TrackerName, "Parsing page", new Dictionary<string, object>
+                        {
+                            { "page", page },
+                            { "url", $"{baseUrl}/api/v1/anime/torrents?page={page}&limit=50" }
+                        });
+
+                        var result = await ParsePageAsync(page, cancellationToken);
+                        totalParsed += result.parsed;
+                        totalAdded += result.added;
+                        totalUpdated += result.updated;
+                        totalSkipped += result.skipped;
+                        totalFailed += result.failed;
+
+                        if (result.lastPage > 0)
+                            lastPage = result.lastPage;
+
+                        if (page >= lastPage)
+                            break;
+                    }
+
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
+                        new Dictionary<string, object>
+                        {
+                            { "parsed", totalParsed },
+                            { "added", totalAdded },
+                            { "updated", totalUpdated },
+                            { "skipped", totalSkipped },
+                            { "failed", totalFailed }
+                        });
+                }
+                catch (OperationCanceledException oce)
+                {
+                    ParserLog.Write(TrackerName, "Canceled", new Dictionary<string, object>
+                    {
+                        { "message", oce.Message },
+                        { "stackTrace", oce.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                    });
+                    return "canceled";
+                }
+                catch (Exception ex)
+                {
+                    if (ex is OutOfMemoryException)
+                        throw;
+
+                    ParserLog.Write(TrackerName, "Error", new Dictionary<string, object>
+                    {
+                        { "message", ex.Message },
+                        { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                    });
                 }
 
-                ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
-                    new Dictionary<string, object>
-                    {
-                        { "parsed", totalParsed },
-                        { "added", totalAdded },
-                        { "updated", totalUpdated },
-                        { "skipped", totalSkipped },
-                        { "failed", totalFailed }
-                    });
-            }
-            catch (OperationCanceledException oce)
-            {
-                ParserLog.Write(TrackerName, "Canceled", new Dictionary<string, object>
-                {
-                    { "message", oce.Message },
-                    { "stackTrace", oce.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
-                });
-                return "canceled";
-            }
-            catch (Exception ex)
-            {
-                if (ex is OutOfMemoryException)
-                    throw;
-
-                ParserLog.Write(TrackerName, "Error", new Dictionary<string, object>
-                {
-                    { "message", ex.Message },
-                    { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
-                });
-            }
-            finally
-            {
-                EndParse();
-            }
-
-            return "ok";
+                return "ok";
+            });
         }
 
         async Task<(int parsed, int added, int updated, int skipped, int failed, int lastPage)> ParsePageAsync(int page, CancellationToken cancellationToken)

@@ -21,8 +21,7 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
 
         static readonly SemaphoreSlim loginSemaphore = new SemaphoreSlim(1, 1);
 
-        static volatile bool workParse;
-        static readonly object workParseLock = new object();
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         readonly IMemoryCache _memoryCache;
 
@@ -341,26 +340,6 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
             return false;
         }
 
-        static bool TryStartParse()
-        {
-            lock (workParseLock)
-            {
-                if (workParse)
-                    return false;
-
-                workParse = true;
-                return true;
-            }
-        }
-
-        static void EndParse()
-        {
-            lock (workParseLock)
-            {
-                workParse = false;
-            }
-        }
-
         public async Task<string> ParseAsync(int parseFrom = 0, int parseTo = 0)
         {
             #region Authorization
@@ -440,94 +419,90 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
             }
             #endregion
 
-            if (!TryStartParse())
-                return "work";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string baseUrl = EnsureHttps(AppInit.conf.Animelayer.host);
-
-                int startPage = parseFrom > 0 ? parseFrom : 1;
-                int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
-
-                if (startPage > endPage)
+                try
                 {
-                    int temp = startPage;
-                    startPage = endPage;
-                    endPage = temp;
-                }
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = EnsureHttps(AppInit.conf.Animelayer.host);
 
-                ParserLog.Write(TrackerName, $"Starting parse", new Dictionary<string, object>
-                {
-                    { "parseFrom", parseFrom },
-                    { "parseTo", parseTo },
-                    { "startPage", startPage },
-                    { "endPage", endPage },
-                    { "baseUrl", baseUrl }
-                });
+                    int startPage = parseFrom > 0 ? parseFrom : 1;
+                    int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
 
-                int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
-
-                for (int page = startPage; page <= endPage; page++)
-                {
-                    if (page > startPage)
-                        await Task.Delay(AppInit.conf.Animelayer.parseDelay);
-
-                    if (page > 1)
+                    if (startPage > endPage)
                     {
-                        ParserLog.Write(TrackerName, $"Parsing page", new Dictionary<string, object>
-                        {
-                            { "page", page },
-                            { "url", $"{baseUrl}/torrents/anime/?page={page}" }
-                        });
+                        int temp = startPage;
+                        startPage = endPage;
+                        endPage = temp;
                     }
 
-                    var pageResult = await ParsePageWithRetry(page, baseUrl);
+                    ParserLog.Write(TrackerName, $"Starting parse", new Dictionary<string, object>
+                    {
+                        { "parseFrom", parseFrom },
+                        { "parseTo", parseTo },
+                        { "startPage", startPage },
+                        { "endPage", endPage },
+                        { "baseUrl", baseUrl }
+                    });
 
-                    totalParsed += pageResult.parsed;
-                    totalAdded += pageResult.added;
-                    totalUpdated += pageResult.updated;
-                    totalSkipped += pageResult.skipped;
-                    totalFailed += pageResult.failed;
+                    int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
+
+                    for (int page = startPage; page <= endPage; page++)
+                    {
+                        if (page > startPage)
+                            await Task.Delay(AppInit.conf.Animelayer.parseDelay);
+
+                        if (page > 1)
+                        {
+                            ParserLog.Write(TrackerName, $"Parsing page", new Dictionary<string, object>
+                            {
+                                { "page", page },
+                                { "url", $"{baseUrl}/torrents/anime/?page={page}" }
+                            });
+                        }
+
+                        var pageResult = await ParsePageWithRetry(page, baseUrl);
+
+                        totalParsed += pageResult.parsed;
+                        totalAdded += pageResult.added;
+                        totalUpdated += pageResult.updated;
+                        totalSkipped += pageResult.skipped;
+                        totalFailed += pageResult.failed;
+                    }
+
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
+                        new Dictionary<string, object>
+                        {
+                            { "parsed", totalParsed },
+                            { "added", totalAdded },
+                            { "updated", totalUpdated },
+                            { "skipped", totalSkipped },
+                            { "failed", totalFailed }
+                        });
+                }
+                catch (OperationCanceledException oce)
+                {
+                    ParserLog.Write(TrackerName, $"Canceled", new Dictionary<string, object>
+                    {
+                        { "message", oce.Message },
+                        { "stackTrace", oce.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                    });
+                    return "canceled";
+                }
+                catch (Exception ex)
+                {
+                    if (ex is OutOfMemoryException)
+                        throw;
+
+                    ParserLog.Write(TrackerName, $"Error", new Dictionary<string, object>
+                    {
+                        { "message", ex.Message },
+                        { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                    });
                 }
 
-                ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
-                    new Dictionary<string, object>
-                    {
-                        { "parsed", totalParsed },
-                        { "added", totalAdded },
-                        { "updated", totalUpdated },
-                        { "skipped", totalSkipped },
-                        { "failed", totalFailed }
-                    });
-            }
-            catch (OperationCanceledException oce)
-            {
-                ParserLog.Write(TrackerName, $"Canceled", new Dictionary<string, object>
-                {
-                    { "message", oce.Message },
-                    { "stackTrace", oce.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
-                });
-                return "canceled";
-            }
-            catch (Exception ex)
-            {
-                if (ex is OutOfMemoryException)
-                    throw;
-
-                ParserLog.Write(TrackerName, $"Error", new Dictionary<string, object>
-                {
-                    { "message", ex.Message },
-                    { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
-                });
-            }
-            finally
-            {
-                EndParse();
-            }
-
-            return "ok";
+                return "ok";
+            });
         }
 
         async Task<(int parsed, int added, int updated, int skipped, int failed)> ParsePageWithRetry(int page, string baseUrl)

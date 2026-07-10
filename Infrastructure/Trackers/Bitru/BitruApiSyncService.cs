@@ -26,7 +26,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
         static readonly string HostUrl;
         static readonly string LastNewTorPath = "Data/temp/bitruapi_lastnewtor.txt";
 
-        static volatile bool _workParse;
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         static BitruApiSyncService()
         {
@@ -37,39 +37,34 @@ namespace JacRed.Infrastructure.Trackers.Bitru
 
         public async Task<string> ParseAsync(int limit = 100, CancellationToken cancellationToken = default)
         {
-            if (_workParse)
-                return "work";
-
-            _workParse = true;
-            string log = "";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                ParserLog.Write(TrackerName, $"Parse start, limit={limit}, api={ApiUrl}");
+                string log = "";
 
-                var torrents = await FetchTorrentsFromApi(limit: Math.Min(100, limit), afterDateUnix: null, cancellationToken);
-                if (torrents != null && torrents.Count > 0)
+                try
                 {
-                    await SaveTorrentsAndMagnets(torrents, cancellationToken);
-                    log = $"saved {torrents.Count}";
+                    var sw = Stopwatch.StartNew();
+                    ParserLog.Write(TrackerName, $"Parse start, limit={limit}, api={ApiUrl}");
+
+                    var torrents = await FetchTorrentsFromApi(limit: Math.Min(100, limit), afterDateUnix: null, cancellationToken);
+                    if (torrents != null && torrents.Count > 0)
+                    {
+                        await SaveTorrentsAndMagnets(torrents, cancellationToken);
+                        log = $"saved {torrents.Count}";
+                    }
+                    else
+                        log = "no items";
+
+                    ParserLog.Write(TrackerName, $"Parse completed in {sw.Elapsed.TotalSeconds:F1}s, {log}");
                 }
-                else
-                    log = "no items";
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                    log = $"error: {ex.Message}";
+                }
 
-                ParserLog.Write(TrackerName, $"Parse completed in {sw.Elapsed.TotalSeconds:F1}s, {log}");
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-                log = $"error: {ex.Message}";
-            }
-            finally
-            {
-                _workParse = false;
-            }
-
-            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            });
         }
 
         public async Task<string> ParseFromDateAsync(string lastnewtor, int limit = 100, CancellationToken cancellationToken = default)
@@ -80,43 +75,38 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             if (!DateTime.TryParseExact(lastnewtor.Trim(), "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fromDate))
                 return "bad date format (use dd.MM.yyyy)";
 
-            if (_workParse)
-                return "work";
-
-            _workParse = true;
-            string log = "";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                long unixFrom = DateTimeOffset.UtcNow.Date == fromDate.Date
-                    ? DateTimeOffset.FromUnixTimeSeconds(0).ToUnixTimeSeconds()
-                    : new DateTimeOffset(fromDate.Year, fromDate.Month, fromDate.Day, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+                string log = "";
 
-                ParserLog.Write(TrackerName, $"ParseFromDate lastnewtor={lastnewtor} (unix={unixFrom}), limit={limit}");
-
-                var torrents = await FetchTorrentsFromApi(limit: Math.Min(100, limit), afterDateUnix: unixFrom, cancellationToken);
-                if (torrents != null && torrents.Count > 0)
+                try
                 {
-                    await SaveTorrentsAndMagnets(torrents, cancellationToken);
-                    log = $"saved {torrents.Count}";
+                    var sw = Stopwatch.StartNew();
+                    long unixFrom = DateTimeOffset.UtcNow.Date == fromDate.Date
+                        ? DateTimeOffset.FromUnixTimeSeconds(0).ToUnixTimeSeconds()
+                        : new DateTimeOffset(fromDate.Year, fromDate.Month, fromDate.Day, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+
+                    ParserLog.Write(TrackerName, $"ParseFromDate lastnewtor={lastnewtor} (unix={unixFrom}), limit={limit}");
+
+                    var torrents = await FetchTorrentsFromApi(limit: Math.Min(100, limit), afterDateUnix: unixFrom, cancellationToken);
+                    if (torrents != null && torrents.Count > 0)
+                    {
+                        await SaveTorrentsAndMagnets(torrents, cancellationToken);
+                        log = $"saved {torrents.Count}";
+                    }
+                    else
+                        log = "no items";
+
+                    ParserLog.Write(TrackerName, $"ParseFromDate completed in {sw.Elapsed.TotalSeconds:F1}s, {log}");
                 }
-                else
-                    log = "no items";
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                    log = $"error: {ex.Message}";
+                }
 
-                ParserLog.Write(TrackerName, $"ParseFromDate completed in {sw.Elapsed.TotalSeconds:F1}s, {log}");
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-                log = $"error: {ex.Message}";
-            }
-            finally
-            {
-                _workParse = false;
-            }
-
-            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            });
         }
 
         async Task<BitruApiResponse> ApiRequestAsync(object jsonParams, CancellationToken cancellationToken)

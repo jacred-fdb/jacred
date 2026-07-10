@@ -1,13 +1,7 @@
 // Tracker sync shared helpers — parse lock and cron guard patterns.
 //
-// Migration guide (remaining *SyncService classes):
-// 1. Add: static readonly TrackerParseLock _parseLock = new TrackerParseLock();
-// 2. Replace local _workParse / TryStartParse / EndParse with _parseLock + TrackerSyncHelpers.RunParseAsync.
-// 3. Replace IsDisabled() / disable_trackers checks with TrackerSyncHelpers.IsTrackerDisabled(TrackerName).
-// 4. Keep tracker-specific logic inside the Func<Task<string>> passed to RunParseAsync.
-// 5. For ParseAllTask / ParseLatest semaphore patterns — migrate in a follow-up PR (see TrackerWorkFlag).
-//
-// Suggested follow-up batches: Bitru+Rutor, Knaben+Selezen, AnimeLayer+Anidub+Aniliberty, then larger trackers.
+// All *SyncService classes use TrackerParseLock + RunParseAsync for ParseAsync (and shared locks for API variants).
+// ParseAllTask / ParseLatest still use TrackerWorkFlag or SemaphoreSlim per tracker where applicable.
 
 using JacRed.Infrastructure.Logging;
 using System;

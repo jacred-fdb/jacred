@@ -22,8 +22,7 @@ namespace JacRed.Infrastructure.Trackers.Selezen
 
         static readonly SemaphoreSlim _loginSemaphore = new SemaphoreSlim(1, 1);
 
-        static volatile bool _workParse = false;
-        static readonly object _workParseLock = new object();
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         const string SelezenUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
@@ -126,100 +125,79 @@ namespace JacRed.Infrastructure.Trackers.Selezen
             return false;
         }
 
-        static bool TryStartParse()
-        {
-            lock (_workParseLock)
-            {
-                if (_workParse) return false;
-                _workParse = true;
-                return true;
-            }
-        }
-
-        static void EndParse()
-        {
-            lock (_workParseLock) { _workParse = false; }
-        }
-
         /// <summary>Парсинг страниц. parseFrom/parseTo через query: /cron/selezen/parse?parseFrom=1&amp;parseTo=5. Если оба 0 — парсится одна страница 1.</summary>
         public async Task<string> ParseAsync(int parseFrom = 0, int parseTo = 0)
         {
-            if (AppInit.conf?.disable_trackers != null && AppInit.conf.disable_trackers.Contains(TrackerName, StringComparer.OrdinalIgnoreCase))
-                return "disabled";
-            if (!TryStartParse())
-                return "work";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: true, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string baseUrl = $"{AppInit.conf.Selezen.host}/relizy-ot-selezen/";
-                int startPage = parseFrom > 0 ? parseFrom : 1;
-                int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
-                if (startPage > endPage) { int t = startPage; startPage = endPage; endPage = t; }
-
-                ParserLog.Write(TrackerName, "Starting parse", new Dictionary<string, object>
+                try
                 {
-                    { "parseFrom", parseFrom },
-                    { "parseTo", parseTo },
-                    { "startPage", startPage },
-                    { "endPage", endPage },
-                    { "baseUrl", baseUrl }
-                });
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = $"{AppInit.conf.Selezen.host}/relizy-ot-selezen/";
+                    int startPage = parseFrom > 0 ? parseFrom : 1;
+                    int endPage = parseTo > 0 ? parseTo : (parseFrom > 0 ? parseFrom : 1);
+                    if (startPage > endPage) { int t = startPage; startPage = endPage; endPage = t; }
 
-                int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
-
-                for (int page = startPage; page <= endPage; page++)
-                {
-                    if (page > startPage)
-                        await Task.Delay(AppInit.conf.Selezen.parseDelay);
-
-                    if (page > 1)
+                    ParserLog.Write(TrackerName, "Starting parse", new Dictionary<string, object>
                     {
-                        ParserLog.Write(TrackerName, "Parsing page", new Dictionary<string, object>
+                        { "parseFrom", parseFrom },
+                        { "parseTo", parseTo },
+                        { "startPage", startPage },
+                        { "endPage", endPage },
+                        { "baseUrl", baseUrl }
+                    });
+
+                    int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
+
+                    for (int page = startPage; page <= endPage; page++)
+                    {
+                        if (page > startPage)
+                            await Task.Delay(AppInit.conf.Selezen.parseDelay);
+
+                        if (page > 1)
                         {
-                            { "page", page },
-                            { "url", page <= 1 ? baseUrl : $"{AppInit.conf.Selezen.host}/relizy-ot-selezen/page/{page}/" }
-                        });
+                            ParserLog.Write(TrackerName, "Parsing page", new Dictionary<string, object>
+                            {
+                                { "page", page },
+                                { "url", page <= 1 ? baseUrl : $"{AppInit.conf.Selezen.host}/relizy-ot-selezen/page/{page}/" }
+                            });
+                        }
+
+                        var (parsed, added, updated, skipped, failed) = await parsePage(page);
+                        totalParsed += parsed;
+                        totalAdded += added;
+                        totalUpdated += updated;
+                        totalSkipped += skipped;
+                        totalFailed += failed;
                     }
 
-                    var (parsed, added, updated, skipped, failed) = await parsePage(page);
-                    totalParsed += parsed;
-                    totalAdded += added;
-                    totalUpdated += updated;
-                    totalSkipped += skipped;
-                    totalFailed += failed;
+                    ParserLog.Write(TrackerName, "Parse completed successfully", new Dictionary<string, object>
+                    {
+                        { "tookSec", sw.Elapsed.TotalSeconds },
+                        { "parsed", totalParsed },
+                        { "added", totalAdded },
+                        { "updated", totalUpdated },
+                        { "skipped", totalSkipped },
+                        { "failed", totalFailed }
+                    });
+                }
+                catch (OperationCanceledException oce)
+                {
+                    ParserLog.Write(TrackerName, "Canceled", new Dictionary<string, object> { { "message", oce.Message } });
+                    return "canceled";
+                }
+                catch (Exception ex)
+                {
+                    if (ex is OutOfMemoryException) throw;
+                    ParserLog.Write(TrackerName, "Error", new Dictionary<string, object>
+                    {
+                        { "message", ex.Message },
+                        { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
+                    });
                 }
 
-                ParserLog.Write(TrackerName, "Parse completed successfully", new Dictionary<string, object>
-                {
-                    { "tookSec", sw.Elapsed.TotalSeconds },
-                    { "parsed", totalParsed },
-                    { "added", totalAdded },
-                    { "updated", totalUpdated },
-                    { "skipped", totalSkipped },
-                    { "failed", totalFailed }
-                });
-            }
-            catch (OperationCanceledException oce)
-            {
-                ParserLog.Write(TrackerName, "Canceled", new Dictionary<string, object> { { "message", oce.Message } });
-                return "canceled";
-            }
-            catch (Exception ex)
-            {
-                if (ex is OutOfMemoryException) throw;
-                ParserLog.Write(TrackerName, "Error", new Dictionary<string, object>
-                {
-                    { "message", ex.Message },
-                    { "stackTrace", ex.StackTrace?.Split('\n').FirstOrDefault() ?? "" }
-                });
-            }
-            finally
-            {
-                EndParse();
-            }
-
-            return "ok";
+                return "ok";
+            });
         }
 
         async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)

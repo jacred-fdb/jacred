@@ -17,36 +17,32 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
     {
         const string TrackerName = "lostfilm";
 
-        static readonly object _parseLock = new object();
-        static bool _parseRunning;
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         /// <summary>Парсит только первую страницу /new/ — актуальные новинки.</summary>
         public async Task<string> ParseAsync()
         {
             if (!EnsureConfig()) return "conf";
 
-            if (!TryStartParse()) return "work";
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
+            {
+                try
+                {
+                    var sw = Stopwatch.StartNew();
+                    string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
+                    string cookie = AppInit.conf.Lostfilm.cookie;
 
-            try
-            {
-                var sw = Stopwatch.StartNew();
-                string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
-                string cookie = AppInit.conf.Lostfilm.cookie;
-
-                ParserLog.Write(TrackerName, "Parse (page /new/) start");
-                await ParsePage(host, cookie, 1, stopBeforeDate: null, startFromDate: null, preloadedHtml: null);
-                ParserLog.Write(TrackerName, $"Parse done in {sw.Elapsed.TotalSeconds:F1}s");
-                return "ok";
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Parse error: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                EndParse();
-            }
+                    ParserLog.Write(TrackerName, "Parse (page /new/) start");
+                    await ParsePage(host, cookie, 1, stopBeforeDate: null, startFromDate: null, preloadedHtml: null);
+                    ParserLog.Write(TrackerName, $"Parse done in {sw.Elapsed.TotalSeconds:F1}s");
+                    return "ok";
+                }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Parse error: {ex.Message}");
+                    throw;
+                }
+            });
         }
 
         /// <summary>Парсит страницы /new/ в указанном диапазоне. Без кэша, без фильтров по датам.</summary>
@@ -54,46 +50,43 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         {
             if (!EnsureConfig()) return "conf";
 
-            if (!TryStartParse()) return "work";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
-                string cookie = AppInit.conf.Lostfilm.cookie;
-                int delay = AppInit.conf.Lostfilm.parseDelay;
-
-                if (pageFrom < 1) pageFrom = 1;
-                if (pageTo < pageFrom) pageTo = pageFrom;
-
-                ParserLog.Write(TrackerName, $"ParsePages start pageFrom={pageFrom} pageTo={pageTo} host={host}");
-
-                string firstPageHtml = await HttpClient.Get($"{host}/new/", cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy, httpversion: 2);
-                int totalPages = LostfilmParser.ExtractTotalPagesFromNewPageHtml(firstPageHtml);
-                if (pageTo > totalPages)
-                    pageTo = totalPages;
-                ParserLog.Write(TrackerName, $"Pagination: totalPages={totalPages} will parse pages {pageFrom}..{pageTo}");
-
-                for (int page = pageFrom; page <= pageTo; page++)
+                try
                 {
-                    if (page > 1 && delay > 0)
-                        await Task.Delay(delay);
+                    var sw = Stopwatch.StartNew();
+                    string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
+                    string cookie = AppInit.conf.Lostfilm.cookie;
+                    int delay = AppInit.conf.Lostfilm.parseDelay;
 
-                    await ParsePage(host, cookie, page, stopBeforeDate: null, startFromDate: null, page == 1 ? firstPageHtml : null);
+                    if (pageFrom < 1) pageFrom = 1;
+                    if (pageTo < pageFrom) pageTo = pageFrom;
+
+                    ParserLog.Write(TrackerName, $"ParsePages start pageFrom={pageFrom} pageTo={pageTo} host={host}");
+
+                    string firstPageHtml = await HttpClient.Get($"{host}/new/", cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy, httpversion: 2);
+                    int totalPages = LostfilmParser.ExtractTotalPagesFromNewPageHtml(firstPageHtml);
+                    if (pageTo > totalPages)
+                        pageTo = totalPages;
+                    ParserLog.Write(TrackerName, $"Pagination: totalPages={totalPages} will parse pages {pageFrom}..{pageTo}");
+
+                    for (int page = pageFrom; page <= pageTo; page++)
+                    {
+                        if (page > 1 && delay > 0)
+                            await Task.Delay(delay);
+
+                        await ParsePage(host, cookie, page, stopBeforeDate: null, startFromDate: null, page == 1 ? firstPageHtml : null);
+                    }
+
+                    ParserLog.Write(TrackerName, $"ParsePages done in {sw.Elapsed.TotalSeconds:F1}s");
+                    return "ok";
                 }
-
-                ParserLog.Write(TrackerName, $"ParsePages done in {sw.Elapsed.TotalSeconds:F1}s");
-                return "ok";
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"ParsePages error: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                EndParse();
-            }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"ParsePages error: {ex.Message}");
+                    throw;
+                }
+            });
         }
 
         /// <summary>Парсит страницу /series/{series}/seasons/ и добавляет торренты «полный сезон» (SD, 1080p, 720p) для каждого сезона с e=999.</summary>
@@ -103,101 +96,98 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             if (string.IsNullOrWhiteSpace(series))
                 return "series required";
 
-            if (!TryStartParse()) return "work";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
-                string cookie = AppInit.conf.Lostfilm.cookie;
-                series = series.Trim();
-
-                ParserLog.Write(TrackerName, $"ParseSeasonPacks start series={series}");
-
-                string seasonsUrl = $"{host}/series/{series}/seasons/";
-                string html = await HttpClient.Get(seasonsUrl, cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy);
-                if (string.IsNullOrEmpty(html) || !html.Contains("LostFilm.TV"))
+                try
                 {
-                    ParserLog.Write(TrackerName, $"ParseSeasonPacks: empty or invalid response {seasonsUrl}");
-                    return "empty";
-                }
+                    var sw = Stopwatch.StartNew();
+                    string host = AppInit.conf.Lostfilm.host ?? "https://www.lostfilm.tv";
+                    string cookie = AppInit.conf.Lostfilm.cookie;
+                    series = series.Trim();
 
-                var (relased, russianName) = LostfilmParser.ParseRelasedAndNameFromHtml(html);
-                if (relased <= 0)
-                {
-                    ParserLog.Write(TrackerName, $"ParseSeasonPacks: no relased in HTML for {series}");
-                    return "no relased";
-                }
-                string originalname = series.Replace("_", " ");
-                string name = !string.IsNullOrWhiteSpace(russianName) ? russianName : originalname;
+                    ParserLog.Write(TrackerName, $"ParseSeasonPacks start series={series}");
 
-                // Ссылки на полный сезон: /V/?c=...&s=N&e=999 (или e=999&s=N)
-                var vLinkRe = new Regex(@"href=""(/V/\?[^""]+)""", RegexOptions.IgnoreCase);
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var list = new List<TorrentDetails>();
-
-                foreach (Match m in vLinkRe.Matches(html))
-                {
-                    string vPath = m.Groups[1].Value;
-                    if (vPath.IndexOf("e=999", StringComparison.OrdinalIgnoreCase) < 0)
-                        continue;
-                    var sMatch = Regex.Match(vPath, @"[?&]s=(\d+)", RegexOptions.IgnoreCase);
-                    if (!sMatch.Success || !int.TryParse(sMatch.Groups[1].Value, out int seasonNum) || seasonNum <= 0)
-                        continue;
-                    string vFullUrl = vPath.StartsWith("http") ? vPath : host.TrimEnd('/') + (vPath.StartsWith("/") ? vPath : "/" + vPath);
-                    if (seen.Contains(vFullUrl))
-                        continue;
-                    seen.Add(vFullUrl);
-
-                    var magnets = await GetMagnetsFromVPage(host, cookie, vFullUrl);
-                    if (magnets.Count == 0)
+                    string seasonsUrl = $"{host}/series/{series}/seasons/";
+                    string html = await HttpClient.Get(seasonsUrl, cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy);
+                    if (string.IsNullOrEmpty(html) || !html.Contains("LostFilm.TV"))
                     {
-                        ParserLog.Write(TrackerName, $"  no magnets: {series} s{seasonNum}");
-                        continue;
+                        ParserLog.Write(TrackerName, $"ParseSeasonPacks: empty or invalid response {seasonsUrl}");
+                        return "empty";
                     }
-                    DateTime createTime = DateTime.UtcNow;
-                    foreach (var (magnet, quality, sizeName) in magnets)
+
+                    var (relased, russianName) = LostfilmParser.ParseRelasedAndNameFromHtml(html);
+                    if (relased <= 0)
                     {
-                        string title = $"{name} / {originalname} / {seasonNum} сезон (полный сезон) [{relased}, {quality}]";
-                        string url = vFullUrl + "#" + quality;
-                        list.Add(new TorrentDetails
+                        ParserLog.Write(TrackerName, $"ParseSeasonPacks: no relased in HTML for {series}");
+                        return "no relased";
+                    }
+                    string originalname = series.Replace("_", " ");
+                    string name = !string.IsNullOrWhiteSpace(russianName) ? russianName : originalname;
+
+                    // Ссылки на полный сезон: /V/?c=...&s=N&e=999 (или e=999&s=N)
+                    var vLinkRe = new Regex(@"href=""(/V/\?[^""]+)""", RegexOptions.IgnoreCase);
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var list = new List<TorrentDetails>();
+
+                    foreach (Match m in vLinkRe.Matches(html))
+                    {
+                        string vPath = m.Groups[1].Value;
+                        if (vPath.IndexOf("e=999", StringComparison.OrdinalIgnoreCase) < 0)
+                            continue;
+                        var sMatch = Regex.Match(vPath, @"[?&]s=(\d+)", RegexOptions.IgnoreCase);
+                        if (!sMatch.Success || !int.TryParse(sMatch.Groups[1].Value, out int seasonNum) || seasonNum <= 0)
+                            continue;
+                        string vFullUrl = vPath.StartsWith("http") ? vPath : host.TrimEnd('/') + (vPath.StartsWith("/") ? vPath : "/" + vPath);
+                        if (seen.Contains(vFullUrl))
+                            continue;
+                        seen.Add(vFullUrl);
+
+                        var magnets = await GetMagnetsFromVPage(host, cookie, vFullUrl);
+                        if (magnets.Count == 0)
                         {
-                            trackerName = TrackerName,
-                            types = new[] { "serial" },
-                            url = url,
-                            title = title,
-                            sid = 1,
-                            createTime = createTime,
-                            name = name,
-                            originalname = originalname,
-                            relased = relased,
-                            magnet = magnet,
-                            sizeName = sizeName
-                        });
+                            ParserLog.Write(TrackerName, $"  no magnets: {series} s{seasonNum}");
+                            continue;
+                        }
+                        DateTime createTime = DateTime.UtcNow;
+                        foreach (var (magnet, quality, sizeName) in magnets)
+                        {
+                            string title = $"{name} / {originalname} / {seasonNum} сезон (полный сезон) [{relased}, {quality}]";
+                            string url = vFullUrl + "#" + quality;
+                            list.Add(new TorrentDetails
+                            {
+                                trackerName = TrackerName,
+                                types = new[] { "serial" },
+                                url = url,
+                                title = title,
+                                sid = 1,
+                                createTime = createTime,
+                                name = name,
+                                originalname = originalname,
+                                relased = relased,
+                                magnet = magnet,
+                                sizeName = sizeName
+                            });
+                        }
+                        ParserLog.Write(TrackerName, $"  + {name} {seasonNum} сезон (полный): {magnets.Count} quality");
                     }
-                    ParserLog.Write(TrackerName, $"  + {name} {seasonNum} сезон (полный): {magnets.Count} quality");
-                }
 
-                if (list.Count > 0)
+                    if (list.Count > 0)
+                    {
+                        await FileDB.AddOrUpdate(list, (t, db) => Task.FromResult(true));
+                        ParserLog.Write(TrackerName, $"ParseSeasonPacks: added {list.Count} torrents");
+                    }
+                    else
+                        ParserLog.Write(TrackerName, "ParseSeasonPacks: no season-pack links found");
+
+                    ParserLog.Write(TrackerName, $"ParseSeasonPacks done in {sw.Elapsed.TotalSeconds:F1}s");
+                    return "ok";
+                }
+                catch (Exception ex)
                 {
-                    await FileDB.AddOrUpdate(list, (t, db) => Task.FromResult(true));
-                    ParserLog.Write(TrackerName, $"ParseSeasonPacks: added {list.Count} torrents");
+                    ParserLog.Write(TrackerName, $"ParseSeasonPacks error: {ex.Message}");
+                    throw;
                 }
-                else
-                    ParserLog.Write(TrackerName, "ParseSeasonPacks: no season-pack links found");
-
-                ParserLog.Write(TrackerName, $"ParseSeasonPacks done in {sw.Elapsed.TotalSeconds:F1}s");
-                return "ok";
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"ParseSeasonPacks error: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                EndParse();
-            }
+            });
         }
 
         /// <summary>Запрашивает /new/, парсит даты и возвращает, что мы извлекаем (dateStr, relased). Для проверки года в заголовках. Опционально ?series=slug фильтрует по сериалу (например Drops_of_God).</summary>
@@ -286,23 +276,6 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         }
 
         static bool EnsureConfig() => AppInit.conf != null && AppInit.conf.Lostfilm != null;
-
-        static bool TryStartParse()
-        {
-            lock (_parseLock)
-            {
-                if (_parseRunning)
-                    return false;
-                _parseRunning = true;
-                return true;
-            }
-        }
-
-        static void EndParse()
-        {
-            lock (_parseLock)
-                _parseRunning = false;
-        }
 
         /// <param name="host">Базовый URL LostFilm (например https://www.lostfilm.tv)</param>
         /// <param name="cookie">Cookie для авторизованных запросов</param>

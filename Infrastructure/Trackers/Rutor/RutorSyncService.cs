@@ -23,7 +23,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
-        static bool _workParse = false;
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static bool _parseAllTaskWork = false;
         static readonly SemaphoreSlim _parseLatestSemaphore = new SemaphoreSlim(1, 1);
 
@@ -37,47 +37,42 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
         public async Task<string> ParseAsync(int page)
         {
-            if (_workParse)
-                return "work";
-
-            _workParse = true;
-            string log = "";
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                var sw = Stopwatch.StartNew();
-                string baseUrl = $"{AppInit.conf.Rutor.rqHost()}/browse";
-                ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                // 1  - Зарубежные фильмы          | Фильмы
-                // 5  - Наши фильмы                | Фильмы
-                // 4  - Зарубежные сериалы         | Сериалы
-                // 16 - Наши сериалы               | Сериалы
-                // 12 - Научно-популярные фильмы   | Док. сериалы, Док. фильмы
-                // 6  - Телевизор                  | ТВ Шоу
-                // 7  - Мультипликация             | Мультфильмы, Мультсериалы
-                // 10 - Аниме                      | Аниме
-                // 17 - Иностранные релизы         | Фильмы (UKR)
-                // 13 - Спорт и Здоровье           | Спорт
-                // 15 - Юмор                       | ТВ Шоу
-                foreach (string cat in Categories)
+                string log = "";
+
+                try
                 {
-                    string pageUrl = $"{baseUrl}/{page}/{cat}/0/0";
-                    ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                    bool res = await parsePage(cat, page);
-                    log += $"{cat} - {page} / {res}\n";
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = $"{AppInit.conf.Rutor.rqHost()}/browse";
+                    ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
+                    // 1  - Зарубежные фильмы          | Фильмы
+                    // 5  - Наши фильмы                | Фильмы
+                    // 4  - Зарубежные сериалы         | Сериалы
+                    // 16 - Наши сериалы               | Сериалы
+                    // 12 - Научно-популярные фильмы   | Док. сериалы, Док. фильмы
+                    // 6  - Телевизор                  | ТВ Шоу
+                    // 7  - Мультипликация             | Мультфильмы, Мультсериалы
+                    // 10 - Аниме                      | Аниме
+                    // 17 - Иностранные релизы         | Фильмы (UKR)
+                    // 13 - Спорт и Здоровье           | Спорт
+                    // 15 - Юмор                       | ТВ Шоу
+                    foreach (string cat in Categories)
+                    {
+                        string pageUrl = $"{baseUrl}/{page}/{cat}/0/0";
+                        ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
+                        bool res = await parsePage(cat, page);
+                        log += $"{cat} - {page} / {res}\n";
+                    }
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
-                ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-            }
-            finally
-            {
-                _workParse = false;
-            }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                }
 
-            return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            });
         }
 
         public async Task<string> UpdateTasksParseAsync()

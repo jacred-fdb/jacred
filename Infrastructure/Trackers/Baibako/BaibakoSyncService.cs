@@ -32,7 +32,7 @@ namespace JacRed.Infrastructure.Trackers.Baibako
         static readonly SemaphoreSlim loginSemaphore = new SemaphoreSlim(1, 1);
         static readonly Regex RegexCookieValue = new Regex("([^;]+)(;|$)", RegexOptions.Compiled);
 
-        static bool workParse;
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         readonly IMemoryCache _memoryCache;
 
@@ -158,77 +158,71 @@ namespace JacRed.Infrastructure.Trackers.Baibako
 
         public async Task<string> ParseAsync(int parseFrom = 0, int parseTo = 0)
         {
-            if (workParse)
-                return "work";
-
             if (string.IsNullOrEmpty(AppInit.conf.Baibako.host))
-                return "disabled";
+                return TrackerSyncHelpers.DisabledResult;
 
-            workParse = true;
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
                 if (!await CheckLogin())
                     return "login error";
 
-                var sw = Stopwatch.StartNew();
-                string baseUrl = $"{AppInit.conf.Baibako.host}{EndpointBrowse}";
-
-                int startPage = parseFrom >= 0 ? parseFrom : 0;
-                int endPage = parseTo >= 0 ? parseTo : (parseFrom >= 0 ? parseFrom : 0);
-
-                if (startPage > endPage)
+                try
                 {
-                    int temp = startPage;
-                    startPage = endPage;
-                    endPage = temp;
-                }
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = $"{AppInit.conf.Baibako.host}{EndpointBrowse}";
 
-                ParserLog.Write(TrackerName, $"Starting parse", new Dictionary<string, object>
-                {
-                    { "parseFrom", parseFrom },
-                    { "parseTo", parseTo },
-                    { "startPage", startPage },
-                    { "endPage", endPage },
-                    { "baseUrl", baseUrl }
-                });
+                    int startPage = parseFrom >= 0 ? parseFrom : 0;
+                    int endPage = parseTo >= 0 ? parseTo : (parseFrom >= 0 ? parseFrom : 0);
 
-                int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
-
-                for (int page = startPage; page <= endPage; page++)
-                {
-                    if (page > startPage)
-                        await Task.Delay(AppInit.conf.Baibako.parseDelay);
-
-                    ParserLog.Write(TrackerName, $"Page {page}: {baseUrl}?page={page}");
-                    var result = await parsePage(page);
-                    totalParsed += result.parsed;
-                    totalAdded += result.added;
-                    totalUpdated += result.updated;
-                    totalSkipped += result.skipped;
-                    totalFailed += result.failed;
-                }
-
-                ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
-                    new Dictionary<string, object>
+                    if (startPage > endPage)
                     {
-                        { "parsed", totalParsed },
-                        { "added", totalAdded },
-                        { "updated", totalUpdated },
-                        { "skipped", totalSkipped },
-                        { "failed", totalFailed }
-                    });
-            }
-            catch (Exception ex)
-            {
-                ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-            }
-            finally
-            {
-                workParse = false;
-            }
+                        int temp = startPage;
+                        startPage = endPage;
+                        endPage = temp;
+                    }
 
-            return "ok";
+                    ParserLog.Write(TrackerName, $"Starting parse", new Dictionary<string, object>
+                    {
+                        { "parseFrom", parseFrom },
+                        { "parseTo", parseTo },
+                        { "startPage", startPage },
+                        { "endPage", endPage },
+                        { "baseUrl", baseUrl }
+                    });
+
+                    int totalParsed = 0, totalAdded = 0, totalUpdated = 0, totalSkipped = 0, totalFailed = 0;
+
+                    for (int page = startPage; page <= endPage; page++)
+                    {
+                        if (page > startPage)
+                            await Task.Delay(AppInit.conf.Baibako.parseDelay);
+
+                        ParserLog.Write(TrackerName, $"Page {page}: {baseUrl}?page={page}");
+                        var result = await parsePage(page);
+                        totalParsed += result.parsed;
+                        totalAdded += result.added;
+                        totalUpdated += result.updated;
+                        totalSkipped += result.skipped;
+                        totalFailed += result.failed;
+                    }
+
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)",
+                        new Dictionary<string, object>
+                        {
+                            { "parsed", totalParsed },
+                            { "added", totalAdded },
+                            { "updated", totalUpdated },
+                            { "skipped", totalSkipped },
+                            { "failed", totalFailed }
+                        });
+                }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                }
+
+                return "ok";
+            });
         }
 
         async Task<(int parsed, int added, int updated, int skipped, int failed)> parsePage(int page)

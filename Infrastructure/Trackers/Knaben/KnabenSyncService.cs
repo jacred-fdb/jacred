@@ -31,8 +31,7 @@ namespace JacRed.Infrastructure.Trackers.Knaben
         static string ApiUrl => $"{AppInit.conf.Knaben.host.TrimEnd('/')}/v1";
         static int ApiDelayMs => Math.Max(MinApiDelayMs, AppInit.conf.Knaben.parseDelay);
 
-        static volatile bool _workParse;
-        static readonly object _workLock = new object();
+        static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
         public async Task<string> ParseAsync(
             int from = 0,
@@ -44,31 +43,18 @@ namespace JacRed.Infrastructure.Trackers.Knaben
             string categories = null,
             CancellationToken cancellationToken = default)
         {
-            if (!TryStartParse()) return "work";
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                if (!EnsureConfig()) return "config missing";
+                if (!EnsureConfig())
+                    return "config missing";
 
                 int s = Math.Min(MaxSize, Math.Max(1, size));
                 int p = Math.Max(1, Math.Min(MaxPages, pages));
                 int[] cats = ParseCategories(categories);
 
                 return await ParseCore(from, s, p, query?.Trim(), hours, orderBy, cats, cancellationToken);
-            }
-            finally { EndParse(); }
+            });
         }
-
-        static bool TryStartParse()
-        {
-            lock (_workLock)
-            {
-                if (_workParse) return false;
-                _workParse = true;
-                return true;
-            }
-        }
-
-        static void EndParse() { lock (_workLock) { _workParse = false; } }
 
         static bool EnsureConfig()
         {
