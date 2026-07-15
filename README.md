@@ -188,7 +188,6 @@ evercache:
 | ------- | ---------- |
 | `GET /sync/conf` | `{ fbd, spidr, version: 2 }` |
 | `GET /sync/fdb/torrents?time=&start=&spidr=` | Основной batch sync |
-| `GET /sync/tracks/stats` | Export stats (как `/dev/TracksStats`) |
 
 Клиент `SyncCron` требует `fbd: true` в `/sync/conf`.
 
@@ -257,10 +256,10 @@ journalctl -u jacred -g 'fdb:' -p warning
 | ------ | ------------ |
 | `stats.json` | Сводка по трекерам для UI `/stats` |
 | `stats-meta.json` | `{ updatedAt, trackerCount }` — время последнего сбора |
-| `tracks-stats.json` | Кэш export-статистики ffprobe/tracks (dev/sync) |
+| `tracks-stats.json` | Кэш export-статистики ffprobe/tracks (`/stats/tracks`, `/dev/TracksStats`) |
 | `tracks-index.bz` | Gzip-индекс infohash в `Data/tracks` (быстрый старт и stats без walk всех JSON) |
 
-**Эндпоинты (UI `/stats`):** `GET /stats/torrents` — сводка из `stats.json`; `GET /stats/meta` — `updatedAt`. Tracks export: `/dev/TracksStats`, `/sync/tracks/stats`.
+**Эндпоинты (UI `/stats`):** `GET /stats/torrents` — сводка из `stats.json`; `GET /stats/tracks` — агрегат из `tracks-stats.json`; `GET /stats/meta` — `updatedAt`. Force refresh: `/dev/TracksStats?refresh=true`.
 
 **Старт сервиса:** HTTP (`/health`) доступен через ~10–30 с после загрузки `masterDb.bz`. Индекс треков `Data/temp/tracks-index.bz` и первый сбор stats выполняются **в фоне**; пока индекс пуст, cron stats **откладывается** (в логе: `stats: deferred`). После rebuild индекса stats запускается автоматически.
 
@@ -535,7 +534,7 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 | `GET /api/v2.0/indexers/.../results` | ApiKeyWhenConfigured | — |
 | `GET /torznab/api` | ApiKeyWhenConfigured | — |
 | `GET /api/v1.0/torrents` | ApiKeyWhenConfigured | — |
-| `GET /stats/torrents`, `/stats/meta` | ApiKeyWhenConfigured | `openstats` |
+| `GET /stats/torrents`, `/stats/tracks`, `/stats/meta` | ApiKeyWhenConfigured | `openstats` |
 | `GET /sync/fdb/torrents` | Public | `opensync` |
 | `GET/POST /api/v1.0/config/*` | ConfigApi | — |
 | `GET /cron/{tracker}/parse` | DevAdmin | — |
@@ -671,18 +670,17 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 
 ### Статистика и синхронизация
 
-**Сводки (stats.json, для UI `/stats`):**
+**Сводки (для UI `/stats` и API):**
 
 | Эндпоинт | Ответ |
 |----------|--------|
-| `GET /stats/torrents` | Сводка по всем трекерам |
-| `GET /stats/meta` | `updatedAt` сбора + `tracksStatsUpdatedAt` |
+| `GET /stats/torrents` | Массив из `stats.json` |
+| `GET /stats/tracks` | `{ ok, updatedAt, fromCache, stats }` из `tracks-stats.json` |
+| `GET /stats/meta` | `{ ok, updatedAt, updatedAtLocal, tracksStatsUpdatedAt }` |
 
-- **`GET /stats/*`** — статистика для веб-UI (если `openstats: true`).
-  - Tracks export: **`GET /dev/TracksStats`**, **`GET /sync/tracks/stats`** (кэш `tracks-stats.json`).
+- Force refresh tracks: **`GET /dev/TracksStats?refresh=true`**
 - **`GET /sync/*`** — эндпоинты синхронизации (если `opensync: true`).
   - **`GET /sync/fdb/torrents`** — основной протокол синхронизации (collections + pagination).
-  - **`GET /sync/tracks/stats`** — агрегат из `tracks-stats.json` (как `/dev/TracksStats`; при `opensync: true`).
 
 ### Парсинг трекеров
 

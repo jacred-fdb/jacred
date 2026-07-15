@@ -466,6 +466,37 @@ paths:
               schema:
                 type: array
 
+  /stats/tracks:
+    get:
+      tags: [Stats]
+      summary: Tracks export aggregate (tracks-stats.json cache)
+      description: 'Read-only cache from Data/temp/tracks-stats.json. Requires `openstats: true`. Force refresh via `/dev/TracksStats?refresh=true`.'
+      operationId: statsTracks
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: includeTorrentDb
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Tracks export aggregate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  fromCache:
+                    type: boolean
+                  stats:
+                    type: object
+
   /stats/meta:
     get:
       tags: [Stats]
@@ -562,34 +593,6 @@ paths:
             application/json:
               schema:
                 type: object
-
-  /sync/tracks/stats:
-    get:
-      tags: [Sync]
-      summary: Tracks export statistics for sync
-      operationId: syncTracksStats
-      security: []
-      description: 'Requires `opensync: true`.'
-      parameters:
-        - name: includeTorrentDb
-          in: query
-          schema:
-            type: boolean
-            default: true
-      responses:
-        '200':
-          description: TracksDB export stats
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  stats:
-                    type: object
-                  error:
-                    type: string
 
   /api/v1.0/config:
     get:

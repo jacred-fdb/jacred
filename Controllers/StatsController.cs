@@ -6,8 +6,7 @@ using System;
 namespace JacRed.Controllers
 {
     /// <summary>
-    /// Stats API for web UI: /stats/torrents (stats.json), /stats/meta (stats-meta.json timestamps).
-    /// Tracks export remains on /dev/TracksStats and /sync/tracks/stats.
+    /// Stats API: /stats/torrents (stats.json), /stats/tracks (tracks-stats), /stats/meta (timestamps).
     /// </summary>
     [Route("/stats/[action]")]
     public class StatsController : Controller
@@ -19,6 +18,22 @@ namespace JacRed.Controllers
                 return Content("[]", "application/json");
 
             return Content(StatsSummary.ReadAllJson(), "application/json");
+        }
+
+        [Route("/stats/tracks")]
+        public JsonResult Tracks(bool includeTorrentDb = true)
+        {
+            if (!AppInit.conf.openstats)
+                return Json(new { ok = false });
+
+            var stats = TracksDB.GetExportStats(includeTorrentDb, refresh: false);
+            return Json(new
+            {
+                ok = true,
+                updatedAt = TracksDB.GetExportStatsUpdatedAt(),
+                fromCache = TracksDB.LastExportStatsFromCache,
+                stats
+            });
         }
 
         [Route("/stats/meta")]

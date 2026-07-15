@@ -86,6 +86,7 @@
       .replace(/^https?:\/\/[^/]+/, '') || '/';
     if (path.endsWith('/stats/torrents')) return 'статистика трекеров';
     if (path.endsWith('/stats/meta')) return 'время обновления статистики';
+    if (path.endsWith('/stats/tracks')) return 'статистика tracks';
     return 'сервер';
   };
 

@@ -58,7 +58,6 @@
 | `GET /sync/conf` | SyncController | — |
 | `GET /sync/fdb` | SyncController | `opensync` |
 | `GET /sync/fdb/torrents` | SyncController | `opensync` |
-| `GET /sync/tracks/stats` | SyncController | `opensync` |
 | `GET /swagger`, `/openapi.yaml` | Startup / Swagger | — |
 
 ### ConfigApi
@@ -94,8 +93,9 @@
 | `GET /api/v2.0/indexers` | TorznabController | — |
 | `GET /api/v1/indexer` | TorznabController | — |
 | `GET /api/v1/indexer/{id}` | TorznabController | — |
-| `GET /stats/meta` | StatsController | `openstats`; stats-meta timestamps |
-| `GET /stats/torrents` | StatsController | `openstats`; stats.json (UI /stats) |
+| `GET /stats/torrents` | StatsController | `openstats`; stats.json |
+| `GET /stats/tracks` | StatsController | `openstats`; tracks-stats.json |
+| `GET /stats/meta` | StatsController | `openstats`; timestamps |
 
 ---
 
