@@ -80,7 +80,11 @@ namespace JacRed.Infrastructure.Indexers
                 protocol = "torrent",
                 infoHash,
                 seeders = torrent.Seeders,
-                leechers = torrent.Peers
+                leechers = torrent.Peers,
+                // JacRed extensions (same payload as Jackett /api/v2.0/.../results when tracks: true)
+                torrent.ffprobe,
+                torrent.languages,
+                torrent.info
             };
         }
 

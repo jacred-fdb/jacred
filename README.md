@@ -590,6 +590,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Параметры: `query`, `type` (`search`|`tvsearch`|`movie`|`music`|`book`), `indexerIds` (`1`, `-2` torrents; `-1` usenet → пусто), `categories`, `limit`, `offset`, `apikey`.
   - Brace-токены в `query` (как в UI Prowlarr): `{ImdbId:tt…}`, `{Season:1}`, `{Episode:2}` и т.п.
   - Один агрегированный indexer `id=1`; ответ в схеме ReleaseResource (`guid`, `title`, `size`, `seeders`, `magnetUrl`, `categories`, …).
+  - JacRed-расширения как у Jackett: `ffprobe`, `languages`, `info` при `tracks: true` (иначе поля опускаются / null).
 - **`GET /torznab/api`** — Torznab XML, основной endpoint (`t=search|tvsearch|moviesearch|caps|indexers`).
 - **`GET /api/v2.0/indexers/{id}/results/torznab/api`** — Torznab XML (Jackett-алиас, тот же обработчик).
 

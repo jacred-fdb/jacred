@@ -459,6 +459,7 @@ paths:
         Returns a JSON array of ReleaseResource-shaped objects.
         Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
         JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
+        Each release also includes JacRed extensions (`ffprobe`, `languages`, `info`) when `tracks: true`, same as Jackett results.
       operationId: prowlarrSearch
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
@@ -1081,6 +1082,24 @@ components:
           type: integer
         leechers:
           type: integer
+        ffprobe:
+          type: array
+          nullable: true
+          description: ffprobe streams when tracks is enabled (JacRed extension)
+          items:
+            type: object
+            additionalProperties: true
+        languages:
+          type: array
+          nullable: true
+          description: Detected language codes (JacRed extension)
+          items:
+            type: string
+        info:
+          type: object
+          nullable: true
+          description: JacRed torrent metadata (voices, seasons, types, …)
+          additionalProperties: true
 
     ErrorResponse:
       type: object
