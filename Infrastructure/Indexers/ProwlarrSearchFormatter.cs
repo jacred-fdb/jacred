@@ -43,13 +43,13 @@ namespace JacRed.Infrastructure.Indexers
             string guid = infoHash ?? TorznabXmlFormatter.StableGuid(displayTitle);
             long sizeBytes = TorznabXmlFormatter.GetSizeBytes(torrent);
 
-            DateTime publishDate = torrent.PublishDate;
-            if (publishDate == default || publishDate.Year < 2000)
-                publishDate = DateTime.UtcNow;
-            else
-                publishDate = DateTime.SpecifyKind(publishDate.Kind == DateTimeKind.Unspecified
-                    ? publishDate
-                    : publishDate.ToUniversalTime(), DateTimeKind.Utc);
+            DateTime publishDate = torrent.PublishDate == default || torrent.PublishDate.Year < 2000
+                ? DateTime.UtcNow
+                : DateTime.SpecifyKind(
+                    torrent.PublishDate.Kind == DateTimeKind.Unspecified
+                        ? torrent.PublishDate
+                        : torrent.PublishDate.ToUniversalTime(),
+                    DateTimeKind.Utc);
 
             var ageSpan = DateTime.UtcNow - publishDate.ToUniversalTime();
             var categories = BuildCategories(torrent);
