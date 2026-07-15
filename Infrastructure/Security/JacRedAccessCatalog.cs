@@ -50,13 +50,9 @@ namespace JacRed.Infrastructure.Security
             new("/api/v2.0/indexers", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorznabController"),
             new("/api/v1/indexer", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorznabController"),
 
-            // Stats JSON — apikey + openstats in controller
-            new("/stats/trackers", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats; summary"),
-            new("/stats/trackers/new", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
-            new("/stats/trackers/updated", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
+            // Stats JSON — apikey + openstats in controller (web /stats UI)
             new("/stats/meta", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
-            new("/stats/tracks", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
-            new("/stats/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats"),
+            new("/stats/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "StatsController", "+ openstats; stats.json"),
         };
 
         /// <summary>Returns registry mismatches (empty = OK).</summary>
