@@ -82,7 +82,8 @@ namespace JacRed.Infrastructure.Indexers
                 k.StartsWith("Category[", StringComparison.OrdinalIgnoreCase) ||
                 k.Equals("Category[]", StringComparison.OrdinalIgnoreCase) ||
                 k.Equals("cat", StringComparison.OrdinalIgnoreCase) ||
-                k.Equals("Category", StringComparison.OrdinalIgnoreCase)))
+                k.Equals("Category", StringComparison.OrdinalIgnoreCase) ||
+                k.Equals("categories", StringComparison.OrdinalIgnoreCase)))
             {
                 foreach (var val in query[key])
                 {
@@ -94,6 +95,38 @@ namespace JacRed.Infrastructure.Indexers
                 }
             }
             return cats.Distinct().ToList();
+        }
+
+        /// <summary>
+        /// Prowlarr Search Feed indexerIds: omit = all; -2 = torrents; -1 = usenet; positive = indexer id.
+        /// JacRed exposes a single aggregate torrent indexer with id=1.
+        /// </summary>
+        public static bool ProwlarrIndexerIdsIncludeJacRed(IQueryCollection query)
+        {
+            if (!query.ContainsKey("indexerIds") && !query.ContainsKey("indexerids"))
+                return true;
+
+            var ids = new List<int>();
+            foreach (var key in query.Keys.Where(k => k.Equals("indexerIds", StringComparison.OrdinalIgnoreCase)))
+            {
+                foreach (var val in query[key])
+                {
+                    foreach (var part in (val ?? "").Split(','))
+                    {
+                        if (int.TryParse(part.Trim(), out int n))
+                            ids.Add(n);
+                    }
+                }
+            }
+
+            if (ids.Count == 0)
+                return true;
+
+            // Usenet-only selection → JacRed has nothing
+            if (ids.All(id => id == -1))
+                return false;
+
+            return ids.Any(id => id == -2 || id == 1);
         }
 
         /// <summary>Jackett-style tracker filter: Tracker[], Tracker, tracker.</summary>

@@ -93,6 +93,7 @@
 | `GET /api/v2.0/indexers` | TorznabController | — |
 | `GET /api/v1/indexer` | TorznabController | — |
 | `GET /api/v1/indexer/{id}` | TorznabController | — |
+| `GET /api/v1/search` | TorznabController | Prowlarr Search Feed JSON |
 | `GET /stats/torrents` | StatsController | `openstats`; stats.json |
 | `GET /stats/tracks` | StatsController | `openstats`; tracks-stats.json |
 | `GET /stats/meta` | StatsController | `openstats`; timestamps |
