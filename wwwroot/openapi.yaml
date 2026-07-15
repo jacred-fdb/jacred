@@ -450,6 +450,64 @@ paths:
         '404':
           description: Torznab disabled
 
+  /api/v1/search:
+    get:
+      tags: [Torznab]
+      summary: Prowlarr Search Feed
+      description: |
+        Prowlarr-compatible interactive search (`/api/v1/search`).
+        Returns a JSON array of ReleaseResource-shaped objects.
+        Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
+        JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
+      operationId: prowlarrSearch
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+        - name: X-Api-Key
+          in: header
+          schema:
+            type: string
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: URL-encoded search string (supports Prowlarr brace tokens)
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [search, tvsearch, movie, music, book]
+            default: search
+        - name: indexerIds
+          in: query
+          schema:
+            type: string
+          description: Comma-separated or repeated; `1` or `-2` (torrents) select JacRed; omit = all; `-1` = usenet (empty)
+          example: "1"
+        - name: categories
+          in: query
+          schema:
+            type: integer
+          description: Repeat for each category (e.g. categories=2000&categories=5000)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProwlarrRelease'
+        '404':
+          description: Torznab disabled
+
   /stats/Torrents:
     get:
       tags: [Stats]
@@ -959,10 +1017,70 @@ components:
           type: array
           items:
             type: object
+
+    ProwlarrRelease:
+      type: object
+      description: Prowlarr /api/v1/search ReleaseResource item
+      properties:
+        guid:
+          type: string
+        age:
+          type: integer
+        ageHours:
+          type: number
+        ageMinutes:
+          type: number
+        size:
+          type: integer
+          format: int64
+        indexerId:
+          type: integer
+          example: 1
+        indexer:
+          type: string
+        title:
+          type: string
+        sortTitle:
+          type: string
+        publishDate:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+          nullable: true
+        magnetUrl:
+          type: string
+          nullable: true
+        infoUrl:
+          type: string
+          nullable: true
+        commentUrl:
+          type: string
+          nullable: true
+        categories:
+          type: array
+          items:
+            type: object
             properties:
+              id:
+                type: integer
               name:
                 type: string
-              value: {}
+              subCategories:
+                type: array
+                items:
+                  type: object
+        protocol:
+          type: string
+          enum: [unknown, usenet, torrent]
+          example: torrent
+        infoHash:
+          type: string
+          nullable: true
+        seeders:
+          type: integer
+        leechers:
+          type: integer
 
     ErrorResponse:
       type: object

@@ -88,10 +88,15 @@ namespace JacRed.Controllers
         }
     }
 
-    /// <summary>Jackett/Prowlarr metadata endpoints.</summary>
+    /// <summary>Jackett/Prowlarr metadata and Search Feed endpoints.</summary>
     public class JackettMetaController : BaseController
     {
-        public JackettMetaController(IMemoryCache memoryCache) : base(memoryCache) { }
+        readonly IJackettSearchService _searchService;
+
+        public JackettMetaController(IMemoryCache memoryCache, IJackettSearchService searchService) : base(memoryCache)
+        {
+            _searchService = searchService;
+        }
 
         [Route("/api/v2.0/indexers")]
         public IActionResult IndexersList()
@@ -157,6 +162,64 @@ namespace JacRed.Controllers
                 enable = true,
                 fields = Array.Empty<object>()
             });
+        }
+
+        /// <summary>
+        /// Prowlarr Search Feed: <c>GET /api/v1/search</c>
+        /// (<see href="https://wiki.servarr.com/en/prowlarr/search#search-feed">Servarr wiki</see>).
+        /// </summary>
+        [HttpGet("/api/v1/search")]
+        public async Task<IActionResult> ProwlarrSearch(string apikey)
+        {
+            if (!TorznabController.IsTorznabXmlEnabled())
+                return NotFound();
+
+            var query = HttpContext.Request.Query;
+            if (!IndexerRequestParams.ProwlarrIndexerIdsIncludeJacRed(query))
+                return Json(Array.Empty<object>());
+
+            string type = (query["type"].ToString() ?? "search").Trim();
+            if (string.IsNullOrWhiteSpace(type))
+                type = "search";
+
+            string rawQuery = query["query"].ToString();
+            if (string.IsNullOrWhiteSpace(rawQuery))
+                rawQuery = query["q"].ToString();
+
+            var parsed = ProwlarrQueryParser.Parse(rawQuery, type);
+            if (parsed.TvdbIdOnly)
+                return Json(Array.Empty<object>());
+
+            if (string.IsNullOrWhiteSpace(parsed.Query)
+                && string.IsNullOrWhiteSpace(query["title"].ToString())
+                && string.IsNullOrWhiteSpace(query["title_original"].ToString()))
+                return Json(Array.Empty<object>());
+
+            string torznabAction = type.ToLowerInvariant() switch
+            {
+                "tv" => "tvsearch",
+                "moviesearch" => "movie",
+                _ => type.ToLowerInvariant()
+            };
+
+            var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false, boundQuery: parsed.Query,
+                boundYear: parsed.Year ?? 0,
+                boundIsSerial: IndexerRequestParams.IsSerialFromTorznabAction(torznabAction));
+
+            if (parsed.Season.HasValue)
+                req.Season = parsed.Season;
+            if (parsed.Episode.HasValue)
+                req.Episode = parsed.Episode;
+            if (!string.IsNullOrWhiteSpace(parsed.Genre) && string.IsNullOrWhiteSpace(req.Genres))
+                req.Genres = parsed.Genre;
+            if (!string.IsNullOrWhiteSpace(parsed.Title) && string.IsNullOrWhiteSpace(req.Title))
+                req.Title = parsed.Title;
+
+            var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _searchService);
+            results = IndexerSearchHelper.ApplyPostFilters(results, query, req, torznabAction);
+
+            bool enrich = AppInit.conf.torznab?.enrichTitles ?? true;
+            return Json(ProwlarrSearchFormatter.MapReleases(results, enrich));
         }
     }
 }

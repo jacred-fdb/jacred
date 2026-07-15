@@ -162,6 +162,12 @@ namespace JacRed.Infrastructure.Indexers
               .Append("\" />\n");
         }
 
+        public static string TryExtractInfoHash(string magnet) => ExtractInfoHash(magnet);
+
+        public static long GetSizeBytes(Result torrent) => ResolveSizeBytes(torrent);
+
+        public static string StableGuid(string input) => Md5(input);
+
         static string ExtractInfoHash(string magnet)
         {
             if (string.IsNullOrWhiteSpace(magnet))
