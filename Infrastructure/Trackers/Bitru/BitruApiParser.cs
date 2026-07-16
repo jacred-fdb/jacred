@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Web;
 using JacRed.Models.Details;
 using JacRed.Models.tParse;
+using Newtonsoft.Json;
 
 namespace JacRed.Infrastructure.Trackers.Bitru
 {
@@ -37,6 +39,43 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             return t.Trim().TrimEnd(' ', '-');
         }
 
+        public static List<TorrentDetails> ParseTorrentsFromJson(string json, string hostUrl)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<TorrentDetails>();
+
+            BitruApiResponse response;
+            try
+            {
+                response = JsonConvert.DeserializeObject<BitruApiResponse>(json);
+            }
+            catch
+            {
+                return new List<TorrentDetails>();
+            }
+
+            return ParseTorrentsFromResponse(response, hostUrl);
+        }
+
+        public static List<TorrentDetails> ParseTorrentsFromResponse(BitruApiResponse response, string hostUrl)
+        {
+            var torrents = new List<TorrentDetails>();
+            if (response == null || response.HasError || response.Result?.Items == null)
+                return torrents;
+
+            foreach (var wrap in response.Result.Items)
+            {
+                if (wrap?.Item == null)
+                    continue;
+
+                var t = MapToTorrentDetails(wrap.Item, hostUrl);
+                if (t != null)
+                    torrents.Add(t);
+            }
+
+            return torrents;
+        }
+
         public static TorrentDetails MapToTorrentDetails(BitruApiItemInner item, string hostUrl)
         {
             var torrent = item.Torrent;
@@ -46,13 +85,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             if (torrent == null || info == null || template == null)
                 return null;
 
-            string category = (template.Category ?? "").ToLowerInvariant();
-            string[] types = null;
-            if (category == "movie")
-                types = new[] { "movie" };
-            else if (category == "serial")
-                types = new[] { "serial" };
-            else
+            if (!BitruCategories.TryGetTypes(template.Category, template.Subsection, out string[] types))
                 return null;
 
             string name = CleanTitleForSearch(info.Name ?? "")?.Trim();
@@ -74,9 +107,14 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             if (!string.IsNullOrWhiteSpace(template.Other))
                 titlePart += " | " + template.Other;
 
+            hostUrl = (hostUrl ?? "").TrimEnd('/');
             string url = $"{hostUrl}/details.php?id={torrent.Id}";
             string sizeName = FormatSize(torrent.Size);
             DateTime createTime = DateTimeOffset.FromUnixTimeSeconds(torrent.Added).UtcDateTime;
+
+            string downloadUrl = torrent.File;
+            if (string.IsNullOrWhiteSpace(downloadUrl) || !downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                downloadUrl = $"{hostUrl}/api.php?download={torrent.Id}";
 
             return new TorrentDetails
             {
@@ -91,8 +129,14 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 name = name.Trim(),
                 originalname = originalname?.Trim(),
                 relased = relased,
-                _sn = torrent.File
+                _sn = downloadUrl
             };
+        }
+
+        /// <summary>Unix timestamp for ParseFromDate after_date filter (start of calendar day, UTC offset 0).</summary>
+        public static long UnixFromDate(DateTime fromDate)
+        {
+            return new DateTimeOffset(fromDate.Year, fromDate.Month, fromDate.Day, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
         }
 
         static string BitruYearToDisplayString(object year)

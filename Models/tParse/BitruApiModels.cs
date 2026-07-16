@@ -3,17 +3,42 @@ using Newtonsoft.Json;
 
 namespace JacRed.Models.tParse
 {
-    /// <summary>Ответ api.php?get=torrents</summary>
+    /// <summary>Ответ api.php?get=torrents. Official error shape is {"error":"message"} (string).</summary>
     public class BitruApiResponse
     {
+        /// <summary>May be bool (legacy) or string message (official docs / live).</summary>
         [JsonProperty("error")]
-        public bool Error { get; set; }
+        public object Error { get; set; }
 
         [JsonProperty("message")]
         public string Message { get; set; }
 
         [JsonProperty("result")]
         public BitruApiResult Result { get; set; }
+
+        public bool HasError
+        {
+            get
+            {
+                if (Error == null)
+                    return false;
+                if (Error is bool b)
+                    return b;
+                if (Error is string s)
+                    return !string.IsNullOrWhiteSpace(s);
+                return true;
+            }
+        }
+
+        public string ErrorMessage
+        {
+            get
+            {
+                if (Error is string s && !string.IsNullOrWhiteSpace(s))
+                    return s;
+                return Message;
+            }
+        }
     }
 
     public class BitruApiResult
