@@ -49,7 +49,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             {
                 response = JsonConvert.DeserializeObject<BitruApiResponse>(json);
             }
-            catch
+            catch (JsonException)
             {
                 return new List<TorrentDetails>();
             }

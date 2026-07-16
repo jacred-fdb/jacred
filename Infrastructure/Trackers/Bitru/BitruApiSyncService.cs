@@ -44,7 +44,14 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                     return;
                 IO.File.Move(LegacyLastNewTorPath, LastNewTorPath);
             }
-            catch { }
+            catch (IO.IOException ex)
+            {
+                ParserLog.Write(TrackerName, $"Legacy lastnewtor migration failed: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ParserLog.Write(TrackerName, $"Legacy lastnewtor migration failed: {ex.Message}");
+            }
         }
 
         public async Task<string> ParseAsync(int limit = 100, CancellationToken cancellationToken = default)
