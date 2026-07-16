@@ -72,7 +72,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         static bool IsValidBrowsePage(string html) =>
             !string.IsNullOrWhiteSpace(html)
-            && html.Contains("class=\"t_peer\"")
+            && html.Contains("t_peer")
             && html.Contains("details.php?id=")
             && (html.Contains("Кинозал.GURU</title>") || html.Contains("Кинозал.ТВ</title>") || html.Contains("::"));
 
@@ -425,10 +425,13 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 string srv_details = await HttpClient.Post($"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2", $"id={id}&action=2", CookieHeader(), useproxy: AppInit.conf.Kinozal.useproxy);
                 if (srv_details != null)
                 {
-                    string torrentHash = new Regex("<ul><li>Инфо хеш: +([^<]+)</li>").Match(srv_details).Groups[1].Value;
+                    string torrentHash = new Regex("<ul><li>Инфо хеш:\\s*([A-Fa-f0-9]{40})</li>").Match(srv_details).Groups[1].Value;
+                    if (string.IsNullOrWhiteSpace(torrentHash))
+                        torrentHash = new Regex("([A-Fa-f0-9]{40})").Match(srv_details).Groups[1].Value;
+
                     if (!string.IsNullOrWhiteSpace(torrentHash))
                     {
-                        t.magnet = $"magnet:?xt=urn:btih:{torrentHash}";
+                        t.magnet = $"magnet:?xt=urn:btih:{torrentHash.ToUpperInvariant()}";
                         return true;
                     }
                 }
