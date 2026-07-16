@@ -418,7 +418,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
-                if (db.TryGetValue(t.url, out TorrentDetails cached) && ShouldSkipHashFetch(cached, t))
+                if (db.TryGetValue(t.url, out TorrentDetails cached) && KinozalParser.ShouldSkipHashFetch(cached, t))
                     return true;
 
                 string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
@@ -445,8 +445,10 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         /// <summary>
         /// Кинозал при добавлении серий/озвучек перехеширует .torrent (новый info hash),
         /// но title в списке часто не меняется — раньше hash не перезапрашивался.
+        /// createTime = date from browse «Залит» column: Обновлен if present on details,
+        /// otherwise original Залит (never re-uploaded).
         /// </summary>
-        static bool ShouldSkipHashFetch(TorrentDetails cached, TorrentDetails parsed)
+        internal static bool ShouldSkipHashFetch(TorrentDetails cached, TorrentDetails parsed)
         {
             if (string.IsNullOrWhiteSpace(cached.magnet))
                 return false;
@@ -457,8 +459,8 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             if (cached.sizeName != parsed.sizeName)
                 return false;
 
-            // В колонке даты показывается время последнего обновления раздачи («вчера», «сегодня», …)
-            if (parsed.createTime.Date > cached.createTime.Date)
+            // Обновлен changed (including time on the same day) → rehash likely
+            if (parsed.createTime > cached.createTime)
                 return false;
 
             return true;
