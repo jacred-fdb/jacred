@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -15,6 +14,10 @@ using JacRed.Models.Details;
 using JacRed.Models.tParse;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
+using HttpClientHandler = System.Net.Http.HttpClientHandler;
+using HttpResponseMessage = System.Net.Http.HttpResponseMessage;
+using FormUrlEncodedContent = System.Net.Http.FormUrlEncodedContent;
+using NetHttpClient = System.Net.Http.HttpClient;
 using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.Kinozal
@@ -184,7 +187,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     };
 
                     clientHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
-                    using (var client = new HttpClient(clientHandler))
+                    using (var client = new NetHttpClient(clientHandler))
                     {
                         client.Timeout = TimeSpan.FromSeconds(10);
                         client.MaxResponseContentBufferSize = 2000000; // 2MB
