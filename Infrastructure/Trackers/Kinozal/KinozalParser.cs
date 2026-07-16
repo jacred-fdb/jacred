@@ -60,7 +60,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
                     continue;
 
-                url = "http://kinozal.tv/" + url;
+                url = "http://kinozal.guru/" + url;
                 #endregion
 
                 #region Парсим раздачи

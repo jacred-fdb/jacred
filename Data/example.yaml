@@ -106,7 +106,7 @@ TorrentBy:
   log: true
 
 Kinozal:
-  host: https://kinozal.tv
+  host: https://kinozal.guru
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
