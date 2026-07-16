@@ -45,8 +45,8 @@
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/lostfilm/parse"
 # curl "http://127.0.0.1:9117/cron/lostfilm/ParsePages?pageFrom=1&pageTo=10"
 
-# BitruApi: официальный API (5 req/sec), movie+serial
-*/20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitruapi/parse"
+# Bitru: official API (5 req/sec), movie+serial+video
+*/20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/parse"
 
 # Knaben: API v1, TV + Movies
 */20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/knaben/parse"

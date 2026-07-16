@@ -9,7 +9,7 @@ namespace JacRed.Controllers.Cron
     /// Парсинг Bitru через официальный API (api.php?get=torrents).
     /// Лимит: макс. 5 запросов в сек на IP — между запросами задержка 250 ms.
     /// </summary>
-    [Route("/cron/bitruapi/[action]")]
+    [Route("/cron/bitru/[action]")]
     public class BitruApiController : BaseController
     {
         readonly BitruApiSyncService _syncService;

@@ -125,12 +125,11 @@ NNMClub:
   parseDelay: 7000
   log: true
 
+# BitRu official API (cron: /cron/bitru/parse).
 Bitru:
   host: https://bitru.org
   alias: ""
   useproxy: false
-  reqMinute: 8
-  parseDelay: 7000
   log: true
 
 Toloka:

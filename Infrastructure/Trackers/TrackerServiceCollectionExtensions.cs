@@ -28,7 +28,6 @@ namespace JacRed.Infrastructure.Trackers
             services.AddSingleton<LostfilmSyncService>();
             services.AddSingleton<RutrackerSyncService>();
             services.AddSingleton<BitruApiSyncService>();
-            services.AddSingleton<BitruSyncService>();
             services.AddSingleton<TorrentBySyncService>();
             services.AddSingleton<MegapeerSyncService>();
             services.AddSingleton<BaibakoSyncService>();

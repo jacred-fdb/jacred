@@ -19,11 +19,12 @@ namespace JacRed.Infrastructure.Trackers.Bitru
     {
         const string ApiGetTorrents = "torrents";
         const int ApiDelayMs = 250;
-        const string TrackerName = "bitruapi";
+        const string TrackerName = "bitru";
 
         static readonly string ApiUrl;
         static readonly string HostUrl;
-        static readonly string LastNewTorPath = "Data/temp/bitruapi_lastnewtor.txt";
+        static readonly string LastNewTorPath = "Data/temp/bitru_lastnewtor.txt";
+        const string LegacyLastNewTorPath = "Data/temp/bitruapi_lastnewtor.txt";
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
@@ -32,6 +33,18 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             var host = AppInit.conf.Bitru?.host?.TrimEnd('/') ?? "https://bitru.org";
             ApiUrl = $"{host}/api.php";
             HostUrl = host;
+            MigrateLegacyLastNewTorFile();
+        }
+
+        static void MigrateLegacyLastNewTorFile()
+        {
+            try
+            {
+                if (IO.File.Exists(LastNewTorPath) || !IO.File.Exists(LegacyLastNewTorPath))
+                    return;
+                IO.File.Move(LegacyLastNewTorPath, LastNewTorPath);
+            }
+            catch { }
         }
 
         public async Task<string> ParseAsync(int limit = 100, CancellationToken cancellationToken = default)
