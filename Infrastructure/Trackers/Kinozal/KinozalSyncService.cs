@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -26,6 +28,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static Dictionary<string, Dictionary<string, List<TaskParse>>> taskParse = new Dictionary<string, Dictionary<string, List<TaskParse>>>();
 
         static string Cookie;
+        static string _lastLoginError;
 
         static readonly Encoding PageEncoding = Encoding.GetEncoding(1251);
         static readonly SemaphoreSlim _loginSemaphore = new SemaphoreSlim(1, 1);
@@ -81,15 +84,64 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static string ExtractCookieValue(IEnumerable<string> cookieHeaders, string cookieName)
         {
             string cookieKey = $"{cookieName}=";
-            string candidate = (cookieHeaders ?? Enumerable.Empty<string>())
-                .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line) && line.Contains(cookieKey));
+            foreach (string line in cookieHeaders ?? Enumerable.Empty<string>())
+            {
+                if (string.IsNullOrWhiteSpace(line) || !line.Contains(cookieKey))
+                    continue;
 
-            if (candidate == null)
-                return null;
+                int start = line.IndexOf(cookieKey, StringComparison.Ordinal) + cookieKey.Length;
+                var match = RegexCookieValue.Match(line.Substring(start));
+                if (match.Success)
+                    return match.Groups[1].Value;
+            }
 
-            int start = candidate.IndexOf(cookieKey, StringComparison.Ordinal) + cookieKey.Length;
-            var match = RegexCookieValue.Match(candidate.Substring(start));
-            return match.Success ? match.Groups[1].Value : null;
+            return null;
+        }
+
+        static bool TryBuildCookieFromContainer(CookieContainer cookieJar, Uri hostUri, out string cookieHeader)
+        {
+            cookieHeader = null;
+            if (cookieJar == null || hostUri == null)
+                return false;
+
+            string uid = null, pass = null;
+            foreach (Cookie cookie in cookieJar.GetCookies(hostUri))
+            {
+                if (cookie.Name == "uid")
+                    uid = cookie.Value;
+                if (cookie.Name == "pass")
+                    pass = cookie.Value;
+            }
+
+            if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(pass))
+                return false;
+
+            cookieHeader = $"uid={uid}; pass={pass};";
+            return true;
+        }
+
+        static bool TryBuildCookieFromResponse(HttpResponseMessage response, out string cookieHeader)
+        {
+            cookieHeader = null;
+            if (response == null)
+                return false;
+
+            IEnumerable<string> setCookies = null;
+            if (response.Headers.TryGetValues("Set-Cookie", out var headerValues))
+                setCookies = headerValues;
+            else if (response.Headers.NonValidated.TryGetValues("Set-Cookie", out var nonValidatedValues))
+                setCookies = nonValidatedValues;
+
+            if (setCookies == null)
+                return false;
+
+            string uid = ExtractCookieValue(setCookies, "uid");
+            string pass = ExtractCookieValue(setCookies, "pass");
+            if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(pass))
+                return false;
+
+            cookieHeader = $"uid={uid}; pass={pass};";
+            return true;
         }
 
         async Task<bool> TakeLogin()
@@ -103,36 +155,45 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 if (!string.IsNullOrWhiteSpace(CookieHeader()))
                     return true;
 
-                string authKey = "kinozal:TakeLogin()";
-                if (_memoryCache.TryGetValue(authKey, out _))
-                    return !string.IsNullOrWhiteSpace(Cookie);
-
                 if (string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.login?.u) ||
                     string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.login?.p))
                 {
-                    ParserLog.Write(TrackerName, "TakeLogin failed: credentials not configured");
+                    _lastLoginError = "credentials not configured (set Kinozal.login.u/p or Kinozal.cookie)";
+                    ParserLog.Write(TrackerName, $"TakeLogin failed: {_lastLoginError}");
                     return false;
                 }
 
+                string host = AppInit.conf.Kinozal.host?.TrimEnd('/');
+                if (string.IsNullOrWhiteSpace(host))
+                {
+                    _lastLoginError = "host is not configured";
+                    ParserLog.Write(TrackerName, $"TakeLogin failed: {_lastLoginError}");
+                    return false;
+                }
+
+                var hostUri = new Uri(host + "/");
+                var cookieJar = new CookieContainer();
+
                 try
                 {
-                    var clientHandler = new System.Net.Http.HttpClientHandler()
+                    var clientHandler = new HttpClientHandler()
                     {
                         AllowAutoRedirect = false,
-                        UseCookies = false
+                        UseCookies = true,
+                        CookieContainer = cookieJar
                     };
 
                     clientHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
-                    using (var client = new System.Net.Http.HttpClient(clientHandler))
+                    using (var client = new HttpClient(clientHandler))
                     {
                         client.Timeout = TimeSpan.FromSeconds(10);
                         client.MaxResponseContentBufferSize = 2000000; // 2MB
                         client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36");
                         client.DefaultRequestHeaders.Add("cache-control", "no-cache");
                         client.DefaultRequestHeaders.Add("dnt", "1");
-                        client.DefaultRequestHeaders.Add("origin", AppInit.conf.Kinozal.host);
+                        client.DefaultRequestHeaders.Add("origin", host);
                         client.DefaultRequestHeaders.Add("pragma", "no-cache");
-                        client.DefaultRequestHeaders.Add("referer", $"{AppInit.conf.Kinozal.host}/");
+                        client.DefaultRequestHeaders.Add("referer", $"{host}/");
                         client.DefaultRequestHeaders.Add("upgrade-insecure-requests", "1");
 
                         var postParams = new Dictionary<string, string>
@@ -142,29 +203,29 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             { "returnto", "" }
                         };
 
-                        using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
-                        using (var response = await client.PostAsync($"{AppInit.conf.Kinozal.host}/takelogin.php", postContent))
+                        using (var postContent = new FormUrlEncodedContent(postParams))
+                        using (var response = await client.PostAsync($"{host}/takelogin.php", postContent))
                         {
-                            if (response.Headers.TryGetValues("Set-Cookie", out var cook))
-                            {
-                                string uid = ExtractCookieValue(cook, "uid");
-                                string pass = ExtractCookieValue(cook, "pass");
+                            string cookieHeader = null;
+                            if (!TryBuildCookieFromContainer(cookieJar, hostUri, out cookieHeader))
+                                TryBuildCookieFromResponse(response, out cookieHeader);
 
-                                if (!string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(pass))
-                                {
-                                    Cookie = $"uid={uid}; pass={pass};";
-                                    _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(2));
-                                    ParserLog.Write(TrackerName, $"TakeLogin OK uid={uid}");
-                                    return true;
-                                }
+                            if (!string.IsNullOrWhiteSpace(cookieHeader))
+                            {
+                                Cookie = cookieHeader;
+                                _lastLoginError = null;
+                                ParserLog.Write(TrackerName, $"TakeLogin OK {Cookie}");
+                                return true;
                             }
 
-                            ParserLog.Write(TrackerName, $"TakeLogin failed: no uid/pass cookies, status={(int)response.StatusCode}");
+                            _lastLoginError = $"no uid/pass cookies in response, status={(int)response.StatusCode}";
+                            ParserLog.Write(TrackerName, $"TakeLogin failed: {_lastLoginError}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
+                    _lastLoginError = ex.Message;
                     ParserLog.Write(TrackerName, $"TakeLogin error: {ex.Message}");
                 }
 
@@ -226,7 +287,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         public async Task<string> UpdateTasksParseAsync()
         {
             if (!await EnsureLoggedIn())
-                return "login failed";
+                return string.IsNullOrWhiteSpace(_lastLoginError) ? "login failed" : $"login failed: {_lastLoginError}";
 
             foreach (string cat in Categories)
             {
