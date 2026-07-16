@@ -1,0 +1,668 @@
+<!DOCTYPE HTML>
+<html lang="ru">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<title>Раздачи :: Кинозал.GURU</title>
+<meta name="description" content="Список и поиск раздач (торрентов), поиск по разделам кино, музыки, жанрам и персонам.">
+<meta name="Keywords" content="250 лучших фильмов, 100 лучших фильмов, лучшие комедии, лучшие фильмы ужасов, лучшие драмы, лучшие фильмы +всех времен, kinozal, скачать, торрент-трекер, торрент скачать бесплатно">
+<meta name="robots" content="index,follow">
+<link rel="shortcut icon" href="/pic/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="/pic/0_kinozal.guru.css?v=3.3" type="text/css">
+<script type="text/javascript" src="/pic/jquery-3.6.3.min.js?v=1"></script>
+<script type="text/javascript" src="/pic/use.js?v=3.7"></script>
+
+
+</head>
+<body>
+
+<div id="body_wrapper">
+<div id="header">
+	<table style="width:100%;padding:0;margin:0;border:0;"><tr>
+		<td style="width:40%;"><div class="logo_new"><a href="https://kinozal.guru" title="Кинозал.GURU"><img src="/pic/logo_kinozal_guru.png?v=2" alt="Кинозал.GURU"></a></div></td>
+		<td style="width:60%;" align=right><div class="rb_new" style="height:80px;overflow: hidden;">
+
+<div style="padding:0 5px 0 10px"><div id='eb750d49cf'></div></div>
+
+</div></td></tr></table>
+<div class="clr"></div>
+	<div class="menu">
+	<ul>
+		<li><a href="/" title="Главная">Главная</a></li>
+		<li><a href="https://forum.kinozal.guru" title="Форум">Форум</a></li>
+		<li><a href="/browse.php" title="Каталог раздач">Раздачи</a></li>
+		<li><a href="/top.php" title="Топ раздач">Топ раздач</a></li>
+		<li><a href="/personsearch.php" title="Персоны">Персоны</a></li>
+		<li><a href="/novinki.php" title="Новинки кино">Новинки кино</a></li>
+		<li><a href="/groupexlist.php" title="Каталог групп">Группы</a></li>
+		<li><a href="/radio.php" title="Радио">Радио</a></li>
+	</ul>
+	<form action="/browse.php" method="get" id="srchform">
+		<div><input type="text" class="inp" id="s" name="s" size="15" value=""><input class="s_submit" type="submit" title="Поиск раздач"></div>
+	</form>
+	<div class="clr"></div>
+	</div>
+	<span class="zan_l"></span>
+	<span class="zan_r"></span>
+</div>
+<div class="clr"></div>
+<div id="main">
+ <div class="menu">
+<div class="bx2_0">
+<ul class="men">
+ <li class="tp2 center b"><a href='/userdetails.php?id=21207299' class=u0>dsotracker</a> ( <a onclick="return mess_out('Вы действительно хотите выйти?')" href='/logout.php?hash4u=558edd2dcc05e6052bfab8178571f4ce'>Выход</a> )</li>
+ <li><span class='bulet'></span><a href='/userdetails.php?id=21207299'>Ваш профиль</a></li> 
+ <li><span class='bulet'></span><a href='/my.php'>Конфигурация</a></li> 
+ <li><span class='bulet'></span><a href='/inbox.php'>ЛС: ( нет новых )</a></li>
+ <li><span class='bulet'></span><a href='/friends.php'>Друзья и враги</a></li>
+ <li class="b"><span class='bulet'></span><a onclick="getRetio(); return false;" href="" class="sbab">Рейтинг</a>, время: 20:08</li>
+</ul>
+<div id="user_retio"></div>
+</div>
+
+<div class="bx2_0">
+	<a href="/pay.php" title="Раздел Меценатов"><img src="/pic/bnr_pay_sm.jpg" class="block" height="35px" width="184px" alt=""></a>
+</div>
+
+
+
+
+<div class="bx2_0">
+<ul class="men">
+ <li><span class='bulet'></span><a href='/pay.php'>Поднять рейтинг и голоса</a></li> 
+ <li><span class='bulet'></span><a href='/pay_wishes.php'>Пожелания проекту</a></li>
+ <li><span class='bulet'></span><a href='/helpdesk.php'>Помощь Администрации</a></li>
+ <li><span class='bulet'></span><a href='/users.php'>Список пользователей</a></li>
+</ul>
+</div>
+
+<div class="bx2_0">
+<ul class="men imgmn">
+ <li class="tp2 center">Меню раздач</li>
+ <li><span class='bulet'></span><a href='/browse.php'>Раздачи трекера</a></li> 
+ <li><span class='bulet'></span><a href='/top.php'>Топ раздач</a></li> 
+ <li><span class='bulet'></span><a href='/personsearch.php'>Персоны</a></li> 
+ <li><span class='bulet'></span><a href='/novinki.php'>Новинки кино</a></li>
+ <li><span class='bulet'></span><a href='/browsetest.php'>Тестовые раздачи</a></li>
+ <li><span class='bulet'></span><a href='/upload.php'>Залить раздачу</a></li>
+ <li><span class='bulet'></span><a href='/group.php'>Релиз-группы</a></li>
+</ul>
+</div>
+
+<div class="bx2_0">
+<ul class="men">
+ <li class="tp2 center">Прочтите  рекомендации</li>
+ <li><span class='bulet'></span><a href='/doku.php'>Общие правила</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=1'>Правила пользователей</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=2'>Правила Кинооператоров</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=3'>Как скачать фильм</a></li>
+  <li><span class='bulet'></span><a href='/copyright.php'>Для правообладателей</a></li>
+</ul>
+</div>
+ </div>
+ <div class="content">
+<form method="get" action="/browse.php">
+<div class="bx1_0" style="padding: 3px 38px 3px 5px;">
+<table class="tables1">
+<tr><td colspan=3>Поиск раздач ( <a href='//forum.kinozal.guru/showthread.php?t=63820' class=sba>Как пользоваться поиском?</a> )<td>Где именно<td>
+<tr>
+<td colspan=3><input type="text" name="s" value=""  class="w98p">
+<td><span class=sw100><select name="g" class="w100 styled">
+<option value=0  selected>В названии</option>
+<option value=1 >Персона</option>
+<option value=2 >Жанры</option>
+<option value=3 >Формула</option>
+</select></span>
+
+
+<td class=center><input type="submit" value="Поиск раздач" class="buttonS w98p"></tr>
+<tr>
+ <td>Выбор раздела<td>Выбор формата<td>Год выхода<td>Фильтр поиска<td>Сортировка результата
+<tr>
+<td>
+<span class=sw190><select name="c" class="w190 styled">
+<option  value="0">Поиск по разделам</option>
+<option  value=1001 class="green">Все сериалы</option>
+<option  value=1002 class="green">Все фильмы</option>
+<option  value=1003 class="green">Все мульты</option>
+<option  value=1006 class="green">Шоу, концерты, спорт</option>
+<option  value=1004 class="green">Вся музыка</option>
+<option  value=45>Сериал - Русский</option>
+<option  value=46>Сериал - Буржуйский</option>
+<option  value=8>Кино - Комедия</option>
+<option  value=6>Кино - Боевик / Военный</option>
+<option  value=15>Кино - Триллер / Детектив</option>
+<option  value=17>Кино - Драма</option>
+<option  value=35>Кино - Мелодрама</option>
+<option  value=39>Кино - Индийское</option>
+<option  value=13>Кино - Фантастика</option>
+<option  value=14>Кино - Фэнтези</option>
+<option  value=24>Кино - Ужас / Мистика</option>
+<option  value=11>Кино - Приключения</option>
+<option  value=10>Кино - Наше Кино</option>
+<option  value=9>Кино - Исторический</option>
+<option  value=47>Кино - Азиатский</option>
+<option  value=18>Кино - Документальный</option>
+<option  value=37>Кино - Спорт</option>
+<option  value=12>Кино - Детский / Семейный</option>
+<option  value=7>Кино - Классика</option>
+<option  value=48>Кино - Концерт</option>
+<option  value=49>Кино - Передачи / ТВ-шоу</option>
+<option  value=50>Кино - ТВ-шоу Мир</option>
+<option  value=38>Кино - Театр, Опера, Балет</option>
+<option  value=16>Кино - Эротика</option>
+<option  value=21>Мульт - Буржуйский</option>
+<option  value=22>Мульт - Русский</option>
+<option  selected=selected  value=20>Мульт - Аниме</option>
+<option  value=3>Музыка - Буржуйская</option>
+<option  value=4>Музыка - Русская</option>
+<option  value=5>Музыка - Сборники</option>
+<option  value=42>Музыка - Классическая</option>
+<option  value=2>Другое - АудиоКниги</option>
+<option  value=1>Другое - Видеоклипы</option>
+<option  value=23>Другое - Игры</option>
+<option  value=32>Другое - Программы</option>
+<option  value=40>Другое - Дизайн / Графика</option>
+<option  value=41>Другое - Библиотека</option>
+
+</select></span>
+<td><span class=sw190><select name="v" class="w190 styled">
+<option value=0  selected>Все форматы</option>
+<option value=101 disabled>Форматы видео</option>
+<option value=3 >|- Рипы HD(1080|720)</option>
+<option value=3001 >|-- 1080</option>
+<option value=3002 >|-- 720</option>
+<option value=1 >|- Рипы DVD и BD(HD)</option>
+<option value=4 >|- HD Blu-Ray и Remux</option>
+<option value=2 >|- DVD-5 и DVD-9</option>
+<option value=5 >|- Рипы TV</option>
+<option value=6 >|- 3D</option>
+<option value=7 >|- 4K</option>
+<option value=201 disabled>Форматы аудио</option>
+<option value=51 >|- Lossless</option>
+<option value=52 >|- MP3 и AAC</option>
+<option value=301 disabled>Форматы игр и программ</option>
+<option value=61 >|- Компьютер</option>
+<option value=62 >|- Приставка</option>
+<option value=63 >|- Мобильные устройства</option>
+<option value=64 >|- Навигация</option>
+</select></span>
+<td><span class=sw90>
+<select name="d" class="w90 styled">
+<option value=0>все года</option>
+<option value=2026>2026</option>
+<option value=2025>2025</option>
+<option value=2024>2024</option>
+<option value=2023>2023</option>
+<option value=2022>2022</option>
+<option value=2021>2021</option>
+<option value=2020>2020</option>
+<option value=2019>2019</option>
+<option value=2018>2018</option>
+<option value=2017>2017</option>
+<option value=2016>2016</option>
+<option value=2015>2015</option>
+<option value=2014>2014</option>
+<option value=2013>2013</option>
+<option value=2012>2012</option>
+<option value=2011>2011</option>
+<option value=2010>2010</option>
+<option value=2009>2009</option>
+<option value=2008>2008</option>
+<option value=2007>2007</option>
+<option value=2006>2006</option>
+<option value=2005>2005</option>
+<option value=2004>2004</option>
+<option value=2003>2003</option>
+<option value=2002>2002</option>
+<option value=2001>2001</option>
+<option value=2000>2000</option>
+<option value=1999>1999</option>
+<option value=1998>1998</option>
+<option value=1997>1997</option>
+<option value=1996>1996</option>
+<option value=1995>1995</option>
+<option value=1994>1994</option>
+<option value=1993>1993</option>
+<option value=1992>1992</option>
+<option value=1991>1991</option>
+<option value=1990>1990</option>
+<option value=1989>1989</option>
+<option value=1988>1988</option>
+<option value=1987>1987</option>
+<option value=1986>1986</option>
+<option value=1985>1985</option>
+<option value=1984>1984</option>
+<option value=1983>1983</option>
+<option value=1982>1982</option>
+<option value=1981>1981</option>
+<option value=1980>1980</option>
+<option value=1979>1979</option>
+<option value=1978>1978</option>
+<option value=1977>1977</option>
+<option value=1976>1976</option>
+<option value=1975>1975</option>
+<option value=1974>1974</option>
+<option value=1973>1973</option>
+<option value=1972>1972</option>
+<option value=1971>1971</option>
+<option value=1970>1970</option>
+<option value=1969>1969</option>
+<option value=1968>1968</option>
+<option value=1967>1967</option>
+<option value=1966>1966</option>
+<option value=1965>1965</option>
+<option value=1964>1964</option>
+<option value=1963>1963</option>
+<option value=1962>1962</option>
+<option value=1961>1961</option>
+<option value=1960>1960</option>
+<option value=1959>1959</option>
+<option value=1958>1958</option>
+<option value=1957>1957</option>
+<option value=1956>1956</option>
+<option value=1955>1955</option>
+<option value=1954>1954</option>
+<option value=1953>1953</option>
+<option value=1952>1952</option>
+<option value=1951>1951</option>
+<option value=1950>1950</option>
+<option value=1949>1949</option>
+<option value=1948>1948</option>
+<option value=1947>1947</option>
+<option value=1946>1946</option>
+<option value=1945>1945</option>
+<option value=1944>1944</option>
+<option value=1943>1943</option>
+<option value=1942>1942</option>
+<option value=1941>1941</option>
+<option value=1940>1940</option>
+<option value=1939>1939</option>
+<option value=1938>1938</option>
+<option value=1937>1937</option>
+<option value=1936>1936</option>
+<option value=1935>1935</option>
+<option value=1934>1934</option>
+<option value=1933>1933</option>
+<option value=1932>1932</option>
+<option value=1931>1931</option>
+<option value=1930>1930</option>
+<option value=1929>1929</option>
+<option value=1928>1928</option>
+<option value=1927>1927</option>
+<option value=1926>1926</option>
+<option value=1925>1925</option>
+<option value=1924>1924</option>
+<option value=1923>1923</option>
+<option value=1922>1922</option>
+<option value=1921>1921</option>
+<option value=1920>1920</option>
+<option value=1919>1919</option>
+<option value=1918>1918</option>
+<option value=1917>1917</option>
+<option value=1916>1916</option>
+<option value=1915>1915</option>
+<option value=1914>1914</option>
+<option value=1913>1913</option>
+<option value=1912>1912</option>
+<option value=1911>1911</option>
+<option value=1910>1910</option>
+<option value=1909>1909</option>
+<option value=1908>1908</option>
+<option value=1907>1907</option>
+<option value=1906>1906</option>
+<option value=1905>1905</option>
+<option value=1904>1904</option>
+<option value=1903>1903</option>
+<option value=1902>1902</option>
+<option value=1901>1901</option>
+<option value=1900>1900</option>
+</select></span>
+<td><span class=sw100>
+<select name="w" class="w100 styled">
+<option value=0  selected>не выбран</option>
+<option value=1 >сегодня</option>
+<option value=2 >вчера</option>
+<option value=3 >за 3 дня</option>
+<option value=4 >за неделю</option>
+<option value=5 >за месяц</option>
+<option value=6 >менее 1.3ГБ</option>
+<option value=7 >1.3ГБ - 2.2ГБ</option>
+<option value=8 >2.2ГБ - 4.0ГБ</option>
+<option value=9 >4.0ГБ - 9.5ГБ</option>
+<option value=10 >9.5ГБ и выше</option>
+<option value=11 >золото</option>
+<option value=12 >серебро</option>
+</select></span>
+
+<td class=nw>
+<span class=sw70><select name="t" class="styled">
+<option value=0  selected>Залит</option>
+<option value=1 >Сидам</option>
+<option value=2 >Пирам</option>
+<option value=3 >Размер</option>
+<option value=4 >Коммент.</option>
+<option value=5 >Скачали</option>
+<option value=6 >Посл.комм.</option>
+</select></span>
+<span class=sw70><select name="f" class="styled">
+<option value=0  selected>Убыв.</option>
+<option value=1 >Возр.</option>
+</select></span>
+<tr><td colspan=5><span class='bulet'></span>Найдено 7607  раздач, в списке отображается только 5000. Пожалуйста, уточните параметры поиска.</td></tr></table></div>
+</form>
+<div class='pad0x0x5x0 center'><a href='/pay.php' title='Благодарим за поддержку!'><img src='/pic/banners/pay_bn2.png' style='display: inline-block;' alt=''></a></div>
+<div class="bx2_0"><table class="t_peer w100p"><tr class="mn"><td class="z w90"></td><td class="w90p"></td><td class="z">Комм.</td><td class="z">Размер</td><td class="z">Сидов</td><td class="z">Пиров</td><td class="z">Залит</td><td class='zl'>Раздает</td></tr>
+<tr class='first bg'><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146518" class="r0">Призрак в доспехах (1-2 серии из 10) / Koukaku Kidoutai (Ghost in the Shell) / 2026 / ДБ (NDA Studio), ЛМ (Dream Cast), СТ / HEVC / WEBRip (1080p)</a><td class='s'>14</td>
+<td class='s'>1.57 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>5</td>
+<td class='s'>16.07.2024 в 11:41</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146352" class="r0">Чёрный факел (1-2 серии из 12) / Black Torch / 2026 / ДБ (Дубляжная), 4 x ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>2</td>
+<td class='s'>1.08 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>2</td>
+<td class='s'>16.07.2024 в 09:55</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2135998" class="r0">Игра лжецов (1-12 серии из 24) / Liar Game / 2026 / ДБ (Reanimedia), ЛМ (AniBaza, Dream Cast, Shiza Project), СТ / HEVC / WEBRip (1080p)</a><td class='s'>32</td>
+<td class='s'>4.47 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.07.2024 в 20:03</td>
+<td class='sl'><a href='/userdetails.php?id=2981927' class=u5>shniferson</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2145753" class="r0">Повелитель тайн: Добыча (1-3 серии из 3) / Guimi Zhi Zhu Tebie Pian: Liewu / 2026 / ЛМ (AniPlague) / WEBRip (1080p)</a><td class='s'>4</td>
+<td class='s'>4.24 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.07.2024 в 19:56</td>
+<td class='sl'><a href='/userdetails.php?id=20483232' class=u5>PlagueStudio</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2147299" class="r0">Хоть я и бездарная злодейка (1 серия из 12) / Futsutsuka na Akujo dewa Gozaimasu ga / 2026 / ПМ (StudioBand), ЛМ / HEVC / WEBRip (1080p)</a><td class='s'>2</td>
+<td class='s'>469 МБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.07.2024 в 11:05</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2147153" class="r0">Железный котелок Жана (1-2 серии из 12) / Tetsunabe no Jan! (Iron Wok Jan!) / 2026 / ЛМ (JAMCLUB, Dream Cast), СТ / HEVC / WEBRip (1080p)</a><td class='s'>2</td>
+<td class='s'>682 МБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>1</td>
+<td class='s'>15.07.2024 в 10:45</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146453" class="r0">Ты и я - полные противоположности (2 сезон: 1-2 серии из 12) / Seihantai na Kimi to Boku / 2026 / ДБ (Дубляжная), ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>1</td>
+<td class='s'>641 МБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>15.07.2024 в 10:44</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146670" class="r0">Отверженная святая (1-2 серии из 12) / Suterare Seijo no Isekai Gohan Tabi / 2026 / 3 x ЛМ / WEBRip (1080p)</a><td class='s'>37</td>
+<td class='s'>1.87 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>2</td>
+<td class='s'>15.07.2024 в 01:19</td>
+<td class='sl'><a href='/userdetails.php?id=20271021' class=u2>copyer</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146380" class="r0">Призрак в доспехах (1 сезон: 1-2 серии из 10) / Koukaku Kidoutai / 2026 / ДБ (NDA Studio), СТ / WEB-DL (1080p)</a><td class='s'>31</td>
+<td class='s'>1.55 ГБ</td>
+<td class='sl_s'>22</td>
+<td class='sl_p'>4</td>
+<td class='s'>14.07.2026 в 23:22</td>
+<td class='sl'><a href='/userdetails.php?id=21051765' class=u5>NOOBDL</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146667" class="r0">Рыцарь-скелет в ином мире (2 сезон: 1-2 серии из 12) / Skeleton Knight in Another World / 2026 / 2 x ЛМ, ПМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>2</td>
+<td class='s'>1018 МБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.07.2026 в 22:53</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2147254" class="r0">Виктория с множеством козырей (1 серия из 9) / Tefuda ga Oome no Victoria / 2026 / ЛМ (AniLibria), СТ / HEVC / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>328 МБ</td>
+<td class='sl_s'>3</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.07.2026 в 20:57</td>
+<td class='sl'><a href='/userdetails.php?id=2981927' class=u5>shniferson</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2126518" class="r1">Пожиратель звёзд (Поглощая звезду) (5 сезон: 1-24 серии из 52 + Фильм) / Tunshi Xingkong (Swallowed Star) / 2026 / ЛМ / WEBRip (1080p)</a><td class='s'>54</td>
+<td class='s'>33.39 ГБ</td>
+<td class='sl_s'>9</td>
+<td class='sl_p'>4</td>
+<td class='s'>14.07.2026 в 14:34</td>
+<td class='sl'><a href='/userdetails.php?id=1313249' class=u4>Oliver1969</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146649" class="r1">За гранью времени (1-30 серии из 78) / Guangyin Zhi Wai (Beyond Time&#039;s Gaze) / 2025-2026 / ЛД (AniStar) / 4K, HEVC, SDR / WEB-DL (2160p)</a><td class='s'>3</td>
+<td class='s'>91.84 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>5</td>
+<td class='s'>14.07.2026 в 02:16</td>
+<td class='sl'><a href='/userdetails.php?id=20720922' class=u5>stanmil97</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2142293" class="r1">Восставший против неба (2 сезон: 1-15 серии из 52) / Nitian Xie Shen (Against the Gods) / 2026 / ЛМ, ЛД / 4K, HEVC, HDR / WEB-DL (2160p)</a><td class='s'>5</td>
+<td class='s'>27.16 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>4</td>
+<td class='s'>14.07.2026 в 01:52</td>
+<td class='sl'><a href='/userdetails.php?id=20720922' class=u5>stanmil97</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2136980" class="r0">Цугаи загробного мира (1 сезон: 1-14 серии из 24) / Yomi no Tsugai (Daemons of the Shadow Realm) / 2026 / ПМ (GoLTFilm) / WEB-DLRip</a><td class='s'>7</td>
+<td class='s'>4.4 ГБ</td>
+<td class='sl_s'>3</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 23:56</td>
+<td class='sl'><a href='/userdetails.php?id=18599652' class=u5>skyminsky</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=1924158" class="r1">Расколотая битвой синева небес (5 сезон: 1-207 серии из 208) / Fights Break Sphere / 2022-2025 / ЛД / WEBRip (1080p)</a><td class='s'>31</td>
+<td class='s'>168.62 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>9</td>
+<td class='s'>13.07.2026 в 21:28</td>
+<td class='sl'><a href='/userdetails.php?id=17733623' class=u2>psg</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2134916" class="r1">Цугаи загробного мира (1 сезон: 1-14 серии из 24) / Yomi no Tsugai (Daemons of the Shadow Realm) / 2026 / ПМ (GoLTFilm) / WEBRip (1080p)</a><td class='s'>18</td>
+<td class='s'>12.74 ГБ</td>
+<td class='sl_s'>9</td>
+<td class='sl_p'>1</td>
+<td class='s'>13.07.2026 в 21:11</td>
+<td class='sl'><a href='/userdetails.php?id=20655584' class=u5>Stafford23</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146100" class="r0">Реинкарнация безработного (3 сезон: 1-3 серии из 14) / Mushoku Tensei: Isekai Ittara Honki Dasu / 2026 / ДБ, ЛМ, СТ / WEBRip (1080p)</a><td class='s'>10</td>
+<td class='s'>2.33 ГБ</td>
+<td class='sl_s'>31</td>
+<td class='sl_p'>6</td>
+<td class='s'>13.07.2026 в 20:49</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2147158" class="r0">Начало после конца (2 сезон: 1-12 серии из 12) / Saikyou no Ousama, Nidome no Jinsei wa Nani o Suru? / 2026 / ДБ, ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>5.53 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 19:59</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146287" class="r0">Разгневанная леди поклялась отомстить: Я разрушу свою страну с помощью силы гримуара! (1-2 серии из 12) / Buchigire / 2026 / ДБ, СТ / WEB-DL (1080p)</a><td class='s'>1</td>
+<td class='s'>2.81 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>2</td>
+<td class='s'>13.07.2026 в 18:32</td>
+<td class='sl'><a href='/userdetails.php?id=21051765' class=u5>NOOBDL</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146285" class="r0">Я влюбился в тебя, когда ты бежала в лунной ночи (1-2 серии из 12) / Toumei na Yoru ni Kakeru Kimi / 2026 / ДБ (Студийная Банда), СТ / WEB-DL (1080p)</a><td class='s'>2</td>
+<td class='s'>2.85 ГБ</td>
+<td class='sl_s'>3</td>
+<td class='sl_p'>1</td>
+<td class='s'>13.07.2026 в 17:31</td>
+<td class='sl'><a href='/userdetails.php?id=21051765' class=u5>NOOBDL</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2147095" class="r0">Путешествие отверженной святой (1 серия из 12) / Suterare Seijo no Isekai Gohan Tabi / 2026 / 3 x ЛМ, СТ / WEB-DL (1080p)</a><td class='s'>3</td>
+<td class='s'>983 МБ</td>
+<td class='sl_s'>11</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 02:45</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2133179" class="r1">Противостояние Святого (1-149 серии) / Xian Ni (Renegade Immortal) / 2023-2026 / ДБ (DEEP), ЛД (AniStar) / 4K, HEVC, SDR / WEB-DL (2160p)</a><td class='s'>59</td>
+<td class='s'>212.15 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>5</td>
+<td class='s'>13.07.2026 в 01:14</td>
+<td class='sl'><a href='/userdetails.php?id=20720922' class=u5>stanmil97</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2144110" class="r1">Путешествие к бессмертию (177-182 серии из 228) / Fanren Xiu Xian Chuan / 2026 / ПМ (DEEP) / 4K, SDR / WEB-DL (2160p)</a><td class='s'>41</td>
+<td class='s'>17.17 ГБ</td>
+<td class='sl_s'>24</td>
+<td class='sl_p'>7</td>
+<td class='s'>13.07.2026 в 00:09</td>
+<td class='sl'><a href='/userdetails.php?id=20720922' class=u5>stanmil97</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2147060" class="r1">Повелитель духов (1 сезон: 1-18 серии из 18) / Yu Ling Shi (Spirit Master) / 2026 / ЛМ (AniBaza) / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>11.29 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 19:00</td>
+<td class='sl'><a href='/userdetails.php?id=20741220' class=u5>OppaDub</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2135597" class="r1">Брачный токсин (1 сезон: 1-13 серии из 13) / Marriagetoxin / 2026 / ДБ (Дубляжная), ЛМ (AniBaza, JAMCLUB, Dream Cast), СТ / HEVC / WEBRip (1080p)</a><td class='s'>2</td>
+<td class='s'>7.14 ГБ</td>
+<td class='sl_s'>18</td>
+<td class='sl_p'>1</td>
+<td class='s'>12.07.2026 в 12:18</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2141600" class="r0">Ледяная стена (1 сезон: 1-14 серии из 14) / Koori no Jouheki (The Ramparts of Ice) / 2026 / ДБ (Дубляжная), ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>1</td>
+<td class='s'>5.21 ГБ</td>
+<td class='sl_s'>11</td>
+<td class='sl_p'>2</td>
+<td class='s'>12.07.2026 в 11:20</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146420" class="r0">Лорд приграничья без подданных (1-2 серии из 12) / Ryoumin 0-nin Start no Henkyou Ryoushusama / 2026 / ЛМ (Dream Cast), СТ / WEB-DL (1080p)</a><td class='s'>2</td>
+<td class='s'>2.86 ГБ</td>
+<td class='sl_s'>13</td>
+<td class='sl_p'>2</td>
+<td class='s'>12.07.2026 в 01:09</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146288" class="r0">Необыкновенный неудачник (1-3 серии из 12) / Rakudai Kenja no Gakuin Musou / 2026 / ЛМ (AniLiberty, Dream Cast), СТ / WEB-DL (1080p)</a><td class='s'>2</td>
+<td class='s'>4.25 ГБ</td>
+<td class='sl_s'>13</td>
+<td class='sl_p'>1</td>
+<td class='s'>11.07.2026 в 23:05</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146928" class="r0">Реинкарнация безработного (3 сезон: 1-2 серии из 14) / Mushoku Tensei: Isekai Ittara Honki Dasu / 2026 / ЛМ (AniPlague), СТ / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>2.77 ГБ</td>
+<td class='sl_s'>11</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 21:46</td>
+<td class='sl'><a href='/userdetails.php?id=20483232' class=u5>PlagueStudio</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146907" class="r0">История о перекуре за супермаркетом (1 серия из 12) / Super no Ura de Yani Suu Futari / 2026 / ДБ (Дубляжная), 3 x ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>3</td>
+<td class='s'>504 МБ</td>
+<td class='sl_s'>12</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 18:22</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146906" class="r0">Необъятный океан (3 сезон: 1 серия из 12) / Grand Blue Season 3 (Grand Blue Dreaming) / 2025 / 4 x ЛМ, СТ / WEBRip (1080p)</a><td class='s'>3</td>
+<td class='s'>1.52 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>1</td>
+<td class='s'>11.07.2026 в 18:21</td>
+<td class='sl'><a href='/userdetails.php?id=20465729' class=u5>BezReklamy</a><i class="i1 s17"></i><i class="i1 cb3"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2135545" class="r1">О моём перерождении в слизь (4 сезон: 1-14 серии из 24) / Tensei Shitara Slime Datta Ken / 2026 / ДБ (DEEP), 2 x ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>4</td>
+<td class='s'>8.64 ГБ</td>
+<td class='sl_s'>17</td>
+<td class='sl_p'>2</td>
+<td class='s'>11.07.2026 в 01:45</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2140044" class="r0">Ателье колдовских колпаков (1-13 серии из 13) / Tongari Boushi no Atelier / 2026 / ДБ (DEEP) / WEB-DLRip</a><td class='s'>5</td>
+<td class='s'>4.11 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>1</td>
+<td class='s'>11.07.2026 в 01:36</td>
+<td class='sl'><a href='/userdetails.php?id=18599652' class=u5>skyminsky</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2125473" class="r1">Человек-невидимка и обычная девушка (1-12 серии из 12) / Toumei Otoko to Ningen Onna / 2026 / ЛМ, СТ / WEBRip (1080p)</a><td class='s'>10</td>
+<td class='s'>16.77 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 00:45</td>
+<td class='sl'><a href='/userdetails.php?id=20483232' class=u5>PlagueStudio</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2128765" class="r1">Магическая битва (3 сезон: 1-8 серии из 12) / Jujutsu Kaisen / 2026 / ЛМ (AniPlague), СТ / WEBRip (1080p)</a><td class='s'>5</td>
+<td class='s'>11.54 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 00:44</td>
+<td class='sl'><a href='/userdetails.php?id=20483232' class=u5>PlagueStudio</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2145797" class="r0">Крестьянин 999-го уровня (1-3 серии из 12) / Lv999 no Murabito / 2026 / ДБ (DS Triangle), ЛМ (Dream Cast, AniLiberty), СТ / WEB-DL (1080p)</a><td class='s'>3</td>
+<td class='s'>4.37 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>3</td>
+<td class='s'>11.07.2026 в 00:35</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2134578" class="r1">О моём перерождении в слизь (4 сезон: 1-14 серии из 24) / Tensei Shitara Slime Datta Ken / 2026 / ДБ (DEEP), 2 x ЛМ, СТ / WEB-DL (1080p)</a><td class='s'>19</td>
+<td class='s'>8.28 ГБ</td>
+<td class='sl_s'>16</td>
+<td class='sl_p'>10</td>
+<td class='s'>10.07.2026 в 21:37</td>
+<td class='sl'><a href='/userdetails.php?id=21051765' class=u5>NOOBDL</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146771" class="r1">Навсикая из Долины Ветров / Kaze no Tani no Nausicaa / 1984 / ДБ, ПМ, ПД, СТ / Blu-Ray Remux (1080p)</a><td class='s'>2</td>
+<td class='s'>32.17 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 21:06</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146768" class="r1">Небесный замок Лапута / Tenku no shiro Rapyuta / 1986 / 2 x ДБ, 2 x ПМ, ПД, АП (Гаврилов, Толстобров, Рябов), СТ / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>38.48 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>10.07.2026 в 20:34</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146766" class="r1">Унесённые призраками / Sen to Chihiro no Kamikakushi (Spirited Away) / 2001 / 3 x ДБ, 3 x ПМ, ПД, 5 x АП, СТ / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>38.63 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 19:37</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2145828" class="r0">Табакошка (1-2 серии из 12) / Yani Neko (Chainsmoker Cat) / 2026 / ДБ (DEEP), ЛМ (Dream Cast), СТ / HEVC / WEBRip (1080p)</a><td class='s'>13</td>
+<td class='s'>1.29 ГБ</td>
+<td class='sl_s'>27</td>
+<td class='sl_p'>5</td>
+<td class='s'>10.07.2026 в 18:35</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146746" class="r0">Великий расхититель гробниц (1 серия из 12) / Dogulwang (Toukutsu Ou, Tomb Raider King) / 2026 / ДБ (IVI), СТ / WEB-DL (1080p)</a><td class='s'>7</td>
+<td class='s'>1.35 ГБ</td>
+<td class='sl_s'>20</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 15:21</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146734" class="r0">Военная хроника маленькой девочки (2 сезон: 1 серия из 12) / Youjo Senki / 2026 / ЛМ (AniLiberty, Dream Cast, AniBaza), СТ / WEB-DL (1080p)</a><td class='s'>2</td>
+<td class='s'>1.45 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 13:29</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146713" class="r0">История электричества в 20 веке (1 серия из 13) / Nijuuseiki Denki Mokuroku: Eureka Evrika / 2026 / 2 x ДБ, 2 x ЛМ, СТ / HEVC / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>725 МБ</td>
+<td class='sl_s'>11</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 11:12</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2135488" class="r0">Левша Эрен (1-13 серии из 13) / Hidarikiki no Eren (Eren the Southpaw) / 2026 / ДБ (Дубляжная), ЛМ, ЛД, СТ / HEVC / WEBRip (1080p)</a><td class='s'>1</td>
+<td class='s'>5.15 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>1</td>
+<td class='s'>10.07.2026 в 10:06</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2146658" class="r1">Рыцарь-скелет в ином мире (1 сезон: 1-12 серии из 12 + Бонусы) / Skeleton Knight in Another World / 2022 / 3 x ЛМ, ЛД, СТ / HEVC / BDRip (1080p)</a><td class='s'>1</td>
+<td class='s'>7.07 ГБ</td>
+<td class='sl_s'>8</td>
+<td class='sl_p'>1</td>
+<td class='s'>09.07.2026 в 22:29</td>
+<td class='sl'><a href='/userdetails.php?id=18391551' class=u5>ZaLmanVsk</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2145704" class="r0">Крестьянин 999-го уровня (1-3 серии из 12) / Lv999 no Murabito / 2026 / ДБ (DS Triangle), ЛМ (Dream Cast), СТ / HEVC / WEBRip (1080p)</a><td class='s'>1</td>
+<td class='s'>1.37 ГБ</td>
+<td class='sl_s'>16</td>
+<td class='sl_p'>1</td>
+<td class='s'>09.07.2026 в 21:04</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2137225" class="r0">Класс превосходства (4 сезон: 1-16 серии из 16) / Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e / 2026 / ПМ, ЛД, СТ / HEVC / WEBRip (1080p)</a><td class='s'>1</td>
+<td class='s'>6.93 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 18:37</td>
+<td class='sl'><a href='/userdetails.php?id=1655862' class=u5>VLDeshka</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/20.gif" class="p90x32 pointer" onclick="cat(20);" alt=""></td><td class="nam"><a href="/details.php?id=2128192" class="r1">Какой скандал! (2 сезон: 1-24 серии из 24) / Cheng He Titong (How Dare You!?) / 2026 / ЛМ (AniPlague) / WEBRip (1080p)</a><td class='s'>13</td>
+<td class='s'>16.47 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>1</td>
+<td class='s'>08.07.2026 в 21:55</td>
+<td class='sl'><a href='/userdetails.php?id=20483232' class=u5>PlagueStudio</a><i class="i1 s9-10"></i></td></tr>
+</table></div>
+<div class="paginator"><ul><li class="current"><a href="?c=20&amp;page=0">1</a></li><li><a href="?c=20&amp;page=1">2</a></li><li><a href="?c=20&amp;page=2">3</a></li><li><a href="?c=20&amp;page=3">4</a></li><li><a href="?c=20&amp;page=4">5</a></li><li class="dots">...</li><li><a href="?c=20&amp;page=99">100</a></li><li><a rel="next" href="?c=20&amp;page=1">Вперед</a></li></ul></div>
+</div><div class="clr"></div>
+</div>
+<div id="footer">
+ <div class="l_bar"><div class="padi_l justify">Файлы для обмена предоставлены пользователями, <br>Администрация не несет ответственности за их содержание.<br>Просьба не заливать файлы, защищенные авторскими правами.<br> 
+[ <a class="sba" href="https://forum.kinozal.guru/showthread.php?t=63579">Общие правила</a> ] [ <a class="sba" href="https://forum.kinozal.guru/showthread.php?t=78697">Доступные фотохостинги</a> ] @2006 - 2026</div></div>
+<div class="r_bar"><div class="padi_r"></div></div>
+<div class="clear"></div>
+</div>
+</div>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"c4c4fa14d1524fbb925ebbc3dd92f315","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body></html>

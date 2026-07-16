@@ -56,6 +56,9 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         {
             var torrents = new List<TorrentDetails>();
 
+            if (!KinozalCategories.Map.TryGetValue(cat, out var meta))
+                return torrents;
+
             foreach (string row in Regex.Split(tParse.ReplaceBadNames(html), "<tr class=(?:'first bg'|bg)>").Skip(1))
             {
                 #region Локальный метод - Match
@@ -95,200 +98,185 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 int relased = 0;
                 string name = null, originalname = null;
 
-                if (cat is "8" or "6" or "15" or "17" or "35" or "39" or "13" or "14" or "24" or "11" or "9" or "47" or "18" or "37" or "12" or "10" or "7" or "16")
+                switch (meta.TitleKind)
                 {
-                    #region Фильмы
-                    // Бэд трип (Приколисты в дороге) / Bad Trip / 2020 / ДБ, СТ / WEB-DLRip (AVC)
-                    // Интерстеллар / Interstellar (IMAX Edition) / 2014 / ДБ / BDRip
-                    // Успеть всё за месяц / 30 jours max / 2020 / ЛМ / WEB-DLRip
-                    var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?/ ([^\\(/]+) (\\([^\\)/]+\\) )?/ ([0-9]{4})").Groups;
-                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[3].Value) && !string.IsNullOrWhiteSpace(g[5].Value))
-                    {
-                        name = g[1].Value;
-                        originalname = g[3].Value;
-
-                        if (int.TryParse(g[5].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    else
-                    {
-                        // Голая правда / 2020 / ЛМ / WEB-DLRip
-                        g = Regex.Match(title, "^([^/\\(]+) / ([0-9]{4})").Groups;
-
-                        name = g[1].Value;
-                        if (int.TryParse(g[2].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    #endregion
-                }
-                else if (cat == "45" || cat == "22")
-                {
-                    #region Сериал - Русский
-                    if (row.Contains("сезон"))
-                    {
-                        // Сельский детектив (6 сезон: 1-2 серии из 2) ([^/]+)?/ 2020 / РУ / WEB-DLRip (AVC)
-                        // Любовь в рабочие недели (1 сезон: 1 серия из 15) / 2020 / РУ / WEB-DLRip (AVC)
-                        // Фитнес (Королева фитнеса) (1-4 сезон: 1-80 серии из 80) / 2018-2020 / РУ / WEB-DLRip
-                        // Бывшие (1-3 сезон: 1-24 серии из 24) / 2016-2020 / РУ / WEB-DLRip (AVC)
-                        var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([0-9\\-]+ сезоны?: [^\\)/]+\\) ([^/]+ )?/ ([0-9]{4})").Groups;
-                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[4].Value))
-                        {
-                            name = g[1].Value;
-
-                            if (int.TryParse(g[4].Value, out int _yer))
-                                relased = _yer;
-                        }
-                    }
-                    else
-                    {
-                        // Авантюра на двоих (1-8 серии из 8) / 2021 / РУ /  WEBRip (AVC)
-                        // Жизнь после жизни (Небеса подождут) (1-16 серии из 16) / 2016 / РУ / WEB-DLRip
-                        var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([^\\)/]+\\) ([^/]+ )?/ ([0-9]{4})").Groups;
-
-                        name = g[1].Value;
-                        if (int.TryParse(g[4].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    #endregion
-                }
-                else if (cat == "46" || cat == "21" || cat == "20")
-                {
-                    #region Сериал - Буржуйский
-                    if (row.Contains("сезон"))
-                    {
-                        // Сокол и Зимний солдат (1 сезон: 1-2 серия из 6) / The Falcon and the Winter Soldier / 2021 / ЛД (#NW), СТ / WEB-DL (1080p)
-                        // Голубая кровь (Семейная традиция) (11 сезон: 1-9 серия из 20) / Blue Bloods / 2020 / ПМ (BaibaKo) / WEBRip
-                        var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([0-9\\-]+ сезоны?: [^\\)/]+\\) ([^/]+ )?/ ([^\\(/]+) / ([0-9]{4})").Groups;
-                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[4].Value) && !string.IsNullOrWhiteSpace(g[5].Value))
-                        {
-                            name = g[1].Value;
-                            originalname = g[4].Value;
-
-                            if (int.TryParse(g[5].Value, out int _yer))
-                                relased = _yer;
-                        }
-                    }
-                    else
-                    {
-                        // Дикий ангел (151-270 серии из 270) / Muneca Brava / 1998-1999 / ПМ / DVB
-                        var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([^\\)/]+\\) ([^/]+ )?/ ([^\\(/]+) / ([0-9]{4})").Groups;
-                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[4].Value) && !string.IsNullOrWhiteSpace(g[5].Value))
-                        {
-                            name = g[1].Value;
-                            originalname = g[4].Value;
-
-                            if (int.TryParse(g[5].Value, out int _yer))
-                                relased = _yer;
-                        }
-                        else
-                        {
-                            g = Regex.Match(title, "^([^\\(/]+) / ([^\\(/]+) / ([0-9]{4})").Groups;
-                            name = g[1].Value;
-                            originalname = g[2].Value;
-
-                            if (int.TryParse(g[3].Value, out int _yer))
-                                relased = _yer;
-                        }
-                    }
-                    #endregion
-                }
-                else if (cat == "49" || cat == "50")
-                {
-                    #region ТВ-шоу
-                    // Топ Гир (30 сезон: 1-2 выпуски из 10) / Top Gear / 2021 / ЛМ (ColdFilm) / WEBRip
-                    var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?/ ([^\\(/]+) / ([0-9]{4})").Groups;
-                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[3].Value) && !string.IsNullOrWhiteSpace(g[4].Value))
-                    {
-                        name = g[1].Value;
-                        originalname = g[3].Value;
-
-                        if (int.TryParse(g[4].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    else
-                    {
-                        // Супермама (3 сезон: 1-12 выпуски из 40) / 2021 / РУ / IPTV (1080p)
-                        g = Regex.Match(title, "^([^/\\(]+) (\\([^\\)/]+\\) )?/ ([0-9]{4})").Groups;
-
-                        name = g[1].Value;
-                        if (int.TryParse(g[3].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    #endregion
+                    case KinozalTitleKind.Movie:
+                        ParseMovieTitle(title, out name, out originalname, out relased);
+                        break;
+                    case KinozalTitleKind.SerialRu:
+                        ParseSerialRuTitle(title, row, out name, out relased);
+                        break;
+                    case KinozalTitleKind.SerialEn:
+                        ParseSerialEnTitle(title, row, out name, out originalname, out relased);
+                        break;
+                    case KinozalTitleKind.TvShow:
+                        ParseTvShowTitle(title, out name, out originalname, out relased);
+                        break;
                 }
                 #endregion
 
                 if (string.IsNullOrWhiteSpace(name))
                     name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
 
-                if (!string.IsNullOrWhiteSpace(name))
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                int.TryParse(_sid, out int sid);
+                int.TryParse(_pir, out int pir);
+
+                torrents.Add(new TorrentDetails()
                 {
-                    #region types
-                    string[] types = null;
-                    switch (cat)
-                    {
-                        case "8":
-                        case "6":
-                        case "15":
-                        case "17":
-                        case "35":
-                        case "39":
-                        case "13":
-                        case "14":
-                        case "24":
-                        case "11":
-                        case "9":
-                        case "47":
-                        case "18":
-                        case "37":
-                        case "12":
-                        case "10":
-                        case "7":
-                        case "16":
-                            types = new string[] { "movie" };
-                            break;
-                        case "45":
-                        case "46":
-                            types = new string[] { "serial" };
-                            break;
-                        case "49":
-                        case "50":
-                            types = new string[] { "tvshow" };
-                            break;
-                        case "21":
-                        case "22":
-                            types = new string[] { "multfilm", "multserial" };
-                            break;
-                        case "20":
-                            types = new string[] { "anime" };
-                            break;
-                    }
-
-                    if (types == null)
-                        continue;
-                    #endregion
-
-                    int.TryParse(_sid, out int sid);
-                    int.TryParse(_pir, out int pir);
-
-                    torrents.Add(new TorrentDetails()
-                    {
-                        trackerName = TrackerName,
-                        types = types,
-                        url = url,
-                        title = title,
-                        sid = sid,
-                        pir = pir,
-                        sizeName = sizeName,
-                        createTime = createTime,
-                        name = name,
-                        originalname = originalname,
-                        relased = relased
-                    });
-                }
+                    trackerName = TrackerName,
+                    types = meta.Types,
+                    url = url,
+                    title = title,
+                    sid = sid,
+                    pir = pir,
+                    sizeName = sizeName,
+                    createTime = createTime,
+                    name = name,
+                    originalname = originalname,
+                    relased = relased
+                });
             }
 
             return torrents;
+        }
+
+        static void ParseMovieTitle(string title, out string name, out string originalname, out int relased)
+        {
+            name = null;
+            originalname = null;
+            relased = 0;
+
+            // Бэд трип (Приколисты в дороге) / Bad Trip / 2020 / ДБ, СТ / WEB-DLRip (AVC)
+            // Интерстеллар / Interstellar (IMAX Edition) / 2014 / ДБ / BDRip
+            // Успеть всё за месяц / 30 jours max / 2020 / ЛМ / WEB-DLRip
+            var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?/ ([^\\(/]+) (\\([^\\)/]+\\) )?/ ([0-9]{4})").Groups;
+            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[3].Value) && !string.IsNullOrWhiteSpace(g[5].Value))
+            {
+                name = g[1].Value;
+                originalname = g[3].Value;
+
+                if (int.TryParse(g[5].Value, out int _yer))
+                    relased = _yer;
+            }
+            else
+            {
+                // Name may contain parentheses and season-like slashes (RU-only titles):
+                // Голая правда / 2020 / ЛМ / WEB-DLRip
+                // Some listings: Title (note) / 2020 / РУ / WEB-DL (1080p)
+                var yearField = Regex.Match(title, " / ((?:19|20)[0-9]{2}) / ");
+                if (yearField.Success)
+                {
+                    name = title.Substring(0, yearField.Index).Trim();
+                    if (int.TryParse(yearField.Groups[1].Value, out int _yer))
+                        relased = _yer;
+                }
+            }
+        }
+
+        static void ParseSerialRuTitle(string title, string row, out string name, out int relased)
+        {
+            name = null;
+            relased = 0;
+
+            if (row.Contains("сезон"))
+            {
+                // Сельский детектив (6 сезон: 1-2 серии из 2) ([^/]+)?/ 2020 / РУ / WEB-DLRip (AVC)
+                // Любовь в рабочие недели (1 сезон: 1 серия из 15) / 2020 / РУ / WEB-DLRip (AVC)
+                // Фитнес (Королева фитнеса) (1-4 сезон: 1-80 серии из 80) / 2018-2020 / РУ / WEB-DLRip
+                // Бывшие (1-3 сезон: 1-24 серии из 24) / 2016-2020 / РУ / WEB-DLRip (AVC)
+                var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([0-9\\-]+ сезоны?: [^\\)/]+\\) ([^/]+ )?/ ([0-9]{4})").Groups;
+                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[4].Value))
+                {
+                    name = g[1].Value;
+
+                    if (int.TryParse(g[4].Value, out int _yer))
+                        relased = _yer;
+                }
+            }
+            else
+            {
+                // Авантюра на двоих (1-8 серии из 8) / 2021 / РУ /  WEBRip (AVC)
+                // Жизнь после жизни (Небеса подождут) (1-16 серии из 16) / 2016 / РУ / WEB-DLRip
+                var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([^\\)/]+\\) ([^/]+ )?/ ([0-9]{4})").Groups;
+
+                name = g[1].Value;
+                if (int.TryParse(g[4].Value, out int _yer))
+                    relased = _yer;
+            }
+        }
+
+        static void ParseSerialEnTitle(string title, string row, out string name, out string originalname, out int relased)
+        {
+            name = null;
+            originalname = null;
+            relased = 0;
+
+            if (row.Contains("сезон"))
+            {
+                // Сокол и Зимний солдат (1 сезон: 1-2 серия из 6) / The Falcon and the Winter Soldier / 2021 / ЛД (#NW), СТ / WEB-DL (1080p)
+                // Голубая кровь (Семейная традиция) (11 сезон: 1-9 серия из 20) / Blue Bloods / 2020 / ПМ (BaibaKo) / WEBRip
+                var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([0-9\\-]+ сезоны?: [^\\)/]+\\) ([^/]+ )?/ ([^\\(/]+) / ([0-9]{4})").Groups;
+                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[4].Value) && !string.IsNullOrWhiteSpace(g[5].Value))
+                {
+                    name = g[1].Value;
+                    originalname = g[4].Value;
+
+                    if (int.TryParse(g[5].Value, out int _yer))
+                        relased = _yer;
+                }
+            }
+            else
+            {
+                // Дикий ангел (151-270 серии из 270) / Muneca Brava / 1998-1999 / ПМ / DVB
+                var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?\\([^\\)/]+\\) ([^/]+ )?/ ([^\\(/]+) / ([0-9]{4})").Groups;
+                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[4].Value) && !string.IsNullOrWhiteSpace(g[5].Value))
+                {
+                    name = g[1].Value;
+                    originalname = g[4].Value;
+
+                    if (int.TryParse(g[5].Value, out int _yer))
+                        relased = _yer;
+                }
+                else
+                {
+                    g = Regex.Match(title, "^([^\\(/]+) / ([^\\(/]+) / ([0-9]{4})").Groups;
+                    name = g[1].Value;
+                    originalname = g[2].Value;
+
+                    if (int.TryParse(g[3].Value, out int _yer))
+                        relased = _yer;
+                }
+            }
+        }
+
+        static void ParseTvShowTitle(string title, out string name, out string originalname, out int relased)
+        {
+            name = null;
+            originalname = null;
+            relased = 0;
+
+            // Топ Гир (30 сезон: 1-2 выпуски из 10) / Top Gear / 2021 / ЛМ (ColdFilm) / WEBRip
+            var g = Regex.Match(title, "^([^\\(/]+) (\\([^\\)/]+\\) )?/ ([^\\(/]+) / ([0-9]{4})").Groups;
+            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[3].Value) && !string.IsNullOrWhiteSpace(g[4].Value))
+            {
+                name = g[1].Value;
+                originalname = g[3].Value;
+
+                if (int.TryParse(g[4].Value, out int _yer))
+                    relased = _yer;
+            }
+            else
+            {
+                // Супермама (3 сезон: 1-12 выпуски из 40) / 2021 / РУ / IPTV (1080p)
+                g = Regex.Match(title, "^([^/\\(]+) (\\([^\\)/]+\\) )?/ ([0-9]{4})").Groups;
+
+                name = g[1].Value;
+                if (int.TryParse(g[3].Value, out int _yer))
+                    relased = _yer;
+            }
         }
 
         /// <summary>

@@ -1,0 +1,668 @@
+<!DOCTYPE HTML>
+<html lang="ru">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<title>Раздачи :: Кинозал.GURU</title>
+<meta name="description" content="Список и поиск раздач (торрентов), поиск по разделам кино, музыки, жанрам и персонам.">
+<meta name="Keywords" content="250 лучших фильмов, 100 лучших фильмов, лучшие комедии, лучшие фильмы ужасов, лучшие драмы, лучшие фильмы +всех времен, kinozal, скачать, торрент-трекер, торрент скачать бесплатно">
+<meta name="robots" content="index,follow">
+<link rel="shortcut icon" href="/pic/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="/pic/0_kinozal.guru.css?v=3.3" type="text/css">
+<script type="text/javascript" src="/pic/jquery-3.6.3.min.js?v=1"></script>
+<script type="text/javascript" src="/pic/use.js?v=3.7"></script>
+
+
+</head>
+<body>
+
+<div id="body_wrapper">
+<div id="header">
+	<table style="width:100%;padding:0;margin:0;border:0;"><tr>
+		<td style="width:40%;"><div class="logo_new"><a href="https://kinozal.guru" title="Кинозал.GURU"><img src="/pic/logo_kinozal_guru.png?v=2" alt="Кинозал.GURU"></a></div></td>
+		<td style="width:60%;" align=right><div class="rb_new" style="height:80px;overflow: hidden;">
+
+<div style="padding:0 5px 0 10px"><div id='eb750d49cf'></div></div>
+
+</div></td></tr></table>
+<div class="clr"></div>
+	<div class="menu">
+	<ul>
+		<li><a href="/" title="Главная">Главная</a></li>
+		<li><a href="https://forum.kinozal.guru" title="Форум">Форум</a></li>
+		<li><a href="/browse.php" title="Каталог раздач">Раздачи</a></li>
+		<li><a href="/top.php" title="Топ раздач">Топ раздач</a></li>
+		<li><a href="/personsearch.php" title="Персоны">Персоны</a></li>
+		<li><a href="/novinki.php" title="Новинки кино">Новинки кино</a></li>
+		<li><a href="/groupexlist.php" title="Каталог групп">Группы</a></li>
+		<li><a href="/radio.php" title="Радио">Радио</a></li>
+	</ul>
+	<form action="/browse.php" method="get" id="srchform">
+		<div><input type="text" class="inp" id="s" name="s" size="15" value=""><input class="s_submit" type="submit" title="Поиск раздач"></div>
+	</form>
+	<div class="clr"></div>
+	</div>
+	<span class="zan_l"></span>
+	<span class="zan_r"></span>
+</div>
+<div class="clr"></div>
+<div id="main">
+ <div class="menu">
+<div class="bx2_0">
+<ul class="men">
+ <li class="tp2 center b"><a href='/userdetails.php?id=21207299' class=u0>dsotracker</a> ( <a onclick="return mess_out('Вы действительно хотите выйти?')" href='/logout.php?hash4u=558edd2dcc05e6052bfab8178571f4ce'>Выход</a> )</li>
+ <li><span class='bulet'></span><a href='/userdetails.php?id=21207299'>Ваш профиль</a></li> 
+ <li><span class='bulet'></span><a href='/my.php'>Конфигурация</a></li> 
+ <li><span class='bulet'></span><a href='/inbox.php'>ЛС: ( нет новых )</a></li>
+ <li><span class='bulet'></span><a href='/friends.php'>Друзья и враги</a></li>
+ <li class="b"><span class='bulet'></span><a onclick="getRetio(); return false;" href="" class="sbab">Рейтинг</a>, время: 20:08</li>
+</ul>
+<div id="user_retio"></div>
+</div>
+
+<div class="bx2_0">
+	<a href="/pay.php" title="Раздел Меценатов"><img src="/pic/bnr_pay_sm.jpg" class="block" height="35px" width="184px" alt=""></a>
+</div>
+
+
+
+
+<div class="bx2_0">
+<ul class="men">
+ <li><span class='bulet'></span><a href='/pay.php'>Поднять рейтинг и голоса</a></li> 
+ <li><span class='bulet'></span><a href='/pay_wishes.php'>Пожелания проекту</a></li>
+ <li><span class='bulet'></span><a href='/helpdesk.php'>Помощь Администрации</a></li>
+ <li><span class='bulet'></span><a href='/users.php'>Список пользователей</a></li>
+</ul>
+</div>
+
+<div class="bx2_0">
+<ul class="men imgmn">
+ <li class="tp2 center">Меню раздач</li>
+ <li><span class='bulet'></span><a href='/browse.php'>Раздачи трекера</a></li> 
+ <li><span class='bulet'></span><a href='/top.php'>Топ раздач</a></li> 
+ <li><span class='bulet'></span><a href='/personsearch.php'>Персоны</a></li> 
+ <li><span class='bulet'></span><a href='/novinki.php'>Новинки кино</a></li>
+ <li><span class='bulet'></span><a href='/browsetest.php'>Тестовые раздачи</a></li>
+ <li><span class='bulet'></span><a href='/upload.php'>Залить раздачу</a></li>
+ <li><span class='bulet'></span><a href='/group.php'>Релиз-группы</a></li>
+</ul>
+</div>
+
+<div class="bx2_0">
+<ul class="men">
+ <li class="tp2 center">Прочтите  рекомендации</li>
+ <li><span class='bulet'></span><a href='/doku.php'>Общие правила</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=1'>Правила пользователей</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=2'>Правила Кинооператоров</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=3'>Как скачать фильм</a></li>
+  <li><span class='bulet'></span><a href='/copyright.php'>Для правообладателей</a></li>
+</ul>
+</div>
+ </div>
+ <div class="content">
+<form method="get" action="/browse.php">
+<div class="bx1_0" style="padding: 3px 38px 3px 5px;">
+<table class="tables1">
+<tr><td colspan=3>Поиск раздач ( <a href='//forum.kinozal.guru/showthread.php?t=63820' class=sba>Как пользоваться поиском?</a> )<td>Где именно<td>
+<tr>
+<td colspan=3><input type="text" name="s" value=""  class="w98p">
+<td><span class=sw100><select name="g" class="w100 styled">
+<option value=0  selected>В названии</option>
+<option value=1 >Персона</option>
+<option value=2 >Жанры</option>
+<option value=3 >Формула</option>
+</select></span>
+
+
+<td class=center><input type="submit" value="Поиск раздач" class="buttonS w98p"></tr>
+<tr>
+ <td>Выбор раздела<td>Выбор формата<td>Год выхода<td>Фильтр поиска<td>Сортировка результата
+<tr>
+<td>
+<span class=sw190><select name="c" class="w190 styled">
+<option  value="0">Поиск по разделам</option>
+<option  value=1001 class="green">Все сериалы</option>
+<option  value=1002 class="green">Все фильмы</option>
+<option  value=1003 class="green">Все мульты</option>
+<option  value=1006 class="green">Шоу, концерты, спорт</option>
+<option  value=1004 class="green">Вся музыка</option>
+<option  value=45>Сериал - Русский</option>
+<option  value=46>Сериал - Буржуйский</option>
+<option  value=8>Кино - Комедия</option>
+<option  value=6>Кино - Боевик / Военный</option>
+<option  value=15>Кино - Триллер / Детектив</option>
+<option  value=17>Кино - Драма</option>
+<option  value=35>Кино - Мелодрама</option>
+<option  value=39>Кино - Индийское</option>
+<option  value=13>Кино - Фантастика</option>
+<option  value=14>Кино - Фэнтези</option>
+<option  value=24>Кино - Ужас / Мистика</option>
+<option  value=11>Кино - Приключения</option>
+<option  value=10>Кино - Наше Кино</option>
+<option  value=9>Кино - Исторический</option>
+<option  value=47>Кино - Азиатский</option>
+<option  value=18>Кино - Документальный</option>
+<option  value=37>Кино - Спорт</option>
+<option  value=12>Кино - Детский / Семейный</option>
+<option  value=7>Кино - Классика</option>
+<option  value=48>Кино - Концерт</option>
+<option  value=49>Кино - Передачи / ТВ-шоу</option>
+<option  selected=selected  value=50>Кино - ТВ-шоу Мир</option>
+<option  value=38>Кино - Театр, Опера, Балет</option>
+<option  value=16>Кино - Эротика</option>
+<option  value=21>Мульт - Буржуйский</option>
+<option  value=22>Мульт - Русский</option>
+<option  value=20>Мульт - Аниме</option>
+<option  value=3>Музыка - Буржуйская</option>
+<option  value=4>Музыка - Русская</option>
+<option  value=5>Музыка - Сборники</option>
+<option  value=42>Музыка - Классическая</option>
+<option  value=2>Другое - АудиоКниги</option>
+<option  value=1>Другое - Видеоклипы</option>
+<option  value=23>Другое - Игры</option>
+<option  value=32>Другое - Программы</option>
+<option  value=40>Другое - Дизайн / Графика</option>
+<option  value=41>Другое - Библиотека</option>
+
+</select></span>
+<td><span class=sw190><select name="v" class="w190 styled">
+<option value=0  selected>Все форматы</option>
+<option value=101 disabled>Форматы видео</option>
+<option value=3 >|- Рипы HD(1080|720)</option>
+<option value=3001 >|-- 1080</option>
+<option value=3002 >|-- 720</option>
+<option value=1 >|- Рипы DVD и BD(HD)</option>
+<option value=4 >|- HD Blu-Ray и Remux</option>
+<option value=2 >|- DVD-5 и DVD-9</option>
+<option value=5 >|- Рипы TV</option>
+<option value=6 >|- 3D</option>
+<option value=7 >|- 4K</option>
+<option value=201 disabled>Форматы аудио</option>
+<option value=51 >|- Lossless</option>
+<option value=52 >|- MP3 и AAC</option>
+<option value=301 disabled>Форматы игр и программ</option>
+<option value=61 >|- Компьютер</option>
+<option value=62 >|- Приставка</option>
+<option value=63 >|- Мобильные устройства</option>
+<option value=64 >|- Навигация</option>
+</select></span>
+<td><span class=sw90>
+<select name="d" class="w90 styled">
+<option value=0>все года</option>
+<option value=2026>2026</option>
+<option value=2025>2025</option>
+<option value=2024>2024</option>
+<option value=2023>2023</option>
+<option value=2022>2022</option>
+<option value=2021>2021</option>
+<option value=2020>2020</option>
+<option value=2019>2019</option>
+<option value=2018>2018</option>
+<option value=2017>2017</option>
+<option value=2016>2016</option>
+<option value=2015>2015</option>
+<option value=2014>2014</option>
+<option value=2013>2013</option>
+<option value=2012>2012</option>
+<option value=2011>2011</option>
+<option value=2010>2010</option>
+<option value=2009>2009</option>
+<option value=2008>2008</option>
+<option value=2007>2007</option>
+<option value=2006>2006</option>
+<option value=2005>2005</option>
+<option value=2004>2004</option>
+<option value=2003>2003</option>
+<option value=2002>2002</option>
+<option value=2001>2001</option>
+<option value=2000>2000</option>
+<option value=1999>1999</option>
+<option value=1998>1998</option>
+<option value=1997>1997</option>
+<option value=1996>1996</option>
+<option value=1995>1995</option>
+<option value=1994>1994</option>
+<option value=1993>1993</option>
+<option value=1992>1992</option>
+<option value=1991>1991</option>
+<option value=1990>1990</option>
+<option value=1989>1989</option>
+<option value=1988>1988</option>
+<option value=1987>1987</option>
+<option value=1986>1986</option>
+<option value=1985>1985</option>
+<option value=1984>1984</option>
+<option value=1983>1983</option>
+<option value=1982>1982</option>
+<option value=1981>1981</option>
+<option value=1980>1980</option>
+<option value=1979>1979</option>
+<option value=1978>1978</option>
+<option value=1977>1977</option>
+<option value=1976>1976</option>
+<option value=1975>1975</option>
+<option value=1974>1974</option>
+<option value=1973>1973</option>
+<option value=1972>1972</option>
+<option value=1971>1971</option>
+<option value=1970>1970</option>
+<option value=1969>1969</option>
+<option value=1968>1968</option>
+<option value=1967>1967</option>
+<option value=1966>1966</option>
+<option value=1965>1965</option>
+<option value=1964>1964</option>
+<option value=1963>1963</option>
+<option value=1962>1962</option>
+<option value=1961>1961</option>
+<option value=1960>1960</option>
+<option value=1959>1959</option>
+<option value=1958>1958</option>
+<option value=1957>1957</option>
+<option value=1956>1956</option>
+<option value=1955>1955</option>
+<option value=1954>1954</option>
+<option value=1953>1953</option>
+<option value=1952>1952</option>
+<option value=1951>1951</option>
+<option value=1950>1950</option>
+<option value=1949>1949</option>
+<option value=1948>1948</option>
+<option value=1947>1947</option>
+<option value=1946>1946</option>
+<option value=1945>1945</option>
+<option value=1944>1944</option>
+<option value=1943>1943</option>
+<option value=1942>1942</option>
+<option value=1941>1941</option>
+<option value=1940>1940</option>
+<option value=1939>1939</option>
+<option value=1938>1938</option>
+<option value=1937>1937</option>
+<option value=1936>1936</option>
+<option value=1935>1935</option>
+<option value=1934>1934</option>
+<option value=1933>1933</option>
+<option value=1932>1932</option>
+<option value=1931>1931</option>
+<option value=1930>1930</option>
+<option value=1929>1929</option>
+<option value=1928>1928</option>
+<option value=1927>1927</option>
+<option value=1926>1926</option>
+<option value=1925>1925</option>
+<option value=1924>1924</option>
+<option value=1923>1923</option>
+<option value=1922>1922</option>
+<option value=1921>1921</option>
+<option value=1920>1920</option>
+<option value=1919>1919</option>
+<option value=1918>1918</option>
+<option value=1917>1917</option>
+<option value=1916>1916</option>
+<option value=1915>1915</option>
+<option value=1914>1914</option>
+<option value=1913>1913</option>
+<option value=1912>1912</option>
+<option value=1911>1911</option>
+<option value=1910>1910</option>
+<option value=1909>1909</option>
+<option value=1908>1908</option>
+<option value=1907>1907</option>
+<option value=1906>1906</option>
+<option value=1905>1905</option>
+<option value=1904>1904</option>
+<option value=1903>1903</option>
+<option value=1902>1902</option>
+<option value=1901>1901</option>
+<option value=1900>1900</option>
+</select></span>
+<td><span class=sw100>
+<select name="w" class="w100 styled">
+<option value=0  selected>не выбран</option>
+<option value=1 >сегодня</option>
+<option value=2 >вчера</option>
+<option value=3 >за 3 дня</option>
+<option value=4 >за неделю</option>
+<option value=5 >за месяц</option>
+<option value=6 >менее 1.3ГБ</option>
+<option value=7 >1.3ГБ - 2.2ГБ</option>
+<option value=8 >2.2ГБ - 4.0ГБ</option>
+<option value=9 >4.0ГБ - 9.5ГБ</option>
+<option value=10 >9.5ГБ и выше</option>
+<option value=11 >золото</option>
+<option value=12 >серебро</option>
+</select></span>
+
+<td class=nw>
+<span class=sw70><select name="t" class="styled">
+<option value=0  selected>Залит</option>
+<option value=1 >Сидам</option>
+<option value=2 >Пирам</option>
+<option value=3 >Размер</option>
+<option value=4 >Коммент.</option>
+<option value=5 >Скачали</option>
+<option value=6 >Посл.комм.</option>
+</select></span>
+<span class=sw70><select name="f" class="styled">
+<option value=0  selected>Убыв.</option>
+<option value=1 >Возр.</option>
+</select></span>
+<tr><td colspan=5><span class='bulet'></span>Найдено 924  раздачи</td></tr></table></div>
+</form>
+<div class='pad0x0x5x0 center'><a href='/pay.php' title='Благодарим за поддержку!'><img src='/pic/banners/pay_bn2.png' style='display: inline-block;' alt=''></a></div>
+<div class="bx2_0"><table class="t_peer w100p"><tr class="mn"><td class="z w90"></td><td class="w90p"></td><td class="z">Комм.</td><td class="z">Размер</td><td class="z">Сидов</td><td class="z">Пиров</td><td class="z">Залит</td><td class='zl'>Раздает</td></tr>
+<tr class='first bg'><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2105640" class="r1">Виза невесты. Виза жениха. Холостяцкая жизнь (1-5 сезоны: 87 выпусков из 87) / 90 Day: The Single Life / 2021-2026 / ПО / IPTV (1080p)</a><td class='s'>1</td>
+<td class='s'>160.68 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>16.07.2024 в 02:53</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2133081" class="r1">Дизель Шоу (176-189 выпуски) / 2026 / БП / WEBRip</a><td class='s'>11</td>
+<td class='s'>9.29 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 07:43</td>
+<td class='sl'><a href='/userdetails.php?id=178582' class=u5>Oberton</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2133077" class="r1">Дизель Шоу (176-189 выпуски) / 2026 / БП / WEBRip (1080p)</a><td class='s'>10</td>
+<td class='s'>26.43 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>3</td>
+<td class='s'>11.07.2026 в 00:29</td>
+<td class='sl'><a href='/userdetails.php?id=178582' class=u5>Oberton</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2146341" class="r0">Луи Си Кей: Нелепый / Louis C.K.: Ridiculous / 2026 / 2 x ЛО, СТ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>3.48 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>07.07.2026 в 07:54</td>
+<td class='sl'><a href='/userdetails.php?id=77946' class=u5>vladislav75</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2144570" class="r2">Делай с нами, делай как мы, делай лучше нас! (эфир от 22.08.1982) / Mach mit, mach’s nach, mach’s besser / 1982 / ЛО, СТ / WEBRip (720p)</a><td class='s'>6</td>
+<td class='s'>990 МБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>0</td>
+<td class='s'>06.07.2026 в 22:27</td>
+<td class='sl'><a href='/userdetails.php?id=19038584' class=u5>zaq292</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2088384" class="r1">Виза невесты. Виза жениха (1-12 сезоны: 176 выпусков из 190 + 3 Спецвыпуска) / 90 Day Fianc&#233; (90 Days to Wed) / 2014-2025 / ПО / IPTV (1080p)</a><td class='s'>9</td>
+<td class='s'>498.25 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>29.06.2026 в 17:47</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=1861517" class="r1">МастерШеф (5-17 сезоны: 1-252 выпуски из 252 + спецсезоны) / МастерШеф / 2015-2026 / РУ / IPTV (1080p)</a><td class='s'>5</td>
+<td class='s'>2.278 ТБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>29.06.2026 в 12:14</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2130988" class="r1">МастерШеф (17 сезон: 1-34 выпуски из 34 + Backstage) / 2026 / БП / IPTV (1080p)</a><td class='s'>20</td>
+<td class='s'>334.36 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>7</td>
+<td class='s'>29.06.2026 в 00:17</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2137477" class="r1">МастерШеф (17 сезон: 1-34 выпуски из 34) / 2026 / БП / WEBRip (720p)</a><td class='s'>17</td>
+<td class='s'>81.23 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>11</td>
+<td class='s'>28.06.2026 в 23:37</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2093206" class="r1">Многоженец (Сестры-жены) (1-3, 7-14, 19-20 сезоны: 232 выпусков из 300) / Sister Wives / 2018-2024 / ПО / IPTV (1080p)</a><td class='s'>2</td>
+<td class='s'>382.4 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>28.06.2026 в 11:17</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2106706" class="r1">Родители-подростки (6-7 сезоны: 1-19 выпуски из 20) / Unexpected / 2024-2025 / ПО / IPTV (1080i)</a><td class='s'>1</td>
+<td class='s'>29.31 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>28.06.2026 в 09:51</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2093295" class="r1">Добро пожаловать в Платвиль (1-8 сезоны: 1-87 выпуски из 100) / Welcome to Plathville / 2019-2026 / ПО / IPTV (1080p)</a><td class='s'>5</td>
+<td class='s'>137.47 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>28.06.2026 в 09:48</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2094738" class="r1">Бэйлен на весь мир (Жизнь с синдромом Туретта) (1-3 сезоны: 1-27 выпуски из 30) / Baylen Out Loud / 2024-2025 / ПО / IPTV (1080p)</a><td class='s'>2</td>
+<td class='s'>45.93 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>28.06.2026 в 02:16</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2137992" class="r1">Шесть младенцев в доме (Милые шестерняшки) (1-3 сезоны: 1-26 выпуски из 26) / Sweet Home Sextuplets / 2018-2020 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>37.53 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>12.05.2026 в 21:06</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2088431" class="r1">Виза невесты. Виза жениха. Знакомство (1-8 сезоны: 1-139 выпуски из 139) / 90 Day Fianc&#233;: Before the 90 Days / 2017-2026 / ПО / IPTV (1080p)</a><td class='s'>6</td>
+<td class='s'>445.49 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>11.05.2026 в 23:02</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2139142" class="r1">Ад для одиночек  (5 сезон: 1-12 серии из 12) / Single&#039;s Inferno / 2026 / СТ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>38.72 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.05.2026 в 17:40</td>
+<td class='sl'><a href='/userdetails.php?id=20223427' class=u5>Docent25</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2138014" class="r0">Пока тебя не было (5 сезон: 1-4 выпуски из 4) / While You Were Out / 2019 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>5.79 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>05.05.2026 в 21:50</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2138015" class="r0">Ограбление Ким Кардашьян (1 сезон: 1-3 выпуски из 3) / The Kim Kardashian Diamond Heist / 2025 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>4.31 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>30.04.2026 в 04:07</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2137989" class="r1">Внезапно амиши (1 сезон: 1-8 выпуски из 8) / Suddenly Amish / 2026 / ПО / IPTV (1080p)</a><td class='s'>2</td>
+<td class='s'>11.54 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>29.04.2026 в 22:45</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2102589" class="r1">Оденься к свадьбе: Польша (1-2 сезоны: 1-16 выпуски из 16) / Say Yes to the Dress: Poland (Salon slubnych: Polska) / 2019-2022 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>20.08 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>23.04.2026 в 10:24</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2104179" class="r1">Свадебный салон XXL (1-3 сезоны: 56 выпусков из 90) / Curvy Brides&#039; Boutique / 2017-2019 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>49.18 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>23.04.2026 в 10:22</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2136803" class="r1">Салиш и Джордан Маттер (1 сезон: 1-7 серии из 7) / Salish & Jordan Matter / 2026 / ПМ (Movie Dubbing), СТ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>7.82 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>1</td>
+<td class='s'>20.04.2026 в 14:50</td>
+<td class='sl'><a href='/userdetails.php?id=18888757' class=u5>Neadekvat62</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2102573" class="r1">Оденься к свадьбе: Ланкашир (1-3 сезоны: 1-41 выпуски из 41) / Say Yes to the Dress: Lancashire / 2019-2021 / ПО / IPTV (1080p)</a><td class='s'>1</td>
+<td class='s'>63.77 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>19.04.2026 в 21:45</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2102612" class="r1">Оденься к свадьбе (13-21 сезоны: 1-114 выпуски из 130) / Say Yes to the Dress / 2015-2022 / ПО / IPTV (1080p)</a><td class='s'>1</td>
+<td class='s'>179.85 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>19.04.2026 в 21:21</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2136524" class="r1">Лучший повар Америки (15 сезон: 1-18 выпуски из 18) / MasterChef / 2025 / ЛО (Влад Дорф) / WEB-DL (720p)</a><td class='s'>7</td>
+<td class='s'>10.38 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>0</td>
+<td class='s'>18.04.2026 в 21:02</td>
+<td class='sl'><a href='/userdetails.php?id=2843207' class=u2>Инопланетянин</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2088420" class="r1">Виза невесты. Виза жениха. Покидая Америку (1-7 сезоны: 164 выпуски из 166) / 90 Day Fianc&#233;: The Other Way / 2019-2025 / ПО / IPTV (1080p)</a><td class='s'>5</td>
+<td class='s'>344.26 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>22.03.2026 в 23:57</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2107181" class="r0">Оденься к свадьбе: Бенилюкс (1 сезон: 1-9 выпуски из 11) / Say Yes to the Dress: Benelux / 2016 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>6.62 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>22.03.2026 в 23:01</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2081915" class="r0">Премия Таурус 2001 / Taurus World Stunt Awards / 2001 / ПО / VHSRip</a><td class='s'>4</td>
+<td class='s'>1.16 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>21.03.2026 в 14:31</td>
+<td class='sl'><a href='/userdetails.php?id=4746975' class=u5>Infectant</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2132183" class="r1">«Оскар» (98-я церемония вручения премии + Красная дорожка) / The 98th Annual Academy Awards (Red Carpet) / 2026 / БП / HDTV (720p)</a><td class='s'>6</td>
+<td class='s'>16.89 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>0</td>
+<td class='s'>17.03.2026 в 01:49</td>
+<td class='sl'><a href='/userdetails.php?id=21181174' class=u5>djm86</a><i class="i1 s17"></i><i class="i1 cb1"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2132141" class="r1">«Оскар» (98-я церемония вручения премии) / The 98th Annual Academy Awards / 2026 / БП / HDTVRip (720p)</a><td class='s'>0</td>
+<td class='s'>5.46 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>16.03.2026 в 18:47</td>
+<td class='sl'><a href='/userdetails.php?id=6528691' class=u5>Kulina</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2130508" class="r1">Битва кулинарных классов (2 сезон: 1-13 выпуски из 13) / Heukbaekyorisa: yori gyegeup jeonjaeng (Culinary Class Wars) / 2026 / ЛО / HDTV (1080i)</a><td class='s'>1</td>
+<td class='s'>30.23 ГБ</td>
+<td class='sl_s'>3</td>
+<td class='sl_p'>0</td>
+<td class='s'>04.03.2026 в 15:30</td>
+<td class='sl'><a href='/userdetails.php?id=3182404' class=u4>Cradlick</a><i class="i1 s_dv"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2130243" class="r0">Сирена: Выжить на острове (1 сезон: 1-10 серии из 10) / Siren: Survive the Island / 2023 / ЛМ (LE-Production), СТ / WEB-DLRip</a><td class='s'>0</td>
+<td class='s'>5.68 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>02.03.2026 в 05:03</td>
+<td class='sl'><a href='/userdetails.php?id=18599652' class=u5>skyminsky</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2130189" class="r1">Сирена: Выжить на острове (1 сезон: 1-10 серии из 10) / Siren: Survive the Island / 2023 / ЛМ (LE-Production), СТ / WEB-DL (1080p)</a><td class='s'>1</td>
+<td class='s'>21.14 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>1</td>
+<td class='s'>01.03.2026 в 18:20</td>
+<td class='sl'><a href='/userdetails.php?id=20223427' class=u5>Docent25</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2129887" class="r0">Лучше мяса с шеф-поваром Чарити Морган / Unbelievably Vegan with Chef Charity / 2024 / ПО / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>1.72 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>27.02.2026 в 23:08</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2122955" class="r1">Игры Биста (2 сезон: 1-10 выпуски из 10) / Beast Games / 2025 / ДБ, СТ / WEB-DL (1080p)</a><td class='s'>31</td>
+<td class='s'>34.94 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>1</td>
+<td class='s'>25.02.2026 в 21:00</td>
+<td class='sl'><a href='/userdetails.php?id=21012851' class=u5>torislav</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2128950" class="r0">Мятежная любовь (1 сезон: 1-10 серии из 10) / Ravu Joto (Badly in Love) / 2025 / ЛМ (LE-Production) / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>18.18 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>0</td>
+<td class='s'>21.02.2026 в 16:40</td>
+<td class='sl'><a href='/userdetails.php?id=20223427' class=u5>Docent25</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2127957" class="r1">Офлайн Любовь (1 сезон: 1-10 серии из 10) / Offline Love / 2025 / ЛМ (LE-Production) / WEB-DL (1080p)</a><td class='s'>4</td>
+<td class='s'>24.68 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.02.2026 в 10:59</td>
+<td class='sl'><a href='/userdetails.php?id=20223427' class=u5>Docent25</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2126786" class="r1">Я хочу такую свадьбу (1 сезон: 1, 3-6 выпуски из 6) / I Want That Wedding / 2018 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>9.07 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.02.2026 в 08:56</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2127566" class="r1">Кабаре Джозелин (6 сезон: 1-21 выпуски из 21) / Joseline&#039;s Cabaret: California / 2025 / ЛД (GoldTeam) / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>29.67 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.02.2026 в 22:21</td>
+<td class='sl'><a href='/userdetails.php?id=20384563' class=u5>dlosev1108</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2126958" class="r1">Звездный ремонт (1-2, 5-8 сезоны: 45 выпусков из 60) / Celebrity IOU / 2020-2024 / ПО / WEBRip (1080p)</a><td class='s'>0</td>
+<td class='s'>91.05 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>07.02.2026 в 15:13</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2126795" class="r1">Большие сестры (1-7 сезоны: 1-68 выпуски из 85) / 1000-lb Sisters / 2020-2025 / ПО / IPTV (1080p)</a><td class='s'>6</td>
+<td class='s'>111.77 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>06.02.2026 в 13:12</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2118858" class="r1">Я - боксёр (1 сезон: 1-10 серии из 10) / I Am Boxer / 2025 / ЛМ / WEB-DL (1080p)</a><td class='s'>9</td>
+<td class='s'>21.02 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>01.02.2026 в 16:22</td>
+<td class='sl'><a href='/userdetails.php?id=20465729' class=u5>BezReklamy</a><i class="i1 s17"></i><i class="i1 cb3"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2105407" class="r1">Виза невесты. Виза жениха. Что было дальше (1-9 сезоны: 1-178 выпусков) / 90 Day Fianc&#233;: Happily Ever After? / 2016-2025 / ПО / IPTV (1080i)</a><td class='s'>3</td>
+<td class='s'>488.89 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>29.01.2026 в 12:43</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2125656" class="r1">Семейка Шемвелл (Совместная семья) (1 сезон: 1-6 выпуски из 6) / The Blended Bunch / 2021 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>8.69 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>28.01.2026 в 12:47</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2125655" class="r1">Огромная семья Деррико (1-5 сезоны: 1-48 выпуски из 48) / Doubling Down with the Derricos / 2020-2024 / ПО / IPTV (1080i)</a><td class='s'>0</td>
+<td class='s'>71.28 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>28.01.2026 в 12:11</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2125651" class="r1">Свадьбы в усадьбе (1 сезон: 1-10 выпуски из 10) / The Spouse House / 2017 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>14.38 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>28.01.2026 в 11:45</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2106268" class="r1">Девственники  (1 сезон: 1-6 выпуски из 6) / Virgins / 2025 / ПО / IPTV (1080p)</a><td class='s'>1</td>
+<td class='s'>8.32 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.01.2026 в 23:07</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2106269" class="r1">Полисемья (Полиаморная семья) (1 сезон: 1-6 выпуски из 6) / Polyfamily / 2025 / ПО / IPTV (1080p)</a><td class='s'>0</td>
+<td class='s'>10.65 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.01.2026 в 11:53</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2089229" class="r1">Из Америки в Африку (1 сезон: 1-6 выпуски из 6) / Coming From America / 2024 / ПО / IPTV (1080p)</a><td class='s'>1</td>
+<td class='s'>11.47 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.01.2026 в 11:30</td>
+<td class='sl'><a href='/userdetails.php?id=764894' class=u5>brokoli</a><i class="i1 s6"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/50.gif" class="p90x32 pointer" onclick="cat(50);" alt=""></td><td class="nam"><a href="/details.php?id=2123265" class="r0">Орел и решка (30 сезон: 1-5 выпуски из 9) Земляне / 2024 / РУ / WEB-DLRip (1080p)</a><td class='s'>1</td>
+<td class='s'>5.68 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.01.2026 в 21:25</td>
+<td class='sl'><a href='/userdetails.php?id=18740055' class=u5>oasisoasis10</a><i class="i1 s4"></i></td></tr>
+</table></div>
+<div class="paginator"><ul><li class="current"><a href="?c=50&amp;page=0">1</a></li><li><a href="?c=50&amp;page=1">2</a></li><li><a href="?c=50&amp;page=2">3</a></li><li><a href="?c=50&amp;page=3">4</a></li><li><a href="?c=50&amp;page=4">5</a></li><li class="dots">...</li><li><a href="?c=50&amp;page=18">19</a></li><li><a rel="next" href="?c=50&amp;page=1">Вперед</a></li></ul></div>
+</div><div class="clr"></div>
+</div>
+<div id="footer">
+ <div class="l_bar"><div class="padi_l justify">Файлы для обмена предоставлены пользователями, <br>Администрация не несет ответственности за их содержание.<br>Просьба не заливать файлы, защищенные авторскими правами.<br> 
+[ <a class="sba" href="https://forum.kinozal.guru/showthread.php?t=63579">Общие правила</a> ] [ <a class="sba" href="https://forum.kinozal.guru/showthread.php?t=78697">Доступные фотохостинги</a> ] @2006 - 2026</div></div>
+<div class="r_bar"><div class="padi_r"></div></div>
+<div class="clear"></div>
+</div>
+</div>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"c4c4fa14d1524fbb925ebbc3dd92f315","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body></html>

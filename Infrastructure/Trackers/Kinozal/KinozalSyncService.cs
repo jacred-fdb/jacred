@@ -41,24 +41,6 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
-        static readonly List<string> Categories = new List<string>()
-        {
-            // Сериалы
-            "45", "46",
-
-            // Фильмы
-            "8", "6", "15", "17", "35", "39", "13", "14", "24", "11", "9", "47", "18", "37", "12", "10", "7", "16",
-
-            // ТВ-шоу
-            "49", "50",
-
-            // Мульты
-            "21", "22",
-
-            // Аниме
-            "20"
-        };
-
         static KinozalSyncService()
         {
             if (IO.File.Exists("Data/temp/kinozal_taskParse.json"))
@@ -269,7 +251,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     var sw = Stopwatch.StartNew();
                     string baseUrl = $"{AppInit.conf.Kinozal.host}/browse.php";
                     ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                    foreach (string cat in Categories)
+                    foreach (string cat in KinozalCategories.Ids)
                     {
                         string pageUrl = $"{baseUrl}?c={cat}&page={page}";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
@@ -292,7 +274,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             if (!await EnsureLoggedIn())
                 return string.IsNullOrWhiteSpace(_lastLoginError) ? "login failed" : $"login failed: {_lastLoginError}";
 
-            foreach (string cat in Categories)
+            foreach (string cat in KinozalCategories.Ids)
             {
                 for (int year = DateTime.Today.Year; year >= 1990; year--)
                 {

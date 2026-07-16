@@ -15,19 +15,23 @@
   <ItemGroup>
     <Compile Remove="Data\**" />
     <Compile Remove="Engine\**" />
+    <Compile Remove="tests\**" />
     <Compile Remove="VersionInfo.g.cs" />
     <Content Remove="Data\**" />
     <Content Remove="temp\**" />
     <Content Remove="router\**" />
     <Content Remove="dist\**" />
+    <Content Remove="tests\**" />
     <EmbeddedResource Remove="Data\**" />
     <EmbeddedResource Remove="temp\**" />
     <EmbeddedResource Remove="router\**" />
     <EmbeddedResource Remove="dist\**" />
+    <EmbeddedResource Remove="tests\**" />
     <None Remove="Data\**" />
     <None Remove="temp\**" />
     <None Remove="router\**" />
     <None Remove="dist\**" />
+    <None Remove="tests\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,6 +47,10 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JacRed.Tests" />
   </ItemGroup>
 
   <!--<PropertyGroup>

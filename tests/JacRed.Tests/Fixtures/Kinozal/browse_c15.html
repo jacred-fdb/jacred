@@ -1,0 +1,668 @@
+<!DOCTYPE HTML>
+<html lang="ru">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<title>Раздачи :: Кинозал.GURU</title>
+<meta name="description" content="Список и поиск раздач (торрентов), поиск по разделам кино, музыки, жанрам и персонам.">
+<meta name="Keywords" content="250 лучших фильмов, 100 лучших фильмов, лучшие комедии, лучшие фильмы ужасов, лучшие драмы, лучшие фильмы +всех времен, kinozal, скачать, торрент-трекер, торрент скачать бесплатно">
+<meta name="robots" content="index,follow">
+<link rel="shortcut icon" href="/pic/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="/pic/0_kinozal.guru.css?v=3.3" type="text/css">
+<script type="text/javascript" src="/pic/jquery-3.6.3.min.js?v=1"></script>
+<script type="text/javascript" src="/pic/use.js?v=3.7"></script>
+
+
+</head>
+<body>
+
+<div id="body_wrapper">
+<div id="header">
+	<table style="width:100%;padding:0;margin:0;border:0;"><tr>
+		<td style="width:40%;"><div class="logo_new"><a href="https://kinozal.guru" title="Кинозал.GURU"><img src="/pic/logo_kinozal_guru.png?v=2" alt="Кинозал.GURU"></a></div></td>
+		<td style="width:60%;" align=right><div class="rb_new" style="height:80px;overflow: hidden;">
+
+<div style="padding:0 5px 0 10px"><div id='eb750d49cf'></div></div>
+
+</div></td></tr></table>
+<div class="clr"></div>
+	<div class="menu">
+	<ul>
+		<li><a href="/" title="Главная">Главная</a></li>
+		<li><a href="https://forum.kinozal.guru" title="Форум">Форум</a></li>
+		<li><a href="/browse.php" title="Каталог раздач">Раздачи</a></li>
+		<li><a href="/top.php" title="Топ раздач">Топ раздач</a></li>
+		<li><a href="/personsearch.php" title="Персоны">Персоны</a></li>
+		<li><a href="/novinki.php" title="Новинки кино">Новинки кино</a></li>
+		<li><a href="/groupexlist.php" title="Каталог групп">Группы</a></li>
+		<li><a href="/radio.php" title="Радио">Радио</a></li>
+	</ul>
+	<form action="/browse.php" method="get" id="srchform">
+		<div><input type="text" class="inp" id="s" name="s" size="15" value=""><input class="s_submit" type="submit" title="Поиск раздач"></div>
+	</form>
+	<div class="clr"></div>
+	</div>
+	<span class="zan_l"></span>
+	<span class="zan_r"></span>
+</div>
+<div class="clr"></div>
+<div id="main">
+ <div class="menu">
+<div class="bx2_0">
+<ul class="men">
+ <li class="tp2 center b"><a href='/userdetails.php?id=21207299' class=u0>dsotracker</a> ( <a onclick="return mess_out('Вы действительно хотите выйти?')" href='/logout.php?hash4u=558edd2dcc05e6052bfab8178571f4ce'>Выход</a> )</li>
+ <li><span class='bulet'></span><a href='/userdetails.php?id=21207299'>Ваш профиль</a></li> 
+ <li><span class='bulet'></span><a href='/my.php'>Конфигурация</a></li> 
+ <li><span class='bulet'></span><a href='/inbox.php'>ЛС: ( нет новых )</a></li>
+ <li><span class='bulet'></span><a href='/friends.php'>Друзья и враги</a></li>
+ <li class="b"><span class='bulet'></span><a onclick="getRetio(); return false;" href="" class="sbab">Рейтинг</a>, время: 20:08</li>
+</ul>
+<div id="user_retio"></div>
+</div>
+
+<div class="bx2_0">
+	<a href="/pay.php" title="Раздел Меценатов"><img src="/pic/bnr_pay_sm.jpg" class="block" height="35px" width="184px" alt=""></a>
+</div>
+
+
+
+
+<div class="bx2_0">
+<ul class="men">
+ <li><span class='bulet'></span><a href='/pay.php'>Поднять рейтинг и голоса</a></li> 
+ <li><span class='bulet'></span><a href='/pay_wishes.php'>Пожелания проекту</a></li>
+ <li><span class='bulet'></span><a href='/helpdesk.php'>Помощь Администрации</a></li>
+ <li><span class='bulet'></span><a href='/users.php'>Список пользователей</a></li>
+</ul>
+</div>
+
+<div class="bx2_0">
+<ul class="men imgmn">
+ <li class="tp2 center">Меню раздач</li>
+ <li><span class='bulet'></span><a href='/browse.php'>Раздачи трекера</a></li> 
+ <li><span class='bulet'></span><a href='/top.php'>Топ раздач</a></li> 
+ <li><span class='bulet'></span><a href='/personsearch.php'>Персоны</a></li> 
+ <li><span class='bulet'></span><a href='/novinki.php'>Новинки кино</a></li>
+ <li><span class='bulet'></span><a href='/browsetest.php'>Тестовые раздачи</a></li>
+ <li><span class='bulet'></span><a href='/upload.php'>Залить раздачу</a></li>
+ <li><span class='bulet'></span><a href='/group.php'>Релиз-группы</a></li>
+</ul>
+</div>
+
+<div class="bx2_0">
+<ul class="men">
+ <li class="tp2 center">Прочтите  рекомендации</li>
+ <li><span class='bulet'></span><a href='/doku.php'>Общие правила</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=1'>Правила пользователей</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=2'>Правила Кинооператоров</a></li> 
+ <li><span class='bulet'></span><a href='/doku.php?type=3'>Как скачать фильм</a></li>
+  <li><span class='bulet'></span><a href='/copyright.php'>Для правообладателей</a></li>
+</ul>
+</div>
+ </div>
+ <div class="content">
+<form method="get" action="/browse.php">
+<div class="bx1_0" style="padding: 3px 38px 3px 5px;">
+<table class="tables1">
+<tr><td colspan=3>Поиск раздач ( <a href='//forum.kinozal.guru/showthread.php?t=63820' class=sba>Как пользоваться поиском?</a> )<td>Где именно<td>
+<tr>
+<td colspan=3><input type="text" name="s" value=""  class="w98p">
+<td><span class=sw100><select name="g" class="w100 styled">
+<option value=0  selected>В названии</option>
+<option value=1 >Персона</option>
+<option value=2 >Жанры</option>
+<option value=3 >Формула</option>
+</select></span>
+
+
+<td class=center><input type="submit" value="Поиск раздач" class="buttonS w98p"></tr>
+<tr>
+ <td>Выбор раздела<td>Выбор формата<td>Год выхода<td>Фильтр поиска<td>Сортировка результата
+<tr>
+<td>
+<span class=sw190><select name="c" class="w190 styled">
+<option  value="0">Поиск по разделам</option>
+<option  value=1001 class="green">Все сериалы</option>
+<option  value=1002 class="green">Все фильмы</option>
+<option  value=1003 class="green">Все мульты</option>
+<option  value=1006 class="green">Шоу, концерты, спорт</option>
+<option  value=1004 class="green">Вся музыка</option>
+<option  value=45>Сериал - Русский</option>
+<option  value=46>Сериал - Буржуйский</option>
+<option  value=8>Кино - Комедия</option>
+<option  value=6>Кино - Боевик / Военный</option>
+<option  selected=selected  value=15>Кино - Триллер / Детектив</option>
+<option  value=17>Кино - Драма</option>
+<option  value=35>Кино - Мелодрама</option>
+<option  value=39>Кино - Индийское</option>
+<option  value=13>Кино - Фантастика</option>
+<option  value=14>Кино - Фэнтези</option>
+<option  value=24>Кино - Ужас / Мистика</option>
+<option  value=11>Кино - Приключения</option>
+<option  value=10>Кино - Наше Кино</option>
+<option  value=9>Кино - Исторический</option>
+<option  value=47>Кино - Азиатский</option>
+<option  value=18>Кино - Документальный</option>
+<option  value=37>Кино - Спорт</option>
+<option  value=12>Кино - Детский / Семейный</option>
+<option  value=7>Кино - Классика</option>
+<option  value=48>Кино - Концерт</option>
+<option  value=49>Кино - Передачи / ТВ-шоу</option>
+<option  value=50>Кино - ТВ-шоу Мир</option>
+<option  value=38>Кино - Театр, Опера, Балет</option>
+<option  value=16>Кино - Эротика</option>
+<option  value=21>Мульт - Буржуйский</option>
+<option  value=22>Мульт - Русский</option>
+<option  value=20>Мульт - Аниме</option>
+<option  value=3>Музыка - Буржуйская</option>
+<option  value=4>Музыка - Русская</option>
+<option  value=5>Музыка - Сборники</option>
+<option  value=42>Музыка - Классическая</option>
+<option  value=2>Другое - АудиоКниги</option>
+<option  value=1>Другое - Видеоклипы</option>
+<option  value=23>Другое - Игры</option>
+<option  value=32>Другое - Программы</option>
+<option  value=40>Другое - Дизайн / Графика</option>
+<option  value=41>Другое - Библиотека</option>
+
+</select></span>
+<td><span class=sw190><select name="v" class="w190 styled">
+<option value=0  selected>Все форматы</option>
+<option value=101 disabled>Форматы видео</option>
+<option value=3 >|- Рипы HD(1080|720)</option>
+<option value=3001 >|-- 1080</option>
+<option value=3002 >|-- 720</option>
+<option value=1 >|- Рипы DVD и BD(HD)</option>
+<option value=4 >|- HD Blu-Ray и Remux</option>
+<option value=2 >|- DVD-5 и DVD-9</option>
+<option value=5 >|- Рипы TV</option>
+<option value=6 >|- 3D</option>
+<option value=7 >|- 4K</option>
+<option value=201 disabled>Форматы аудио</option>
+<option value=51 >|- Lossless</option>
+<option value=52 >|- MP3 и AAC</option>
+<option value=301 disabled>Форматы игр и программ</option>
+<option value=61 >|- Компьютер</option>
+<option value=62 >|- Приставка</option>
+<option value=63 >|- Мобильные устройства</option>
+<option value=64 >|- Навигация</option>
+</select></span>
+<td><span class=sw90>
+<select name="d" class="w90 styled">
+<option value=0>все года</option>
+<option value=2026>2026</option>
+<option value=2025>2025</option>
+<option value=2024>2024</option>
+<option value=2023>2023</option>
+<option value=2022>2022</option>
+<option value=2021>2021</option>
+<option value=2020>2020</option>
+<option value=2019>2019</option>
+<option value=2018>2018</option>
+<option value=2017>2017</option>
+<option value=2016>2016</option>
+<option value=2015>2015</option>
+<option value=2014>2014</option>
+<option value=2013>2013</option>
+<option value=2012>2012</option>
+<option value=2011>2011</option>
+<option value=2010>2010</option>
+<option value=2009>2009</option>
+<option value=2008>2008</option>
+<option value=2007>2007</option>
+<option value=2006>2006</option>
+<option value=2005>2005</option>
+<option value=2004>2004</option>
+<option value=2003>2003</option>
+<option value=2002>2002</option>
+<option value=2001>2001</option>
+<option value=2000>2000</option>
+<option value=1999>1999</option>
+<option value=1998>1998</option>
+<option value=1997>1997</option>
+<option value=1996>1996</option>
+<option value=1995>1995</option>
+<option value=1994>1994</option>
+<option value=1993>1993</option>
+<option value=1992>1992</option>
+<option value=1991>1991</option>
+<option value=1990>1990</option>
+<option value=1989>1989</option>
+<option value=1988>1988</option>
+<option value=1987>1987</option>
+<option value=1986>1986</option>
+<option value=1985>1985</option>
+<option value=1984>1984</option>
+<option value=1983>1983</option>
+<option value=1982>1982</option>
+<option value=1981>1981</option>
+<option value=1980>1980</option>
+<option value=1979>1979</option>
+<option value=1978>1978</option>
+<option value=1977>1977</option>
+<option value=1976>1976</option>
+<option value=1975>1975</option>
+<option value=1974>1974</option>
+<option value=1973>1973</option>
+<option value=1972>1972</option>
+<option value=1971>1971</option>
+<option value=1970>1970</option>
+<option value=1969>1969</option>
+<option value=1968>1968</option>
+<option value=1967>1967</option>
+<option value=1966>1966</option>
+<option value=1965>1965</option>
+<option value=1964>1964</option>
+<option value=1963>1963</option>
+<option value=1962>1962</option>
+<option value=1961>1961</option>
+<option value=1960>1960</option>
+<option value=1959>1959</option>
+<option value=1958>1958</option>
+<option value=1957>1957</option>
+<option value=1956>1956</option>
+<option value=1955>1955</option>
+<option value=1954>1954</option>
+<option value=1953>1953</option>
+<option value=1952>1952</option>
+<option value=1951>1951</option>
+<option value=1950>1950</option>
+<option value=1949>1949</option>
+<option value=1948>1948</option>
+<option value=1947>1947</option>
+<option value=1946>1946</option>
+<option value=1945>1945</option>
+<option value=1944>1944</option>
+<option value=1943>1943</option>
+<option value=1942>1942</option>
+<option value=1941>1941</option>
+<option value=1940>1940</option>
+<option value=1939>1939</option>
+<option value=1938>1938</option>
+<option value=1937>1937</option>
+<option value=1936>1936</option>
+<option value=1935>1935</option>
+<option value=1934>1934</option>
+<option value=1933>1933</option>
+<option value=1932>1932</option>
+<option value=1931>1931</option>
+<option value=1930>1930</option>
+<option value=1929>1929</option>
+<option value=1928>1928</option>
+<option value=1927>1927</option>
+<option value=1926>1926</option>
+<option value=1925>1925</option>
+<option value=1924>1924</option>
+<option value=1923>1923</option>
+<option value=1922>1922</option>
+<option value=1921>1921</option>
+<option value=1920>1920</option>
+<option value=1919>1919</option>
+<option value=1918>1918</option>
+<option value=1917>1917</option>
+<option value=1916>1916</option>
+<option value=1915>1915</option>
+<option value=1914>1914</option>
+<option value=1913>1913</option>
+<option value=1912>1912</option>
+<option value=1911>1911</option>
+<option value=1910>1910</option>
+<option value=1909>1909</option>
+<option value=1908>1908</option>
+<option value=1907>1907</option>
+<option value=1906>1906</option>
+<option value=1905>1905</option>
+<option value=1904>1904</option>
+<option value=1903>1903</option>
+<option value=1902>1902</option>
+<option value=1901>1901</option>
+<option value=1900>1900</option>
+</select></span>
+<td><span class=sw100>
+<select name="w" class="w100 styled">
+<option value=0  selected>не выбран</option>
+<option value=1 >сегодня</option>
+<option value=2 >вчера</option>
+<option value=3 >за 3 дня</option>
+<option value=4 >за неделю</option>
+<option value=5 >за месяц</option>
+<option value=6 >менее 1.3ГБ</option>
+<option value=7 >1.3ГБ - 2.2ГБ</option>
+<option value=8 >2.2ГБ - 4.0ГБ</option>
+<option value=9 >4.0ГБ - 9.5ГБ</option>
+<option value=10 >9.5ГБ и выше</option>
+<option value=11 >золото</option>
+<option value=12 >серебро</option>
+</select></span>
+
+<td class=nw>
+<span class=sw70><select name="t" class="styled">
+<option value=0  selected>Залит</option>
+<option value=1 >Сидам</option>
+<option value=2 >Пирам</option>
+<option value=3 >Размер</option>
+<option value=4 >Коммент.</option>
+<option value=5 >Скачали</option>
+<option value=6 >Посл.комм.</option>
+</select></span>
+<span class=sw70><select name="f" class="styled">
+<option value=0  selected>Убыв.</option>
+<option value=1 >Возр.</option>
+</select></span>
+<tr><td colspan=5><span class='bulet'></span>Найдено 23793  раздачи, в списке отображается только 5000. Пожалуйста, уточните параметры поиска.</td></tr></table></div>
+</form>
+<div class='pad0x0x5x0 center'><a href='/pay.php' title='Благодарим за поддержку!'><img src='/pic/banners/pay_bn2.png' style='display: inline-block;' alt=''></a></div>
+<div class="bx2_0"><table class="t_peer w100p"><tr class="mn"><td class="z w90"></td><td class="w90p"></td><td class="z">Комм.</td><td class="z">Размер</td><td class="z">Сидов</td><td class="z">Пиров</td><td class="z">Залит</td><td class='zl'>Раздает</td></tr>
+<tr class='first bg'><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147437" class="r0">Прощай, дорогуша / Goodbye Honey / 2020 / ПМ, СТ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>2.94 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>1</td>
+<td class='s'>16.07.2024 в 15:35</td>
+<td class='sl'><a href='/userdetails.php?id=18888757' class=u5>Neadekvat62</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147435" class="r0">Погребенные / Entombed / 2020 / ПМ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>2.58 ГБ</td>
+<td class='sl_s'>10</td>
+<td class='sl_p'>2</td>
+<td class='s'>16.07.2024 в 15:34</td>
+<td class='sl'><a href='/userdetails.php?id=18888757' class=u5>Neadekvat62</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1093022" class="r0">Третий дубль (2 серии из 2) / 1992 / РУ / SATRip</a><td class='s'>0</td>
+<td class='s'>1.36 ГБ</td>
+<td class='sl_s'>9</td>
+<td class='sl_p'>0</td>
+<td class='s'>16.07.2024 в 13:09</td>
+<td class='sl'><a href='/userdetails.php?id=2860697' class=u5>ZidaneValKor</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147413" class="r0">В шаге от боя / Marave / 2026 / ЛМ / WEBRip (720p)</a><td class='s'>0</td>
+<td class='s'>1.42 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>1</td>
+<td class='s'>16.07.2024 в 10:42</td>
+<td class='sl'><a href='/userdetails.php?id=77946' class=u5>vladislav75</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147353" class="r0">90 футов от дома / 90 Feet from Home / 2019 / ПМ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>3.69 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>1</td>
+<td class='s'>15.07.2024 в 20:43</td>
+<td class='sl'><a href='/userdetails.php?id=18888757' class=u5>Neadekvat62</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147325" class="r0">Скрытая истина / Below the Fold / 2021 / ПМ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>2.7 ГБ</td>
+<td class='sl_s'>12</td>
+<td class='sl_p'>1</td>
+<td class='s'>15.07.2024 в 15:13</td>
+<td class='sl'><a href='/userdetails.php?id=18888757' class=u5>Neadekvat62</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147321" class="r1">Отвращение / Repulsion / 1965 / 2 x ПМ, ПД, СТ / BDRip (720p)</a><td class='s'>0</td>
+<td class='s'>9.35 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.07.2024 в 14:50</td>
+<td class='sl'><a href='/userdetails.php?id=3577617' class=u5>msltel</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147314" class="r2">Отвращение / Repulsion / 1965 / 2 x ПМ, ПД, СТ / BDRip (AVC)</a><td class='s'>0</td>
+<td class='s'>3.6 ГБ</td>
+<td class='sl_s'>0</td>
+<td class='sl_p'>1</td>
+<td class='s'>15.07.2024 в 13:54</td>
+<td class='sl'><a href='/userdetails.php?id=3577617' class=u5>msltel</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=805295" class="r2">Приходящая няня / La baby sitter / 1975 / ПО / DVDRip</a><td class='s'>4</td>
+<td class='s'>906 МБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>15.07.2024 в 13:42</td>
+<td class='sl'><a href='/userdetails.php?id=2364039' class=u4>Zohan</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1483467" class="r0">Четвертая власть / Le 4&#232;me pouvoir (Le Quatri&#232;me Pouvoir) / 1985 / ДБ / VHSRip</a><td class='s'>5</td>
+<td class='s'>1.37 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.07.2026 в 14:21</td>
+<td class='sl'><a href='/userdetails.php?id=530948' class=u5>Lem</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2061199" class="r0">Идеальное убийство / 2013 / РУ, СТ / IPTV</a><td class='s'>0</td>
+<td class='s'>1.09 ГБ</td>
+<td class='sl_s'>8</td>
+<td class='sl_p'>0</td>
+<td class='s'>14.07.2026 в 10:46</td>
+<td class='sl'><a href='/userdetails.php?id=2799539' class=u5>Nataleksa</a><i class="i1 s_dv"></i><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1875557" class="r0">Допрос Майкла Кроу / The Interrogation of Michael Crowe / 2002 / АП (Кузнецов) / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>6.43 ГБ</td>
+<td class='sl_s'>10</td>
+<td class='sl_p'>1</td>
+<td class='s'>13.07.2026 в 23:22</td>
+<td class='sl'><a href='/userdetails.php?id=20344024' class=u1>say10</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147170" class="r0">Скелеты в шкафу / Skeletons In The Closet / 2001 / ПМ, ПД / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>6.47 ГБ</td>
+<td class='sl_s'>8</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 22:39</td>
+<td class='sl'><a href='/userdetails.php?id=20716110' class=u5>kudabor</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1907384" class="r1">Профессия: репортер (Пассажир) / Professione: reporter (The Passenger) / 1975 / ПМ, АП (Карцев), СТ / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>32.53 ГБ</td>
+<td class='sl_s'>10</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 19:19</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2134309" class="r1">Ограбление в Лос-Анджелесе / Crime 101 / 2026 / ДБ, СТ / WEB-DL (1080p)</a><td class='s'>43</td>
+<td class='s'>10.81 ГБ</td>
+<td class='sl_s'>324</td>
+<td class='sl_p'>1</td>
+<td class='s'>13.07.2026 в 18:48</td>
+<td class='sl'><a href='/userdetails.php?id=7182894' class=u5>Wilmots</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=484237" class="r2">Преступник оставляет след / Morderca Zostawia Slad / 1967 / ДБ / DVDRip</a><td class='s'>9</td>
+<td class='s'>1.17 ГБ</td>
+<td class='sl_s'>42</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 13:00</td>
+<td class='sl'><a href='/userdetails.php?id=530948' class=u5>Lem</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147102" class="r0">В шаге от боя / Marave / 2026 / ЛМ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>6.58 ГБ</td>
+<td class='sl_s'>14</td>
+<td class='sl_p'>0</td>
+<td class='s'>13.07.2026 в 08:40</td>
+<td class='sl'><a href='/userdetails.php?id=77946' class=u5>vladislav75</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147099" class="r0">Внешняя угроза / The Outer Threat / 2026 / ПМ / WEB-DLRip</a><td class='s'>2</td>
+<td class='s'>1.46 ГБ</td>
+<td class='sl_s'>51</td>
+<td class='sl_p'>1</td>
+<td class='s'>13.07.2026 в 06:51</td>
+<td class='sl'><a href='/userdetails.php?id=77946' class=u5>vladislav75</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147087" class="r1">Джонни Д. / Public Enemies / 2009 / ДБ, СТ / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>29.18 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>1</td>
+<td class='s'>12.07.2026 в 23:52</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s1"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1834361" class="r1">Донни Браско (Расширенная версия) / Donnie Brasco (Extended Cut) / 1997 / 4 x ПМ, 2 x ПД, ПО, 4 x АП, СТ / Blu-Ray Remux (1080p)</a><td class='s'>0</td>
+<td class='s'>48.9 ГБ</td>
+<td class='sl_s'>9</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 22:50</td>
+<td class='sl'><a href='/userdetails.php?id=7472661' class=u5>encoderrr</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147079" class="r1">Смертельное падение / Deadfall / 1993 / ПД, АП (Гаврилов, Горчаков, Ужастик, Дольский), СТ / Blu-Ray Remux (1080p)</a><td class='s'>0</td>
+<td class='s'>14.79 ГБ</td>
+<td class='sl_s'>11</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 21:37</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s1"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1804959" class="r1">Обещание / The Pledge / 2001 / ДБ, ПМ, АП (Визгунов, Дольский), СТ / Blu-Ray Remux (1080p)</a><td class='s'>6</td>
+<td class='s'>22.75 ГБ</td>
+<td class='sl_s'>15</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 21:00</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147052" class="r0">Внешняя угроза / The Outer Threat / 2026 / ПМ, СТ / WEB-DLRip (AVC)</a><td class='s'>0</td>
+<td class='s'>1.42 ГБ</td>
+<td class='sl_s'>41</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 17:46</td>
+<td class='sl'><a href='/userdetails.php?id=20614512' class=u5>trevor333</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2147032" class="r0">Внешняя угроза / The Outer Threat / 2026 / ПМ / WEB-DL (720p)</a><td class='s'>3</td>
+<td class='s'>3.34 ГБ</td>
+<td class='sl_s'>16</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 15:28</td>
+<td class='sl'><a href='/userdetails.php?id=20967301' class=u5>il68k</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2105816" class="r1">Американский жиголо / American Gigolo / 1980 / 2 x ПМ, ПД, АП (Гаврилов, Живов, Володарский), СТ / Blu-Ray Remux (1080p)</a><td class='s'>0</td>
+<td class='s'>36.82 ГБ</td>
+<td class='sl_s'>3</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 12:46</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1762916" class="r1">Жестокий сезон (Скверный сезон) / The Mean Season / 1985 / 2 x ПМ, АП (Сербин, Алексеев) / Blu-Ray Remux (1080p)</a><td class='s'>3</td>
+<td class='s'>27.82 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>1</td>
+<td class='s'>12.07.2026 в 10:58</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2124537" class="r1">Чем заняться мертвецу в Денвере / Things to Do in Denver When You&#039;re Dead / 1995 / 3 x ПМ, ПД, 3 x АП, СТ / Blu-Ray Remux (1080p)</a><td class='s'>5</td>
+<td class='s'>34.28 ГБ</td>
+<td class='sl_s'>1</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 08:27</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146980" class="r1">Поездка / I onde dager (The Trip) / 2021 / ПД, ЛД, ЛО, СТ / 4K, HEVC, SDR / WEB-DL (2160p)</a><td class='s'>0</td>
+<td class='s'>11.38 ГБ</td>
+<td class='sl_s'>16</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 07:58</td>
+<td class='sl'><a href='/userdetails.php?id=4557453' class=u5>Renesаns</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146942" class="r0">Серое дыхание дракона / Des Drachens grauer Atem / 1979 / ЛО / DVDRip</a><td class='s'>1</td>
+<td class='s'>1.46 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>0</td>
+<td class='s'>12.07.2026 в 01:11</td>
+<td class='sl'><a href='/userdetails.php?id=3077801' class=u5>089233</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146929" class="r0">Внешняя угроза / The Outer Threat / 2026 / ПМ / WEB-DL (1080p)</a><td class='s'>13</td>
+<td class='s'>6.44 ГБ</td>
+<td class='sl_s'>75</td>
+<td class='sl_p'>1</td>
+<td class='s'>11.07.2026 в 22:11</td>
+<td class='sl'><a href='/userdetails.php?id=77946' class=u5>vladislav75</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146346" class="r1">Шарада / Charade / 1963 / 2 x ПМ, АП (Алексеев), СТ / 4K, HEVC, SDR / Blu-Ray Remux (2160p)</a><td class='s'>5</td>
+<td class='s'>76.17 ГБ</td>
+<td class='sl_s'>12</td>
+<td class='sl_p'>1</td>
+<td class='s'>11.07.2026 в 15:37</td>
+<td class='sl'><a href='/userdetails.php?id=21236036' class=u4>suhov4</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146865" class="r1">Неправый прав (Несправедливость - это правда) / Wrong is Right / 1982 / ПД, АП (Иванов, Кашкин) / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>28.72 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 14:09</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146814" class="r1">Выкуп (Расширенная версия) / Ransom (Unrated) / 1974 / ПД, АП (Дольский) / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>15.18 ГБ</td>
+<td class='sl_s'>3</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 09:18</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146794" class="r1">Ветреная река / Wind River / 2017 / ДБ, АП (Гаврилов, Немахов), СТ / 4K, HEVC, SDR / BDRip (2160p)</a><td class='s'>2</td>
+<td class='s'>14.98 ГБ</td>
+<td class='sl_s'>8</td>
+<td class='sl_p'>0</td>
+<td class='s'>11.07.2026 в 00:52</td>
+<td class='sl'><a href='/userdetails.php?id=306435' class=u5>shurikello</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146744" class="r1">Январский человек (Январский убийца) / The January Man / 1989 / ПМ, 2 x ПД, АП (Гаврилов, Дольский, Прямостанов), ЛО / BDRip (720p)</a><td class='s'>0</td>
+<td class='s'>7.66 ГБ</td>
+<td class='sl_s'>4</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 14:55</td>
+<td class='sl'><a href='/userdetails.php?id=3577617' class=u5>msltel</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146737" class="r0">Январский человек (Январский убийца) / The January Man / 1989 / ПМ, 2 x ПД, АП (Гаврилов) / BDRip (AVC)</a><td class='s'>0</td>
+<td class='s'>3.36 ГБ</td>
+<td class='sl_s'>2</td>
+<td class='sl_p'>0</td>
+<td class='s'>10.07.2026 в 14:03</td>
+<td class='sl'><a href='/userdetails.php?id=3577617' class=u5>msltel</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146646" class="r0">Рейс 298 / Black Box: Flight 298 / 2026 / ДБ, СТ / WEB-DLRip (AVC)</a><td class='s'>0</td>
+<td class='s'>1.13 ГБ</td>
+<td class='sl_s'>13</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 21:13</td>
+<td class='sl'><a href='/userdetails.php?id=20614512' class=u5>trevor333</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146635" class="r0">Рейс 298 / Black Box: Flight 298 / 2026 / ДБ / HEVC / WEB-DLRip (1080p)</a><td class='s'>2</td>
+<td class='s'>1.46 ГБ</td>
+<td class='sl_s'>24</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 19:46</td>
+<td class='sl'><a href='/userdetails.php?id=77946' class=u5>vladislav75</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146622" class="r0">Рейс 298 / Black Box: Flight 298 / 2026 / ДБ / WEB-DL (720p)</a><td class='s'>0</td>
+<td class='s'>2.04 ГБ</td>
+<td class='sl_s'>17</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 18:57</td>
+<td class='sl'><a href='/userdetails.php?id=20967301' class=u5>il68k</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146602" class="r0">Фазенда / Propriedade (Property) / 2022 / ПМ, СТ / WEB-DL (1080p)</a><td class='s'>0</td>
+<td class='s'>3.04 ГБ</td>
+<td class='sl_s'>11</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 16:39</td>
+<td class='sl'><a href='/userdetails.php?id=1472434' class=u5>skif2712</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146601" class="r0">Рейс 298 / Black Box: Flight 298 / 2026 / ДБ / WEB-DLRip</a><td class='s'>11</td>
+<td class='s'>1.37 ГБ</td>
+<td class='sl_s'>153</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 16:33</td>
+<td class='sl'><a href='/userdetails.php?id=20274996' class=u5>TiTANiUMxXx</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146596" class="r0">Рейс 298 / Black Box: Flight 298 / 2026 / ДБ / WEB-DL (1080p)</a><td class='s'>20</td>
+<td class='s'>4.75 ГБ</td>
+<td class='sl_s'>227</td>
+<td class='sl_p'>1</td>
+<td class='s'>09.07.2026 в 15:43</td>
+<td class='sl'><a href='/userdetails.php?id=20274996' class=u5>TiTANiUMxXx</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146570" class="r0">Под маской доверия / My Husband&#039;s Worst Mistake / 2023 / ДБ / WEBRip</a><td class='s'>0</td>
+<td class='s'>1.37 ГБ</td>
+<td class='sl_s'>9</td>
+<td class='sl_p'>0</td>
+<td class='s'>09.07.2026 в 10:36</td>
+<td class='sl'><a href='/userdetails.php?id=20465729' class=u5>BezReklamy</a><i class="i1 s17"></i><i class="i1 cb3"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1319848" class="r2">Порождение ада / Hellbound / 1994 / ПМ, АП (Гаврилов, Горчаков, Иванов, Дольский, Алексеев), ЛО / DVD-9</a><td class='s'>6</td>
+<td class='s'>4.65 ГБ</td>
+<td class='sl_s'>10</td>
+<td class='sl_p'>0</td>
+<td class='s'>08.07.2026 в 21:58</td>
+<td class='sl'><a href='/userdetails.php?id=5411833' class=u5>Augnychku</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=1509377" class="r1">Собака Баскервилей / The Hound of the Baskervilles / 1983 / ДБ, АП (Алексеев) / Blu-Ray Remux (1080p)</a><td class='s'>7</td>
+<td class='s'>22.74 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>0</td>
+<td class='s'>08.07.2026 в 21:10</td>
+<td class='sl'><a href='/userdetails.php?id=19897003' class=u5>Openpli</a></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2023750" class="r1">Крипто / Crypto / 2019 / ДБ, ПМ / Blu-Ray Remux (1080p)</a><td class='s'>0</td>
+<td class='s'>28.38 ГБ</td>
+<td class='sl_s'>5</td>
+<td class='sl_p'>0</td>
+<td class='s'>08.07.2026 в 21:03</td>
+<td class='sl'><a href='/userdetails.php?id=21026554' class=u5>LANCERX29R</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=379528" class="r1">Кровавый алмаз / Blood Diamond / 2006 / ДБ, ПД, АП  (Гаврилов, Рябов, Архипов), СТ / Blu-Ray Remux (1080p)</a><td class='s'>20</td>
+<td class='s'>28.53 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>0</td>
+<td class='s'>08.07.2026 в 20:50</td>
+<td class='sl'><a href='/userdetails.php?id=6258916' class=u7>igorella87</a><i class="i1 s17"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146475" class="r1">Американский жиголо / American Gigolo / 1980 / 2 x ПМ, ПД, АП (Гаврилов, Живов, Володарский, Матвеев), СТ / BDRip (720p)</a><td class='s'>0</td>
+<td class='s'>16.44 ГБ</td>
+<td class='sl_s'>6</td>
+<td class='sl_p'>0</td>
+<td class='s'>08.07.2026 в 12:58</td>
+<td class='sl'><a href='/userdetails.php?id=3577617' class=u5>msltel</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146442" class="r0">Американский жиголо / American Gigolo / 1980 / 2 x ПМ, ПД, АП (Гаврилов), СТ / BDRip (AVC)</a><td class='s'>0</td>
+<td class='s'>3.91 ГБ</td>
+<td class='sl_s'>9</td>
+<td class='sl_p'>0</td>
+<td class='s'>08.07.2026 в 08:31</td>
+<td class='sl'><a href='/userdetails.php?id=3577617' class=u5>msltel</a><i class="i1 s9-10"></i></td></tr>
+<tr class=bg><td class="bt"><img src="/pic/cat/15.gif" class="p90x32 pointer" onclick="cat(15);" alt=""></td><td class="nam"><a href="/details.php?id=2146416" class="r1">Январский человек / The January Man / 1989 / ПМ, 2 x ПД, АП (Дольский, Гаврилов, Прямостанов), ЛО / Blu-Ray Remux (1080p)</a><td class='s'>1</td>
+<td class='s'>19.53 ГБ</td>
+<td class='sl_s'>7</td>
+<td class='sl_p'>0</td>
+<td class='s'>07.07.2026 в 23:16</td>
+<td class='sl'><a href='/userdetails.php?id=3094327' class=u5>barakuda80</a><i class="i1 s4"></i></td></tr>
+</table></div>
+<div class="paginator"><ul><li class="current"><a href="?c=15&amp;page=0">1</a></li><li><a href="?c=15&amp;page=1">2</a></li><li><a href="?c=15&amp;page=2">3</a></li><li><a href="?c=15&amp;page=3">4</a></li><li><a href="?c=15&amp;page=4">5</a></li><li class="dots">...</li><li><a href="?c=15&amp;page=99">100</a></li><li><a rel="next" href="?c=15&amp;page=1">Вперед</a></li></ul></div>
+</div><div class="clr"></div>
+</div>
+<div id="footer">
+ <div class="l_bar"><div class="padi_l justify">Файлы для обмена предоставлены пользователями, <br>Администрация не несет ответственности за их содержание.<br>Просьба не заливать файлы, защищенные авторскими правами.<br> 
+[ <a class="sba" href="https://forum.kinozal.guru/showthread.php?t=63579">Общие правила</a> ] [ <a class="sba" href="https://forum.kinozal.guru/showthread.php?t=78697">Доступные фотохостинги</a> ] @2006 - 2026</div></div>
+<div class="r_bar"><div class="padi_r"></div></div>
+<div class="clear"></div>
+</div>
+</div>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"c4c4fa14d1524fbb925ebbc3dd92f315","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body></html>
