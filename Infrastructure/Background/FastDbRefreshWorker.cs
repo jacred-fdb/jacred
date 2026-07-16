@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Application.Index;
+using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,9 @@ namespace JacRed.Infrastructure.Background
     {
         readonly IFastDbIndex _fastDbIndex;
         readonly ILogger<FastDbRefreshWorker> _logger;
+        long _lastFileTimeSum;
+        int _lastMasterCount = -1;
+        int _lastKeyXor;
 
         public FastDbRefreshWorker(IFastDbIndex fastDbIndex, ILogger<FastDbRefreshWorker> logger)
         {
@@ -27,7 +31,11 @@ namespace JacRed.Infrastructure.Background
             catch (IOException ex) { _logger.LogWarning(ex, "tracks startup"); }
             catch (UnauthorizedAccessException ex) { _logger.LogWarning(ex, "tracks startup"); }
 
-            try { _fastDbIndex.Rebuild(); }
+            try
+            {
+                _fastDbIndex.Rebuild();
+                CaptureMasterFingerprint();
+            }
             catch (Exception ex) { _logger.LogError(ex, "fastdb startup rebuild"); }
 
             while (!stoppingToken.IsCancellationRequested)
@@ -41,8 +49,42 @@ namespace JacRed.Infrastructure.Background
                     break;
                 }
 
-                try { _fastDbIndex.Rebuild(); }
+                try
+                {
+                    if (!MasterDbChanged())
+                    {
+                        _logger.LogDebug("fastdb skip rebuild (masterDb unchanged)");
+                        continue;
+                    }
+
+                    _fastDbIndex.Rebuild();
+                    CaptureMasterFingerprint();
+                }
                 catch (Exception ex) { _logger.LogError(ex, "fastdb periodic rebuild"); }
+            }
+        }
+
+        void CaptureMasterFingerprint()
+        {
+            ComputeFingerprint(out _lastMasterCount, out _lastFileTimeSum, out _lastKeyXor);
+        }
+
+        bool MasterDbChanged()
+        {
+            ComputeFingerprint(out int count, out long sum, out int keyXor);
+            return count != _lastMasterCount || sum != _lastFileTimeSum || keyXor != _lastKeyXor;
+        }
+
+        static void ComputeFingerprint(out int count, out long fileTimeSum, out int keyXor)
+        {
+            var arr = FileDB.masterDb.ToArray();
+            count = arr.Length;
+            fileTimeSum = 0;
+            keyXor = 0;
+            foreach (var item in arr)
+            {
+                fileTimeSum += item.Value.fileTime;
+                keyXor ^= StringComparer.Ordinal.GetHashCode(item.Key);
             }
         }
     }

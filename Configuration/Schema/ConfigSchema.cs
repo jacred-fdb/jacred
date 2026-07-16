@@ -59,7 +59,7 @@ namespace JacRed.Configuration.Schema
                     }),
                     Group("logging", "Логирование", "Файлы в Data/log/ и уровни консоли (journalctl)", new[]
                     {
-                        Field("logFdb", "bool", "Лог FileDB", "Data/log/fdb.*.log, default: true"),
+                        Field("logFdb", "bool", "Лог FileDB", "Data/log/fdb.*.log, default: false (prod)"),
                         Field("logFdbRetentionDays", "int", "Хранение fdb логов (дней)", "0 — все", min: 0),
                         Field("logFdbMaxSizeMb", "int", "Max размер fdb логов (MB)", "0 — без лимита", min: 0),
                         Field("logFdbMaxFiles", "int", "Max файлов fdb логов", "0 — без лимита", min: 0),
@@ -90,7 +90,7 @@ namespace JacRed.Configuration.Schema
                     Group("evercache", "Evercache", null, new[]
                     {
                         Field("evercache.enable", "bool", "Включить", null),
-                        Field("evercache.validHour", "int", "Valid hour", "0 — бессрочно", min: 0),
+                        Field("evercache.validHour", "int", "Valid hour", "0 — без time-eviction (лимит maxOpenWriteTask всё равно действует)", min: 0),
                         Field("evercache.maxOpenWriteTask", "int", "Max open write", null, min: 1),
                         Field("evercache.dropCacheTake", "int", "Drop cache take", null, min: 1)
                     }),

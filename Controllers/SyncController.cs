@@ -81,7 +81,7 @@ namespace JacRed.Controllers
 
                 foreach (var t in FileDB.OpenRead(item.Key, cache: false))
                 {
-                    if (AppInit.conf.disable_trackers != null && AppInit.conf.disable_trackers.Contains(t.Value.trackerName))
+                    if (AppInit.conf.IsTrackerDisabled(t.Value.trackerName))
                         continue;
 
                     if (spidr || (start != -1 && start > t.Value.updateTime.ToFileTimeUtc()))

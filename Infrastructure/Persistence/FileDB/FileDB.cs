@@ -17,7 +17,12 @@ namespace JacRed.Infrastructure.Persistence
 
         public bool savechanges = false;
 
-        readonly object _dbLock = new object();
+        readonly System.Threading.ReaderWriterLockSlim _dbLock = new System.Threading.ReaderWriterLockSlim();
+        Dictionary<string, TorrentDetails> _readSnapshot;
+        bool _snapshotDirty = true;
+
+        /// <summary>trackerName|torrentId → url for O(1) upsert by id.</summary>
+        readonly Dictionary<string, string> _torrentIdIndex = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         FileDB(string key)
         {
@@ -26,22 +31,98 @@ namespace JacRed.Infrastructure.Persistence
 
             if (File.Exists(fdbpath))
                 Database = JsonStream.Read<Dictionary<string, TorrentDetails>>(fdbpath) ?? new Dictionary<string, TorrentDetails>();
+
+            RebuildTorrentIdIndex();
         }
 
         public Dictionary<string, TorrentDetails> Database = new Dictionary<string, TorrentDetails>();
 
-        internal Dictionary<string, TorrentDetails> GetSnapshot()
+        void RebuildTorrentIdIndex()
         {
-            lock (_dbLock)
-                return new Dictionary<string, TorrentDetails>(Database);
+            _torrentIdIndex.Clear();
+            foreach (var kv in Database)
+            {
+                if (kv.Value == null || string.IsNullOrEmpty(kv.Value.trackerName))
+                    continue;
+                int id = GetTorrentIdFromUrl(kv.Value.trackerName, kv.Key);
+                if (id <= 0)
+                    continue;
+                _torrentIdIndex[$"{kv.Value.trackerName}|{id}"] = kv.Key;
+            }
+        }
+
+        void IndexTorrentUrl(string trackerName, string url)
+        {
+            if (string.IsNullOrEmpty(trackerName) || string.IsNullOrEmpty(url))
+                return;
+            int id = GetTorrentIdFromUrl(trackerName, url);
+            if (id <= 0)
+                return;
+            _torrentIdIndex[$"{trackerName}|{id}"] = url;
+        }
+
+        void UnindexTorrentUrl(string trackerName, string url)
+        {
+            if (string.IsNullOrEmpty(trackerName) || string.IsNullOrEmpty(url))
+                return;
+            int id = GetTorrentIdFromUrl(trackerName, url);
+            if (id <= 0)
+                return;
+            string key = $"{trackerName}|{id}";
+            if (_torrentIdIndex.TryGetValue(key, out string indexed) && string.Equals(indexed, url, StringComparison.OrdinalIgnoreCase))
+                _torrentIdIndex.Remove(key);
+        }
+
+        /// <summary>
+        /// Returns a frozen dictionary copy. Readers share the same snapshot until the next write
+        /// (avoids reallocating on every OpenRead of an unchanged shard).
+        /// </summary>
+        internal IReadOnlyDictionary<string, TorrentDetails> GetSnapshot()
+        {
+            _dbLock.EnterReadLock();
+            try
+            {
+                if (!_snapshotDirty && _readSnapshot != null)
+                    return _readSnapshot;
+            }
+            finally
+            {
+                _dbLock.ExitReadLock();
+            }
+
+            _dbLock.EnterWriteLock();
+            try
+            {
+                if (!_snapshotDirty && _readSnapshot != null)
+                    return _readSnapshot;
+
+                _readSnapshot = new Dictionary<string, TorrentDetails>(Database);
+                _snapshotDirty = false;
+                return _readSnapshot;
+            }
+            finally
+            {
+                _dbLock.ExitWriteLock();
+            }
+        }
+
+        void MarkSnapshotDirty()
+        {
+            _snapshotDirty = true;
+            _readSnapshot = null;
         }
 
         internal void SaveChangesIfNeeded()
         {
-            lock (_dbLock)
+            _dbLock.EnterWriteLock();
+            try
             {
                 if (Database.Count > 0 && savechanges)
                     JsonStream.Write(pathDb(fdbkey), Database);
+            }
+            finally
+            {
+                _dbLock.ExitWriteLock();
             }
         }
         #endregion
@@ -50,9 +131,14 @@ namespace JacRed.Infrastructure.Persistence
 
         public void AddOrUpdate(TorrentBaseDetails torrent)
         {
-            lock (_dbLock)
+            _dbLock.EnterWriteLock();
+            try
             {
                 AddOrUpdateCore(torrent);
+            }
+            finally
+            {
+                _dbLock.ExitWriteLock();
             }
         }
 
@@ -62,25 +148,16 @@ namespace JacRed.Infrastructure.Persistence
             if (!Database.TryGetValue(torrent.url, out TorrentDetails t))
             {
                 int torrentId = GetTorrentIdFromUrl(torrent.trackerName, torrent.url);
-                if (torrentId > 0)
+                if (torrentId > 0
+                    && _torrentIdIndex.TryGetValue($"{torrent.trackerName}|{torrentId}", out string existingUrl)
+                    && !string.Equals(existingUrl, torrent.url, StringComparison.OrdinalIgnoreCase)
+                    && Database.TryGetValue(existingUrl, out t))
                 {
-                    var sameTrackerEntries = Database
-                        .Where(kv => string.Equals(kv.Value.trackerName, torrent.trackerName, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-
-                    foreach (var kv in sameTrackerEntries)
-                    {
-                        // Check if existing torrent has same tracker and same ID
-                        int existingId = GetTorrentIdFromUrl(torrent.trackerName, kv.Key);
-                        if (existingId == torrentId)
-                        {
-                            Database.Remove(kv.Key);
-                            t = kv.Value;
-                            t.url = torrent.url;
-                            foundById = true;
-                            break;
-                        }
-                    }
+                    Database.Remove(existingUrl);
+                    UnindexTorrentUrl(torrent.trackerName, existingUrl);
+                    t.url = torrent.url;
+                    foundById = true;
+                    MarkSnapshotDirty();
                 }
             }
 
@@ -91,6 +168,7 @@ namespace JacRed.Infrastructure.Persistence
                 void upt(bool uptfull = false, bool updatetime = true)
                 {
                     savechanges = true;
+                    MarkSnapshotDirty();
 
                     if (updatetime)
                     {
@@ -247,7 +325,11 @@ namespace JacRed.Infrastructure.Persistence
                 t.checkTime = DateTime.Now;
 
                 if (foundById)
+                {
                     Database.TryAdd(t.url, t);
+                    IndexTorrentUrl(t.trackerName, t.url);
+                    MarkSnapshotDirty();
+                }
 
                 // Drop legacy bare episode/movie URL once a #quality row is stored.
                 if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase)
@@ -256,8 +338,10 @@ namespace JacRed.Infrastructure.Persistence
                     string bare = t.url.Substring(0, t.url.IndexOf('#'));
                     if (!string.IsNullOrEmpty(bare) && Database.ContainsKey(bare))
                     {
+                        UnindexTorrentUrl(t.trackerName, bare);
                         Database.Remove(bare);
                         savechanges = true;
+                        MarkSnapshotDirty();
                     }
                 }
 
@@ -333,6 +417,8 @@ namespace JacRed.Infrastructure.Persistence
                     AppendFdbLog(torrent, t);
 
                 Database.TryAdd(t.url, t);
+                IndexTorrentUrl(t.trackerName, t.url);
+                MarkSnapshotDirty();
                 AddOrUpdateMasterDb(t);
 
                 // Drop legacy bare episode/movie URL once a #quality row is stored.
@@ -342,8 +428,10 @@ namespace JacRed.Infrastructure.Persistence
                     string bare = t.url.Substring(0, t.url.IndexOf('#'));
                     if (!string.IsNullOrEmpty(bare) && Database.ContainsKey(bare))
                     {
+                        UnindexTorrentUrl(t.trackerName, bare);
                         Database.Remove(bare);
                         savechanges = true;
+                        MarkSnapshotDirty();
                     }
                 }
             }
@@ -353,8 +441,23 @@ namespace JacRed.Infrastructure.Persistence
         #region FdbLog
         static readonly string FdbLogDir = "Data/log";
         const string FdbLogPrefix = "fdb.";
+        static readonly System.Collections.Concurrent.ConcurrentQueue<string> FdbLogQueue =
+            new System.Collections.Concurrent.ConcurrentQueue<string>();
+        static int _fdbLogFlushScheduled;
 
         static void AppendFdbLog(TorrentBaseDetails torrent, TorrentDetails t)
+        {
+            try
+            {
+                string jsonLine = JsonConvert.SerializeObject(new List<TorrentBaseDetails>() { torrent, t }, Formatting.None) + "\n";
+                FdbLogQueue.Enqueue(jsonLine);
+                if (System.Threading.Interlocked.CompareExchange(ref _fdbLogFlushScheduled, 1, 0) == 0)
+                    _ = System.Threading.Tasks.Task.Run(FlushFdbLogQueue);
+            }
+            catch { }
+        }
+
+        static void FlushFdbLogQueue()
         {
             try
             {
@@ -374,12 +477,23 @@ namespace JacRed.Infrastructure.Persistence
                 }
 
                 string logPath = Path.Combine(FdbLogDir, FdbLogPrefix + DateTime.UtcNow.ToString("yyyy-MM-dd") + ".log");
-                string jsonLine = JsonConvert.SerializeObject(new List<TorrentBaseDetails>() { torrent, t }, Formatting.None) + "\n";
-                File.AppendAllText(logPath, jsonLine);
+                var sb = new System.Text.StringBuilder();
+                while (FdbLogQueue.TryDequeue(out string line))
+                    sb.Append(line);
+
+                if (sb.Length > 0)
+                    File.AppendAllText(logPath, sb.ToString());
 
                 PurgeFdbLogBySizeAndCount();
             }
             catch { }
+            finally
+            {
+                System.Threading.Interlocked.Exchange(ref _fdbLogFlushScheduled, 0);
+                if (!FdbLogQueue.IsEmpty
+                    && System.Threading.Interlocked.CompareExchange(ref _fdbLogFlushScheduled, 1, 0) == 0)
+                    _ = System.Threading.Tasks.Task.Run(FlushFdbLogQueue);
+            }
         }
 
         static void PurgeFdbLogBySizeAndCount()
@@ -406,7 +520,7 @@ namespace JacRed.Infrastructure.Persistence
                 int count = list.Count;
                 foreach (var item in list)
                 {
-                    if (total <= maxBytes && count <= maxFiles)
+                    if ((maxSizeMb <= 0 || total <= maxBytes) && (maxFiles <= 0 || count <= maxFiles))
                         break;
                     try
                     {
@@ -428,8 +542,7 @@ namespace JacRed.Infrastructure.Persistence
 
             if (openWriteTask.TryGetValue(fdbkey, out WriteTaskModel val))
             {
-                val.openconnection -= 1;
-                if (0 >= val.openconnection)
+                if (System.Threading.Interlocked.Decrement(ref val.openconnection) <= 0)
                 {
                     if (!AppInit.conf.evercache.enable || (AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour > 0))
                         openWriteTask.TryRemove(fdbkey, out _);

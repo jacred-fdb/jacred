@@ -65,10 +65,7 @@ namespace JacRed.Infrastructure.Trackers
         public const string WorkResult = "work";
 
         public static bool IsTrackerDisabled(string trackerName)
-        {
-            return AppInit.conf?.disable_trackers != null
-                && AppInit.conf.disable_trackers.Contains(trackerName, StringComparer.OrdinalIgnoreCase);
-        }
+            => AppInit.conf?.IsTrackerDisabled(trackerName) == true;
 
         public static void LogParseSkipped(string trackerName, string reason)
         {

@@ -6,6 +6,7 @@ using JacRed.Application.Index;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Models.Api;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Application.Search
 {
@@ -51,7 +52,7 @@ namespace JacRed.Application.Search
             var results = JackettResultBuilder.Build(torrents, apikey, rqnum);
 
             if (memoryCache != null && AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour == 0)
-                memoryCache.Set(cachekey, results, System.DateTime.Now.AddMinutes(5));
+                memoryCache.SetSized(cachekey, results, System.DateTime.Now.AddMinutes(5));
 
             return results;
         }

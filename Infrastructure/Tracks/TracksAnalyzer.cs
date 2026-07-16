@@ -17,6 +17,18 @@ namespace JacRed.Infrastructure.Tracks
         internal static readonly ConcurrentDictionary<string, FfprobeModel> Database =
             new ConcurrentDictionary<string, FfprobeModel>();
 
+        const int MaxCachedFfprobe = 5_000;
+
+        static void TrimDatabaseIfNeeded()
+        {
+            int excess = Database.Count - MaxCachedFfprobe;
+            if (excess <= 0)
+                return;
+
+            foreach (var key in Database.Keys.Take(excess + 100))
+                Database.TryRemove(key, out _);
+        }
+
         internal static bool theBad(string[] types)
         {
             if (types == null || types.Length == 0)
@@ -56,6 +68,7 @@ namespace JacRed.Infrastructure.Tracks
             catch { return null; }
 
             Database.AddOrUpdate(infohash, res, (k, v) => res);
+            TrimDatabaseIfNeeded();
             TracksIndexManager.RegisterTrackHash(infohash);
             return res.streams;
         }

@@ -1,6 +1,8 @@
 using JacRed.Models;
 using JacRed.Models.AppConf;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 
 namespace JacRed.Configuration
 {
@@ -54,8 +56,8 @@ namespace JacRed.Configuration
         public string[] tsuri = new string[] { "http://127.0.0.1:8090" };
 
 
-        // When true, write FileDB add/update entries to Data/log/fdb.YYYY-MM-DD.log as JSON Lines (one JSON array per line; subject to retention/size/file limits).
-        public bool logFdb = true;
+        // When true, write FileDB add/update entries to Data/log/fdb.YYYY-MM-DD.log as JSON Lines (one JSON array per line; subject to retention/size/file limits). Keep false in production — hot-path buffered I/O still costs CPU/disk.
+        public bool logFdb = false;
 
         // Keep fdb log files only for this many days (0 = keep all). Applied when logFdb is true.
         public int logFdbRetentionDays = 7;
@@ -74,6 +76,39 @@ namespace JacRed.Configuration
         public string[] synctrackers = null;
 
         public string[] disable_trackers = new string[] { };
+
+        [JsonIgnore]
+        HashSet<string> _syncTrackersSet;
+
+        [JsonIgnore]
+        HashSet<string> _disableTrackersSet;
+
+        /// <summary>Rebuild O(1) tracker lookup sets after load/reload.</summary>
+        public void RebuildLookupCaches()
+        {
+            _syncTrackersSet = synctrackers == null
+                ? null
+                : new HashSet<string>(synctrackers, StringComparer.OrdinalIgnoreCase);
+
+            _disableTrackersSet = disable_trackers == null || disable_trackers.Length == 0
+                ? null
+                : new HashSet<string>(disable_trackers, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>True when synctrackers is null (all) or the tracker is listed.</summary>
+        public bool IsTrackerSynced(string trackerName)
+        {
+            if (_syncTrackersSet == null && synctrackers != null)
+                RebuildLookupCaches();
+            return _syncTrackersSet == null || (!string.IsNullOrEmpty(trackerName) && _syncTrackersSet.Contains(trackerName));
+        }
+
+        public bool IsTrackerDisabled(string trackerName)
+        {
+            if (_disableTrackersSet == null && disable_trackers != null && disable_trackers.Length > 0)
+                RebuildLookupCaches();
+            return _disableTrackersSet != null && !string.IsNullOrEmpty(trackerName) && _disableTrackersSet.Contains(trackerName);
+        }
 
         public bool syncsport = true;
 

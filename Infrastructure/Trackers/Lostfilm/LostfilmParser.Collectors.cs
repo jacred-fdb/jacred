@@ -14,9 +14,9 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         public static Task CollectFromEpisodeLinks(string html, string host, string cookie, List<TorrentDetails> list, int page, Dictionary<string, (string name, string originalname)> horBreakerNameMap = null)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var linkRe = new Regex(@"<a\s[^>]*href=""[^""]*?(/series/([^/""]+)/season_(\d+)/episode_(\d+)/)[^""]*""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
-            var sinfoRe = new Regex(@"(\d+)\s*сезон\s*(\d+)\s*серия", RegexOptions.IgnoreCase);
-            var dateRe = new Regex(@"(\d{2}\.\d{2}\.\d{4})");
+            var linkRe = EpisodeLinkRe;
+            var sinfoRe = SeasonEpisodeInfoRe;
+            var dateRe = DateDdMmYyyyRe;
 
             foreach (Match m in linkRe.Matches(html))
             {
@@ -68,7 +68,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
 
         public static Task CollectFromNewMovie(string html, string host, string cookie, List<TorrentDetails> list, int page, Dictionary<string, (string name, string originalname)> horBreakerNameMap = null)
         {
-            var re = new Regex(@"<a\s+class=""new-movie""\s+href=""(?:https?://[^""]+)?(/series/[^""]+)""[^>]*title=""([^""]*)""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
+            var re = NewMovieLinkRe;
             foreach (Match m in re.Matches(html))
             {
                 string urlPath = m.Groups[1].Value.TrimStart('/');

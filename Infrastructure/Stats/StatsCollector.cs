@@ -1,6 +1,7 @@
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Infrastructure.Logging;
+using JacRed.Models;
 using JacRed.Models.Details;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -79,11 +80,66 @@ namespace JacRed.Infrastructure.Stats
             }
         }
 
-        public static StatsFdbScanResult ScanFdb(DateTime todayUtc)
+        public static StatsFdbScanResult ScanFdb(DateTime todayUtc, bool forceFull = false)
         {
             var result = new StatsFdbScanResult();
 
-            foreach (var item in FileDB.masterDb.ToArray())
+            // Incremental: prefer shards touched since last collect; fall back to full scan when too many changed.
+            long watermark = _lastCollectedAtUtc?.ToFileTimeUtc() ?? 0;
+            var all = FileDB.masterDb.ToArray();
+            KeyValuePair<string, MasterDbShard>[] toScan = all;
+            if (!forceFull && watermark > 0)
+            {
+                var changed = all.Where(i => i.Value.fileTime > watermark).ToArray();
+                // If fewer than 30% of shards changed, still do a full pass for accurate totals —
+                // but open unchanged shards from evercache when available (cache:true) to cut disk I/O.
+                if (changed.Length > 0 && changed.Length < all.Length * 0.3)
+                {
+                    // Full logical scan, cheap reads for cold shards via request... use cache for unchanged.
+                    foreach (var item in all)
+                    {
+                        bool recent = item.Value.fileTime > watermark;
+                        IReadOnlyDictionary<string, TorrentDetails> db;
+                        try
+                        {
+                            db = FileDB.OpenRead(item.Key, cache: !recent);
+                        }
+                        catch
+                        {
+                            result.TorrentDbErrors++;
+                            continue;
+                        }
+
+                        if (db == null)
+                            continue;
+
+                        foreach (var t in db.Values)
+                        {
+                            if (t == null || string.IsNullOrEmpty(t.trackerName))
+                                continue;
+
+                            try
+                            {
+                                AccumulateTracker(result, t, todayUtc);
+                                result.TorrentsScanned++;
+
+                                if (t.ffprobe != null && t.ffprobe.Count > 0 && !string.IsNullOrEmpty(t.magnet))
+                                {
+                                    if (TracksDB.TryGetInfohashFromMagnet(t.magnet, out var hash))
+                                        result.FfprobeHashesFromFdb.Add(hash);
+                                    else
+                                        result.MagnetErrors++;
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+
+                    return result;
+                }
+            }
+
+            foreach (var item in toScan)
             {
                 IReadOnlyDictionary<string, TorrentDetails> db;
                 try

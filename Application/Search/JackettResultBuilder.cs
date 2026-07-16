@@ -16,10 +16,10 @@ namespace JacRed.Application.Search
         #region AddTorrents
         public static void AddTorrent(Dictionary<string, TorrentDetails> torrents, TorrentDetails t)
         {
-            if (AppInit.conf.synctrackers != null && !AppInit.conf.synctrackers.Contains(t.trackerName))
+            if (!AppInit.conf.IsTrackerSynced(t.trackerName))
                 return;
 
-            if (AppInit.conf.disable_trackers != null && AppInit.conf.disable_trackers.Contains(t.trackerName))
+            if (AppInit.conf.IsTrackerDisabled(t.trackerName))
                 return;
 
             if (torrents.TryGetValue(t.url, out TorrentDetails val))

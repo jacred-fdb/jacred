@@ -7,6 +7,7 @@ using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Application.Search
 {
@@ -272,7 +273,7 @@ namespace JacRed.Application.Search
                                     break;
                             }
 
-                            memoryCache.Set(mkey, keys, DateTime.Now.AddHours(1));
+                            memoryCache.SetSized(mkey, keys, DateTime.Now.AddHours(1));
                         }
                     }
 

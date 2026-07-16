@@ -13,6 +13,7 @@ using JacRed.Models.tParse;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using IO = System.IO;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Trackers.Toloka
 {
@@ -94,7 +95,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
                                 if (!string.IsNullOrWhiteSpace(toloka_sid) && !string.IsNullOrWhiteSpace(toloka_data))
                                 {
-                                    memoryCache.Set("cron:TolokaController:Cookie", $"toloka_sid={toloka_sid}; toloka_ssl=1; toloka_data={toloka_data};", DateTime.Now.AddHours(1));
+                                    memoryCache.SetSized("cron:TolokaController:Cookie", $"toloka_sid={toloka_sid}; toloka_ssl=1; toloka_data={toloka_data};", DateTime.Now.AddHours(1));
                                     return true;
                                 }
                             }
@@ -150,7 +151,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
                 if (await TakeLogin(_memoryCache) == false)
                 {
-                    _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(5));
+                    _memoryCache.SetSized(authKey, 0, TimeSpan.FromMinutes(5));
                     IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
                     return "TakeLogin == null";
                 }
@@ -274,7 +275,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
                 if (await TakeLogin(_memoryCache) == false)
                 {
-                    _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(5));
+                    _memoryCache.SetSized(authKey, 0, TimeSpan.FromMinutes(5));
                     return false;
                 }
             }

@@ -10,6 +10,7 @@ using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Trackers.Selezen
 {
@@ -62,7 +63,7 @@ namespace JacRed.Infrastructure.Trackers.Selezen
                 if (_memoryCache.TryGetValue(authKey, out _))
                     return false;
 
-                _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(2));
+                _memoryCache.SetSized(authKey, 0, TimeSpan.FromMinutes(2));
                 string host = AppInit.conf.Selezen.host?.TrimEnd('/') ?? "";
 
                 if (string.IsNullOrWhiteSpace(AppInit.conf.Selezen.login?.u) || string.IsNullOrWhiteSpace(AppInit.conf.Selezen.login?.p))
@@ -102,7 +103,7 @@ namespace JacRed.Infrastructure.Trackers.Selezen
                                     .LastOrDefault();
                                 if (!string.IsNullOrWhiteSpace(PHPSESSID))
                                 {
-                                    _memoryCache.Set("selezen:cookie", $"PHPSESSID={PHPSESSID}; _ym_isad=2;", DateTime.Now.AddDays(1));
+                                    _memoryCache.SetSized("selezen:cookie", $"PHPSESSID={PHPSESSID}; _ym_isad=2;", DateTime.Now.AddDays(1));
                                     ParserLog.Write(TrackerName, "TakeLogin success", new Dictionary<string, object> { { "host", host } });
                                     return true;
                                 }

@@ -14,7 +14,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             int totalPages = 1;
             if (!string.IsNullOrEmpty(html) && html.Contains("LostFilm.TV"))
             {
-                var pageMatches = Regex.Matches(html, @"/new/page_(\d+)");
+                var pageMatches = NewPageNumRe.Matches(html);
                 for (int i = 0; i < pageMatches.Count; i++)
                     if (int.TryParse(pageMatches[i].Groups[1].Value, out int n) && n > totalPages)
                         totalPages = n;
@@ -28,10 +28,10 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         public static List<(string title, string dateStr, int relased, string url, string source)> ParseNewPageDates(string html, string host)
         {
             var result = new List<(string title, string dateStr, int relased, string url, string source)>();
-            var sinfoRe = new Regex(@"(\d+)\s*сезон\s*(\d+)\s*серия", RegexOptions.IgnoreCase);
-            var dateRe = new Regex(@"(\d{2}\.\d{2}\.\d{4})");
+            var sinfoRe = SeasonEpisodeInfoRe;
+            var dateRe = DateDdMmYyyyRe;
 
-            var linkRe = new Regex(@"<a\s[^>]*href=""[^""]*?(/series/([^/""]+)/season_(\d+)/episode_(\d+)/)[^""]*""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
+            var linkRe = EpisodeLinkRe;
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (Match m in linkRe.Matches(html))
             {
@@ -59,7 +59,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                 result.Add((title, dateStr, relased, $"{host?.TrimEnd('/')}/{urlPath}", "episode_links"));
             }
 
-            var newMovieRe = new Regex(@"<a\s+class=""new-movie""\s+href=""(?:https?://[^""]+)?(/series/[^""]+)""[^>]*title=""([^""]*)""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
+            var newMovieRe = NewMovieLinkRe;
             foreach (Match m in newMovieRe.Matches(html))
             {
                 string urlPath = m.Groups[1].Value.TrimStart('/');

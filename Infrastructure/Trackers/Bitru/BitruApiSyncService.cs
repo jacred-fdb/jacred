@@ -187,32 +187,69 @@ namespace JacRed.Infrastructure.Trackers.Bitru
 
         async Task SaveTorrentsAndMagnets(List<TorrentDetails> torrents, CancellationToken cancellationToken)
         {
+            // Skip download when FileDB already has the same title + magnet.
+            var skipDownload = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var group in torrents.GroupBy(t => FileDB.KeyForTorrent(t.name, t.originalname)))
+            {
+                if (string.IsNullOrEmpty(group.Key))
+                    continue;
+
+                IReadOnlyDictionary<string, TorrentDetails> db;
+                try { db = FileDB.OpenRead(group.Key, cache: true); }
+                catch { continue; }
+
+                foreach (var t in group)
+                {
+                    if (db.TryGetValue(t.url, out TorrentDetails cached)
+                        && cached.title == t.title
+                        && !string.IsNullOrEmpty(cached.magnet))
+                        skipDownload.Add(t.url);
+                }
+            }
+
+            int parallelism = 3;
+            using var sem = new System.Threading.SemaphoreSlim(parallelism, parallelism);
+
+            var needDownload = torrents
+                .Where(t => string.IsNullOrWhiteSpace(t.magnet) && !skipDownload.Contains(t.url ?? ""))
+                .ToList();
+
+            var tasks = needDownload.Select(async t =>
+            {
+                await sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    string downloadUrl = t._sn;
+                    if (string.IsNullOrWhiteSpace(downloadUrl) || !downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var idMatch = System.Text.RegularExpressions.Regex.Match(t.url ?? "", @"\?id=(\d+)");
+                        downloadUrl = idMatch.Success ? $"{HostUrl}/api.php?download={idMatch.Groups[1].Value}" : null;
+                    }
+                    if (string.IsNullOrWhiteSpace(downloadUrl))
+                        return;
+
+                    await Task.Delay(ApiDelayMs, cancellationToken).ConfigureAwait(false);
+                    byte[] data = await HttpClient.Download(downloadUrl, referer: HostUrl + "/", timeoutSeconds: 15, useproxy: AppInit.conf.Bitru.useproxy).ConfigureAwait(false);
+                    string magnet = data != null ? BencodeTo.Magnet(data) : null;
+                    if (!string.IsNullOrWhiteSpace(magnet))
+                    {
+                        t.magnet = magnet;
+                        t._sn = null;
+                    }
+                }
+                finally
+                {
+                    sem.Release();
+                }
+            });
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
-                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
+                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title && !string.IsNullOrEmpty(_tcache.magnet))
                     return true;
 
-                string downloadUrl = t._sn;
-                if (string.IsNullOrWhiteSpace(downloadUrl) || !downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                {
-                    var idMatch = System.Text.RegularExpressions.Regex.Match(t.url ?? "", @"\?id=(\d+)");
-                    downloadUrl = idMatch.Success ? $"{HostUrl}/api.php?download={idMatch.Groups[1].Value}" : null;
-                }
-                if (string.IsNullOrWhiteSpace(downloadUrl))
-                    return false;
-
-                await Task.Delay(ApiDelayMs, cancellationToken);
-
-                byte[] data = await HttpClient.Download(downloadUrl, referer: HostUrl + "/", timeoutSeconds: 15, useproxy: AppInit.conf.Bitru.useproxy);
-                string magnet = data != null ? BencodeTo.Magnet(data) : null;
-                if (!string.IsNullOrWhiteSpace(magnet))
-                {
-                    t.magnet = magnet;
-                    t._sn = null;
-                    return true;
-                }
-
-                return false;
+                return !string.IsNullOrWhiteSpace(t.magnet);
             });
 
             try

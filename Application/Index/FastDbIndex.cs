@@ -52,5 +52,52 @@ namespace JacRed.Application.Index
         }
 
         public void Rebuild() => Get(update: true);
+
+        /// <summary>
+        /// Resolve masterDb shard keys via fastdb tokens instead of scanning every masterDb key.
+        /// exact: token equals sn/altSn; fuzzy: token Contains sn/altSn.
+        /// </summary>
+        public System.Collections.Generic.IEnumerable<string> LookupMasterKeys(string sn, string altSn, bool exact, int? take = null)
+        {
+            var fastdb = Get();
+            if (fastdb == null || fastdb.Count == 0)
+                return System.Linq.Enumerable.Empty<string>();
+
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+
+            void AddFromToken(string token)
+            {
+                if (string.IsNullOrEmpty(token))
+                    return;
+                if (fastdb.TryGetValue(token, out List<string> list))
+                {
+                    foreach (var k in list)
+                        keys.Add(k);
+                }
+            }
+
+            if (exact)
+            {
+                AddFromToken(sn);
+                AddFromToken(altSn);
+            }
+            else
+            {
+                foreach (var kv in fastdb)
+                {
+                    if ((sn != null && kv.Key.Contains(sn, StringComparison.Ordinal))
+                        || (altSn != null && kv.Key.Contains(altSn, StringComparison.Ordinal)))
+                    {
+                        foreach (var k in kv.Value)
+                            keys.Add(k);
+                    }
+                }
+            }
+
+            if (take.HasValue && take.Value > 0 && keys.Count > take.Value)
+                return System.Linq.Enumerable.Take(keys, take.Value);
+
+            return keys;
+        }
     }
 }

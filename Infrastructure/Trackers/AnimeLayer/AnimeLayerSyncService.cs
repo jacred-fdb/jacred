@@ -10,6 +10,7 @@ using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Trackers.AnimeLayer
 {
@@ -259,7 +260,7 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                                     if (!string.IsNullOrWhiteSpace(phpsessid))
                                         cookieValue += $";PHPSESSID={phpsessid}";
 
-                                    _memoryCache.Set(CookieCacheKey, cookieValue, DateTime.Now.AddDays(1));
+                                    _memoryCache.SetSized(CookieCacheKey, cookieValue, DateTime.Now.AddDays(1));
 
                                     ParserLog.Write(TrackerName, "TakeLogin successful", new Dictionary<string, object>
                                     {

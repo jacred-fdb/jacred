@@ -8,6 +8,7 @@ using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Trackers.Mazepa
 {
@@ -122,7 +123,7 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
                     string cookieStr = string.Join("; ", cookies.Select(c => c.Split(';')[0]));
                     if (cookieStr.Contains("bb_"))
                     {
-                        _memoryCache.Set("cron:MazepaController:Cookie", cookieStr, TimeSpan.FromHours(2));
+                        _memoryCache.SetSized("cron:MazepaController:Cookie", cookieStr, TimeSpan.FromHours(2));
                         ParserLog.Write(TrackerName, "Login OK");
                         return true;
                     }

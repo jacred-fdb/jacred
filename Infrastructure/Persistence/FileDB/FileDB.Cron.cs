@@ -49,7 +49,8 @@ namespace JacRed.Infrastructure.Persistence
             {
                 await Task.Delay(TimeSpan.FromSeconds(20), cancellationToken);
 
-                if (!AppInit.conf.evercache.enable || 0 >= AppInit.conf.evercache.validHour)
+                // Always enforce maxOpenWriteTask when evercache is enabled (including validHour=0).
+                if (!AppInit.conf.evercache.enable)
                     continue;
 
                 try

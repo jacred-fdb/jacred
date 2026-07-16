@@ -120,7 +120,7 @@ namespace JacRed.Infrastructure.Background
                                 {
                                     foreach (var torrent in collection.Value.torrents)
                                     {
-                                        if (AppInit.conf.synctrackers != null && torrent.Value.trackerName != null && !AppInit.conf.synctrackers.Contains(torrent.Value.trackerName))
+                                        if (torrent.Value.trackerName != null && !AppInit.conf.IsTrackerSynced(torrent.Value.trackerName))
                                         {
                                             filteredByTracker++;
                                             continue;

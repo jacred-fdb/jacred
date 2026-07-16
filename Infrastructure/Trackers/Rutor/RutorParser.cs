@@ -12,6 +12,17 @@ namespace JacRed.Infrastructure.Trackers.Rutor
     {
         const string TrackerName = "rutor";
 
+        static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> RegexCache =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, Regex>();
+
+        static readonly Regex RowSplit = new Regex("<tr class=\"(gai|tum)\">", RegexOptions.Compiled);
+        static readonly Regex Whitespace = new Regex("[\n\r\t ]+", RegexOptions.Compiled);
+        static readonly Regex HtmlWhitespace = new Regex("[\n\r\t]+", RegexOptions.Compiled);
+        static readonly Regex TitleSplit = new Regex("(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        static Regex Rx(string pattern) =>
+            RegexCache.GetOrAdd(pattern, p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+
         public static List<TorrentBaseDetails> ParseTorrentsFromPage(string html, string cat)
         {
             var torrents = new List<TorrentBaseDetails>();
@@ -19,12 +30,12 @@ namespace JacRed.Infrastructure.Trackers.Rutor
             if (!RutorCategories.Map.TryGetValue(cat, out var meta))
                 return torrents;
 
-            foreach (string row in Regex.Split(Regex.Replace(html, "[\n\r\t]+", ""), "<tr class=\"(gai|tum)\">").Skip(1))
+            foreach (string row in RowSplit.Split(HtmlWhitespace.Replace(html, "")).Skip(1))
             {
                 string Match(string pattern, int index = 1)
                 {
-                    string res = HttpUtility.HtmlDecode(new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim());
-                    res = Regex.Replace(res, "[\n\r\t ]+", " ");
+                    string res = HttpUtility.HtmlDecode(Rx(pattern).Match(row).Groups[index].Value.Trim());
+                    res = Whitespace.Replace(res, " ");
                     return res.Replace(" ", " ").Trim();
                 }
 
@@ -56,7 +67,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                 var (name, originalname, relased) = ParseTitleNames(meta.TitleKind, title);
 
                 if (string.IsNullOrWhiteSpace(name))
-                    name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
+                    name = TitleSplit.Split(title)[0].Trim();
 
                 if (string.IsNullOrWhiteSpace(name))
                     continue;

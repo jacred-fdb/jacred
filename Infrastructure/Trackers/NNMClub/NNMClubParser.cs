@@ -11,12 +11,24 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
     {
         const string TrackerName = "nnmclub";
 
+        static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> RegexCache =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, Regex>();
+
+        static readonly Regex ContainerRe = new Regex("<td valign=\"top\" width=\"[0-9]+%\">(.*)<div class=\"paginport nav\">", RegexOptions.Compiled);
+        static readonly Regex MagnetRe = new Regex("\"(magnet:[^\"]+)\"", RegexOptions.Compiled);
+        static readonly Regex Whitespace = new Regex("[\n\r\t ]+", RegexOptions.Compiled);
+        static readonly Regex TitleSplit = new Regex("(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex StripWs = new Regex("(\n|\r|\t)", RegexOptions.Compiled);
+
+        static Regex Rx(string pattern) =>
+            RegexCache.GetOrAdd(pattern, p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+
         public static List<TorrentBaseDetails> ParseTorrentsFromPage(string html, string cat)
         {
             if (!NNMClubCategories.Map.TryGetValue(cat, out var meta))
                 return new List<TorrentBaseDetails>();
 
-            string container = new Regex("<td valign=\"top\" width=\"[0-9]+%\">(.*)<div class=\"paginport nav\">").Match(Regex.Replace(html, "(\n|\r|\t)", "")).Groups[1].Value;
+            string container = ContainerRe.Match(StripWs.Replace(html, "")).Groups[1].Value;
             if (string.IsNullOrWhiteSpace(container))
                 return new List<TorrentBaseDetails>();
 
@@ -24,7 +36,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
             foreach (string row in tParse.ReplaceBadNames(container).Split("<table width=\"100%\" class=\"pline\">"))
             {
-                string magnet = new Regex("\"(magnet:[^\"]+)\"").Match(row).Groups[1].Value;
+                string magnet = MagnetRe.Match(row).Groups[1].Value;
                 if (string.IsNullOrWhiteSpace(magnet))
                     continue;
 
@@ -43,7 +55,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                 ParseTitleNames(meta.TitleKind, title, out string name, out string originalname, out int relased);
 
                 if (string.IsNullOrWhiteSpace(name))
-                    name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
+                    name = TitleSplit.Split(title)[0].Trim();
 
                 if (string.IsNullOrWhiteSpace(name))
                     continue;
@@ -81,8 +93,8 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
         private static string MatchRow(string row, string pattern, int index = 1)
         {
-            string res = HttpUtility.HtmlDecode(new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim());
-            res = Regex.Replace(res, "[\n\r\t ]+", " ");
+            string res = HttpUtility.HtmlDecode(Rx(pattern).Match(row).Groups[index].Value.Trim());
+            res = Whitespace.Replace(res, " ");
             return res.Trim();
         }
 

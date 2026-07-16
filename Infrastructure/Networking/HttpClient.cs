@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JacRed.Infrastructure.Networking
@@ -15,6 +16,9 @@ namespace JacRed.Infrastructure.Networking
     public static class HttpClient
     {
         static string useragent => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36";
+
+        static readonly ConcurrentDictionary<string, System.Net.Http.HttpClient> SharedClients =
+            new ConcurrentDictionary<string, System.Net.Http.HttpClient>(StringComparer.Ordinal);
 
         #region webProxy
         static ConcurrentBag<string> proxyRandomList = new ConcurrentBag<string>();
@@ -77,11 +81,12 @@ namespace JacRed.Infrastructure.Networking
             return new List<WebProxy>();
         }
 
-        static HttpClientHandler CreateHandler(WebProxy proxy, DecompressionMethods decompression)
+        static HttpClientHandler CreateHandler(WebProxy proxy, DecompressionMethods decompression, bool allowRedirect)
         {
             var handler = new HttpClientHandler()
             {
-                AutomaticDecompression = decompression
+                AutomaticDecompression = decompression,
+                AllowAutoRedirect = allowRedirect
             };
 
             handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
@@ -93,6 +98,58 @@ namespace JacRed.Infrastructure.Networking
             }
 
             return handler;
+        }
+
+        static System.Net.Http.HttpClient GetSharedClient(WebProxy proxy, DecompressionMethods decompression, bool allowRedirect)
+        {
+            string key = $"{proxy?.Address?.AbsoluteUri ?? "direct"}|{(int)decompression}|{allowRedirect}";
+            return SharedClients.GetOrAdd(key, _ =>
+            {
+                var handler = CreateHandler(proxy, decompression, allowRedirect);
+                return new System.Net.Http.HttpClient(handler, disposeHandler: true)
+                {
+                    // Per-request timeout via CancellationTokenSource.
+                    Timeout = Timeout.InfiniteTimeSpan
+                };
+            });
+        }
+
+        static void ApplyRequestHeaders(HttpRequestMessage req, string cookie, string referer, List<(string name, string val)> addHeaders)
+        {
+            req.Headers.TryAddWithoutValidation("user-agent", useragent);
+
+            if (cookie != null)
+                req.Headers.TryAddWithoutValidation("cookie", cookie);
+
+            if (referer != null)
+                req.Headers.TryAddWithoutValidation("referer", referer);
+
+            if (addHeaders != null)
+            {
+                foreach (var item in addHeaders)
+                    req.Headers.TryAddWithoutValidation(item.name, item.val);
+            }
+        }
+
+        static string DecodeResponseBody(HttpContent content, byte[] bytes, Encoding encoding)
+        {
+            if (encoding != default)
+                return encoding.GetString(bytes);
+
+            string charset = content.Headers.ContentType?.CharSet;
+            if (!string.IsNullOrWhiteSpace(charset))
+            {
+                try
+                {
+                    return Encoding.GetEncoding(charset.Trim().Trim('"')).GetString(bytes);
+                }
+                catch
+                {
+                    // Fall through to UTF-8.
+                }
+            }
+
+            return Encoding.UTF8.GetString(bytes);
         }
         #endregion
 
@@ -132,58 +189,38 @@ namespace JacRed.Infrastructure.Networking
             if (proxies.Count == 0)
                 proxies.Add(null);
 
+            long maxBuffer = MaxResponseContentBufferSize == 0 ? 10_000_000 : MaxResponseContentBufferSize;
+
             foreach (var px in proxies)
             {
                 try
                 {
-                    using (var handler = CreateHandler(px, DecompressionMethods.GZip | DecompressionMethods.Deflate))
-                    using (var client = new System.Net.Http.HttpClient(handler))
+                    var client = GetSharedClient(px, DecompressionMethods.GZip | DecompressionMethods.Deflate, allowRedirect: true);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+
+                    var req = new HttpRequestMessage(HttpMethod.Get, url)
                     {
-                        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-                        client.MaxResponseContentBufferSize = MaxResponseContentBufferSize == 0 ? 10_000_000 : MaxResponseContentBufferSize; // 10MB
-                        client.DefaultRequestHeaders.Add("user-agent", useragent);
+                        Version = new Version(httpversion, 0)
+                    };
+                    ApplyRequestHeaders(req, cookie, referer, addHeaders);
 
-                        if (cookie != null)
-                            client.DefaultRequestHeaders.Add("cookie", cookie);
+                    using (HttpResponseMessage response = await client.SendAsync(req, HttpCompletionOption.ResponseContentRead, cts.Token).ConfigureAwait(false))
+                    {
+                        if (response.StatusCode != HttpStatusCode.OK)
+                            continue;
 
-                        if (referer != null)
-                            client.DefaultRequestHeaders.Add("referer", referer);
-
-                        if (addHeaders != null)
+                        using (HttpContent content = response.Content)
                         {
-                            foreach (var item in addHeaders)
-                                client.DefaultRequestHeaders.Add(item.name, item.val);
-                        }
-
-                        var req = new HttpRequestMessage(HttpMethod.Get, url)
-                        {
-                            Version = new Version(httpversion, 0)
-                        };
-
-                        using (HttpResponseMessage response = await client.SendAsync(req))
-                        {
-                            if (response.StatusCode != HttpStatusCode.OK)
+                            byte[] bytes = await content.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
+                            if (bytes.Length == 0 || bytes.Length > maxBuffer)
                                 continue;
 
-                            using (HttpContent content = response.Content)
-                            {
-                                if (encoding != default)
-                                {
-                                    string res = encoding.GetString(await content.ReadAsByteArrayAsync());
-                                    if (string.IsNullOrWhiteSpace(res))
-                                        continue;
+                            string res = DecodeResponseBody(content, bytes, encoding);
 
-                                    return (res, response);
-                                }
-                                else
-                                {
-                                    string res = await content.ReadAsStringAsync();
-                                    if (string.IsNullOrWhiteSpace(res))
-                                        continue;
+                            if (string.IsNullOrWhiteSpace(res))
+                                continue;
 
-                                    return (res, response);
-                                }
-                            }
+                            return (res, response);
                         }
                     }
                 }
@@ -214,50 +251,41 @@ namespace JacRed.Infrastructure.Networking
             if (proxies.Count == 0)
                 proxies.Add(null);
 
+            long maxBuffer = MaxResponseContentBufferSize != 0 ? MaxResponseContentBufferSize : 10_000_000;
+            // Buffer body so proxy retries can resend.
+            byte[] bodyBytes = data != null ? await data.ReadAsByteArrayAsync().ConfigureAwait(false) : Array.Empty<byte>();
+            string mediaType = data?.Headers?.ContentType?.ToString() ?? "application/x-www-form-urlencoded";
+
             foreach (var px in proxies)
             {
                 try
                 {
-                    using (var handler = CreateHandler(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate))
-                    using (var client = new System.Net.Http.HttpClient(handler))
+                    var client = GetSharedClient(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate, allowRedirect: true);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+
+                    var content = new ByteArrayContent(bodyBytes);
+                    content.Headers.TryAddWithoutValidation("Content-Type", mediaType);
+
+                    var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+                    ApplyRequestHeaders(req, cookie, referer: null, addHeaders);
+
+                    using (HttpResponseMessage response = await client.SendAsync(req, HttpCompletionOption.ResponseContentRead, cts.Token).ConfigureAwait(false))
                     {
-                        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-                        client.MaxResponseContentBufferSize = MaxResponseContentBufferSize != 0 ? MaxResponseContentBufferSize : 10_000_000; // 10MB
+                        if (response.StatusCode != HttpStatusCode.OK)
+                            continue;
 
-                        client.DefaultRequestHeaders.Add("user-agent", useragent);
-                        if (cookie != null)
-                            client.DefaultRequestHeaders.Add("cookie", cookie);
-
-                        if (addHeaders != null)
+                        using (HttpContent respContent = response.Content)
                         {
-                            foreach (var item in addHeaders)
-                                client.DefaultRequestHeaders.Add(item.name, item.val);
-                        }
-
-                        using (HttpResponseMessage response = await client.PostAsync(url, data))
-                        {
-                            if (response.StatusCode != HttpStatusCode.OK)
+                            byte[] bytes = await respContent.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
+                            if (bytes.Length == 0 || bytes.Length > maxBuffer)
                                 continue;
 
-                            using (HttpContent content = response.Content)
-                            {
-                                if (encoding != default)
-                                {
-                                    string res = encoding.GetString(await content.ReadAsByteArrayAsync());
-                                    if (string.IsNullOrWhiteSpace(res))
-                                        continue;
+                            string res = DecodeResponseBody(respContent, bytes, encoding);
 
-                                    return res;
-                                }
-                                else
-                                {
-                                    string res = await content.ReadAsStringAsync();
-                                    if (string.IsNullOrWhiteSpace(res))
-                                        continue;
+                            if (string.IsNullOrWhiteSpace(res))
+                                continue;
 
-                                    return res;
-                                }
-                            }
+                            return res;
                         }
                     }
                 }
@@ -305,45 +333,30 @@ namespace JacRed.Infrastructure.Networking
             if (proxies.Count == 0)
                 proxies.Add(null);
 
+            long maxBuffer = MaxResponseContentBufferSize == 0 ? 10_000_000 : MaxResponseContentBufferSize;
+
             foreach (var px in proxies)
             {
                 try
                 {
-                    var handler = CreateHandler(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate);
-                    handler.AllowAutoRedirect = true;
+                    var client = GetSharedClient(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate, allowRedirect: true);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
 
-                    using (handler)
-                    using (var client = new System.Net.Http.HttpClient(handler))
+                    var req = new HttpRequestMessage(HttpMethod.Get, url);
+                    ApplyRequestHeaders(req, cookie, referer, addHeaders);
+
+                    using (HttpResponseMessage response = await client.SendAsync(req, HttpCompletionOption.ResponseContentRead, cts.Token).ConfigureAwait(false))
                     {
-                        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-                        client.MaxResponseContentBufferSize = MaxResponseContentBufferSize == 0 ? 10_000_000 : MaxResponseContentBufferSize; // 10MB
-                        client.DefaultRequestHeaders.Add("user-agent", useragent);
+                        if (response.StatusCode != HttpStatusCode.OK)
+                            continue;
 
-                        if (cookie != null)
-                            client.DefaultRequestHeaders.Add("cookie", cookie);
-
-                        if (referer != null)
-                            client.DefaultRequestHeaders.Add("referer", referer);
-
-                        if (addHeaders != null)
+                        using (HttpContent content = response.Content)
                         {
-                            foreach (var item in addHeaders)
-                                client.DefaultRequestHeaders.Add(item.name, item.val);
-                        }
-
-                        using (HttpResponseMessage response = await client.GetAsync(url))
-                        {
-                            if (response.StatusCode != HttpStatusCode.OK)
+                            byte[] res = await content.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
+                            if (res.Length == 0 || res.Length > maxBuffer)
                                 continue;
 
-                            using (HttpContent content = response.Content)
-                            {
-                                byte[] res = await content.ReadAsByteArrayAsync();
-                                if (res.Length == 0)
-                                    continue;
-
-                                return res;
-                            }
+                            return res;
                         }
                     }
                 }

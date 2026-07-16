@@ -13,6 +13,7 @@ using JacRed.Models.tParse;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using IO = System.IO;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Trackers.Rutracker
 {
@@ -47,7 +48,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             if (_memoryCache.TryGetValue(authKey, out _))
                 return false;
 
-            _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(2));
+            _memoryCache.SetSized(authKey, 0, TimeSpan.FromMinutes(2));
 
             try
             {
@@ -249,7 +250,10 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
-                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
+                if (db.TryGetValue(t.url, out TorrentDetails _tcache)
+                    && _tcache.title == t.title
+                    && (string.IsNullOrEmpty(t.magnet) || string.Equals(_tcache.magnet, t.magnet, StringComparison.OrdinalIgnoreCase))
+                    && !string.IsNullOrEmpty(_tcache.magnet))
                     return true;
 
                 var fullNews = await HttpClient.Get(t.url, useproxy: AppInit.conf.Rutracker.useproxy);

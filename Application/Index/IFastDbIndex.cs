@@ -7,5 +7,8 @@ namespace JacRed.Application.Index
         Dictionary<string, List<string>> Get(bool update = false);
 
         void Rebuild();
+
+        /// <summary>Resolve masterDb shard keys via fastdb tokens (exact token match or fuzzy Contains).</summary>
+        IEnumerable<string> LookupMasterKeys(string sn, string altSn, bool exact, int? take = null);
     }
 }

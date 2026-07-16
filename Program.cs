@@ -103,7 +103,13 @@ namespace JacRed
                 options.JsonSerializerOptions.PropertyNamingPolicy = null;
             });
 
-            builder.Services.AddMemoryCache();
+            builder.Services.AddMemoryCache(options =>
+            {
+                // Entries must set Size (see MemoryCacheExtensions.SetSized). Caps unbounded result/cookie cache growth.
+                options.SizeLimit = 10_000;
+                options.CompactionPercentage = 0.25;
+                options.ExpirationScanFrequency = TimeSpan.FromMinutes(5);
+            });
             builder.Services.AddSingleton<IFastDbIndex>(FastDbIndex.Default);
 
             builder.Services.AddScoped<IJackettSearchService, JackettSearchService>();

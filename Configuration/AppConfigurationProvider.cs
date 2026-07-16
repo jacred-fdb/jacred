@@ -137,6 +137,7 @@ namespace JacRed.Configuration
                     LogSafeConfig(logLabel, logPath);
 
                 var current = Current;
+                current?.RebuildLookupCaches();
                 JacRedLogSettings.Apply(current);
                 if (!ReferenceEquals(previous, current) && previous != null && forceLogLabel == null)
                     NotifyChange(current);
@@ -151,8 +152,10 @@ namespace JacRed.Configuration
                 _cache = (AppConfigurationLoader.LoadFromFile(path), path, File.GetLastWriteTimeUtc(path));
             }
             LogSafeConfig("config (saved)", path);
-            JacRedLogSettings.Apply(Current);
-            NotifyChange(Current);
+            var current = Current;
+            current?.RebuildLookupCaches();
+            JacRedLogSettings.Apply(current);
+            NotifyChange(current);
         }
 
         void NotifyChange(AppOptions current)

@@ -8,9 +8,9 @@ using JacRed.Infrastructure.Tracks;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
-using JacRed.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json.Linq;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Application.Search
 {
@@ -33,7 +33,7 @@ namespace JacRed.Application.Search
                     cache.original_name = root?.Value<JObject>("data")?.Value<string>("original_name");
                     cache.name = root?.Value<JObject>("data")?.Value<string>("name");
 
-                    memoryCache.Set(memkey, cache, DateTime.Now.AddDays(1));
+                    memoryCache.SetSized(memkey, cache, DateTime.Now.AddDays(1));
                 }
 
                 if (!string.IsNullOrWhiteSpace(cache.name) && !string.IsNullOrWhiteSpace(cache.original_name))
@@ -54,10 +54,10 @@ namespace JacRed.Application.Search
             #region AddTorrents
             void AddTorrents(TorrentDetails t)
             {
-                if (AppInit.conf.synctrackers != null && !AppInit.conf.synctrackers.Contains(t.trackerName))
+                if (!AppInit.conf.IsTrackerSynced(t.trackerName))
                     return;
 
-                if (AppInit.conf.disable_trackers != null && AppInit.conf.disable_trackers.Contains(t.trackerName))
+                if (AppInit.conf.IsTrackerDisabled(t.trackerName))
                     return;
 
                 if (torrents.TryGetValue(t.url, out TorrentDetails val))
@@ -84,9 +84,9 @@ namespace JacRed.Application.Search
             if (exact)
             {
                 #region Точный поиск
-                foreach (var mdb in FileDB.masterDb.Where(i => (_s != null && (i.Key.StartsWith($"{_s}:") || i.Key.EndsWith($":{_s}"))) || (_altsearch != null && i.Key.Contains(_altsearch))))
+                foreach (var key in JacRed.Application.Index.FastDbIndex.Default.LookupMasterKeys(_s, _altsearch, exact: true))
                 {
-                    foreach (var t in FileDB.OpenRead(mdb.Key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null)
                             continue;
@@ -107,13 +107,13 @@ namespace JacRed.Application.Search
             else
             {
                 #region Поиск по совпадению ключа в имени
-                var mdb = FileDB.masterDb.Where(i => (_s != null && i.Key.Contains(_s)) || (_altsearch != null && i.Key.Contains(_altsearch)));
-                if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
-                    mdb = mdb.Take(AppInit.conf.maxreadfile);
+                int? take = (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
+                    ? AppInit.conf.maxreadfile
+                    : (int?)null;
 
-                foreach (var val in mdb)
+                foreach (var key in JacRed.Application.Index.FastDbIndex.Default.LookupMasterKeys(_s, _altsearch, exact: false, take))
                 {
-                    foreach (var t in FileDB.OpenRead(val.Key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null)
                             continue;
@@ -272,31 +272,26 @@ namespace JacRed.Application.Search
             }
             #endregion
 
-            IEnumerable<KeyValuePair<string, MasterDbShard>> mdb = FileDB.masterDb;
-
-            if (!string.IsNullOrEmpty(_s) && !string.IsNullOrEmpty(_so))
+            IEnumerable<string> shardKeys;
+            if (!string.IsNullOrEmpty(_s) || !string.IsNullOrEmpty(_so))
             {
-                mdb = mdb.Where(i => i.Key.Contains(_s) || i.Key.Contains(_so));
+                shardKeys = JacRed.Application.Index.FastDbIndex.Default.LookupMasterKeys(_s, _so, exact: false, take: null);
+                shardKeys = shardKeys
+                    .OrderByDescending(k => FileDB.masterDb.TryGetValue(k, out var shard) ? shard.updateTime : DateTime.MinValue);
+
+                if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
+                    shardKeys = shardKeys.Take(AppInit.conf.maxreadfile);
             }
-            else if (!string.IsNullOrEmpty(_s))
+            else
             {
-                mdb = mdb.Where(i => i.Key.Contains(_s));
-            }
-            else if (!string.IsNullOrEmpty(_so))
-            {
-                mdb = mdb.Where(i => i.Key.Contains(_so));
+                shardKeys = FileDB.masterDb.OrderByDescending(i => i.Value.updateTime)
+                    .Take((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) ? AppInit.conf.maxreadfile : int.MaxValue)
+                    .Select(i => i.Key);
             }
 
-            mdb = mdb.OrderByDescending(i => i.Value.updateTime);
-
-            if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
-                mdb = mdb.Take(AppInit.conf.maxreadfile);
-
-            var mdbList = mdb.ToList();
-
-            foreach (var val in mdbList)
+            foreach (var key in shardKeys)
             {
-                foreach (var t in FileDB.OpenRead(val.Key, true).Values)
+                foreach (var t in FileDB.OpenRead(key, true).Values)
                     AddTorrents(t);
             }
 

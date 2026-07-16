@@ -12,12 +12,26 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Indexers
 {
     public static class IndexerSearchEngine
     {
         public static async Task<List<Result>> SearchCombinedAsync(IndexerSearchRequest req, IMemoryCache cache, IJackettSearchService jackettSearch)
+        {
+            FileDB.BeginRequestReadCache();
+            try
+            {
+                return await SearchCombinedCoreAsync(req, cache, jackettSearch);
+            }
+            finally
+            {
+                FileDB.EndRequestReadCache();
+            }
+        }
+
+        static async Task<List<Result>> SearchCombinedCoreAsync(IndexerSearchRequest req, IMemoryCache cache, IJackettSearchService jackettSearch)
         {
             var settings = IndexerSearchOptions.Resolve();
             string query = IndexerRequestParams.NormalizeQuery(req.Query);
@@ -166,8 +180,8 @@ namespace JacRed.Infrastructure.Indexers
             var torrents = new Dictionary<string, TorrentDetails>();
             void add(TorrentDetails t)
             {
-                if (AppInit.conf.synctrackers != null && !AppInit.conf.synctrackers.Contains(t.trackerName)) return;
-                if (AppInit.conf.disable_trackers != null && AppInit.conf.disable_trackers.Contains(t.trackerName)) return;
+                if (!AppInit.conf.IsTrackerSynced(t.trackerName)) return;
+                if (AppInit.conf.IsTrackerDisabled(t.trackerName)) return;
                 if (!MatchesTrackerFilter(t.trackerName, trackers)) return;
                 if (!torrents.TryGetValue(t.url, out var val) || t.updateTime > val.updateTime)
                     torrents[t.url] = t;
@@ -179,11 +193,18 @@ namespace JacRed.Infrastructure.Indexers
             if (string.IsNullOrEmpty(sn) && string.IsNullOrEmpty(altSn))
                 return new List<Result>();
 
+            // Fuzzy capped by maxreadfile (when evercache time-bounded); exact scans all matching shards.
+            int? take = null;
+            if (!exact && (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0))
+                take = AppInit.conf.maxreadfile;
+
+            IEnumerable<string> shardKeys = JacRed.Application.Index.FastDbIndex.Default.LookupMasterKeys(sn, altSn, exact, take);
+
             if (exact)
             {
-                foreach (var mdb in FileDB.masterDb.Where(i => (sn != null && (i.Key.StartsWith($"{sn}:") || i.Key.EndsWith($":{sn}"))) || (altSn != null && i.Key.Contains(altSn))))
+                foreach (var key in shardKeys)
                 {
-                    foreach (var t in FileDB.OpenRead(mdb.Key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null) continue;
                         string n = t._sn ?? StringConvert.SearchName(t.name);
@@ -195,12 +216,9 @@ namespace JacRed.Infrastructure.Indexers
             }
             else
             {
-                var mdb = FileDB.masterDb.Where(i => (sn != null && i.Key.Contains(sn)) || (altSn != null && i.Key.Contains(altSn)));
-                if (!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0)
-                    mdb = mdb.Take(AppInit.conf.maxreadfile);
-                foreach (var val in mdb)
+                foreach (var key in shardKeys)
                 {
-                    foreach (var t in FileDB.OpenRead(val.Key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types != null) add(t);
                     }
@@ -255,7 +273,7 @@ namespace JacRed.Infrastructure.Indexers
                 var root = await HttpClient.Get<JObject>("https://api.apbugall.org/?token=04941a9a3ca3ac16e2b4327347bbc1" + uri, timeoutSeconds: 8);
                 c.original_name = root?.Value<JObject>("data")?.Value<string>("original_name");
                 c.name = root?.Value<JObject>("data")?.Value<string>("name");
-                cache?.Set(memkey, c, DateTime.Now.AddDays(1));
+                cache?.SetSized(memkey, c, DateTime.Now.AddDays(1));
             }
 
             if (!string.IsNullOrWhiteSpace(c.name) && !string.IsNullOrWhiteSpace(c.original_name))

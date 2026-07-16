@@ -12,6 +12,7 @@ using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Caching;
 
 namespace JacRed.Infrastructure.Trackers.Baibako
 {
@@ -109,7 +110,7 @@ namespace JacRed.Infrastructure.Trackers.Baibako
                                 if (!string.IsNullOrWhiteSpace(sessid) && !string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(passCookie))
                                 {
                                     string cookieStr = $"{CookiePhpSessId}={sessid}; {CookieUid}={uid}; {CookiePass}={passCookie}";
-                                    _memoryCache.Set(CacheCookie, cookieStr, CookieCacheDuration);
+                                    _memoryCache.SetSized(CacheCookie, cookieStr, CookieCacheDuration);
                                     ParserLog.Write(TrackerName, "Login OK");
                                     return true;
                                 }

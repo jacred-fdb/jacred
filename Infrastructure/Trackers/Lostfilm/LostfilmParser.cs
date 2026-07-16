@@ -9,6 +9,16 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
 {
     public static partial class LostfilmParser
     {
+        static readonly Regex EpisodeLinkRe = new Regex(
+            @"<a\s[^>]*href=""[^""]*?(/series/([^/""]+)/season_(\d+)/episode_(\d+)/)[^""]*""[^>]*>([\s\S]*?)</a>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex SeasonEpisodeInfoRe = new Regex(@"(\d+)\s*сезон\s*(\d+)\s*серия", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex DateDdMmYyyyRe = new Regex(@"(\d{2}\.\d{2}\.\d{4})", RegexOptions.Compiled);
+        static readonly Regex NewMovieLinkRe = new Regex(
+            @"<a\s+class=""new-movie""\s+href=""(?:https?://[^""]+)?(/series/[^""]+)""[^>]*title=""([^""]*)""[^>]*>([\s\S]*?)</a>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex NewPageNumRe = new Regex(@"/new/page_(\d+)", RegexOptions.Compiled);
+
         /// <summary>Строит по HTML карту urlPath сериала (series/.../season_N/episode_M/) -> (name ru, originalname) из блоков hor-breaker, чтобы подставлять русское название в episode_links и избегать дубликатов бакетов. Добавляется и ключ по сериалу (series/Slug), чтобы все эпизоды одного сериала получали одно русское имя (Пони, а не Ponies).</summary>
         public static Dictionary<string, (string name, string originalname)> BuildHorBreakerNameMap(string html)
         {

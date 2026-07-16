@@ -157,9 +157,32 @@ namespace JacRed.Infrastructure.Persistence
         #endregion
 
         #region OpenRead / OpenWrite
+        static readonly System.Threading.AsyncLocal<Dictionary<string, IReadOnlyDictionary<string, TorrentDetails>>> RequestReadCache =
+            new System.Threading.AsyncLocal<Dictionary<string, IReadOnlyDictionary<string, TorrentDetails>>>();
+
+        /// <summary>Deduplicate OpenRead within a single search/HTTP request.</summary>
+        public static void BeginRequestReadCache()
+            => RequestReadCache.Value = new Dictionary<string, IReadOnlyDictionary<string, TorrentDetails>>(StringComparer.Ordinal);
+
+        public static void EndRequestReadCache()
+            => RequestReadCache.Value = null;
+
         /// <summary>Always returns a snapshot — never expose live Database to concurrent readers.</summary>
         public static IReadOnlyDictionary<string, TorrentDetails> OpenRead(string key, bool update_lastread = false, bool cache = true)
         {
+            var reqCache = RequestReadCache.Value;
+            if (reqCache != null && reqCache.TryGetValue(key, out var cached))
+            {
+                if (update_lastread && openWriteTask.TryGetValue(key, out WriteTaskModel cachedWtm))
+                {
+                    cachedWtm.countread++;
+                    cachedWtm.lastread = DateTime.UtcNow;
+                }
+                return cached;
+            }
+
+            IReadOnlyDictionary<string, TorrentDetails> snapshot;
+
             if (openWriteTask.TryGetValue(key, out WriteTaskModel val))
             {
                 if (update_lastread)
@@ -168,7 +191,9 @@ namespace JacRed.Infrastructure.Persistence
                     val.lastread = DateTime.UtcNow;
                 }
 
-                return val.db.GetSnapshot();
+                snapshot = val.db.GetSnapshot();
+                reqCache?.TryAdd(key, snapshot);
+                return snapshot;
             }
 
             var fdb = new FileDB(key);
@@ -183,7 +208,11 @@ namespace JacRed.Infrastructure.Persistence
                 }
 
                 if (openWriteTask.TryAdd(key, wtm))
-                    return fdb.GetSnapshot();
+                {
+                    snapshot = fdb.GetSnapshot();
+                    reqCache?.TryAdd(key, snapshot);
+                    return snapshot;
+                }
 
                 fdb.Dispose();
                 if (openWriteTask.TryGetValue(key, out val))
@@ -193,27 +222,35 @@ namespace JacRed.Infrastructure.Persistence
                         val.countread++;
                         val.lastread = DateTime.UtcNow;
                     }
-                    return val.db.GetSnapshot();
+                    snapshot = val.db.GetSnapshot();
+                    reqCache?.TryAdd(key, snapshot);
+                    return snapshot;
                 }
             }
 
-            var snapshot = fdb.GetSnapshot();
+            snapshot = fdb.GetSnapshot();
             fdb.Dispose();
+            reqCache?.TryAdd(key, snapshot);
             return snapshot;
         }
 
         public static FileDB OpenWrite(string key)
         {
-            if (openWriteTask.TryGetValue(key, out WriteTaskModel val))
+            while (true)
             {
-                val.openconnection += 1;
-                return val.db;
-            }
-            else
-            {
+                if (openWriteTask.TryGetValue(key, out WriteTaskModel val))
+                {
+                    System.Threading.Interlocked.Increment(ref val.openconnection);
+                    return val.db;
+                }
+
                 var fdb = new FileDB(key);
-                openWriteTask.TryAdd(key, new WriteTaskModel() { db = fdb, openconnection = 1 });
-                return fdb;
+                var wtm = new WriteTaskModel() { db = fdb, openconnection = 1 };
+                if (openWriteTask.TryAdd(key, wtm))
+                    return fdb;
+
+                // Lost race — another writer added the same key.
+                fdb.Dispose();
             }
         }
         #endregion
