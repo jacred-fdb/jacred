@@ -13,6 +13,9 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
         public static List<TorrentBaseDetails> ParseTorrentsFromPage(string html, string cat)
         {
+            if (!NNMClubCategories.Map.TryGetValue(cat, out var meta))
+                return new List<TorrentBaseDetails>();
+
             string container = new Regex("<td valign=\"top\" width=\"[0-9]+%\">(.*)<div class=\"paginport nav\">").Match(Regex.Replace(html, "(\n|\r|\t)", "")).Groups[1].Value;
             if (string.IsNullOrWhiteSpace(container))
                 return new List<TorrentBaseDetails>();
@@ -28,39 +31,52 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                 if (!TryParseRowFields(row, out string url, out string title, out string sid, out string pir, out string sizeName, out DateTime createTime))
                     continue;
 
-                ParseTitleNames(cat, title, row, out string name, out string originalname, out int relased);
+                if (title.ToLower().Contains("трейлер"))
+                    continue;
+
+                if (meta.SkipPdfInTitle && title.ToLower().Contains("pdf"))
+                    continue;
+
+                if (meta.RequireMultInRow && !RowLooksLikeCartoon(row))
+                    continue;
+
+                ParseTitleNames(meta.TitleKind, title, out string name, out string originalname, out int relased);
 
                 if (string.IsNullOrWhiteSpace(name))
                     name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
 
-                if (!string.IsNullOrWhiteSpace(name))
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                int.TryParse(sid, out int sidInt);
+                int.TryParse(pir, out int pirInt);
+
+                torrents.Add(new TorrentBaseDetails()
                 {
-                    string[] types = GetTypesForCategory(cat);
-                    if (types == null)
-                        continue;
-
-                    int.TryParse(sid, out int sidInt);
-                    int.TryParse(pir, out int pirInt);
-
-                    torrents.Add(new TorrentBaseDetails()
-                    {
-                        trackerName = TrackerName,
-                        types = types,
-                        url = url,
-                        title = title,
-                        sid = sidInt,
-                        pir = pirInt,
-                        sizeName = sizeName,
-                        magnet = magnet,
-                        createTime = createTime,
-                        name = name,
-                        originalname = originalname,
-                        relased = relased
-                    });
-                }
+                    trackerName = TrackerName,
+                    types = meta.Types,
+                    url = url,
+                    title = title,
+                    sid = sidInt,
+                    pir = pirInt,
+                    sizeName = sizeName,
+                    magnet = magnet,
+                    createTime = createTime,
+                    name = name,
+                    originalname = originalname,
+                    relased = relased
+                });
             }
 
             return torrents;
+        }
+
+        static bool RowLooksLikeCartoon(string row)
+        {
+            string lower = row.ToLower();
+            return lower.Contains("мульт")
+                || lower.Contains("длительность")
+                || lower.Contains("продолжительность");
         }
 
         private static string MatchRow(string row, string pattern, int index = 1)
@@ -90,7 +106,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
             url = MatchRow(row, "<a class=\"pgenmed\" href=\"(viewtopic.php[^\"]+)\"");
             title = MatchRow(row, ">([^<]+)</a></h2></td>");
-            sid = MatchRow(row, "title=\"Раздаюших\">&nbsp;([0-9]+)</span>", 1);
+            sid = MatchRow(row, "title=\"Раздаю[щш]их\">&nbsp;([0-9]+)</span>", 1);
             pir = MatchRow(row, "title=\"Качают\">&nbsp;([0-9]+)</span>", 1);
             sizeName = MatchRow(row, "<span class=\"pcomm bold\">([^<]+)</span>");
 
@@ -108,32 +124,20 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
             return true;
         }
 
-        private static void ParseTitleNames(string cat, string title, string row, out string name, out string originalname, out int relased)
+        private static void ParseTitleNames(NNMClubTitleKind titleKind, string title, out string name, out string originalname, out int relased)
         {
-            name = null;
-            originalname = null;
-            relased = 0;
-
-            if (cat == "10" || cat == "6" || cat == "3" || cat == "22" || cat == "23" || cat == "11")
+            (name, originalname, relased) = titleKind switch
             {
-                (name, originalname, relased) = ParseForeignCinemaTitle(title);
-            }
-            else if (cat == "13")
-            {
-                (name, originalname, relased) = ParseDomesticMovieTitle(title);
-            }
-            else if (cat == "4")
-            {
-                (name, originalname, relased) = ParseDomesticSerialTitle(title);
-            }
-            else if (cat == "1")
-            {
-                (name, originalname, relased) = ParseAnimeTitle(title);
-            }
-            else if (cat == "7")
-            {
-                (name, originalname, relased) = ParseKidsTitle(title, row);
-            }
+                NNMClubTitleKind.ForeignCinema => ParseForeignCinemaTitle(title),
+                NNMClubTitleKind.ForeignSerial => ParseForeignCinemaTitle(title),
+                NNMClubTitleKind.RuMovie => ParseDomesticMovieTitle(title),
+                NNMClubTitleKind.RuSerial => ParseDomesticSerialTitle(title),
+                NNMClubTitleKind.Anime => ParseAnimeTitle(title),
+                NNMClubTitleKind.KidsMult => ParseKidsTitle(title),
+                NNMClubTitleKind.ShowLike => ParseForeignCinemaTitle(title),
+                NNMClubTitleKind.Sport => ParseForeignCinemaTitle(title),
+                _ => (null, null, 0)
+            };
         }
 
         private static (string name, string originalname, int relased) ParseForeignCinemaTitle(string title)
@@ -381,15 +385,25 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
             return (name, originalname, relased);
         }
 
-        private static (string name, string originalname, int relased) ParseKidsTitle(string title, string row)
+        private static (string name, string originalname, int relased) ParseKidsTitle(string title)
         {
             string name = null, originalname = null;
             int relased = 0;
 
-            if (!title.ToLower().Contains("pdf") && (row.Contains("должительность") || row.ToLower().Contains("мульт")))
+            // Академия монстров / Escuela de Miedo / Cranston Academy: Monster Zone (2020)
+            var g = Regex.Match(title, "^([^/\\(\\|]+) / [^/\\(\\|]+ / ([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
+            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
             {
-                // Академия монстров / Escuela de Miedo / Cranston Academy: Monster Zone (2020)
-                var g = Regex.Match(title, "^([^/\\(\\|]+) / [^/\\(\\|]+ / ([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
+                name = g[1].Value;
+                originalname = g[2].Value;
+
+                if (int.TryParse(g[3].Value, out int _yer))
+                    relased = _yer;
+            }
+            else
+            {
+                // Трансформеры: Война за Кибертрон / Transformers: War For Cybertron (2020)
+                g = Regex.Match(title, "^([^/\\(\\|]+) / ([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
                 if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
                 {
                     name = g[1].Value;
@@ -400,53 +414,16 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                 }
                 else
                 {
-                    // Трансформеры: Война за Кибертрон / Transformers: War For Cybertron (2020)
-                    g = Regex.Match(title, "^([^/\\(\\|]+) / ([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
-                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value))
-                    {
-                        name = g[1].Value;
-                        originalname = g[2].Value;
+                    // Спина к спине (2020-2021)
+                    g = Regex.Match(title, "^([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
+                    name = g[1].Value;
 
-                        if (int.TryParse(g[3].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    else
-                    {
-                        // Спина к спине (2020-2021)
-                        g = Regex.Match(title, "^([^/\\(\\|]+) \\(([0-9]{4})(-[0-9]{4})?\\)").Groups;
-                        name = g[1].Value;
-
-                        if (int.TryParse(g[2].Value, out int _yer))
-                            relased = _yer;
-                    }
+                    if (int.TryParse(g[2].Value, out int _yer))
+                        relased = _yer;
                 }
             }
 
             return (name, originalname, relased);
-        }
-
-        private static string[] GetTypesForCategory(string cat)
-        {
-            switch (cat)
-            {
-                case "10":
-                case "13":
-                case "6":
-                case "11":
-                    return new string[] { "movie" };
-                case "4":
-                case "3":
-                    return new string[] { "serial" };
-                case "22":
-                case "23":
-                    return new string[] { "docuserial", "documovie" };
-                case "7":
-                    return new string[] { "multfilm", "multserial" };
-                case "1":
-                    return new string[] { "anime" };
-                default:
-                    return null;
-            }
         }
     }
 }

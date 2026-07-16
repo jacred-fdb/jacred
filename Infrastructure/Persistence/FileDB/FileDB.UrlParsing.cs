@@ -51,6 +51,13 @@ namespace JacRed.Infrastructure.Persistence
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // NNMClub: .../forum/viewtopic.php?t=1882070
+            if (string.Equals(trackerName, "nnmclub", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"viewtopic\.php\?t=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
             return 0;
         }
 

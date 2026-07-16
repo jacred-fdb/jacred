@@ -18,6 +18,9 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
     {
         const string TrackerName = "nnmclub";
 
+        /// <summary>Portal page size; URL uses start={page * PageSize}.</summary>
+        public const int PageSize = 25;
+
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
@@ -41,19 +44,10 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                     var sw = Stopwatch.StartNew();
                     string baseUrl = $"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php";
                     ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                    // 10 - Новинки кино          | Фильмы
-                    // 13 - Наше кино             | Фильмы
-                    // 6  - Зарубежное кино       | Фильмы
-                    // 4  - Наши сериалы          | Сериалы
-                    // 3  - Зарубежные сериалы    | Сериалы
-                    // 22 - Док. TV-бренды        | Док. сериалы, Док. фильмы
-                    // 23 - Док. и телепередачи   | Док. сериалы, Док. фильмы
-                    // 1  - Аниме и Манга         | Аниме
-                    // 7  - Детям и родителям     | Мультфильмы, Мультсериалы
-                    // 11 - HD, UHD и 3D Кино     | Фильмы
-                    foreach (string cat in new List<string>() { "10", "13", "6", "4", "3", "22", "23", "1", "7", "11" })
+
+                    foreach (string cat in NNMClubCategories.Ids)
                     {
-                        string pageUrl = $"{baseUrl}?c={cat}&start={page * 20}";
+                        string pageUrl = $"{baseUrl}?c={cat}&start={page * PageSize}";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
                         await parsePage(cat, page);
                         log += $"{cat} - {page}\n";
@@ -71,7 +65,8 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
         public async Task<string> UpdateTasksParseAsync()
         {
-            foreach (string cat in new List<string>() { "10", "13", "6", "4", "3", "22", "23", "1", "7", "11" })
+            // After PageSize 20→25, regenerate taskParse via this endpoint so page indices match the portal.
+            foreach (string cat in NNMClubCategories.Ids)
             {
                 string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}", encoding: Encoding.GetEncoding(1251), timeoutSeconds: 10, useproxy: AppInit.conf.NNMClub.useproxy);
                 if (html == null || !html.Contains("NNM-Club</title>"))
@@ -162,7 +157,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
         async Task<bool> parsePage(string cat, int page)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}&start={page * 20}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.NNMClub.useproxy);
+            string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}&start={page * PageSize}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.NNMClub.useproxy);
             if (html == null || !html.Contains("NNM-Club</title>"))
                 return false;
 
