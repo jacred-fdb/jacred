@@ -106,11 +106,13 @@ TorrentBy:
   log: true
 
 Kinozal:
-  host: https://kinozal.tv
+  host: https://kinozal.guru
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
   log: true
+  # Static session cookie (optional). If set, login.u/p are not required.
+  # cookie: "uid=12345678; pass=XXXXXXXX;"
   login:
     u: ""
     p: ""

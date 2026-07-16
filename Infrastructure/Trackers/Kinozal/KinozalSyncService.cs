@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -12,6 +14,10 @@ using JacRed.Models.Details;
 using JacRed.Models.tParse;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
+using HttpClientHandler = System.Net.Http.HttpClientHandler;
+using HttpResponseMessage = System.Net.Http.HttpResponseMessage;
+using FormUrlEncodedContent = System.Net.Http.FormUrlEncodedContent;
+using NetHttpClient = System.Net.Http.HttpClient;
 using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.Kinozal
@@ -24,7 +30,12 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         static Dictionary<string, Dictionary<string, List<TaskParse>>> taskParse = new Dictionary<string, Dictionary<string, List<TaskParse>>>();
 
-        static string Cookie;
+        string _cookie;
+        string _lastLoginError;
+
+        static readonly Encoding PageEncoding = Encoding.GetEncoding(1251);
+        static readonly SemaphoreSlim _loginSemaphore = new SemaphoreSlim(1, 1);
+        static readonly Regex RegexCookieValue = new Regex("([^;]+)(;|$)", RegexOptions.Compiled);
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
@@ -59,68 +70,192 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             _memoryCache = memoryCache;
         }
 
-        async void TakeLogin()
+        static bool IsValidBrowsePage(string html) =>
+            !string.IsNullOrWhiteSpace(html)
+            && html.Contains("t_peer")
+            && html.Contains("details.php?id=")
+            && (html.Contains("Кинозал.GURU</title>") || html.Contains("Кинозал.ТВ</title>") || html.Contains("::"));
+
+        string CookieHeader()
         {
-            string authKey = "kinozal:TakeLogin()";
-            if (_memoryCache.TryGetValue(authKey, out _))
-                return;
+            if (!string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.cookie))
+                return AppInit.conf.Kinozal.cookie;
 
-            _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(2));
+            return _cookie;
+        }
 
+        static string ExtractCookieValue(IEnumerable<string> cookieHeaders, string cookieName)
+        {
+            string cookieKey = $"{cookieName}=";
+            foreach (string line in cookieHeaders ?? Enumerable.Empty<string>())
+            {
+                if (string.IsNullOrWhiteSpace(line) || !line.Contains(cookieKey))
+                    continue;
+
+                int start = line.IndexOf(cookieKey, StringComparison.Ordinal) + cookieKey.Length;
+                var match = RegexCookieValue.Match(line.Substring(start));
+                if (match.Success)
+                    return match.Groups[1].Value;
+            }
+
+            return null;
+        }
+
+        static bool TryBuildCookieFromContainer(CookieContainer cookieJar, Uri hostUri, out string cookieHeader)
+        {
+            cookieHeader = null;
+            if (cookieJar == null || hostUri == null)
+                return false;
+
+            string uid = null, pass = null;
+            foreach (Cookie cookie in cookieJar.GetCookies(hostUri))
+            {
+                if (cookie.Name == "uid")
+                    uid = cookie.Value;
+                if (cookie.Name == "pass")
+                    pass = cookie.Value;
+            }
+
+            if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(pass))
+                return false;
+
+            cookieHeader = $"uid={uid}; pass={pass};";
+            return true;
+        }
+
+        static bool TryBuildCookieFromResponse(HttpResponseMessage response, out string cookieHeader)
+        {
+            cookieHeader = null;
+            if (response == null)
+                return false;
+
+            IEnumerable<string> setCookies = null;
+            if (response.Headers.TryGetValues("Set-Cookie", out var headerValues))
+                setCookies = headerValues;
+            else if (response.Headers.NonValidated.TryGetValues("Set-Cookie", out var nonValidatedValues))
+                setCookies = nonValidatedValues;
+
+            if (setCookies == null)
+                return false;
+
+            string uid = ExtractCookieValue(setCookies, "uid");
+            string pass = ExtractCookieValue(setCookies, "pass");
+            if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(pass))
+                return false;
+
+            cookieHeader = $"uid={uid}; pass={pass};";
+            return true;
+        }
+
+        async Task<bool> TakeLogin()
+        {
+            if (!string.IsNullOrWhiteSpace(CookieHeader()))
+                return true;
+
+            await _loginSemaphore.WaitAsync();
             try
             {
-                var clientHandler = new System.Net.Http.HttpClientHandler()
-                {
-                    AllowAutoRedirect = false
-                };
+                if (!string.IsNullOrWhiteSpace(CookieHeader()))
+                    return true;
 
-                clientHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
-                using (var client = new System.Net.Http.HttpClient(clientHandler))
+                if (string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.login?.u) ||
+                    string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.login?.p))
                 {
-                    client.Timeout = TimeSpan.FromSeconds(10);
-                    client.MaxResponseContentBufferSize = 2000000; // 2MB
-                    client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36");
-                    client.DefaultRequestHeaders.Add("cache-control", "no-cache");
-                    client.DefaultRequestHeaders.Add("dnt", "1");
-                    client.DefaultRequestHeaders.Add("origin", AppInit.conf.Kinozal.host);
-                    client.DefaultRequestHeaders.Add("pragma", "no-cache");
-                    client.DefaultRequestHeaders.Add("referer", $"{AppInit.conf.Kinozal.host}/");
-                    client.DefaultRequestHeaders.Add("upgrade-insecure-requests", "1");
+                    _lastLoginError = "credentials not configured (set Kinozal.login.u/p or Kinozal.cookie)";
+                    ParserLog.Write(TrackerName, $"TakeLogin failed: {_lastLoginError}");
+                    return false;
+                }
 
-                    var postParams = new Dictionary<string, string>
+                string host = AppInit.conf.Kinozal.host?.TrimEnd('/');
+                if (string.IsNullOrWhiteSpace(host))
+                {
+                    _lastLoginError = "host is not configured";
+                    ParserLog.Write(TrackerName, $"TakeLogin failed: {_lastLoginError}");
+                    return false;
+                }
+
+                var cookieJar = new CookieContainer();
+
+                try
+                {
+                    var hostUri = new Uri(host + "/");
+                    var clientHandler = new HttpClientHandler()
                     {
-                        { "username", AppInit.conf.Kinozal.login.u },
-                        { "password", AppInit.conf.Kinozal.login.p },
-                        { "returnto", "" }
+                        AllowAutoRedirect = false,
+                        UseCookies = true,
+                        CookieContainer = cookieJar
                     };
 
-                    using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
+                    clientHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
+                    using (var client = new NetHttpClient(clientHandler))
                     {
-                        using (var response = await client.PostAsync($"{AppInit.conf.Kinozal.host}/takelogin.php", postContent))
+                        client.Timeout = TimeSpan.FromSeconds(10);
+                        client.MaxResponseContentBufferSize = 2000000; // 2MB
+                        client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36");
+                        client.DefaultRequestHeaders.Add("cache-control", "no-cache");
+                        client.DefaultRequestHeaders.Add("dnt", "1");
+                        client.DefaultRequestHeaders.Add("origin", host);
+                        client.DefaultRequestHeaders.Add("pragma", "no-cache");
+                        client.DefaultRequestHeaders.Add("referer", $"{host}/");
+                        client.DefaultRequestHeaders.Add("upgrade-insecure-requests", "1");
+
+                        var postParams = new Dictionary<string, string>
                         {
-                            if (response.Headers.TryGetValues("Set-Cookie", out var cook))
+                            { "username", AppInit.conf.Kinozal.login.u },
+                            { "password", AppInit.conf.Kinozal.login.p },
+                            { "returnto", "" }
+                        };
+
+                        using (var postContent = new FormUrlEncodedContent(postParams))
+                        using (var response = await client.PostAsync($"{host}/takelogin.php", postContent))
+                        {
+                            string cookieHeader = null;
+                            if (!TryBuildCookieFromContainer(cookieJar, hostUri, out cookieHeader))
+                                TryBuildCookieFromResponse(response, out cookieHeader);
+
+                            if (!string.IsNullOrWhiteSpace(cookieHeader))
                             {
-                                string uid = null, pass = null;
-                                foreach (string line in cook)
-                                {
-                                    if (string.IsNullOrWhiteSpace(line))
-                                        continue;
-
-                                    if (line.Contains("uid="))
-                                        uid = new Regex("uid=([0-9]+)").Match(line).Groups[1].Value;
-
-                                    if (line.Contains("pass="))
-                                        pass = new Regex("pass=([^;]+)(;|$)").Match(line).Groups[1].Value;
-                                }
-
-                                if (!string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(pass))
-                                    Cookie = $"uid={uid}; pass={pass};";
+                                _cookie = cookieHeader;
+                                _lastLoginError = null;
+                                ParserLog.Write(TrackerName, $"TakeLogin OK {_cookie}");
+                                return true;
                             }
+
+                            _lastLoginError = $"no uid/pass cookies in response, status={(int)response.StatusCode}";
+                            ParserLog.Write(TrackerName, $"TakeLogin failed: {_lastLoginError}");
                         }
                     }
                 }
+                catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or UriFormatException or CookieException)
+                {
+                    _lastLoginError = ex.Message;
+                    ParserLog.Write(TrackerName, $"TakeLogin error: {ex.Message}");
+                }
+
+                return false;
             }
-            catch { }
+            finally
+            {
+                _loginSemaphore.Release();
+            }
+        }
+
+        async Task<bool> EnsureLoggedIn()
+        {
+            if (!string.IsNullOrWhiteSpace(CookieHeader()))
+                return true;
+
+            return await TakeLogin();
+        }
+
+        async Task<string> GetBrowseHtml(string browseUrl)
+        {
+            return await HttpClient.Get(
+                browseUrl,
+                encoding: PageEncoding,
+                cookie: CookieHeader(),
+                referer: $"{AppInit.conf.Kinozal.host}/",
+                useproxy: AppInit.conf.Kinozal.useproxy);
         }
 
         public async Task<string> ParseAsync(int page)
@@ -154,13 +289,16 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         public async Task<string> UpdateTasksParseAsync()
         {
+            if (!await EnsureLoggedIn())
+                return string.IsNullOrWhiteSpace(_lastLoginError) ? "login failed" : $"login failed: {_lastLoginError}";
+
             foreach (string cat in Categories)
             {
                 for (int year = DateTime.Today.Year; year >= 1990; year--)
                 {
                     // Получаем html
-                    string html = await HttpClient.Get($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", timeoutSeconds: 10, useproxy: AppInit.conf.Kinozal.useproxy);
-                    if (html == null)
+                    string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1");
+                    if (!IsValidBrowsePage(html))
                         continue;
 
                     // Максимальное количиство страниц
@@ -260,28 +398,40 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         async Task<bool> parsePage(string cat, int page, string arg = null)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&page={page}" + arg, useproxy: AppInit.conf.Kinozal.useproxy);
-            if (html == null || !html.Contains("Кинозал.ТВ</title>"))
+            if (!await EnsureLoggedIn())
                 return false;
 
-            if (Cookie == null || !html.Contains(">Выход</a>"))
-                TakeLogin();
+            string browseUrl = $"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&page={page}" + arg;
+            string html = await GetBrowseHtml(browseUrl);
+            if (!IsValidBrowsePage(html) || !html.Contains(">Выход</a>"))
+            {
+                _cookie = null;
+                if (!await TakeLogin())
+                    return false;
+
+                html = await GetBrowseHtml(browseUrl);
+                if (!IsValidBrowsePage(html))
+                    return false;
+            }
 
             var torrents = KinozalParser.ParseTorrentsFromPage(html, cat);
 
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
-                if (db.TryGetValue(t.url, out TorrentDetails cached) && ShouldSkipHashFetch(cached, t))
+                if (db.TryGetValue(t.url, out TorrentDetails cached) && KinozalParser.ShouldSkipHashFetch(cached, t))
                     return true;
 
                 string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
-                string srv_details = await HttpClient.Post($"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2", $"id={id}&action=2", Cookie, useproxy: AppInit.conf.Kinozal.useproxy);
+                string srv_details = await HttpClient.Post($"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2", $"id={id}&action=2", CookieHeader(), useproxy: AppInit.conf.Kinozal.useproxy);
                 if (srv_details != null)
                 {
-                    string torrentHash = new Regex("<ul><li>Инфо хеш: +([^<]+)</li>").Match(srv_details).Groups[1].Value;
+                    string torrentHash = new Regex("<ul><li>Инфо хеш:\\s*([A-Fa-f0-9]{40})</li>").Match(srv_details).Groups[1].Value;
+                    if (string.IsNullOrWhiteSpace(torrentHash))
+                        torrentHash = new Regex("([A-Fa-f0-9]{40})").Match(srv_details).Groups[1].Value;
+
                     if (!string.IsNullOrWhiteSpace(torrentHash))
                     {
-                        t.magnet = $"magnet:?xt=urn:btih:{torrentHash}";
+                        t.magnet = $"magnet:?xt=urn:btih:{torrentHash.ToUpperInvariant()}";
                         return true;
                     }
                 }
@@ -290,28 +440,6 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             });
 
             return torrents.Count > 0;
-        }
-
-        /// <summary>
-        /// Кинозал при добавлении серий/озвучек перехеширует .torrent (новый info hash),
-        /// но title в списке часто не меняется — раньше hash не перезапрашивался.
-        /// </summary>
-        static bool ShouldSkipHashFetch(TorrentDetails cached, TorrentDetails parsed)
-        {
-            if (string.IsNullOrWhiteSpace(cached.magnet))
-                return false;
-
-            if (cached.title != parsed.title)
-                return false;
-
-            if (cached.sizeName != parsed.sizeName)
-                return false;
-
-            // В колонке даты показывается время последнего обновления раздачи («вчера», «сегодня», …)
-            if (parsed.createTime.Date > cached.createTime.Date)
-                return false;
-
-            return true;
         }
     }
 }

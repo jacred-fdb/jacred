@@ -12,11 +12,51 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
     {
         const string TrackerName = "kinozal";
 
+        /// <summary>
+        /// Parse browse-list date column (header «Залит»).
+        /// Kinozal shows Обновлен when torrent was re-uploaded; otherwise shows Залит (upload only).
+        /// Formats: сегодня/вчера в HH:mm or dd.MM.yyyy в HH:mm.
+        /// </summary>
+        public static DateTime ParseListingUpdateTime(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return default;
+
+            raw = Regex.Replace(raw.Trim(), "[\n\r\t ]+", " ");
+
+            var relative = Regex.Match(raw, "^(сегодня|вчера) в ([0-9]{2}):([0-9]{2})$", RegexOptions.IgnoreCase);
+            if (relative.Success)
+            {
+                var baseDate = string.Equals(relative.Groups[1].Value, "сегодня", StringComparison.OrdinalIgnoreCase)
+                    ? DateTime.UtcNow.Date
+                    : DateTime.UtcNow.Date.AddDays(-1);
+
+                int hour = int.Parse(relative.Groups[2].Value);
+                int minute = int.Parse(relative.Groups[3].Value);
+                return baseDate.AddHours(hour).AddMinutes(minute);
+            }
+
+            var absolute = Regex.Match(raw, "^([0-9]{2})\\.([0-9]{2})\\.([0-9]{4}) в ([0-9]{2}):([0-9]{2})$");
+            if (absolute.Success)
+            {
+                return new DateTime(
+                    int.Parse(absolute.Groups[3].Value),
+                    int.Parse(absolute.Groups[2].Value),
+                    int.Parse(absolute.Groups[1].Value),
+                    int.Parse(absolute.Groups[4].Value),
+                    int.Parse(absolute.Groups[5].Value),
+                    0,
+                    DateTimeKind.Utc);
+            }
+
+            return tParse.ParseCreateTime(raw, "dd.MM.yyyy");
+        }
+
         public static List<TorrentDetails> ParseTorrentsFromPage(string html, string cat)
         {
             var torrents = new List<TorrentDetails>();
 
-            foreach (string row in Regex.Split(tParse.ReplaceBadNames(html), "<tr class=('first bg'|bg)>").Skip(1))
+            foreach (string row in Regex.Split(tParse.ReplaceBadNames(html), "<tr class=(?:'first bg'|bg)>").Skip(1))
             {
                 #region Локальный метод - Match
                 string Match(string pattern, int index = 1)
@@ -31,20 +71,8 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     continue;
 
                 #region Дата создания
-                DateTime createTime = default;
-
-                if (row.Contains("<td class='s'>сегодня"))
-                {
-                    createTime = DateTime.UtcNow;
-                }
-                else if (row.Contains("<td class='s'>вчера"))
-                {
-                    createTime = DateTime.UtcNow.AddDays(-1);
-                }
-                else
-                {
-                    createTime = tParse.ParseCreateTime(Match("<td class='s'>([0-9]{2}.[0-9]{2}.[0-9]{4}) в [0-9]{2}:[0-9]{2}</td>"), "dd.MM.yyyy");
-                }
+                string listingTime = Match("<td class='sl_p'>[0-9]+</td>\\s*<td class='s'>([^<]+)</td>");
+                DateTime createTime = ParseListingUpdateTime(listingTime);
 
                 if (createTime == default)
                     continue;
@@ -60,7 +88,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
                     continue;
 
-                url = "http://kinozal.tv/" + url;
+                url = $"{AppInit.conf.Kinozal.host}/{url}";
                 #endregion
 
                 #region Парсим раздачи
@@ -261,6 +289,30 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             }
 
             return torrents;
+        }
+
+        /// <summary>
+        /// Кинозал при добавлении серий/озвучек перехеширует .torrent (новый info hash),
+        /// но title в списке часто не меняется — раньше hash не перезапрашивался.
+        /// createTime = date from browse «Залит» column: Обновлен if present on details,
+        /// otherwise original Залит (never re-uploaded).
+        /// </summary>
+        internal static bool ShouldSkipHashFetch(TorrentDetails cached, TorrentDetails parsed)
+        {
+            if (string.IsNullOrWhiteSpace(cached.magnet))
+                return false;
+
+            if (cached.title != parsed.title)
+                return false;
+
+            if (cached.sizeName != parsed.sizeName)
+                return false;
+
+            // Обновлен changed (including time on the same day) → rehash likely
+            if (parsed.createTime > cached.createTime)
+                return false;
+
+            return true;
         }
     }
 }

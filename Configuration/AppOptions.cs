@@ -100,7 +100,7 @@ namespace JacRed.Configuration
 
         public TrackerSettings TorrentBy = new TrackerSettings("https://torrent.by");
 
-        public TrackerSettings Kinozal = new TrackerSettings("https://kinozal.tv");
+        public TrackerSettings Kinozal = new TrackerSettings("https://kinozal.guru");
 
         public TrackerSettings NNMClub = new TrackerSettings("https://nnmclub.to");
 
