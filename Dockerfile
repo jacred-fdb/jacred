@@ -30,8 +30,10 @@ RUN set -eu; \
     arm64) RID=linux-musl-arm64 ;; \
     *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
-    dotnet restore --verbosity minimal && \
-    dotnet publish . \
+    # Publish the app project only — solution publish also builds JacRed.Tests
+    # and fails with NETSDK1098 under PublishSingleFile.
+    dotnet restore JacRed.csproj --verbosity minimal && \
+    dotnet publish JacRed.csproj \
     --runtime "$RID" \
     --configuration Release \
     --self-contained true \

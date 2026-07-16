@@ -10,6 +10,9 @@
 **/bin
 **/obj
 
+# Tests are not published into the runtime image
+tests/
+
 # Router (separate front-end, not needed for main app runtime)
 router/node_modules
 
