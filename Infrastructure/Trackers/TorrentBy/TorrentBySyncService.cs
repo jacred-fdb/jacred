@@ -23,8 +23,6 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
-        static readonly string[] Categories = { "films", "movies", "serials", "tv", "humor", "cartoons", "anime", "sport" };
-
         static TorrentBySyncService()
         {
             if (IO.File.Exists("Data/temp/torrentby_taskParse.json"))
@@ -42,7 +40,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                     var sw = Stopwatch.StartNew();
                     string baseUrl = AppInit.conf.TorrentBy.rqHost();
                     ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                    foreach (string cat in Categories)
+                    foreach (string cat in TorrentByCategories.Ids)
                     {
                         string pageUrl = $"{baseUrl}/{cat}/?page={page}";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
@@ -62,7 +60,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
         public async Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)
         {
-            foreach (string cat in Categories)
+            foreach (string cat in TorrentByCategories.Ids)
             {
                 string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy);
                 if (html == null)
