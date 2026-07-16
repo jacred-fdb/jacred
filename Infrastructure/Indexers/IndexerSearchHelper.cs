@@ -75,6 +75,8 @@ namespace JacRed.Infrastructure.Indexers
         /// <summary>Same hint logic as legacy JackettSearchResults category block.</summary>
         public static int ApplyCategoryIsSerialHint(int isSerial, List<int> categories)
         {
+            // Only refine when client sent is_serial=0 (Jackett "other"). Do not infer from
+            // categories when unset (-1) — Torznab/Jackett often pass cat without is_serial.
             if (isSerial != 0 || categories == null || categories.Count == 0)
                 return isSerial;
 

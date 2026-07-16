@@ -191,6 +191,8 @@ namespace JacRed.Controllers
                 return Json(Array.Empty<object>());
 
             if (string.IsNullOrWhiteSpace(parsed.Query)
+                && string.IsNullOrWhiteSpace(parsed.Title)
+                && string.IsNullOrWhiteSpace(parsed.TitleOriginal)
                 && string.IsNullOrWhiteSpace(query["title"].ToString())
                 && string.IsNullOrWhiteSpace(query["title_original"].ToString()))
                 return Json(Array.Empty<object>());
@@ -202,9 +204,24 @@ namespace JacRed.Controllers
                 _ => type.ToLowerInvariant()
             };
 
-            var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false, boundQuery: parsed.Query,
+            // Lampa Jackett uses is_serial=1 (movie) / 2 (serial). Map Prowlarr type+categories the same way.
+            int isSerial = IndexerRequestParams.IsSerialFromTorznabAction(torznabAction);
+            if (isSerial < 0)
+                isSerial = IndexerRequestParams.IsSerialFromCategories(IndexerRequestParams.CategoriesFromQuery(query));
+
+            string boundTitle = !string.IsNullOrWhiteSpace(query["title"].ToString())
+                ? query["title"].ToString()
+                : parsed.Title;
+            string boundTitleOriginal = !string.IsNullOrWhiteSpace(query["title_original"].ToString())
+                ? query["title_original"].ToString()
+                : parsed.TitleOriginal;
+
+            var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false,
+                boundQuery: parsed.Query,
+                boundTitle: boundTitle,
+                boundTitleOriginal: boundTitleOriginal,
                 boundYear: parsed.Year ?? 0,
-                boundIsSerial: IndexerRequestParams.IsSerialFromTorznabAction(torznabAction));
+                boundIsSerial: isSerial);
 
             if (parsed.Season.HasValue)
                 req.Season = parsed.Season;
@@ -212,8 +229,6 @@ namespace JacRed.Controllers
                 req.Episode = parsed.Episode;
             if (!string.IsNullOrWhiteSpace(parsed.Genre) && string.IsNullOrWhiteSpace(req.Genres))
                 req.Genres = parsed.Genre;
-            if (!string.IsNullOrWhiteSpace(parsed.Title) && string.IsNullOrWhiteSpace(req.Title))
-                req.Title = parsed.Title;
 
             var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _searchService);
             results = IndexerSearchHelper.ApplyPostFilters(results, query, req, torznabAction);

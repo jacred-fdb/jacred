@@ -460,6 +460,8 @@ paths:
         Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
         JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
         Each release also includes JacRed extensions (`ffprobe`, `languages`, `info`) when `tracks: true`, same as Jackett results.
+        Lampa Prowlarr mode (`query` + `type` + `categories`) is promoted to Jackett-style card search
+        (`title`/`title_original`/`year`, `is_serial` 1=movie / 2=serial) for richer TV/movie results.
       operationId: prowlarrSearch
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'

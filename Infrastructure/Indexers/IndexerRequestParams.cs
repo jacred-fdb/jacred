@@ -187,10 +187,51 @@ namespace JacRed.Infrastructure.Indexers
             return 0;
         }
 
+        /// <summary>
+        /// Maps Torznab/Prowlarr search type to JacRed <c>is_serial</c> (Jackett/Lampa convention):
+        /// 1 = movie, 2 = serial. Returns -1 when type does not imply media kind.
+        /// </summary>
         public static int IsSerialFromTorznabAction(string t)
         {
-            if (t == "moviesearch" || t == "movie") return 0;
-            if (t == "tvsearch" || t == "tv") return 1;
+            if (t == "moviesearch" || t == "movie") return 1;
+            if (t == "tvsearch" || t == "tv") return 2;
+            return -1;
+        }
+
+        /// <summary>
+        /// Infer <c>is_serial</c> from Newznab categories when type alone is ambiguous
+        /// (Lampa Prowlarr sends <c>type=search</c> + <c>categories=2000|5000</c> for card search).
+        /// </summary>
+        public static int IsSerialFromCategories(List<int> categories)
+        {
+            if (categories == null || categories.Count == 0)
+                return -1;
+
+            bool hasTv = categories.Any(c => c >= 5000 && c < 6000);
+            bool hasMovie = categories.Any(c => c >= 2000 && c < 3000);
+
+            // Lampa anime cards send 2000/5000 + 5070 together — keep broad movie/serial filter.
+            if (hasTv && hasMovie)
+                return -1;
+
+            if (hasTv)
+            {
+                if (categories.Any(c => c == 5020))
+                    return 3;
+                if (categories.Any(c => c == 5080))
+                    return 4;
+                if (categories.All(c => c == 5070))
+                    return 5;
+                return 2;
+            }
+
+            if (hasMovie)
+            {
+                if (categories.Any(c => c == 2010))
+                    return 3;
+                return 1;
+            }
+
             return -1;
         }
 
