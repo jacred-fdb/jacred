@@ -88,7 +88,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             });
         }
 
-        /// <summary>Парсит страницу /series/{series}/seasons/ и добавляет торренты «полный сезон» (SD, 1080p, 720p) для каждого сезона с e=999.</summary>
+        /// <summary>Парсит страницу /series/{series}/seasons/ и добавляет торренты «полный сезон» (1080p / 2160p) для каждого сезона с e=999.</summary>
         public async Task<string> ParseSeasonPacksAsync(string series)
         {
             if (!EnsureConfig()) return "conf";
@@ -315,7 +315,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             string source = "episode_links";
             if (list.Count == 0)
             {
-                await LostfilmParser.CollectFromNewMovie(normalized, host, cookie, list, page);
+                await LostfilmParser.CollectFromNewMovie(normalized, host, cookie, list, page, horBreakerNameMap);
                 source = "new-movie";
             }
             if (list.Count == 0)
@@ -349,28 +349,27 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             if (list.Count == 0)
                 return false;
 
+            int expandFailed = 0;
+            (list, expandFailed) = await ExpandSerialEpisodesToQualities(host, cookie, list);
+            LostfilmParser.DedupeListByUrl(list);
+
             int added = 0, fromCache = 0, noMagnet = 0;
             await FileDB.AddOrUpdate(list, async (t, db) =>
             {
                 if (!string.IsNullOrEmpty(t.magnet))
                     return true;
+
                 if (db.TryGetValue(t.url, out TorrentDetails cached) && !string.IsNullOrEmpty(cached.magnet))
                 {
                     fromCache++;
-                    t.magnet = cached.magnet;
-                    t.title = cached.title;
-                    t.sizeName = cached.sizeName ?? t.sizeName;
-                    // Сохраняем единое имя/originalname из кэша, чтобы бакет не разъезжался (Пони / Ponies, а не Ponies / Ponies).
-                    if (!string.IsNullOrEmpty(cached.name))
-                        t.name = cached.name;
-                    if (!string.IsNullOrEmpty(cached.originalname))
-                        t.originalname = cached.originalname;
+                    LostfilmParser.ApplyMagnetCache(t, cached);
                     return true;
                 }
 
+                // Fallback for non-episode serial URLs (e.g. series landing) or leftover bare rows.
                 var mag = t.types != null && t.types.Contains("movie")
-                    ? await GetMagnetForMovie(host, cookie, t.url)
-                    : await GetMagnet(host, cookie, t.url);
+                    ? await GetMagnetForMovie(host, cookie, LostfilmParser.StripUrlFragment(t.url))
+                    : await GetMagnetFirstQuality(host, cookie, LostfilmParser.StripUrlFragment(t.url));
                 if (string.IsNullOrEmpty(mag.magnet))
                 {
                     noMagnet++;
@@ -383,20 +382,57 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                 if (!string.IsNullOrEmpty(mag.quality))
                 {
                     string quality = LostfilmParser.NormalizeQuality(mag.quality);
-                    if (t.title != null && t.title.TrimEnd().EndsWith("]"))
-                        t.title = t.title.TrimEnd().Substring(0, t.title.TrimEnd().Length - 1) + ", " + quality + "]";
-                    else
-                        t.title = (t.title ?? "") + " [" + quality + "]";
+                    t.title = LostfilmParser.AppendQualityToTitle(t.title, quality);
+                    if (!t.url.Contains('#', StringComparison.Ordinal))
+                        t.url = LostfilmParser.StripUrlFragment(t.url) + "#" + quality;
                 }
                 added++;
                 ParserLog.Write(TrackerName, $"  + {t.title?.Substring(0, Math.Min(60, t.title?.Length ?? 0))}... [{mag.quality}]");
                 return true;
             });
-            ParserLog.Write(TrackerName, $"Page {page}: added={added} fromCache={fromCache} noMagnet={noMagnet}");
+            ParserLog.Write(TrackerName, $"Page {page}: added={added} fromCache={fromCache} noMagnet={noMagnet} expandFailed={expandFailed}");
             return false;
         }
 
-        /// <summary>Собирает фильмы с /new/: ссылки на /movies/ и блоки с «Фильм» + дата. Для каждого получает V-страницу и добавляет раздачи по качествам (SD, 1080p, 720p).</summary>
+        /// <summary>Resolves V-page magnets for each episode and emits one FileDB row per quality ({url}#1080p).</summary>
+        async Task<(List<TorrentDetails> list, int expandFailed)> ExpandSerialEpisodesToQualities(string host, string cookie, List<TorrentDetails> list)
+        {
+            var result = new List<TorrentDetails>(list.Count * 2);
+            int expandFailed = 0;
+            int delay = AppInit.conf.Lostfilm.parseDelay;
+
+            foreach (var t in list)
+            {
+                if (!string.IsNullOrEmpty(t.magnet)
+                    || (t.types != null && t.types.Contains("movie"))
+                    || (t.url != null && t.url.Contains('#', StringComparison.Ordinal))
+                    || !LostfilmParser.IsEpisodePathUrl(t.url))
+                {
+                    result.Add(t);
+                    continue;
+                }
+
+                string bareUrl = LostfilmParser.StripUrlFragment(t.url);
+                var magnets = await GetMagnetsForEpisode(host, cookie, bareUrl);
+                if (magnets.Count == 0)
+                {
+                    expandFailed++;
+                    ParserLog.Write(TrackerName, $"  expand failed (no magnets): {bareUrl}");
+                    continue;
+                }
+
+                foreach (var (magnet, quality, sizeName) in magnets)
+                    result.Add(LostfilmParser.CloneWithQuality(t, magnet, quality, sizeName));
+
+                ParserLog.Write(TrackerName, $"  expand {t.name} → 1080p/2160p ({magnets.Count})");
+                if (delay > 0)
+                    await Task.Delay(Math.Min(delay, 2000));
+            }
+
+            return (result, expandFailed);
+        }
+
+        /// <summary>Собирает фильмы с /new/: ссылки на /movies/ и блоки с «Фильм» + дата. Для каждого получает V-страницу и добавляет 1080p / 2160p.</summary>
         async Task CollectFromMovies(string html, string host, string cookie, List<TorrentDetails> list, int page)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -464,7 +500,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                         sizeName = sizeName ?? ""
                     });
                 }
-                ParserLog.Write(TrackerName, $"  + movie {nameDec} ({magnets.Count} quality)");
+                ParserLog.Write(TrackerName, $"  + movie {nameDec} (1080p/2160p x{magnets.Count})");
             }
         }
 
@@ -479,10 +515,10 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                 var vMatch = Regex.Match(html, @"href=""(/V/\?[^""]+)""", RegexOptions.IgnoreCase);
                 if (vMatch.Success)
                     return vMatch.Groups[1].Value.StartsWith("http") ? vMatch.Groups[1].Value : host.TrimEnd('/') + vMatch.Groups[1].Value;
-                var playMatch = Regex.Match(html, @"Play(?:Movie|Episode)\s*\(\s*['""]?(\d+)['""]?\s*\)", RegexOptions.IgnoreCase);
-                if (playMatch.Success)
+
+                string id = LostfilmParser.TryExtractPlayMovieOrEpisodeId(html);
+                if (!string.IsNullOrEmpty(id))
                 {
-                    string id = playMatch.Groups[1].Value;
                     string searchHtml = await HttpClient.Get($"{host}/v_search.php?a={id}", cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy);
                     if (string.IsNullOrEmpty(searchHtml))
                         return null;
@@ -502,7 +538,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             }
         }
 
-        /// <summary>Для фильма: получает V-URL со страницы фильма и возвращает первый доступный магнит (одно качество).</summary>
+        /// <summary>Для фильма: получает V-URL со страницы фильма и возвращает первый доступный магнит (одно качество) — fallback only.</summary>
         async Task<(string magnet, string quality, string sizeName)> GetMagnetForMovie(string host, string cookie, string movieUrl)
         {
             string vPageUrl = await GetVUrlFromMoviePage(host, cookie, movieUrl);
@@ -514,14 +550,20 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             return default;
         }
 
-        /// <summary>Парсит HTML страницы InSearch (V/?c=...) и возвращает все варианты качества с магнитами.</summary>
+        /// <summary>Парсит HTML страницы InSearch (V/?c=...) и возвращает только 1080p / 2160p магниты.</summary>
         async Task<List<(string magnet, string quality, string sizeName)>> ParseVPageQualityLinks(string host, string cookie, string searchHtml)
         {
-            var linkUrls = LostfilmParser.ParseVPageQualityLinkUrls(searchHtml);
+            var linkUrls = LostfilmParser.ParseVPageQualityLinkUrls(searchHtml)
+                .Where(x => LostfilmParser.IsPreferredQuality(x.quality))
+                .ToList();
             var results = new List<(string magnet, string quality, string sizeName)>();
+            int delay = Math.Min(AppInit.conf.Lostfilm.parseDelay, 2000);
 
             foreach (var (torrentUrl, quality) in linkUrls)
             {
+                if (delay > 0 && results.Count > 0)
+                    await Task.Delay(delay);
+
                 byte[] data = await HttpClient.Download(torrentUrl, cookie: cookie, referer: $"{host}/");
                 if (data == null || data.Length == 0)
                     continue;
@@ -529,7 +571,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                 if (string.IsNullOrEmpty(magnet))
                     continue;
                 string sizeName = BencodeTo.SizeName(data) ?? "";
-                results.Add((magnet, quality, sizeName));
+                results.Add((magnet, LostfilmParser.NormalizeQuality(quality), sizeName));
             }
             return results;
         }
@@ -563,51 +605,62 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             if (string.IsNullOrEmpty(vPageUrl))
                 vPageUrl = Regex.Match(searchHtml, @"href=""(/V/\?[^""]+)""").Groups[1].Value.Trim();
             if (string.IsNullOrEmpty(vPageUrl))
+            {
+                if (!string.IsNullOrWhiteSpace(cookie))
+                    ParserLog.Write(TrackerName, "auth/V-page: no inner-box--link and no redirect (cookie expired?)");
                 return searchHtml;
+            }
             if (vPageUrl.StartsWith("/"))
                 vPageUrl = host.TrimEnd('/') + vPageUrl;
             searchHtml = await HttpClient.Get(vPageUrl, cookie: cookie, referer: $"{host}/", useproxy: AppInit.conf.Lostfilm.useproxy) ?? "";
+            if (!string.IsNullOrWhiteSpace(cookie) && !string.IsNullOrEmpty(searchHtml) && !searchHtml.Contains("inner-box--link"))
+                ParserLog.Write(TrackerName, "auth/V-page: final HTML missing inner-box--link (cookie expired?)");
             return searchHtml;
         }
 
-        async Task<(string magnet, string quality, string sizeName)> GetMagnet(string host, string cookie, string episodeUrl)
+        async Task<List<(string magnet, string quality, string sizeName)>> GetMagnetsForEpisode(string host, string cookie, string episodeUrl)
         {
             try
             {
                 string html = await HttpClient.Get(episodeUrl, cookie: cookie, useproxy: AppInit.conf.Lostfilm.useproxy);
                 if (string.IsNullOrEmpty(html))
                 {
-                    ParserLog.Write(TrackerName, $"      GetMagnet: empty episode page {episodeUrl}");
-                    return default;
+                    ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: empty episode page {episodeUrl}");
+                    return new List<(string, string, string)>();
                 }
-                var epMatch = Regex.Match(html, @"PlayEpisode\s*\(\s*['""]?(\d+)['""]?\s*\)");
-                if (!epMatch.Success)
+                string episodeId = LostfilmParser.TryExtractPlayEpisodeId(html);
+                if (string.IsNullOrEmpty(episodeId))
                 {
-                    ParserLog.Write(TrackerName, $"      GetMagnet: no PlayEpisode in {episodeUrl}");
-                    return default;
+                    ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no PlayEpisode in {episodeUrl}");
+                    return new List<(string, string, string)>();
                 }
-                string episodeId = epMatch.Groups[1].Value;
-                ParserLog.Write(TrackerName, $"      GetMagnet: episodeId={episodeId}");
+                ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: episodeId={episodeId}");
 
                 string searchHtml = await FetchVPageHtml(host, cookie, null, episodeId);
                 if (string.IsNullOrEmpty(searchHtml) || !searchHtml.Contains("inner-box--link"))
                 {
-                    ParserLog.Write(TrackerName, $"      GetMagnet: no inner-box--link after V page");
-                    return default;
+                    if (!string.IsNullOrWhiteSpace(cookie))
+                        ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no inner-box--link (auth?) for {episodeUrl}");
+                    else
+                        ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no inner-box--link after V page");
+                    return new List<(string, string, string)>();
                 }
-                var list = await ParseVPageQualityLinks(host, cookie, searchHtml);
-                if (list.Count > 0)
-                    return list[0];
-                ParserLog.Write(TrackerName, $"      GetMagnet: no suitable quality link found");
+                return await ParseVPageQualityLinks(host, cookie, searchHtml);
             }
             catch (Exception ex)
             {
-                ParserLog.Write(TrackerName, $"      GetMagnet error: {ex.Message}");
+                ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode error: {ex.Message}");
+                return new List<(string, string, string)>();
             }
-            return default;
         }
 
-        /// <summary>По прямой ссылке на страницу V (например /V/?c=589&amp;s=4&amp;e=999) возвращает все качества (SD, 1080p, 720p) для полного сезона.</summary>
+        async Task<(string magnet, string quality, string sizeName)> GetMagnetFirstQuality(string host, string cookie, string episodeUrl)
+        {
+            var list = await GetMagnetsForEpisode(host, cookie, episodeUrl);
+            return list.Count > 0 ? list[0] : default;
+        }
+
+        /// <summary>По прямой ссылке на страницу V (например /V/?c=589&amp;s=4&amp;e=999) возвращает 1080p / 2160p для полного сезона.</summary>
         async Task<List<(string magnet, string quality, string sizeName)>> GetMagnetsFromVPage(string host, string cookie, string vPageUrl)
         {
             try

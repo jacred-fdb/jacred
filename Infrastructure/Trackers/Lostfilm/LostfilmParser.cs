@@ -52,8 +52,8 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                     continue;
                 }
                 // Уже есть запись: оставляем ту, у которой есть русское название (name != originalname)
-                bool currentHasRu = !string.IsNullOrEmpty(t.name) && !string.IsNullOrEmpty(t.originalname) && !string.Equals(t.name, t.originalname, StringComparison.OrdinalIgnoreCase);
-                bool existingHasRu = !string.IsNullOrEmpty(existing.name) && !string.IsNullOrEmpty(existing.originalname) && !string.Equals(existing.name, existing.originalname, StringComparison.OrdinalIgnoreCase);
+                bool currentHasRu = HasRuName(t);
+                bool existingHasRu = HasRuName(existing);
                 if (currentHasRu && !existingHasRu)
                     byUrl[t.url] = t;
             }
@@ -84,6 +84,22 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             return (year, russianName);
         }
 
+        /// <summary>Store 1080p and 2160p from V-pages (episodes, movies, season packs).</summary>
+        public static readonly string[] PreferredQualities = { "1080p", "2160p" };
+
+        public static bool IsPreferredQuality(string quality)
+        {
+            string q = NormalizeQuality(quality);
+            if (string.IsNullOrEmpty(q))
+                return false;
+            foreach (string preferred in PreferredQualities)
+            {
+                if (string.Equals(q, preferred, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         /// <summary>Нормализует качество в единый формат: 1080/720 → 1080p/720p, SD без изменений.</summary>
         public static string NormalizeQuality(string quality)
         {
@@ -94,6 +110,8 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                 return q.ToLowerInvariant();
             if (string.Equals(q, "1080", StringComparison.OrdinalIgnoreCase))
                 return "1080p";
+            if (string.Equals(q, "2160", StringComparison.OrdinalIgnoreCase))
+                return "2160p";
             if (string.Equals(q, "720", StringComparison.OrdinalIgnoreCase))
                 return "720p";
             if (string.Equals(q, "sd", StringComparison.OrdinalIgnoreCase))

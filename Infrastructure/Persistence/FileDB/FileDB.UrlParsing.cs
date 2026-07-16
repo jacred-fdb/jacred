@@ -58,6 +58,10 @@ namespace JacRed.Infrastructure.Persistence
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // Lostfilm: host-independent path + #quality (qualities stay distinct).
+            if (string.Equals(trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase))
+                return JacRed.Infrastructure.Trackers.Lostfilm.LostfilmParser.StableUrlId(url);
+
             return 0;
         }
 

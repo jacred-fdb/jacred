@@ -66,7 +66,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             return Task.CompletedTask;
         }
 
-        public static Task CollectFromNewMovie(string html, string host, string cookie, List<TorrentDetails> list, int page)
+        public static Task CollectFromNewMovie(string html, string host, string cookie, List<TorrentDetails> list, int page, Dictionary<string, (string name, string originalname)> horBreakerNameMap = null)
         {
             var re = new Regex(@"<a\s+class=""new-movie""\s+href=""(?:https?://[^""]+)?(/series/[^""]+)""[^>]*title=""([^""]*)""[^>]*>([\s\S]*?)</a>", RegexOptions.IgnoreCase);
             foreach (Match m in re.Matches(html))
@@ -95,6 +95,13 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                     continue;
                 string originalname = serieName.Replace("_", " ");
                 string seriesName = !string.IsNullOrWhiteSpace(nameFromAttr) ? nameFromAttr : originalname;
+                if (horBreakerNameMap != null
+                    && (horBreakerNameMap.TryGetValue(urlPath.TrimEnd('/'), out var ruNames)
+                        || horBreakerNameMap.TryGetValue("series/" + serieName, out ruNames)))
+                {
+                    seriesName = ruNames.name;
+                    originalname = ruNames.originalname;
+                }
                 list.Add(new TorrentDetails
                 {
                     trackerName = "lostfilm",

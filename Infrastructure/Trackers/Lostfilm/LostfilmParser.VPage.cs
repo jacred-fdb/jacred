@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
@@ -6,7 +5,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
 {
     public static partial class LostfilmParser
     {
-        /// <summary>Парсит HTML страницы InSearch (V/?c=...) и извлекает варианты качества с torrent-ссылками (без скачивания).</summary>
+        /// <summary>Парсит HTML страницы InSearch (V/?c=...) и извлекает только 1080p / 2160p torrent-ссылки (без скачивания).</summary>
         public static List<(string torrentUrl, string quality)> ParseVPageQualityLinkUrls(string searchHtml)
         {
             if (string.IsNullOrEmpty(searchHtml) || !searchHtml.Contains("inner-box--link"))
@@ -19,16 +18,14 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             foreach (Match m in linkRe.Matches(flat))
             {
                 string linkText = m.Groups[2].Value;
-                string quality = Regex.Match(linkText, @"(2160p|2060p|1440p|1080p|720p)", RegexOptions.IgnoreCase).Groups[1].Value;
+                string quality = Regex.Match(linkText, @"(2160p|1080p)", RegexOptions.IgnoreCase).Groups[1].Value;
                 if (string.IsNullOrEmpty(quality))
-                    quality = Regex.Match(linkText, @"\b(1080|720)\b", RegexOptions.IgnoreCase).Groups[1].Value?.ToLowerInvariant();
-                if (string.IsNullOrEmpty(quality) && linkText.IndexOf("MP4", StringComparison.OrdinalIgnoreCase) >= 0)
-                    quality = "720p";
-                if (string.IsNullOrEmpty(quality))
-                    quality = Regex.Match(linkText, @"\bSD\b", RegexOptions.IgnoreCase).Success ? "SD" : null;
+                    quality = Regex.Match(linkText, @"\b(2160|1080)\b", RegexOptions.IgnoreCase).Groups[1].Value;
                 if (string.IsNullOrEmpty(quality))
                     continue;
                 quality = NormalizeQuality(quality);
+                if (!IsPreferredQuality(quality))
+                    continue;
                 string torrentUrl = m.Groups[1].Value;
                 if (string.IsNullOrEmpty(torrentUrl))
                     continue;

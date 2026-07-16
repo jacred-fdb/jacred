@@ -249,6 +249,18 @@ namespace JacRed.Infrastructure.Persistence
                 if (foundById)
                     Database.TryAdd(t.url, t);
 
+                // Drop legacy bare episode/movie URL once a #quality row is stored.
+                if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(t.url) && t.url.Contains('#', StringComparison.Ordinal))
+                {
+                    string bare = t.url.Substring(0, t.url.IndexOf('#'));
+                    if (!string.IsNullOrEmpty(bare) && Database.ContainsKey(bare))
+                    {
+                        Database.Remove(bare);
+                        savechanges = true;
+                    }
+                }
+
                 if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase))
                 {
                     string newKey = keyDb(t.name, t.originalname);
@@ -322,6 +334,18 @@ namespace JacRed.Infrastructure.Persistence
 
                 Database.TryAdd(t.url, t);
                 AddOrUpdateMasterDb(t);
+
+                // Drop legacy bare episode/movie URL once a #quality row is stored.
+                if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(t.url) && t.url.Contains('#', StringComparison.Ordinal))
+                {
+                    string bare = t.url.Substring(0, t.url.IndexOf('#'));
+                    if (!string.IsNullOrEmpty(bare) && Database.ContainsKey(bare))
+                    {
+                        Database.Remove(bare);
+                        savechanges = true;
+                    }
+                }
             }
         }
         #endregion
