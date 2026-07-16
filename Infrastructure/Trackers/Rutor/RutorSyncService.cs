@@ -24,8 +24,6 @@ namespace JacRed.Infrastructure.Trackers.Rutor
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
-        static readonly List<string> Categories = new List<string>() { "1", "5", "4", "16", "12", "6", "7", "10", "17", "13", "15" };
-
         static RutorSyncService()
         {
             if (IO.File.Exists("Data/temp/rutor_taskParse.json"))
@@ -43,18 +41,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                     var sw = Stopwatch.StartNew();
                     string baseUrl = $"{AppInit.conf.Rutor.rqHost()}/browse";
                     ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                    // 1  - Зарубежные фильмы          | Фильмы
-                    // 5  - Наши фильмы                | Фильмы
-                    // 4  - Зарубежные сериалы         | Сериалы
-                    // 16 - Наши сериалы               | Сериалы
-                    // 12 - Научно-популярные фильмы   | Док. сериалы, Док. фильмы
-                    // 6  - Телевизор                  | ТВ Шоу
-                    // 7  - Мультипликация             | Мультфильмы, Мультсериалы
-                    // 10 - Аниме                      | Аниме
-                    // 17 - Иностранные релизы         | Фильмы (UKR)
-                    // 13 - Спорт и Здоровье           | Спорт
-                    // 15 - Юмор                       | ТВ Шоу
-                    foreach (string cat in Categories)
+                    foreach (string cat in RutorCategories.Ids)
                     {
                         string pageUrl = $"{baseUrl}/{page}/{cat}/0/0";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
@@ -74,7 +61,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
         public async Task<string> UpdateTasksParseAsync()
         {
-            foreach (string cat in Categories)
+            foreach (string cat in RutorCategories.Ids)
             {
                 string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/0/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy);
                 if (html == null)

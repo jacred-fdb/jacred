@@ -16,27 +16,25 @@ namespace JacRed.Infrastructure.Trackers.Rutor
         {
             var torrents = new List<TorrentBaseDetails>();
 
+            if (!RutorCategories.Map.TryGetValue(cat, out var meta))
+                return torrents;
+
             foreach (string row in Regex.Split(Regex.Replace(html, "[\n\r\t]+", ""), "<tr class=\"(gai|tum)\">").Skip(1))
             {
-                #region Локальный метод - Match
                 string Match(string pattern, int index = 1)
                 {
                     string res = HttpUtility.HtmlDecode(new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim());
                     res = Regex.Replace(res, "[\n\r\t ]+", " ");
-                    return res.Replace(" ", " ").Trim(); // Меняем непонятный символ похожий на проблел, на обычный проблел
+                    return res.Replace(" ", " ").Trim();
                 }
-                #endregion
 
                 if (string.IsNullOrWhiteSpace(row) || !row.Contains("magnet:?xt=urn"))
                     continue;
 
-                #region createTime
                 DateTime createTime = tParse.ParseCreateTime(Match("<td>([^<]+)</td><td([^>]+)?><a class=\"downgif\""), "dd.MM.yy");
                 if (createTime == default)
                     continue;
-                #endregion
 
-                #region Данные раздачи
                 string url = Match("<a href=\"/(torrent/[^\"]+)\">");
                 string title = Match("<a href=\"/torrent/[^\"]+\">([^<]+)</a>");
                 string _sid = Match("<span class=\"green\"><img [^>]+>&nbsp;([0-9]+)</span>");
@@ -47,22 +45,181 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || title.ToLower().Contains("трейлер") || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName) || string.IsNullOrWhiteSpace(magnet))
                     continue;
 
-                if (cat == "17" && !title.Contains(" UKR"))
+                if (meta.RequireUkrInTitle && !title.Contains(" UKR"))
                     continue;
 
                 if (title.Contains(" КПК"))
                     continue;
 
                 url = $"{AppInit.conf.Rutor.host}/{url}";
-                #endregion
 
-                #region Парсим раздачи
-                int relased = 0;
-                string name = null, originalname = null;
+                var (name, originalname, relased) = ParseTitleNames(meta.TitleKind, title);
 
-                if (cat == "1" || cat == "17")
+                if (string.IsNullOrWhiteSpace(name))
+                    name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
+
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                int.TryParse(_sid, out int sid);
+                int.TryParse(_pir, out int pir);
+
+                torrents.Add(new TorrentBaseDetails()
                 {
-                    #region Зарубежные фильмы
+                    trackerName = TrackerName,
+                    types = meta.Types,
+                    url = url,
+                    title = title,
+                    sid = sid,
+                    pir = pir,
+                    sizeName = sizeName,
+                    magnet = magnet,
+                    createTime = createTime,
+                    name = name,
+                    originalname = originalname,
+                    relased = relased
+                });
+            }
+
+            return torrents;
+        }
+
+        static (string name, string originalname, int relased) ParseTitleNames(RutorTitleKind titleKind, string title)
+        {
+            return titleKind switch
+            {
+                RutorTitleKind.ForeignMovie => ParseForeignMovieTitle(title),
+                RutorTitleKind.RuMovie => ParseRuMovieTitle(title),
+                RutorTitleKind.ForeignSerial => ParseForeignSerialTitle(title),
+                RutorTitleKind.RuSerial => ParseRuSerialTitle(title),
+                RutorTitleKind.ShowLike => ParseShowLikeTitle(title),
+                _ => (null, null, 0)
+            };
+        }
+
+        static (string name, string originalname, int relased) ParseForeignMovieTitle(string title)
+        {
+            int relased = 0;
+            string name = null, originalname = null;
+
+            var g = Regex.Match(title, "^([^/]+) / ([^/]+) / ([^/\\(]+) \\(([0-9]{4})\\)").Groups;
+            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+            {
+                name = g[1].Value;
+                originalname = g[3].Value;
+
+                if (int.TryParse(g[4].Value, out int _yer))
+                    relased = _yer;
+            }
+            else
+            {
+                g = Regex.Match(title, "^([^/\\(]+) / ([^/\\(]+) \\(([0-9]{4})\\)").Groups;
+
+                name = g[1].Value;
+                originalname = g[2].Value;
+
+                if (int.TryParse(g[3].Value, out int _yer))
+                    relased = _yer;
+            }
+
+            return (name, originalname, relased);
+        }
+
+        static (string name, string originalname, int relased) ParseRuMovieTitle(string title)
+        {
+            int relased = 0;
+            var g = Regex.Match(title, "^([^/\\(]+) \\(([0-9]{4})\\)").Groups;
+            string name = g[1].Value;
+
+            if (int.TryParse(g[2].Value, out int _yer))
+                relased = _yer;
+
+            return (name, null, relased);
+        }
+
+        static (string name, string originalname, int relased) ParseForeignSerialTitle(string title)
+        {
+            int relased = 0;
+            string name = null, originalname = null;
+
+            var g = Regex.Match(title, "^([^/]+) / [^/]+ / [^/]+ / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
+            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+            {
+                name = g[1].Value;
+                originalname = g[2].Value;
+
+                if (int.TryParse(g[3].Value, out int _yer))
+                    relased = _yer;
+            }
+            else
+            {
+                g = Regex.Match(title, "^([^/]+) / [^/]+ / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
+                if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                {
+                    name = g[1].Value;
+                    originalname = g[2].Value;
+
+                    if (int.TryParse(g[3].Value, out int _yer))
+                        relased = _yer;
+                }
+                else
+                {
+                    g = Regex.Match(title, "^([^/]+) / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
+
+                    name = g[1].Value;
+                    originalname = g[2].Value;
+
+                    if (int.TryParse(g[3].Value, out int _yer))
+                        relased = _yer;
+                }
+            }
+
+            return (name, originalname, relased);
+        }
+
+        static (string name, string originalname, int relased) ParseRuSerialTitle(string title)
+        {
+            int relased = 0;
+            var g = Regex.Match(title, "^([^/]+) \\[[^\\]]+\\] \\(([0-9]{4})(\\)|-)").Groups;
+            string name = g[1].Value;
+
+            if (int.TryParse(g[2].Value, out int _yer))
+                relased = _yer;
+
+            return (name, null, relased);
+        }
+
+        static (string name, string originalname, int relased) ParseShowLikeTitle(string title)
+        {
+            int relased = 0;
+            string name = null, originalname = null;
+
+            if (title.Contains(" / "))
+            {
+                if (title.Contains("[") && title.Contains("]"))
+                {
+                    var g = Regex.Match(title, "^([^/]+) / ([^/]+) / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
+                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
+                    {
+                        name = g[1].Value;
+                        originalname = g[3].Value;
+
+                        if (int.TryParse(g[4].Value, out int _yer))
+                            relased = _yer;
+                    }
+                    else
+                    {
+                        g = Regex.Match(title, "^([^/]+) / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
+
+                        name = g[1].Value;
+                        originalname = g[2].Value;
+
+                        if (int.TryParse(g[3].Value, out int _yer))
+                            relased = _yer;
+                    }
+                }
+                else
+                {
                     var g = Regex.Match(title, "^([^/]+) / ([^/]+) / ([^/\\(]+) \\(([0-9]{4})\\)").Groups;
                     if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
                     {
@@ -82,199 +239,29 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                         if (int.TryParse(g[3].Value, out int _yer))
                             relased = _yer;
                     }
-                    #endregion
                 }
-                else if (cat == "5")
+            }
+            else
+            {
+                if (title.Contains("[") && title.Contains("]"))
                 {
-                    #region Наши фильмы
+                    var g = Regex.Match(title, "^([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
+                    name = g[1].Value;
+
+                    if (int.TryParse(g[2].Value, out int _yer))
+                        relased = _yer;
+                }
+                else
+                {
                     var g = Regex.Match(title, "^([^/\\(]+) \\(([0-9]{4})\\)").Groups;
                     name = g[1].Value;
 
                     if (int.TryParse(g[2].Value, out int _yer))
                         relased = _yer;
-                    #endregion
-                }
-                else if (cat == "4")
-                {
-                    #region Зарубежные сериалы
-                    var g = Regex.Match(title, "^([^/]+) / [^/]+ / [^/]+ / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
-                    if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                    {
-                        name = g[1].Value;
-                        originalname = g[2].Value;
-
-                        if (int.TryParse(g[3].Value, out int _yer))
-                            relased = _yer;
-                    }
-                    else
-                    {
-                        g = Regex.Match(title, "^([^/]+) / [^/]+ / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
-                        if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                        {
-                            name = g[1].Value;
-                            originalname = g[2].Value;
-
-                            if (int.TryParse(g[3].Value, out int _yer))
-                                relased = _yer;
-                        }
-                        else
-                        {
-                            g = Regex.Match(title, "^([^/]+) / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
-
-                            name = g[1].Value;
-                            originalname = g[2].Value;
-
-                            if (int.TryParse(g[3].Value, out int _yer))
-                                relased = _yer;
-                        }
-                    }
-                    #endregion
-                }
-                else if (cat == "16")
-                {
-                    #region Наши сериалы
-                    var g = Regex.Match(title, "^([^/]+) \\[[^\\]]+\\] \\(([0-9]{4})(\\)|-)").Groups;
-                    name = g[1].Value;
-
-                    if (int.TryParse(g[2].Value, out int _yer))
-                        relased = _yer;
-                    #endregion
-                }
-                else if (cat == "12" || cat == "6" || cat == "7" || cat == "10" || cat == "15" || cat == "13")
-                {
-                    #region Научно-популярные фильмы / Телевизор / Мультипликация / Аниме / Юмор / Спорт и Здоровье
-                    if (title.Contains(" / "))
-                    {
-                        if (title.Contains("[") && title.Contains("]"))
-                        {
-                            var g = Regex.Match(title, "^([^/]+) / ([^/]+) / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
-                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                            {
-                                name = g[1].Value;
-                                originalname = g[3].Value;
-
-                                if (int.TryParse(g[4].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                            else
-                            {
-                                g = Regex.Match(title, "^([^/]+) / ([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
-
-                                name = g[1].Value;
-                                originalname = g[2].Value;
-
-                                if (int.TryParse(g[3].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                        }
-                        else
-                        {
-                            var g = Regex.Match(title, "^([^/]+) / ([^/]+) / ([^/\\(]+) \\(([0-9]{4})\\)").Groups;
-                            if (!string.IsNullOrWhiteSpace(g[1].Value) && !string.IsNullOrWhiteSpace(g[2].Value) && !string.IsNullOrWhiteSpace(g[3].Value))
-                            {
-                                name = g[1].Value;
-                                originalname = g[3].Value;
-
-                                if (int.TryParse(g[4].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                            else
-                            {
-                                g = Regex.Match(title, "^([^/\\(]+) / ([^/\\(]+) \\(([0-9]{4})\\)").Groups;
-
-                                name = g[1].Value;
-                                originalname = g[2].Value;
-
-                                if (int.TryParse(g[3].Value, out int _yer))
-                                    relased = _yer;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (title.Contains("[") && title.Contains("]"))
-                        {
-                            var g = Regex.Match(title, "^([^/\\[]+) \\[[^\\]]+\\] +\\(([0-9]{4})(\\)|-)").Groups;
-                            name = g[1].Value;
-
-                            if (int.TryParse(g[2].Value, out int _yer))
-                                relased = _yer;
-                        }
-                        else
-                        {
-                            var g = Regex.Match(title, "^([^/\\(]+) \\(([0-9]{4})\\)").Groups;
-                            name = g[1].Value;
-
-                            if (int.TryParse(g[2].Value, out int _yer))
-                                relased = _yer;
-                        }
-                    }
-                    #endregion
-                }
-                #endregion
-
-                if (string.IsNullOrWhiteSpace(name))
-                    name = Regex.Split(title, "(\\[|\\/|\\(|\\|)", RegexOptions.IgnoreCase)[0].Trim();
-
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    #region types
-                    string[] types = null;
-                    switch (cat)
-                    {
-                        case "1":
-                        case "5":
-                        case "17":
-                            types = new string[] { "movie" };
-                            break;
-                        case "4":
-                        case "16":
-                            types = new string[] { "serial" };
-                            break;
-                        case "12":
-                            types = new string[] { "docuserial", "documovie" };
-                            break;
-                        case "6":
-                        case "15":
-                            types = new string[] { "tvshow" };
-                            break;
-                        case "7":
-                            types = new string[] { "multfilm", "multserial" };
-                            break;
-                        case "10":
-                            types = new string[] { "anime" };
-                            break;
-                        case "13":
-                            types = new string[] { "sport" };
-                            break;
-                    }
-
-                    if (types == null)
-                        continue;
-                    #endregion
-
-                    int.TryParse(_sid, out int sid);
-                    int.TryParse(_pir, out int pir);
-
-                    torrents.Add(new TorrentBaseDetails()
-                    {
-                        trackerName = TrackerName,
-                        types = types,
-                        url = url,
-                        title = title,
-                        sid = sid,
-                        pir = pir,
-                        sizeName = sizeName,
-                        magnet = magnet,
-                        createTime = createTime,
-                        name = name,
-                        originalname = originalname,
-                        relased = relased
-                    });
                 }
             }
 
-            return torrents;
+            return (name, originalname, relased);
         }
     }
 }
