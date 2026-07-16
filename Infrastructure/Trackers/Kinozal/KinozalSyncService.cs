@@ -30,8 +30,8 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         static Dictionary<string, Dictionary<string, List<TaskParse>>> taskParse = new Dictionary<string, Dictionary<string, List<TaskParse>>>();
 
-        static string Cookie;
-        static string _lastLoginError;
+        string _cookie;
+        string _lastLoginError;
 
         static readonly Encoding PageEncoding = Encoding.GetEncoding(1251);
         static readonly SemaphoreSlim _loginSemaphore = new SemaphoreSlim(1, 1);
@@ -76,12 +76,12 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             && html.Contains("details.php?id=")
             && (html.Contains("Кинозал.GURU</title>") || html.Contains("Кинозал.ТВ</title>") || html.Contains("::"));
 
-        static string CookieHeader()
+        string CookieHeader()
         {
             if (!string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.cookie))
                 return AppInit.conf.Kinozal.cookie;
 
-            return Cookie;
+            return _cookie;
         }
 
         static string ExtractCookieValue(IEnumerable<string> cookieHeaders, string cookieName)
@@ -174,11 +174,11 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     return false;
                 }
 
-                var hostUri = new Uri(host + "/");
                 var cookieJar = new CookieContainer();
 
                 try
                 {
+                    var hostUri = new Uri(host + "/");
                     var clientHandler = new HttpClientHandler()
                     {
                         AllowAutoRedirect = false,
@@ -215,9 +215,9 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
                             if (!string.IsNullOrWhiteSpace(cookieHeader))
                             {
-                                Cookie = cookieHeader;
+                                _cookie = cookieHeader;
                                 _lastLoginError = null;
-                                ParserLog.Write(TrackerName, $"TakeLogin OK {Cookie}");
+                                ParserLog.Write(TrackerName, $"TakeLogin OK {_cookie}");
                                 return true;
                             }
 
@@ -226,7 +226,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or UriFormatException or CookieException)
                 {
                     _lastLoginError = ex.Message;
                     ParserLog.Write(TrackerName, $"TakeLogin error: {ex.Message}");
@@ -405,7 +405,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             string html = await GetBrowseHtml(browseUrl);
             if (!IsValidBrowsePage(html) || !html.Contains(">Выход</a>"))
             {
-                Cookie = null;
+                _cookie = null;
                 if (!await TakeLogin())
                     return false;
 
