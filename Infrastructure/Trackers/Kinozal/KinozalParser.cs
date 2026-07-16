@@ -16,7 +16,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         {
             var torrents = new List<TorrentDetails>();
 
-            foreach (string row in Regex.Split(tParse.ReplaceBadNames(html), "<tr class=('first bg'|bg)>").Skip(1))
+            foreach (string row in Regex.Split(tParse.ReplaceBadNames(html), "<tr class=(?:'first bg'|bg)>").Skip(1))
             {
                 #region Локальный метод - Match
                 string Match(string pattern, int index = 1)
@@ -60,7 +60,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
                     continue;
 
-                url = "http://kinozal.guru/" + url;
+                url = $"{AppInit.conf.Kinozal.host}/{url}";
                 #endregion
 
                 #region Парсим раздачи

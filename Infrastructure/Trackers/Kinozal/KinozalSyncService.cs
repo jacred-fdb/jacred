@@ -59,11 +59,16 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             _memoryCache = memoryCache;
         }
 
-        async void TakeLogin()
+        static bool IsValidBrowsePage(string html) =>
+            !string.IsNullOrWhiteSpace(html)
+            && html.Contains("class=\"t_peer\"")
+            && (html.Contains("Кинозал.GURU</title>") || html.Contains("Кинозал.ТВ</title>"));
+
+        async Task<bool> TakeLogin()
         {
             string authKey = "kinozal:TakeLogin()";
             if (_memoryCache.TryGetValue(authKey, out _))
-                return;
+                return !string.IsNullOrWhiteSpace(Cookie);
 
             _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(2));
 
@@ -114,13 +119,26 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                                 }
 
                                 if (!string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(pass))
+                                {
                                     Cookie = $"uid={uid}; pass={pass};";
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
             }
             catch { }
+
+            return false;
+        }
+
+        async Task<bool> EnsureLoggedIn()
+        {
+            if (!string.IsNullOrWhiteSpace(Cookie))
+                return true;
+
+            return await TakeLogin();
         }
 
         public async Task<string> ParseAsync(int page)
@@ -154,13 +172,16 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         public async Task<string> UpdateTasksParseAsync()
         {
+            if (!await EnsureLoggedIn())
+                return "login failed";
+
             foreach (string cat in Categories)
             {
                 for (int year = DateTime.Today.Year; year >= 1990; year--)
                 {
                     // Получаем html
-                    string html = await HttpClient.Get($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", timeoutSeconds: 10, useproxy: AppInit.conf.Kinozal.useproxy);
-                    if (html == null)
+                    string html = await HttpClient.Get($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", cookie: Cookie, referer: $"{AppInit.conf.Kinozal.host}/", timeoutSeconds: 10, useproxy: AppInit.conf.Kinozal.useproxy);
+                    if (!IsValidBrowsePage(html))
                         continue;
 
                     // Максимальное количиство страниц
@@ -260,12 +281,21 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         async Task<bool> parsePage(string cat, int page, string arg = null)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&page={page}" + arg, useproxy: AppInit.conf.Kinozal.useproxy);
-            if (html == null || !html.Contains("Кинозал.ТВ</title>"))
+            if (!await EnsureLoggedIn())
                 return false;
 
-            if (Cookie == null || !html.Contains(">Выход</a>"))
-                TakeLogin();
+            string browseUrl = $"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&page={page}" + arg;
+            string html = await HttpClient.Get(browseUrl, cookie: Cookie, referer: $"{AppInit.conf.Kinozal.host}/", useproxy: AppInit.conf.Kinozal.useproxy);
+            if (!IsValidBrowsePage(html) || !html.Contains(">Выход</a>"))
+            {
+                Cookie = null;
+                if (!await TakeLogin())
+                    return false;
+
+                html = await HttpClient.Get(browseUrl, cookie: Cookie, referer: $"{AppInit.conf.Kinozal.host}/", useproxy: AppInit.conf.Kinozal.useproxy);
+                if (!IsValidBrowsePage(html))
+                    return false;
+            }
 
             var torrents = KinozalParser.ParseTorrentsFromPage(html, cat);
 
