@@ -290,5 +290,29 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
             return torrents;
         }
+
+        /// <summary>
+        /// Кинозал при добавлении серий/озвучек перехеширует .torrent (новый info hash),
+        /// но title в списке часто не меняется — раньше hash не перезапрашивался.
+        /// createTime = date from browse «Залит» column: Обновлен if present on details,
+        /// otherwise original Залит (never re-uploaded).
+        /// </summary>
+        internal static bool ShouldSkipHashFetch(TorrentDetails cached, TorrentDetails parsed)
+        {
+            if (string.IsNullOrWhiteSpace(cached.magnet))
+                return false;
+
+            if (cached.title != parsed.title)
+                return false;
+
+            if (cached.sizeName != parsed.sizeName)
+                return false;
+
+            // Обновлен changed (including time on the same day) → rehash likely
+            if (parsed.createTime > cached.createTime)
+                return false;
+
+            return true;
+        }
     }
 }
