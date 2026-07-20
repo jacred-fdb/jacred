@@ -94,7 +94,7 @@ jobs:
           echo "Checking out ref: $REF"
 
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ steps.checkout_ref.outputs.ref }}
           fetch-depth: 0
