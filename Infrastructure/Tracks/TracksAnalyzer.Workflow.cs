@@ -194,6 +194,9 @@ namespace JacRed.Infrastructure.Tracks
             }
         }
 
+        /// <summary>Next attempt counter after a failed probe. HTTP 400 is not terminal.</summary>
+        internal static int NextFailureAttempt(int currentAttempt) => currentAttempt + 1;
+
         static async Task UpdateAnalysisResults(string magnet, string torrentKey, string infohash,
             int currentAttempt, bool analysisSuccessful, FfprobeModel ffprobeResult, int typetask, int apiStatusCode, string errorMessage = null)
         {
@@ -233,7 +236,7 @@ namespace JacRed.Infrastructure.Tracks
                     }
                 }
 
-                int NewAttepmt = currentAttempt + 1;
+                int NewAttepmt = NextFailureAttempt(currentAttempt);
 
                 // TorrServer returns 400 for any ProbeUrl failure (not-ready, transient, non-media).
                 // Do not exhaust attempts on a single 400 — increment normally.

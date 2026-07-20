@@ -327,7 +327,7 @@ namespace JacRed.Infrastructure.Tracks
             }
         }
 
-        static async Task<(FfprobeModel result, int statusCode)> AnalyzeWithExternalApi(
+        internal static async Task<(FfprobeModel result, int statusCode)> AnalyzeWithExternalApi(
             string tsuri, string infohash, CancellationToken token, int? typetask = null)
         {
             // File index 1: movies/TV almost always put the main media first.
@@ -362,7 +362,7 @@ namespace JacRed.Infrastructure.Tracks
         /// Polls TorrServer <c>action=get</c> until metadata is ready (<c>file_stats</c> present)
         /// or <paramref name="readyTimeout"/> elapses. Reduces false HTTP 400 from /ffp before GotInfo.
         /// </summary>
-        static async Task<bool> WaitTorrentReady(
+        internal static async Task<bool> WaitTorrentReady(
             string tsuri, string infohash, CancellationToken token, int? typetask = null,
             TimeSpan? readyTimeout = null)
         {
@@ -400,7 +400,7 @@ namespace JacRed.Infrastructure.Tracks
             return false;
         }
 
-        static async Task<TracksDB.TorrentInfo> GetTorrentFromServer(
+        internal static async Task<TracksDB.TorrentInfo> GetTorrentFromServer(
             string tsuri, string infohash, CancellationToken token, int? typetask = null)
         {
             try
