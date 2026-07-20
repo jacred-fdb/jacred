@@ -156,6 +156,15 @@ namespace JacRed.Infrastructure.Tracks
             public string hash { get; set; }
             public int stat { get; set; }
             public string stat_string { get; set; }
+            public List<TorrentFileStat> file_stats { get; set; }
+        }
+
+        /// <summary>File entry from TorrServer torrent status (1-based ids).</summary>
+        public class TorrentFileStat
+        {
+            public int id { get; set; }
+            public string path { get; set; }
+            public long length { get; set; }
         }
     }
 }

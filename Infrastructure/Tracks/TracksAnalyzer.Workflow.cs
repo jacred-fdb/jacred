@@ -86,7 +86,8 @@ namespace JacRed.Infrastructure.Tracks
                     {
                         using (var cancellationTokenSource = new CancellationTokenSource())
                         {
-                            cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(3));
+                            // /ffp may take up to 5 minutes (TorrServer ProbeUrl budget); leave room for rem.
+                            cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(6));
                             var token = cancellationTokenSource.Token;
 
                             (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError) =
@@ -119,8 +120,7 @@ namespace JacRed.Infrastructure.Tracks
                                     else
                                         TracksDB.Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...", typetask);
 
-                                    if (torrentAdded)
-                                        await Task.Delay(TimeSpan.FromSeconds(3), token).ConfigureAwait(false);
+                                    await WaitTorrentReady(tsuri, infohash, token, typetask).ConfigureAwait(false);
 
                                     (res, apiStatusCode) = await AnalyzeWithExternalApi(tsuri, infohash, token, typetask)
                                         .ConfigureAwait(false);
@@ -141,7 +141,7 @@ namespace JacRed.Infrastructure.Tracks
                     }
                     catch (OperationCanceledException)
                     {
-                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (3 минуты)";
+                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (6 минут)";
                         TracksDB.Log(errorMessage, typetask);
                         apiStatusCode = 408;
                     }
@@ -186,7 +186,7 @@ namespace JacRed.Infrastructure.Tracks
                 .ConfigureAwait(false);
 
             // Soften transient TS failures: brief pause before the next cron item.
-            if (!analysisSuccessful && (apiStatusCode == 408 || apiStatusCode >= 500))
+            if (!analysisSuccessful && (apiStatusCode == 400 || apiStatusCode == 408 || apiStatusCode >= 500))
             {
                 int backoffMs = Math.Max(AppInit.conf.tracksdelay, 5_000);
                 TracksDB.Log($"Backoff {backoffMs}ms after API {apiStatusCode} for {infohash}", typetask);
@@ -235,8 +235,8 @@ namespace JacRed.Infrastructure.Tracks
 
                 int NewAttepmt = currentAttempt + 1;
 
-                if (apiStatusCode == 400)
-                    NewAttepmt = AppInit.conf.tracksatempt;
+                // TorrServer returns 400 for any ProbeUrl failure (not-ready, transient, non-media).
+                // Do not exhaust attempts on a single 400 — increment normally.
 
                 if (NewAttepmt != currentAttempt)
                     FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, NewAttepmt);

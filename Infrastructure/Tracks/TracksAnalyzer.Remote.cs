@@ -331,11 +331,12 @@ namespace JacRed.Infrastructure.Tracks
             string tsuri, string infohash, CancellationToken token, int? typetask = null)
         {
             // File index 1: movies/TV almost always put the main media first.
+            // TorrServer ProbeUrl budget is 5 minutes — match it so we don't abort early.
             string apiUrl = $"{tsuri}/ffp/{infohash.ToUpper()}/1";
 
             var client = GetHttpClient(tsuri);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            cts.CancelAfter(TimeSpan.FromMinutes(2));
+            cts.CancelAfter(TimeSpan.FromMinutes(5));
 
             using var response = await client.GetAsync(apiUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token)
                 .ConfigureAwait(false);
@@ -355,6 +356,92 @@ namespace JacRed.Infrastructure.Tracks
                 return (null, statusCode);
 
             return (result, statusCode);
+        }
+
+        /// <summary>
+        /// Polls TorrServer <c>action=get</c> until metadata is ready (<c>file_stats</c> present)
+        /// or <paramref name="readyTimeout"/> elapses. Reduces false HTTP 400 from /ffp before GotInfo.
+        /// </summary>
+        static async Task<bool> WaitTorrentReady(
+            string tsuri, string infohash, CancellationToken token, int? typetask = null,
+            TimeSpan? readyTimeout = null)
+        {
+            var timeout = readyTimeout ?? TimeSpan.FromSeconds(90);
+            var deadline = DateTime.UtcNow + timeout;
+            var pollInterval = TimeSpan.FromSeconds(2);
+
+            TracksDB.Log($"Ожидание готовности торрента {infohash} (до {timeout.TotalSeconds:F0}s)...", typetask);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                token.ThrowIfCancellationRequested();
+
+                var info = await GetTorrentFromServer(tsuri, infohash, token, typetask).ConfigureAwait(false);
+                if (info?.file_stats != null && info.file_stats.Count > 0)
+                {
+                    TracksDB.Log($"Торрент {infohash} готов: file_stats={info.file_stats.Count}, stat={info.stat}", typetask);
+                    return true;
+                }
+
+                // TorrServer: TorrentWorking = 3
+                if (info != null && info.stat == 3)
+                {
+                    TracksDB.Log($"Торрент {infohash} в состоянии Working (stat=3), file_stats ещё пуст — продолжаем ожидание", typetask);
+                }
+
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    break;
+
+                await Task.Delay(remaining < pollInterval ? remaining : pollInterval, token).ConfigureAwait(false);
+            }
+
+            TracksDB.Log($"Торрент {infohash} не получил file_stats за {timeout.TotalSeconds:F0}s — вызываем /ffp всё равно", typetask);
+            return false;
+        }
+
+        static async Task<TracksDB.TorrentInfo> GetTorrentFromServer(
+            string tsuri, string infohash, CancellationToken token, int? typetask = null)
+        {
+            try
+            {
+                var client = GetHttpClient(tsuri);
+                var jsonContent = JsonConvert.SerializeObject(new
+                {
+                    action = "get",
+                    hash = infohash
+                });
+
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                cts.CancelAfter(TimeSpan.FromSeconds(15));
+
+                using var response = await client.PostAsync($"{tsuri}/torrents", content, cts.Token).ConfigureAwait(false);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return null;
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    TracksDB.Log($"get torrent вернул {(int)response.StatusCode}", typetask);
+                    return null;
+                }
+
+                var jsonResponse = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(jsonResponse))
+                    return null;
+
+                return JsonConvert.DeserializeObject<TracksDB.TorrentInfo>(jsonResponse);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                TracksDB.Log($"Ошибка get torrent: {ex.Message}", typetask);
+                return null;
+            }
         }
 
         /// <summary>
