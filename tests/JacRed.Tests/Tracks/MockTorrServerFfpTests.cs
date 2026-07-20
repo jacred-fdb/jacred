@@ -50,11 +50,9 @@ public class MockTorrServerFfpTests : IAsyncLifetime
 
     static int GetFreePort()
     {
-        var l = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        using var l = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
         l.Start();
-        int port = ((IPEndPoint)l.LocalEndpoint).Port;
-        l.Stop();
-        return port;
+        return ((IPEndPoint)l.LocalEndpoint).Port;
     }
 
     async Task ListenLoop(CancellationToken token)
@@ -170,7 +168,8 @@ public class MockTorrServerFfpTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.Equal(200, code);
-        Assert.NotNull(result?.streams);
+        Assert.NotNull(result);
+        Assert.NotNull(result.streams);
         Assert.Single(result.streams);
         Assert.Equal("rus", result.streams[0].tags.language);
     }

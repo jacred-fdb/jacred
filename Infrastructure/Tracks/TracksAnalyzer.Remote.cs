@@ -437,7 +437,17 @@ namespace JacRed.Infrastructure.Tracks
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException ex)
+            {
+                TracksDB.Log($"Ошибка get torrent: {ex.Message}", typetask);
+                return null;
+            }
+            catch (HttpRequestException ex)
+            {
+                TracksDB.Log($"Ошибка get torrent: {ex.Message}", typetask);
+                return null;
+            }
+            catch (JsonException ex)
             {
                 TracksDB.Log($"Ошибка get torrent: {ex.Message}", typetask);
                 return null;
