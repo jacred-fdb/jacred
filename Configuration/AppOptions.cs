@@ -40,6 +40,9 @@ namespace JacRed.Configuration
 
         public int tracksatempt = 20;
 
+        /// <summary>Max concurrent TorrServer analyze operations across all tracks cron tasks.</summary>
+        public int tracksconcurrency = 5;
+
         public string trackscategory = "jacred";
 
         public class TracksIntervalConfig

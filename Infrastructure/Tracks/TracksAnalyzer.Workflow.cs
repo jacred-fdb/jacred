@@ -59,110 +59,128 @@ namespace JacRed.Infrastructure.Tracks
             TracksDB.Log($"Начало анализа треков для {infohash}.", typetask);
 
             FfprobeModel res = null;
-
-            string tsuri;
-            using (var cancellationTokenSource = new CancellationTokenSource())
-            {
-                cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(1));
-                var token = cancellationTokenSource.Token;
-
-                tsuri = await SelectBestServer(token);
-                if (string.IsNullOrEmpty(tsuri))
-                {
-                    TracksDB.Log("Все серверы недоступны. Пауза 1 минута...");
-                    await Task.Delay(TimeSpan.FromMinutes(1), token);
-                    TracksDB.Log("Пауза завершена. Выход.");
-                    return;
-                }
-            }
-
+            string tsuri = null;
             string expectedCategory = AppInit.conf.trackscategory;
-
             bool analysisSuccessful = false;
+            bool skipResultUpdate = false;
             string errorMessage = null;
             int apiStatusCode = 0;
 
-            try
+            using (await AcquireAnalyzeSlotAsync(CancellationToken.None).ConfigureAwait(false))
             {
                 using (var cancellationTokenSource = new CancellationTokenSource())
                 {
-                    cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(3));
-                    var token = cancellationTokenSource.Token;
+                    cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(1));
+                    tsuri = await SelectBestServer(cancellationTokenSource.Token).ConfigureAwait(false);
+                }
 
-                    (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError) =
-                        await AddTorrentToServer(tsuri, magnet, infohash, expectedCategory, token, typetask);
-
-                    if (serverError)
+                if (string.IsNullOrEmpty(tsuri))
+                {
+                    TracksDB.Log("Все серверы недоступны. Пауза 1 минута...");
+                    // Release slot before long backoff (Dispose of AcquireAnalyzeSlot on leaving using).
+                }
+                else
+                {
+                    try
                     {
-                        errorMessage = "Сервер вернул ошибку при получении списка торрентов";
-                        TracksDB.Log($"{errorMessage}. Пауза 1 минута...", typetask);
+                        using (var cancellationTokenSource = new CancellationTokenSource())
+                        {
+                            cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(3));
+                            var token = cancellationTokenSource.Token;
 
-                        await Task.Delay(TimeSpan.FromMinutes(1), token);
+                            (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError) =
+                                await AddTorrentToServer(tsuri, magnet, infohash, expectedCategory, token, typetask)
+                                    .ConfigureAwait(false);
 
-                        TracksDB.Log("Пауза завершена. Выход.", typetask);
-                        return;
+                            if (serverError)
+                            {
+                                errorMessage = "Сервер вернул ошибку при получении списка торрентов";
+                                TracksDB.Log($"{errorMessage}. Пауза 1 минута...", typetask);
+                                apiStatusCode = 503;
+                                skipResultUpdate = true;
+                            }
+                            else
+                            {
+                                bool shouldAnalyze = torrentAdded || torrentExistsInCorrectCategory;
+
+                                if (!shouldAnalyze)
+                                {
+                                    errorMessage = $"Торрент не в категории '{expectedCategory}'";
+                                    TracksDB.Log($"{errorMessage}. Анализ отменен.", typetask);
+                                    // Do not burn attempts — torrent owned by another category/instance.
+                                    skipResultUpdate = true;
+                                }
+                                else
+                                {
+                                    if (torrentExistsInCorrectCategory)
+                                        TracksDB.Log($"Торрент {infohash} уже существует на сервере в категории '{expectedCategory}'. Начинаем анализ...", typetask);
+                                    else
+                                        TracksDB.Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...", typetask);
+
+                                    if (torrentAdded)
+                                        await Task.Delay(TimeSpan.FromSeconds(3), token).ConfigureAwait(false);
+
+                                    (res, apiStatusCode) = await AnalyzeWithExternalApi(tsuri, infohash, token, typetask)
+                                        .ConfigureAwait(false);
+
+                                    if (res?.streams != null && res.streams.Count > 0)
+                                    {
+                                        analysisSuccessful = true;
+                                        TracksDB.Log($"API успешно вернул {res.streams.Count} треков", typetask);
+                                    }
+                                    else
+                                    {
+                                        errorMessage = "Нет данных о треках";
+                                        TracksDB.Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
+                                    }
+                                }
+                            }
+                        }
                     }
-
-                    bool shouldAnalyze = torrentAdded || torrentExistsInCorrectCategory;
-
-                    if (!shouldAnalyze)
+                    catch (OperationCanceledException)
                     {
-                        errorMessage = $"Торрент не в категории '{expectedCategory}'";
-                        TracksDB.Log($"{errorMessage}. Анализ отменен.", typetask);
-                        return;
+                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (3 минуты)";
+                        TracksDB.Log(errorMessage, typetask);
+                        apiStatusCode = 408;
                     }
-
-                    if (torrentExistsInCorrectCategory)
+                    catch (JsonException ex)
                     {
-                        TracksDB.Log($"Торрент {infohash} уже существует на сервере в категории '{expectedCategory}'. Начинаем анализ...", typetask);
+                        errorMessage = $"Ошибка обработки JSON ответа: {ex.Message}";
+                        TracksDB.Log(errorMessage, typetask);
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        TracksDB.Log($"Торрент {infohash} успешно добавлен в категорию '{expectedCategory}'. Начинаем анализ...", typetask);
+                        errorMessage = $"Критическая ошибка при анализе треков: {ex.Message}";
+                        TracksDB.Log(errorMessage, typetask);
+                        TracksDB.LogToFile($"StackTrace: {ex.StackTrace}", typetask);
                     }
-
-                    if (torrentAdded)
+                    finally
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(3), token);
-                    }
-
-                    (res, apiStatusCode) = await AnalyzeWithExternalApi(tsuri, infohash, token, typetask);
-
-                    if (res?.streams != null && res.streams.Count > 0)
-                    {
-                        analysisSuccessful = true;
-                        TracksDB.Log($"API успешно вернул {res.streams.Count} треков", typetask);
-                    }
-                    else
-                    {
-                        errorMessage = "Нет данных о треках";
-                        TracksDB.Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
+                        if (!string.IsNullOrEmpty(tsuri))
+                            await CleanupTorrent(tsuri, infohash, expectedCategory, typetask).ConfigureAwait(false);
                     }
                 }
             }
-            catch (OperationCanceledException)
+
+            if (string.IsNullOrEmpty(tsuri))
             {
-                errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (3 минуты)";
-                TracksDB.Log(errorMessage, typetask);
-                apiStatusCode = 408;
-            }
-            catch (JsonException ex)
-            {
-                errorMessage = $"Ошибка обработки JSON ответа: {ex.Message}";
-                TracksDB.Log(errorMessage, typetask);
-            }
-            catch (Exception ex)
-            {
-                errorMessage = $"Критическая ошибка при анализе треков: {ex.Message}";
-                TracksDB.Log(errorMessage, typetask);
-                TracksDB.LogToFile($"StackTrace: {ex.StackTrace}", typetask);
-            }
-            finally
-            {
-                await CleanupTorrent(tsuri, infohash, expectedCategory, typetask);
+                await Task.Delay(TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+                TracksDB.Log("Пауза завершена. Выход.");
+                return;
             }
 
-            await UpdateAnalysisResults(magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, apiStatusCode, errorMessage);
+            if (apiStatusCode == 503)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+                TracksDB.Log("Пауза завершена. Выход.", typetask);
+                return;
+            }
+
+            if (skipResultUpdate)
+                return;
+
+            await UpdateAnalysisResults(magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, apiStatusCode, errorMessage)
+                .ConfigureAwait(false);
         }
 
         static async Task UpdateAnalysisResults(string magnet, string torrentKey, string infohash,
@@ -170,6 +188,30 @@ namespace JacRed.Infrastructure.Tracks
         {
             try
             {
+                if (analysisSuccessful)
+                {
+                    // Canonical store is Data/tracks (+ index/RAM); FileDB.ffprobe is not written.
+                    if (ffprobeResult?.streams != null && ffprobeResult.streams.Count > 0)
+                        await SaveTrackResults(ffprobeResult, infohash, typetask);
+
+                    TracksDB.Log($"Анализ треков для {infohash} успешно завершен!", typetask);
+
+                    if (currentAttempt == 0)
+                        return;
+
+                    if (string.IsNullOrEmpty(torrentKey))
+                        torrentKey = FindTorrentKeyByMagnet(magnet);
+
+                    if (string.IsNullOrEmpty(torrentKey))
+                    {
+                        TracksDB.Log($"Не удалось найти torrentKey для {infohash}. Сброс ffprobe_tryingdata невозможен.", typetask);
+                        return;
+                    }
+
+                    FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, 0);
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(torrentKey))
                 {
                     torrentKey = FindTorrentKeyByMagnet(magnet);
@@ -180,32 +222,15 @@ namespace JacRed.Infrastructure.Tracks
                     }
                 }
 
-                if (analysisSuccessful)
-                {
-                    if (ffprobeResult?.streams != null && ffprobeResult.streams.Count > 0)
-                    {
-                        await SaveTrackResults(ffprobeResult, infohash, typetask);
-                    }
+                int NewAttepmt = currentAttempt + 1;
 
-                    TracksDB.Log($"Анализ треков для {infohash} успешно завершен!", typetask);
-                }
-                else
-                {
-                    int NewAttepmt = currentAttempt;
+                if (apiStatusCode == 400)
+                    NewAttepmt = AppInit.conf.tracksatempt;
 
-                    if (typetask != 1)
-                    {
-                        NewAttepmt++;
+                if (NewAttepmt != currentAttempt)
+                    FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, NewAttepmt);
 
-                        if (apiStatusCode == 400)
-                            NewAttepmt = AppInit.conf.tracksatempt;
-                    }
-
-                    if (NewAttepmt != currentAttempt)
-                        FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, NewAttepmt);
-
-                    LogAnalysisFailure(typetask, infohash, apiStatusCode, AppInit.conf.tracksatempt - NewAttepmt, errorMessage);
-                }
+                LogAnalysisFailure(typetask, infohash, apiStatusCode, Math.Max(0, AppInit.conf.tracksatempt - NewAttepmt), errorMessage);
             }
             catch (Exception ex)
             {
@@ -233,10 +258,16 @@ namespace JacRed.Infrastructure.Tracks
                         if (torrent != null)
                             return key;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        TracksDB.Log($"FindTorrentKeyByMagnet scan key={key}: {ex.Message}");
+                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                TracksDB.Log($"FindTorrentKeyByMagnet: {ex.Message}");
+            }
 
             return null;
         }

@@ -148,7 +148,7 @@ namespace JacRed.Infrastructure.Stats
 
             if (!TracksDB.theBad(t.types) && !string.IsNullOrEmpty(t.magnet))
             {
-                if (t.ffprobe_tryingdata >= 3)
+                if (t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
                     row.TrkError++;
                 else if (TracksDB.HasTrackForTorrent(t))
                     row.TrkConfirm++;
