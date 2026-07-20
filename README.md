@@ -245,6 +245,7 @@ journalctl -u jacred -g 'fdb:' -p warning
 | `trackslog` | Включить логи модуля tracks (Data/log/tracks.log) | `true` |
 | `trackscategory` | Категория для торрентов из jacred (рекомендуется задавать уникально для каждого инстанса) | `jacred` |
 | `tracksatempt` | Количество неудачных попыток извлечь дорожки, после этого торрент исключается из tracks | `20` |
+| `tracksconcurrency` | Макс. параллельных анализов к TorrServer (глобально для всех typetask) | `2` |
 | `tracksmod` | Режим треков: 0 — все, 1 — только за текущие сутки | `0` |
 | `tracksdelay` | Задержка между запросами к tsuri, мс | `20000` |
 | `tracksinterval` | Интервалы запуска задач tracks (task1 — за последние сутки, task0 — остальные), мин | `task1: 60, task0: 180` |
@@ -263,9 +264,53 @@ journalctl -u jacred -g 'fdb:' -p warning
 
 **Старт сервиса:** HTTP (`/health`) доступен через ~10–30 с после загрузки `masterDb.bz`. Индекс треков `Data/temp/tracks-index.bz` и первый сбор stats выполняются **в фоне**; пока индекс пуст, cron stats **откладывается** (в логе: `stats: deferred`). После rebuild индекса stats запускается автоматически.
 
-**Счётчики tracks (confirm/wait/skip)** в `stats.json`: `confirm` — ffprobe в записи торрента, трек в RAM/индексе или файл с непустым `streams` (без полной загрузки JSON, как `TracksDB.Get`); `wait` — magnet есть, трека нет; `skip` — `ffprobe_tryingdata ≥ 3`.
+**Счётчики tracks (confirm/wait/skip)** в `stats.json`: `confirm` — ffprobe в записи торрента, трек в RAM/индексе или файл с непустым `streams` (без полной загрузки JSON, как `TracksDB.Get`); `wait` — magnet есть, трека нет; `skip` — `ffprobe_tryingdata ≥ tracksatempt`.
 
 Результаты анализа сохраняются в **`Data/tracks/{aa}/{b}/{hash}.json`**. Экспорт, backfill и статистика — эндпоинты **`/dev/TracksStats`**, **`/dev/ExportTracks`**, **`/dev/BackfillTracks`** (см. раздел **«Разработка и отладка»**).
+
+#### Параллелизм tracks (`tracksconcurrency`) и TorrServer
+
+Модуль tracks запускает **5 фоновых очередей (typetask)** — по возрасту/типу торрентов:
+
+| typetask | Окно | Кого берёт |
+| -------- | ---- | ---------- |
+| 1 | последние сутки | свежие торренты |
+| 2 | 1 день – 1 месяц | недавние |
+| 3 | 1 месяц – 1 год | старые (`sid > 0`, если не typetask 1/2) |
+| 4 | старше года | архив (`sid > 0`) |
+| 5 | обновления | старые, но с недавним `updateTime` |
+
+При `tracksmod: 1` typetask 3 и 4 **не работают** (только «день + месяц»).
+
+**`tracksconcurrency`** — глобальный лимит **одновременных** анализов через TorrServer (add → wait `file_stats` → `GET /ffp/{hash}/1` → rem). Все typetask делят один пул слотов: если слотов не хватает, лишние очереди **ждут** освобождения. **`tracksdelay`** задаёт паузу **между стартами** следующего торрента **внутри** каждой очереди (~20 с по умолчанию), но до `tracksconcurrency` анализов могут идти параллельно из разных typetask.
+
+Выбор TorrServer: из массива **`tsuri`** берётся сервер с **наименьшей** загрузкой в категории **`trackscategory`**.
+
+**Матрица: число TorrServer × `tracksconcurrency`**
+
+| | `tracksconcurrency = 2` | `= 3` | `= 5` |
+| --- | --- | --- | --- |
+| **1 TorrServer** | до 2 `/ffp` одновременно; мягко для слабого TS | до 3; баланс скорости и нагрузки | до 5; быстро, но тяжело для одного TS (ffprobe + play) |
+| **2 TorrServer** | 2 слота на весь пул; часто ~1 job на TS | ~2+1 между TS | до ~2–3 на TS при полной очереди |
+| **3 TorrServer** | максимум 2 TS заняты одновременно | **оптимально: по 1 job на TS** | до ~2+2+1; быстрый разбор backlog |
+
+**Пример (3 TS, `tracksconcurrency: 3`):** typetask 1, 2 и 5 одновременно взяли кандидатов → три слота на TS-A, TS-B, TS-C; typetask 3 ждёт, пока один слот освободится после rem.
+
+**Грубая оценка нагрузки на один TS при полной очереди:**
+
+`нагрузка ≈ min(tracksconcurrency, активные_typetask, кол-во_tsuri) / кол-во_tsuri`
+
+**Рекомендуемые значения:**
+
+| Схема | `tracksconcurrency` |
+| ----- | ------------------- |
+| 1 TS (VPS / слабый) | **2** |
+| 1 TS (выделенный, мощный) | **3** |
+| 2 TS | **3** |
+| 3 TS, обычный backlog | **3** (по одному job на TS) |
+| 3 TS, большой backlog, TS не перегружены | **5** |
+
+Каноническое хранение ffprobe — **`Data/tracks`**, не поле `ffprobe` в FileDB. Cron пропускает торренты, для которых трек уже есть в tracks DB (индекс / RAM / файл).
 
 ### Трекеры (блоки в конфиге)
 
