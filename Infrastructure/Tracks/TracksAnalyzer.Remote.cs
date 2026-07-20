@@ -357,30 +357,18 @@ namespace JacRed.Infrastructure.Tracks
             return (result, statusCode);
         }
 
-        static async Task CleanupTorrent(string tsuri, string infohash, string expectedCategory, int? typetask = null)
+        /// <summary>
+        /// Removes the torrent from TorrServer when we know it is in our category.
+        /// Skips the list round-trip — ownership is tracked in-memory from add/exists.
+        /// </summary>
+        static async Task CleanupTorrent(
+            string tsuri, string infohash, string expectedCategory, int? typetask = null, bool ownedInCategory = false)
         {
             try
             {
-                (bool exists, string actualCategory, bool serverError) =
-                    await CheckTorrentExistsWithCategory(tsuri, infohash, CancellationToken.None, typetask, forceRefresh: true)
-                        .ConfigureAwait(false);
-
-                if (serverError)
+                if (!ownedInCategory)
                 {
-                    TracksDB.Log($"Сервер вернул ошибку при запросе списка торрентов. Удаление отменено.", typetask);
-                    return;
-                }
-
-                if (!exists)
-                {
-                    TracksDB.Log($"Торрент {infohash} не найден на сервере. Удаление не требуется.", typetask);
-                    return;
-                }
-
-                bool isExpectedCategory = actualCategory?.Equals(expectedCategory, StringComparison.OrdinalIgnoreCase) ?? false;
-                if (!isExpectedCategory)
-                {
-                    TracksDB.Log($"Торрент {infohash} не в категории '{expectedCategory}' (категория: '{actualCategory}'). Удаление отменено.", typetask);
+                    TracksDB.Log($"Торрент {infohash} не в нашей категории — удаление не требуется.", typetask);
                     return;
                 }
 

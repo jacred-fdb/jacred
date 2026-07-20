@@ -63,6 +63,7 @@ namespace JacRed.Infrastructure.Tracks
             string expectedCategory = AppInit.conf.trackscategory;
             bool analysisSuccessful = false;
             bool skipResultUpdate = false;
+            bool ownedInCategory = false;
             string errorMessage = null;
             int apiStatusCode = 0;
 
@@ -102,6 +103,7 @@ namespace JacRed.Infrastructure.Tracks
                             else
                             {
                                 bool shouldAnalyze = torrentAdded || torrentExistsInCorrectCategory;
+                                ownedInCategory = shouldAnalyze;
 
                                 if (!shouldAnalyze)
                                 {
@@ -157,7 +159,8 @@ namespace JacRed.Infrastructure.Tracks
                     finally
                     {
                         if (!string.IsNullOrEmpty(tsuri))
-                            await CleanupTorrent(tsuri, infohash, expectedCategory, typetask).ConfigureAwait(false);
+                            await CleanupTorrent(tsuri, infohash, expectedCategory, typetask, ownedInCategory)
+                                .ConfigureAwait(false);
                     }
                 }
             }
@@ -181,6 +184,14 @@ namespace JacRed.Infrastructure.Tracks
 
             await UpdateAnalysisResults(magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, apiStatusCode, errorMessage)
                 .ConfigureAwait(false);
+
+            // Soften transient TS failures: brief pause before the next cron item.
+            if (!analysisSuccessful && (apiStatusCode == 408 || apiStatusCode >= 500))
+            {
+                int backoffMs = Math.Max(AppInit.conf.tracksdelay, 5_000);
+                TracksDB.Log($"Backoff {backoffMs}ms after API {apiStatusCode} for {infohash}", typetask);
+                await Task.Delay(backoffMs).ConfigureAwait(false);
+            }
         }
 
         static async Task UpdateAnalysisResults(string magnet, string torrentKey, string infohash,
