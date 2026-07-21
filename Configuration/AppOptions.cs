@@ -55,6 +55,15 @@ namespace JacRed.Configuration
         /// <summary>Poll TorrServer for seeders/bytes before calling /ffp, seconds.</summary>
         public int trackspeerwaittimeout = 30;
 
+        /// <summary>Extra /ffp file-id attempts per analyze (after the first candidate).</summary>
+        public int tracksffpretry = 2;
+
+        /// <summary>Minimum buffered bytes before /ffp, KB.</summary>
+        public int tracksminbufferkb = 512;
+
+        /// <summary>Interval for orphan torrent sweep in trackscategory, minutes.</summary>
+        public int tracksorphansweepmin = 15;
+
         public string trackscategory = "jacred";
 
         public class TracksIntervalConfig

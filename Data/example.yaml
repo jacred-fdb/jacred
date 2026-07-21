@@ -50,6 +50,9 @@ tracksffptimeout: 60 # Таймаут HTTP /ffp при sid > 0, сек
 tracksffptimeoutnosid: 30 # Таймаут HTTP /ffp при sid == 0, сек
 tracksreadtimeout: 30 # Ожидание file_stats от TorrServer, сек
 trackspeerwaittimeout: 30 # Проверка сидов/bytes_read перед /ffp, сек
+tracksffpretry: 2 # Доп. file id для /ffp за одну попытку
+tracksminbufferkb: 512 # Мин. буфер перед /ffp, KB
+tracksorphansweepmin: 15 # Интервал rem сирот в trackscategory, мин
 tracksmod: 0 # Режим треков: 0 — все, 1 — только за текущие сутки
 tracksinterval:
   task1: 60 # Интервал запуска задачи tracks за последние сутки, мин

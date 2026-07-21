@@ -82,6 +82,9 @@ namespace JacRed.Configuration.Schema
                         Field("tracksffptimeoutnosid", "int", "Таймаут /ffp без sid (сек)", "При sid == 0", min: 1),
                         Field("tracksreadtimeout", "int", "Ожидание file_stats (сек)", "WaitTorrentReady", min: 1),
                         Field("trackspeerwaittimeout", "int", "Проверка сидов (сек)", "До вызова /ffp", min: 1),
+                        Field("tracksffpretry", "int", "Доп. file id на попытку", "/ffp retry", min: 0),
+                        Field("tracksminbufferkb", "int", "Мин. буфер перед /ffp (KB)", null, min: 0),
+                        Field("tracksorphansweepmin", "int", "Sweep сирот (мин)", "rem в trackscategory", min: 1),
                         Field("tracksmod", "select", "Режим tracks", "0 — все, 1 — за сутки", enumValues: new[] { "0", "1" }),
                         Field("tracksinterval.task0", "int", "Tracks task0 (мин)", "Все задачи", min: 1),
                         Field("tracksinterval.task1", "int", "Tracks task1 (мин)", "За сутки", min: 1),
@@ -234,6 +237,15 @@ namespace JacRed.Configuration.Schema
 
             if (config.trackspeerwaittimeout < 1)
                 errors.Add("trackspeerwaittimeout: должно быть ≥ 1");
+
+            if (config.tracksffpretry < 0)
+                errors.Add("tracksffpretry: не может быть отрицательным");
+
+            if (config.tracksminbufferkb < 0)
+                errors.Add("tracksminbufferkb: не может быть отрицательным");
+
+            if (config.tracksorphansweepmin < 1)
+                errors.Add("tracksorphansweepmin: должно быть ≥ 1");
 
             ValidateTrackerList(config.synctrackers, "synctrackers", warnings);
             ValidateTrackerList(config.disable_trackers, "disable_trackers", warnings);

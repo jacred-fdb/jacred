@@ -161,6 +161,9 @@ namespace JacRed.Infrastructure.Tracks
             public int active_peers { get; set; }
             public long download_speed { get; set; }
             public long bytes_read { get; set; }
+            public long loaded_size { get; set; }
+            public long preloaded_bytes { get; set; }
+            public long preload_size { get; set; }
         }
 
         /// <summary>File entry from TorrServer torrent status (1-based ids).</summary>

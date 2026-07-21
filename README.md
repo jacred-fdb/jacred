@@ -250,9 +250,12 @@ journalctl -u jacred -g 'fdb:' -p warning
 | `tracksffptimeoutnosid` | Таймаут HTTP `/ffp` при `sid == 0` (typetask 2), сек | `30` |
 | `tracksreadtimeout` | Ожидание `file_stats` от TorrServer перед `/ffp`, сек | `30` |
 | `trackspeerwaittimeout` | Проверка сидов/`bytes_read` перед вызовом `/ffp`, сек | `30` |
-| `tracksmod` | Режим треков: 0 — все, 1 — только за текущие сутки | `0` |
+| `tracksffpretry` | Доп. file id для `/ffp` за одну попытку (pack-торренты) | `2` |
+| `tracksminbufferkb` | Мин. буфер перед `/ffp`, KB | `512` |
+| `tracksorphansweepmin` | Интервал rem «сирот» в `trackscategory`, мин | `15` |
+| `tracksmod` | Режим треков: 0 — все; 1 — отключает typetask **3 и 4** | `0` |
 | `tracksdelay` | Задержка между запросами к tsuri, мс | `20000` |
-| `tracksinterval` | Интервалы запуска задач tracks (task1 — за последние сутки, task0 — остальные), мин | `task1: 60, task0: 180` |
+| `tracksinterval` | Интервалы запуска: task1 — сутки; task0+typetask — остальные (мин) | `task1: 60, task0: 180` |
 | `tsuri` | URL сервиса анализа треков (массив) | `["http://127.0.0.1:8090"]` |
 
 **Файлы статистики** (каталог `Data/temp/`, один проход FDB по `timeStatsUpdate`):
@@ -286,9 +289,22 @@ journalctl -u jacred -g 'fdb:' -p warning
 
 При `tracksmod: 1` typetask 3 и 4 **не работают** (только «день + месяц»).
 
-**`tracksconcurrency`** — глобальный лимит **одновременных** анализов через TorrServer (add → wait `file_stats` → проверка сидов → `GET /ffp/{hash}/1` → rem). Все typetask делят один пул слотов: если слотов не хватает, лишние очереди **ждут** освобождения. **`tracksdelay`** задаёт паузу **между стартами** следующего торрента **внутри** каждой очереди (~20 с по умолчанию), но до `tracksconcurrency` анализов могут идти параллельно из разных typetask.
+**`tracksconcurrency`** — глобальный лимит **одновременных** анализов через TorrServer (add → wait `file_stats` → проверка сидов → выбор media file → `GET /ffp/{hash}/{id}` → rem). Все typetask делят один пул слотов: если слотов не хватает, лишние очереди **ждут** освобождения. **`tracksdelay`** задаёт паузу **между стартами** следующего торрента **внутри** каждой очереди (~20 с по умолчанию), но до `tracksconcurrency` анализов могут идти параллельно из разных typetask.
+
+**File id в TorrServer:** номера файлов **1-based**, сортировка по пути. Id `1` — не обязательно основное видео. JacRed выбирает кандидата по расширению и размеру; при 400 пробует до `tracksffpretry` доп. id за одну попытку.
 
 **Таймауты:** мёртвые торренты (нет сидов и `bytes_read`) не держат слот долго — `/ffp` пропускается после `trackspeerwaittimeout` (30 с). Для `sid == 0` — короткий `tracksffptimeoutnosid` (30 с); при живых сидах — до 60 с на `/ffp`.
+
+**Troubleshooting tracks (лог):**
+
+| Сообщение | Значение |
+| --------- | -------- |
+| `нет сидов/данных — пропуск /ffp` | Мёртвый торрент, early abort |
+| `нет подходящего media-файла` | Все file id вернули 400 |
+| `ffp timeout` (504) | `/ffp` не успел за `tracksffptimeout` |
+| `overall …s` (408) | Общий лимит analyze |
+| `orphan sweep: rem` | Периодическая очистка TS |
+| `уже анализируется — пропуск` | Per-hash lock (дубль в очереди) |
 
 Выбор TorrServer: из массива **`tsuri`** берётся сервер с **наименьшей** загрузкой в категории **`trackscategory`**.
 

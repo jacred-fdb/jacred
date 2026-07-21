@@ -138,7 +138,17 @@ namespace JacRed.Infrastructure.Tracks
                     int maxInFlight = Math.Max(1, AppInit.conf.tracksconcurrency);
                     var inFlight = new List<Task>(maxInFlight);
 
-                    foreach (var t in torrents.OrderByDescending(i => i.updateTime))
+                    var uniqueTorrents = torrents
+                        .GroupBy(t =>
+                        {
+                            if (TracksDB.TryGetInfohashFromMagnet(t.magnet, out var h))
+                                return h;
+                            return t.magnet ?? t.name ?? Guid.NewGuid().ToString();
+                        })
+                        .Select(g => g.OrderByDescending(x => x.updateTime).First())
+                        .OrderByDescending(i => i.updateTime);
+
+                    foreach (var t in uniqueTorrents)
                     {
                         try
                         {

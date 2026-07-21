@@ -29,16 +29,93 @@ namespace JacRed.Infrastructure.Tracks
         static TimeSpan GetTracksPeerWaitTimeout() =>
             TimeSpan.FromSeconds(Math.Max(1, AppInit.conf?.trackspeerwaittimeout ?? 30));
 
-        static TimeSpan GetFfpTimeout(int sid) =>
-            TimeSpan.FromSeconds(Math.Max(1, sid > 0
+        static TimeSpan GetFfpTimeout(int sid, TracksDB.TorrentInfo peerInfo = null)
+        {
+            if (peerInfo != null && peerInfo.connected_seeders == 0 && peerInfo.bytes_read > 0)
+                return TimeSpan.FromSeconds(Math.Max(1, AppInit.conf?.tracksffptimeoutnosid ?? 30));
+
+            return TimeSpan.FromSeconds(Math.Max(1, sid > 0
                 ? AppInit.conf?.tracksffptimeout ?? 60
                 : AppInit.conf?.tracksffptimeoutnosid ?? 30));
+        }
 
-        static TimeSpan GetAnalyzeOverallTimeout(int sid) =>
-            GetTracksReadTimeout() + GetTracksPeerWaitTimeout() + GetFfpTimeout(sid) + TimeSpan.FromSeconds(30);
+        static int GetFfpRetryExtra() => Math.Max(0, AppInit.conf?.tracksffpretry ?? 2);
+
+        static long GetMinBufferBytes() =>
+            Math.Max(0, (long)(AppInit.conf?.tracksminbufferkb ?? 512) * 1024);
+
+        static TimeSpan GetAnalyzeOverallTimeout(int sid)
+        {
+            int extraRetries = GetFfpRetryExtra();
+            return GetTracksReadTimeout()
+                   + GetTracksPeerWaitTimeout()
+                   + GetTracksPeerWaitTimeout() // buffer wait budget
+                   + GetFfpTimeout(sid) * (1 + extraRetries)
+                   + TimeSpan.FromSeconds(30);
+        }
 
         static bool HasDownloadProgress(TracksDB.TorrentInfo info) =>
             info != null && (info.bytes_read > 0 || info.connected_seeders > 0);
+
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> _hashLocks =
+            new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
+
+        static readonly ConcurrentDictionary<string, byte> _inFlightHashes =
+            new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+
+        internal static System.Collections.Generic.HashSet<string> GetInFlightHashes() =>
+            new System.Collections.Generic.HashSet<string>(_inFlightHashes.Keys, StringComparer.OrdinalIgnoreCase);
+
+        internal static void RegisterInFlight(string infohash)
+        {
+            if (!string.IsNullOrEmpty(infohash))
+                _inFlightHashes.TryAdd(infohash, 0);
+        }
+
+        internal static void UnregisterInFlight(string infohash)
+        {
+            if (!string.IsNullOrEmpty(infohash))
+                _inFlightHashes.TryRemove(infohash, out _);
+        }
+
+        /// <summary>Returns false if the same hash is already being analyzed.</summary>
+        internal static async Task<IDisposable> TryAcquireHashLockAsync(string infohash, CancellationToken token)
+        {
+            if (string.IsNullOrEmpty(infohash))
+                return NoopDisposable.Instance;
+
+            var sem = _hashLocks.GetOrAdd(infohash, _ => new SemaphoreSlim(1, 1));
+            if (!await sem.WaitAsync(0, token).ConfigureAwait(false))
+                return null;
+
+            return new HashLockReleaser(infohash, sem);
+        }
+
+        sealed class HashLockReleaser : IDisposable
+        {
+            readonly string _hash;
+            SemaphoreSlim _sem;
+
+            public HashLockReleaser(string hash, SemaphoreSlim sem)
+            {
+                _hash = hash;
+                _sem = sem;
+            }
+
+            public void Dispose()
+            {
+                var sem = Interlocked.Exchange(ref _sem, null);
+                sem?.Release();
+                if (sem != null && sem.CurrentCount == 1)
+                    _hashLocks.TryRemove(_hash, out _);
+            }
+        }
+
+        sealed class NoopDisposable : IDisposable
+        {
+            public static readonly NoopDisposable Instance = new NoopDisposable();
+            public void Dispose() { }
+        }
 
         static readonly object _concurrencyGate = new object();
         static SemaphoreSlim _analyzeConcurrency;
@@ -346,14 +423,58 @@ namespace JacRed.Infrastructure.Tracks
             }
         }
 
-        internal static async Task<(FfprobeModel result, int statusCode)> AnalyzeWithExternalApi(
-            string tsuri, string infohash, CancellationToken token, int? typetask = null, TimeSpan? ffpTimeout = null)
-        {
-            // File index 1: movies/TV almost always put the main media first.
-            var timeout = ffpTimeout ?? GetFfpTimeout(1);
-            string apiUrl = $"{tsuri}/ffp/{infohash.ToUpper()}/1";
+        internal static async Task<(List<TracksDB.TorrentInfo> torrents, bool serverError)> GetTorrentListForCleanup(
+            string tsuri, CancellationToken token) =>
+            await GetTorrentList(tsuri, token, forceRefresh: true).ConfigureAwait(false);
 
-            TracksDB.Log($"Запрос /ffp для {infohash} (таймаут {timeout.TotalSeconds:F0}s)...", typetask);
+        internal static async Task<bool> RemTorrentOnServer(string tsuri, string infohash, int? typetask = null)
+        {
+            try
+            {
+                var client = GetHttpClient(tsuri);
+
+                async Task<bool> PostRemAsync()
+                {
+                    var jsonContent = JsonConvert.SerializeObject(new { action = "rem", hash = infohash });
+                    using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    using var response = await client.PostAsync($"{tsuri}/torrents", content, cts.Token).ConfigureAwait(false);
+                    return response.IsSuccessStatusCode;
+                }
+
+                if (await PostRemAsync().ConfigureAwait(false))
+                {
+                    InvalidateListCache(tsuri);
+                    return true;
+                }
+
+                TracksDB.Log($"rem {infohash}: retry after failure", typetask);
+                await Task.Delay(2000).ConfigureAwait(false);
+
+                if (await PostRemAsync().ConfigureAwait(false))
+                {
+                    InvalidateListCache(tsuri);
+                    return true;
+                }
+
+                InvalidateListCache(tsuri);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                TracksDB.Log($"rem {infohash} ошибка: {ex.Message}", typetask);
+                return false;
+            }
+        }
+
+        internal static async Task<(FfprobeModel result, int statusCode)> AnalyzeWithExternalApi(
+            string tsuri, string infohash, CancellationToken token, int? typetask = null,
+            TimeSpan? ffpTimeout = null, int fileId = 1)
+        {
+            var timeout = ffpTimeout ?? GetFfpTimeout(1);
+            string apiUrl = $"{tsuri}/ffp/{infohash.ToUpper()}/{fileId}";
+
+            TracksDB.Log($"Запрос /ffp/{fileId} для {infohash} (таймаут {timeout.TotalSeconds:F0}s)...", typetask);
 
             var client = GetHttpClient(tsuri);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -377,6 +498,44 @@ namespace JacRed.Infrastructure.Tracks
                 return (null, statusCode);
 
             return (result, statusCode);
+        }
+
+        internal static async Task<(FfprobeModel result, int statusCode, string errorMessage)> ProbeFfpWithRetries(
+            string tsuri, string infohash, IReadOnlyList<int> fileIds, TimeSpan ffpTimeout,
+            CancellationToken token, int? typetask = null)
+        {
+            if (fileIds == null || fileIds.Count == 0)
+                fileIds = new[] { 1 };
+
+            int lastCode = 0;
+            foreach (var fileId in fileIds)
+            {
+                token.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var (result, code) = await AnalyzeWithExternalApi(
+                        tsuri, infohash, token, typetask, ffpTimeout, fileId).ConfigureAwait(false);
+
+                    lastCode = code;
+
+                    if (result?.streams != null && result.streams.Count > 0)
+                        return (result, code, null);
+
+                    if (code != 400)
+                        return (result, code, "Нет данных о треках");
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException)
+                {
+                    return (null, 504, "ffp timeout");
+                }
+            }
+
+            return (null, lastCode > 0 ? lastCode : 400, "no probeable media file");
         }
 
         /// <summary>
@@ -459,6 +618,71 @@ namespace JacRed.Infrastructure.Tracks
             return false;
         }
 
+        /// <summary>
+        /// Waits until enough data is buffered for ffprobe, or progress stalls.
+        /// </summary>
+        internal static async Task<bool> WaitMediaBuffer(
+            string tsuri, string infohash, CancellationToken token, int? typetask = null,
+            TimeSpan? bufferTimeout = null)
+        {
+            long minBytes = GetMinBufferBytes();
+            if (minBytes <= 0)
+                return true;
+
+            var timeout = bufferTimeout ?? GetTracksPeerWaitTimeout();
+            var deadline = DateTime.UtcNow + timeout;
+            var pollInterval = TimeSpan.FromSeconds(2);
+            long lastLoaded = -1;
+            int stallPolls = 0;
+
+            TracksDB.Log($"Ожидание буфера {infohash} (мин. {minBytes} bytes, до {timeout.TotalSeconds:F0}s)...", typetask);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                token.ThrowIfCancellationRequested();
+
+                var info = await GetTorrentFromServer(tsuri, infohash, token, typetask).ConfigureAwait(false);
+                long loaded = Math.Max(info?.loaded_size ?? 0, info?.bytes_read ?? 0);
+
+                if (loaded >= minBytes)
+                {
+                    TracksDB.Log($"Торрент {infohash}: буфер готов (loaded={loaded})", typetask);
+                    return true;
+                }
+
+                if (info != null && info.connected_seeders == 0 && info.download_speed == 0 && loaded > 0)
+                {
+                    stallPolls++;
+                    if (stallPolls >= 3)
+                    {
+                        TracksDB.Log($"Торрент {infohash}: загрузка остановилась (loaded={loaded})", typetask);
+                        return loaded > 0;
+                    }
+                }
+                else
+                {
+                    stallPolls = 0;
+                }
+
+                if (loaded == lastLoaded && info?.connected_seeders == 0 && loaded == 0)
+                {
+                    // no progress at all — fail fast inside peer window
+                    break;
+                }
+
+                lastLoaded = loaded;
+
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    break;
+
+                await Task.Delay(remaining < pollInterval ? remaining : pollInterval, token).ConfigureAwait(false);
+            }
+
+            TracksDB.Log($"Торрент {infohash}: буфер не достигнут ({minBytes} bytes)", typetask);
+            return false;
+        }
+
         internal static async Task<TracksDB.TorrentInfo> GetTorrentFromServer(
             string tsuri, string infohash, CancellationToken token, int? typetask = null)
         {
@@ -528,28 +752,10 @@ namespace JacRed.Infrastructure.Tracks
                     return;
                 }
 
-                var client = GetHttpClient(tsuri);
-
-                var jsonContent = JsonConvert.SerializeObject(new
-                {
-                    action = "rem",
-                    hash = infohash
-                });
-
-                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-
-                using var response = await client.PostAsync($"{tsuri}/torrents", content, cts.Token).ConfigureAwait(false);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    InvalidateListCache(tsuri);
+                if (await RemTorrentOnServer(tsuri, infohash, typetask).ConfigureAwait(false))
                     TracksDB.Log($"Торрент {infohash} успешно удален с сервера", typetask);
-                }
                 else
-                {
-                    TracksDB.Log($"Ошибка при удалении торрента ({(int)response.StatusCode})", typetask);
-                }
+                    TracksDB.Log($"Ошибка при удалении торрента {infohash}", typetask);
             }
             catch (Exception ex)
             {

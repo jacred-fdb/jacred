@@ -56,6 +56,28 @@ namespace JacRed.Infrastructure.Tracks
                 return;
             }
 
+            using var hashLock = await TryAcquireHashLockAsync(infohash, CancellationToken.None).ConfigureAwait(false);
+            if (hashLock == null)
+            {
+                TracksDB.Log($"Торрент {infohash} уже анализируется — пропуск.", typetask);
+                return;
+            }
+
+            RegisterInFlight(infohash);
+            try
+            {
+                await AddCore(magnet, currentAttempt, types, torrentKey, typetask, sid, infohash)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                UnregisterInFlight(infohash);
+            }
+        }
+
+        static async Task AddCore(string magnet, int currentAttempt, string[] types, string torrentKey,
+            int typetask, int sid, string infohash)
+        {
             TracksDB.Log($"Начало анализа треков для {infohash}.", typetask);
 
             FfprobeModel res = null;
@@ -67,23 +89,22 @@ namespace JacRed.Infrastructure.Tracks
             string errorMessage = null;
             int apiStatusCode = 0;
 
-            using (await AcquireAnalyzeSlotAsync(CancellationToken.None).ConfigureAwait(false))
+            using (var pickCts = new CancellationTokenSource(TimeSpan.FromMinutes(1)))
             {
-                using (var cancellationTokenSource = new CancellationTokenSource())
-                {
-                    cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(1));
-                    tsuri = await SelectBestServer(cancellationTokenSource.Token).ConfigureAwait(false);
-                }
+                tsuri = await SelectBestServer(pickCts.Token).ConfigureAwait(false);
+            }
 
-                if (string.IsNullOrEmpty(tsuri))
-                {
-                    TracksDB.Log("Все серверы недоступны.", typetask);
-                }
-                else
+            if (string.IsNullOrEmpty(tsuri))
+            {
+                TracksDB.Log("Все серверы недоступны.", typetask);
+            }
+            else
+            {
+                using (await AcquireAnalyzeSlotAsync(CancellationToken.None).ConfigureAwait(false))
                 {
                     try
                     {
-                        var ffpTimeout = GetFfpTimeout(sid);
+                        var ffpTimeoutBase = GetFfpTimeout(sid);
                         var overallTimeout = GetAnalyzeOverallTimeout(sid);
 
                         using (var cancellationTokenSource = new CancellationTokenSource())
@@ -97,8 +118,6 @@ namespace JacRed.Infrastructure.Tracks
 
                             if (serverError)
                             {
-                                // AddTorrentToServer maps list failures and add timeouts to serverError.
-                                // If we already POSTed add, still rem — TS often accepts before the client times out.
                                 ownedInCategory = addAttempted || torrentExistsInCorrectCategory;
                                 errorMessage = "TorrServer недоступен или таймаут add/list";
                                 apiStatusCode = 503;
@@ -114,7 +133,6 @@ namespace JacRed.Infrastructure.Tracks
                                 {
                                     errorMessage = $"Торрент не в категории '{expectedCategory}'";
                                     TracksDB.Log($"{errorMessage}. Анализ отменен.", typetask);
-                                    // Do not burn attempts — torrent owned by another category/instance.
                                     skipResultUpdate = true;
                                 }
                                 else
@@ -137,7 +155,29 @@ namespace JacRed.Infrastructure.Tracks
                                     }
                                     else
                                     {
-                                        (res, apiStatusCode) = await AnalyzeWithExternalApi(tsuri, infohash, token, typetask, ffpTimeout)
+                                        var peerInfo = await GetTorrentFromServer(tsuri, infohash, token, typetask)
+                                            .ConfigureAwait(false);
+
+                                        await WaitMediaBuffer(tsuri, infohash, token, typetask).ConfigureAwait(false);
+
+                                        var ffpTimeout = GetFfpTimeout(sid, peerInfo);
+                                        int maxFiles = 1 + GetFfpRetryExtra();
+                                        var fileStats = peerInfo?.file_stats;
+                                        var fileIds = TracksMediaFileSelector.SelectFileIds(fileStats, maxFiles);
+
+                                        if (fileStats != null && fileIds.Count > 0)
+                                        {
+                                            var first = fileStats.FirstOrDefault(f => f.id == fileIds[0]);
+                                            if (first != null)
+                                            {
+                                                TracksDB.Log(
+                                                    $"Выбран file id={first.id} path={first.path} length={first.length}",
+                                                    typetask);
+                                            }
+                                        }
+
+                                        (res, apiStatusCode, errorMessage) = await ProbeFfpWithRetries(
+                                            tsuri, infohash, fileIds, ffpTimeout, token, typetask)
                                             .ConfigureAwait(false);
 
                                         if (res?.streams != null && res.streams.Count > 0)
@@ -145,9 +185,18 @@ namespace JacRed.Infrastructure.Tracks
                                             analysisSuccessful = true;
                                             TracksDB.Log($"API успешно вернул {res.streams.Count} треков", typetask);
                                         }
-                                        else
+                                        else if (string.IsNullOrEmpty(errorMessage))
                                         {
                                             errorMessage = "Нет данных о треках";
+                                            TracksDB.Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
+                                        }
+                                        else if (errorMessage == "no probeable media file")
+                                        {
+                                            errorMessage = "нет подходящего media-файла для /ffp";
+                                            TracksDB.Log($"{errorMessage} для {infohash}", typetask);
+                                        }
+                                        else
+                                        {
                                             TracksDB.Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
                                         }
                                     }
@@ -157,7 +206,7 @@ namespace JacRed.Infrastructure.Tracks
                     }
                     catch (OperationCanceledException)
                     {
-                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту ({GetAnalyzeOverallTimeout(sid).TotalSeconds:F0}s)";
+                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (overall {GetAnalyzeOverallTimeout(sid).TotalSeconds:F0}s)";
                         TracksDB.Log(errorMessage, typetask);
                         apiStatusCode = 408;
                     }
@@ -183,7 +232,6 @@ namespace JacRed.Infrastructure.Tracks
 
             if (string.IsNullOrEmpty(tsuri) || apiStatusCode == 503)
             {
-                // Keep short: long 1‑minute pauses made a sick TS feel like the whole pipeline is stuck.
                 int backoffMs = Math.Max(AppInit.conf.tracksdelay, 10_000);
                 TracksDB.Log($"Backoff {backoffMs}ms (TorrServer down/timeout).", typetask);
                 await Task.Delay(backoffMs).ConfigureAwait(false);
@@ -196,8 +244,7 @@ namespace JacRed.Infrastructure.Tracks
             await UpdateAnalysisResults(magnet, torrentKey, infohash, currentAttempt, analysisSuccessful, res, typetask, apiStatusCode, errorMessage)
                 .ConfigureAwait(false);
 
-            // Soften transient TS failures: brief pause before the next cron item.
-            if (!analysisSuccessful && (apiStatusCode == 400 || apiStatusCode == 408 || apiStatusCode >= 500))
+            if (!analysisSuccessful && (apiStatusCode == 400 || apiStatusCode == 408 || apiStatusCode == 504 || apiStatusCode >= 500))
             {
                 int backoffMs = Math.Max(AppInit.conf.tracksdelay, 5_000);
                 TracksDB.Log($"Backoff {backoffMs}ms after API {apiStatusCode} for {infohash}", typetask);
@@ -215,7 +262,6 @@ namespace JacRed.Infrastructure.Tracks
             {
                 if (analysisSuccessful)
                 {
-                    // Canonical store is Data/tracks (+ index/RAM); FileDB.ffprobe is not written.
                     if (ffprobeResult?.streams != null && ffprobeResult.streams.Count > 0)
                         await SaveTrackResults(ffprobeResult, infohash, typetask);
 
@@ -248,9 +294,6 @@ namespace JacRed.Infrastructure.Tracks
                 }
 
                 int NewAttepmt = NextFailureAttempt(currentAttempt);
-
-                // TorrServer returns 400 for any ProbeUrl failure (not-ready, transient, non-media).
-                // Do not exhaust attempts on a single 400 — increment normally.
 
                 if (NewAttepmt != currentAttempt)
                     FileDB.UpdateTorrentFfprobeInfo(torrentKey, magnet, NewAttepmt);
@@ -296,6 +339,7 @@ namespace JacRed.Infrastructure.Tracks
 
             return null;
         }
+
         static async Task SaveTrackResults(FfprobeModel result, string infohash, int? typetask = null)
         {
             if (result?.streams == null || result.streams.Count == 0)

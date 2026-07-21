@@ -19,12 +19,14 @@ namespace JacRed.Infrastructure.Background
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("tracks worker started");
-            var tasks = new Task[5];
+            var tasks = new Task[6];
             for (int i = 0; i < 5; i++)
             {
                 int typetask = i + 1;
                 tasks[i] = RunTypetask(typetask, stoppingToken);
             }
+
+            tasks[5] = TracksOrphanCleanup.RunLoopAsync(stoppingToken);
 
             await Task.WhenAll(tasks);
         }
