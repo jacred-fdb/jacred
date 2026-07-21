@@ -135,6 +135,9 @@ namespace JacRed.Infrastructure.Tracks
 
                     TracksDB.Log($"typetask={typetask} collected {torrents.Count} torrents to process");
 
+                    int maxInFlight = Math.Max(1, AppInit.conf.tracksconcurrency);
+                    var inFlight = new List<Task>(maxInFlight);
+
                     foreach (var t in torrents.OrderByDescending(i => i.updateTime))
                     {
                         try
@@ -159,13 +162,24 @@ namespace JacRed.Infrastructure.Tracks
                             if (delay > 0)
                                 await Task.Delay(delay, cancellationToken);
 
-                            await TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask);
+                            // Cap outstanding Adds; TracksAnalyzer.Add also takes the global semaphore.
+                            while (inFlight.Count >= maxInFlight)
+                            {
+                                var done = await Task.WhenAny(inFlight).ConfigureAwait(false);
+                                inFlight.Remove(done);
+                                await done.ConfigureAwait(false);
+                            }
+
+                            inFlight.Add(TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask));
                         }
                         catch (Exception ex)
                         {
                             TracksDB.Log($"typetask={typetask} process error: {ex.Message}", typetask);
                         }
                     }
+
+                    if (inFlight.Count > 0)
+                        await Task.WhenAll(inFlight).ConfigureAwait(false);
 
                     TracksDB.Log($"end typetask={typetask} (elapsed {(DateTime.Now - starttime).TotalMinutes:F1}m)");
                 }

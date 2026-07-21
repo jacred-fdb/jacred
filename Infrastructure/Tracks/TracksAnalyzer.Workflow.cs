@@ -77,8 +77,7 @@ namespace JacRed.Infrastructure.Tracks
 
                 if (string.IsNullOrEmpty(tsuri))
                 {
-                    TracksDB.Log("Все серверы недоступны. Пауза 1 минута...");
-                    // Release slot before long backoff (Dispose of AcquireAnalyzeSlot on leaving using).
+                    TracksDB.Log("Все серверы недоступны.", typetask);
                 }
                 else
                 {
@@ -96,10 +95,11 @@ namespace JacRed.Infrastructure.Tracks
 
                             if (serverError)
                             {
-                                errorMessage = "Сервер вернул ошибку при получении списка торрентов";
-                                TracksDB.Log($"{errorMessage}. Пауза 1 минута...", typetask);
+                                // AddTorrentToServer maps list failures and add timeouts to serverError.
+                                errorMessage = "TorrServer недоступен или таймаут add/list";
                                 apiStatusCode = 503;
                                 skipResultUpdate = true;
+                                TracksDB.Log($"{errorMessage}.", typetask);
                             }
                             else
                             {
@@ -165,17 +165,12 @@ namespace JacRed.Infrastructure.Tracks
                 }
             }
 
-            if (string.IsNullOrEmpty(tsuri))
+            if (string.IsNullOrEmpty(tsuri) || apiStatusCode == 503)
             {
-                await Task.Delay(TimeSpan.FromMinutes(1)).ConfigureAwait(false);
-                TracksDB.Log("Пауза завершена. Выход.");
-                return;
-            }
-
-            if (apiStatusCode == 503)
-            {
-                await Task.Delay(TimeSpan.FromMinutes(1)).ConfigureAwait(false);
-                TracksDB.Log("Пауза завершена. Выход.", typetask);
+                // Keep short: long 1‑minute pauses made a sick TS feel like the whole pipeline is stuck.
+                int backoffMs = Math.Max(AppInit.conf.tracksdelay, 10_000);
+                TracksDB.Log($"Backoff {backoffMs}ms (TorrServer down/timeout).", typetask);
+                await Task.Delay(backoffMs).ConfigureAwait(false);
                 return;
             }
 

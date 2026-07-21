@@ -465,7 +465,7 @@ namespace JacRed.Infrastructure.Tracks
             {
                 if (!ownedInCategory)
                 {
-                    TracksDB.Log($"Торрент {infohash} не в нашей категории — удаление не требуется.", typetask);
+                    TracksDB.Log($"Торрент {infohash}: rem пропущен (не добавляли / чужая категория).", typetask);
                     return;
                 }
 
