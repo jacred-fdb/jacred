@@ -265,7 +265,7 @@ namespace JacRed.Infrastructure.Tracks
             return (true, torrent.category ?? string.Empty, false);
         }
 
-        static async Task<(bool added, bool existsInCorrectCategory, bool serverError)> AddTorrentToServer(
+        static async Task<(bool added, bool existsInCorrectCategory, bool serverError, bool addAttempted)> AddTorrentToServer(
             string tsuri, string magnet, string infohash, string expectedCategory, CancellationToken token, int? typetask = null)
         {
             try
@@ -274,15 +274,15 @@ namespace JacRed.Infrastructure.Tracks
                     await CheckTorrentExistsWithCategory(tsuri, infohash, token, typetask).ConfigureAwait(false);
 
                 if (serverError)
-                    return (false, false, true);
+                    return (false, false, true, false);
 
                 if (exists)
                 {
                     bool isCorrectCategory = actualCategory?.Equals(expectedCategory, StringComparison.OrdinalIgnoreCase) ?? false;
                     if (isCorrectCategory)
-                        return (false, true, false);
+                        return (false, true, false, false);
 
-                    return (false, false, false);
+                    return (false, false, false, false);
                 }
 
                 var client = GetHttpClient(tsuri);
@@ -305,11 +305,12 @@ namespace JacRed.Infrastructure.Tracks
                 {
                     await response.Content.CopyToAsync(Stream.Null, cts.Token).ConfigureAwait(false);
                     InvalidateListCache(tsuri);
-                    return (true, false, false);
+                    return (true, false, false, true);
                 }
 
                 TracksDB.Log($"Ошибка при добавлении торрента ({(int)response.StatusCode})", typetask);
-                return (false, false, false);
+                // Request reached the server; rem may still be needed if TS accepted it.
+                return (false, false, false, true);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -318,12 +319,13 @@ namespace JacRed.Infrastructure.Tracks
             catch (OperationCanceledException)
             {
                 TracksDB.Log("Таймаут при добавлении торрента на сервер", typetask);
-                return (false, false, true);
+                // Add may have succeeded on TS before the client timed out — rem this hash.
+                return (false, false, true, true);
             }
             catch (Exception ex)
             {
                 TracksDB.Log($"Ошибка при добавлении торрента на сервере: {ex.Message}", typetask);
-                return (false, false, true);
+                return (false, false, true, true);
             }
         }
 

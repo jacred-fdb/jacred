@@ -89,13 +89,15 @@ namespace JacRed.Infrastructure.Tracks
                             cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(6));
                             var token = cancellationTokenSource.Token;
 
-                            (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError) =
+                            (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError, bool addAttempted) =
                                 await AddTorrentToServer(tsuri, magnet, infohash, expectedCategory, token, typetask)
                                     .ConfigureAwait(false);
 
                             if (serverError)
                             {
                                 // AddTorrentToServer maps list failures and add timeouts to serverError.
+                                // If we already POSTed add, still rem — TS often accepts before the client times out.
+                                ownedInCategory = addAttempted || torrentExistsInCorrectCategory;
                                 errorMessage = "TorrServer недоступен или таймаут add/list";
                                 apiStatusCode = 503;
                                 skipResultUpdate = true;
@@ -104,7 +106,7 @@ namespace JacRed.Infrastructure.Tracks
                             else
                             {
                                 bool shouldAnalyze = torrentAdded || torrentExistsInCorrectCategory;
-                                ownedInCategory = shouldAnalyze;
+                                ownedInCategory = shouldAnalyze || addAttempted;
 
                                 if (!shouldAnalyze)
                                 {
