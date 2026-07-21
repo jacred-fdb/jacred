@@ -13,9 +13,15 @@ namespace JacRed.Infrastructure.Tracks
         private static readonly ThreadLocal<Random> _random =
             new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
 
-        public static int GetRandomDelay()
+        /// <summary>Inter-item delay from <c>tracksdelay</c> with ±10% jitter (min 0).</summary>
+        public static int GetInterItemDelayMs()
         {
-            return _random.Value.Next(2000, 5001);
+            int baseMs = Math.Max(0, AppInit.conf.tracksdelay);
+            if (baseMs == 0)
+                return 0;
+
+            int jitter = Math.Max(1, baseMs / 10);
+            return baseMs + _random.Value.Next(-jitter, jitter + 1);
         }
 
         /// <summary>
@@ -109,39 +115,40 @@ namespace JacRed.Infrastructure.Tracks
                             {
                                 try
                                 {
-                                    if (TracksDB.theBad(t.types) || t.ffprobe != null)
+                                    // Tracks DB (Data/tracks + index) is canonical — not FileDB.ffprobe
+                                    if (TracksDB.theBad(t.types) || TracksDB.HasTrackForTorrent(t))
                                         continue;
-
-                                    //var magnetLink = MagnetLink.Parse(t.magnet);
-                                    //string hex = magnetLink.InfoHash.ToHex();
-                                    //if (hex == null)
-                                    //    continue;
 
                                     if (t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
                                         continue;
 
                                     if (typetask == 1 || typetask == 2 || t.sid > 0)
                                         torrents.Add(t);
-
-                                    /*
-									if (typetask == 3 && t.sid > 0 && t.updateTime >= DateTime.UtcNow.AddMonths(-1))
-										torrents.Add(t);
-									
-									if (typetask == 4 && t.sid > 0 && t.updateTime >= DateTime.UtcNow.AddMonths(-2))
-										torrents.Add(t);
-									
-									if (typetask == 5 && t.sid > 0)
-										torrents.Add(t);
-									*/
                                 }
-                                catch { }
+                                catch (Exception ex)
+                                {
+                                    TracksDB.Log($"typetask={typetask} skip candidate: {ex.Message}", typetask);
+                                }
                             }
                         }
                     }
 
                     TracksDB.Log($"typetask={typetask} collected {torrents.Count} torrents to process");
 
-                    foreach (var t in torrents.OrderByDescending(i => i.updateTime))
+                    int maxInFlight = Math.Max(1, AppInit.conf.tracksconcurrency);
+                    var inFlight = new List<Task>(maxInFlight);
+
+                    var uniqueTorrents = torrents
+                        .GroupBy(t =>
+                        {
+                            if (TracksDB.TryGetInfohashFromMagnet(t.magnet, out var h))
+                                return h;
+                            return t.magnet ?? t.name ?? Guid.NewGuid().ToString();
+                        })
+                        .Select(g => g.OrderByDescending(x => x.updateTime).First())
+                        .OrderByDescending(i => i.updateTime);
+
+                    foreach (var t in uniqueTorrents)
                     {
                         try
                         {
@@ -156,25 +163,33 @@ namespace JacRed.Infrastructure.Tracks
                             if ((typetask == 3 || typetask == 4 || typetask == 5) && DateTime.Now > starttime.AddMonths(1))
                                 break;
 
-                            //if ((typetask != 1 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt))
-                            //	continue;
+                            if (TracksDB.HasTrackForTorrent(t))
+                                continue;
 
-                            if (TracksDB.Get(t.magnet) == null)
-                            {
-                                //if (typetask != 1)
-                                //	t.ffprobe_tryingdata++;
+                            string torrentKey = FileDB.KeyForTorrent(t.name, t.originalname);
 
-                                string torrentKey = FileDB.KeyForTorrent(t.name, t.originalname);
-
-                                int delay = GetRandomDelay();
+                            int delay = GetInterItemDelayMs();
+                            if (delay > 0)
                                 await Task.Delay(delay, cancellationToken);
 
-                                await TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask);
-                                //await TracksDB.Add(t.magnet, t.ffprobe_tryingdata);
+                            // Cap outstanding Adds; TracksAnalyzer.Add also takes the global semaphore.
+                            while (inFlight.Count >= maxInFlight)
+                            {
+                                var done = await Task.WhenAny(inFlight).ConfigureAwait(false);
+                                inFlight.Remove(done);
+                                await done.ConfigureAwait(false);
                             }
+
+                            inFlight.Add(TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask, t.sid));
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            TracksDB.Log($"typetask={typetask} process error: {ex.Message}", typetask);
+                        }
                     }
+
+                    if (inFlight.Count > 0)
+                        await Task.WhenAll(inFlight).ConfigureAwait(false);
 
                     TracksDB.Log($"end typetask={typetask} (elapsed {(DateTime.Now - starttime).TotalMinutes:F1}m)");
                 }
