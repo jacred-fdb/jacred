@@ -13,7 +13,7 @@ namespace JacRed.Infrastructure.Tracks
 {
     internal static partial class TracksAnalyzer
     {
-        internal static async Task Add(string magnet, int currentAttempt, string[] types = null, string torrentKey = null, int typetask = 1)
+        internal static async Task Add(string magnet, int currentAttempt, string[] types = null, string torrentKey = null, int typetask = 1, int sid = 0)
         {
             if (string.IsNullOrWhiteSpace(magnet))
             {
@@ -83,10 +83,12 @@ namespace JacRed.Infrastructure.Tracks
                 {
                     try
                     {
+                        var ffpTimeout = GetFfpTimeout(sid);
+                        var overallTimeout = GetAnalyzeOverallTimeout(sid);
+
                         using (var cancellationTokenSource = new CancellationTokenSource())
                         {
-                            // /ffp may take up to 5 minutes (TorrServer ProbeUrl budget); leave room for rem.
-                            cancellationTokenSource.CancelAfter(TimeSpan.FromMinutes(6));
+                            cancellationTokenSource.CancelAfter(overallTimeout);
                             var token = cancellationTokenSource.Token;
 
                             (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError, bool addAttempted) =
@@ -124,18 +126,30 @@ namespace JacRed.Infrastructure.Tracks
 
                                     await WaitTorrentReady(tsuri, infohash, token, typetask).ConfigureAwait(false);
 
-                                    (res, apiStatusCode) = await AnalyzeWithExternalApi(tsuri, infohash, token, typetask)
+                                    bool canProbe = await WaitDownloadProgress(tsuri, infohash, token, typetask)
                                         .ConfigureAwait(false);
 
-                                    if (res?.streams != null && res.streams.Count > 0)
+                                    if (!canProbe)
                                     {
-                                        analysisSuccessful = true;
-                                        TracksDB.Log($"API успешно вернул {res.streams.Count} треков", typetask);
+                                        errorMessage = "нет данных от сидов — /ffp пропущен";
+                                        apiStatusCode = 408;
+                                        TracksDB.Log($"{errorMessage} для {infohash}", typetask);
                                     }
                                     else
                                     {
-                                        errorMessage = "Нет данных о треках";
-                                        TracksDB.Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
+                                        (res, apiStatusCode) = await AnalyzeWithExternalApi(tsuri, infohash, token, typetask, ffpTimeout)
+                                            .ConfigureAwait(false);
+
+                                        if (res?.streams != null && res.streams.Count > 0)
+                                        {
+                                            analysisSuccessful = true;
+                                            TracksDB.Log($"API успешно вернул {res.streams.Count} треков", typetask);
+                                        }
+                                        else
+                                        {
+                                            errorMessage = "Нет данных о треках";
+                                            TracksDB.Log($"{errorMessage} для инфохаша {infohash} (код: {apiStatusCode})", typetask);
+                                        }
                                     }
                                 }
                             }
@@ -143,7 +157,7 @@ namespace JacRed.Infrastructure.Tracks
                     }
                     catch (OperationCanceledException)
                     {
-                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту (6 минут)";
+                        errorMessage = $"Анализ для инфохаша {infohash} отменен по таймауту ({GetAnalyzeOverallTimeout(sid).TotalSeconds:F0}s)";
                         TracksDB.Log(errorMessage, typetask);
                         apiStatusCode = 408;
                     }

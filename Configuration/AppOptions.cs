@@ -43,6 +43,18 @@ namespace JacRed.Configuration
         /// <summary>Max concurrent TorrServer analyze operations across all tracks cron tasks.</summary>
         public int tracksconcurrency = 2;
 
+        /// <summary>HTTP timeout for GET /ffp when tracker sid &gt; 0, seconds.</summary>
+        public int tracksffptimeout = 60;
+
+        /// <summary>HTTP timeout for GET /ffp when tracker sid == 0, seconds.</summary>
+        public int tracksffptimeoutnosid = 30;
+
+        /// <summary>Wait for TorrServer file_stats before /ffp, seconds.</summary>
+        public int tracksreadtimeout = 30;
+
+        /// <summary>Poll TorrServer for seeders/bytes before calling /ffp, seconds.</summary>
+        public int trackspeerwaittimeout = 30;
+
         public string trackscategory = "jacred";
 
         public class TracksIntervalConfig

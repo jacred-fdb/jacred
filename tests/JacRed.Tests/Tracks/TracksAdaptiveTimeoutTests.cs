@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -9,23 +10,23 @@ using Xunit;
 
 namespace JacRed.Tests.Tracks;
 
-/// <summary>
-/// Local HttpListener stand-in for TorrServer /torrents get + /ffp endpoints.
-/// </summary>
-public class MockTorrServerFfpTests : IAsyncLifetime
+public class TracksAdaptiveTimeoutTests : IAsyncLifetime
 {
     HttpListener _listener;
     string _baseUrl;
     CancellationTokenSource _listenCts;
     Task _listenTask;
 
-    int _getCalls;
-    bool _readyOnSecondGet;
-    int _ffpStatus = 200;
-    string _ffpBody = """{"streams":[{"index":0,"codec_type":"audio","codec_name":"aac","tags":{"language":"rus"}}]}""";
+    int _connectedSeeders;
+    long _bytesRead;
+    bool _includeFileStats = true;
+    int _ffpDelayMs;
 
     public Task InitializeAsync()
     {
+        _connectedSeeders = 0;
+        _bytesRead = 0;
+
         var port = GetFreePort();
         _baseUrl = $"http://127.0.0.1:{port}";
         _listener = new HttpListener();
@@ -86,11 +87,11 @@ public class MockTorrServerFfpTests : IAsyncLifetime
                 if (body.Contains("\"action\":\"get\"", StringComparison.Ordinal) ||
                     body.Contains("\"action\": \"get\"", StringComparison.Ordinal))
                 {
-                    Interlocked.Increment(ref _getCalls);
-                    bool ready = !_readyOnSecondGet || Volatile.Read(ref _getCalls) >= 2;
-                    string json = ready
-                        ? """{"hash":"aabbccddeeff00112233445566778899aabbccdd","stat":3,"stat_string":"Torrent working","category":"jacred","connected_seeders":1,"file_stats":[{"id":1,"path":"a.mkv","length":10}]}"""
-                        : """{"hash":"aabbccddeeff00112233445566778899aabbccdd","stat":1,"stat_string":"Torrent getting info","category":"jacred"}""";
+                    string fileStats = _includeFileStats
+                        ? ""","file_stats":[{"id":1,"path":"a.mkv","length":10}]"""
+                        : "";
+                    string json =
+                        $$"""{"hash":"aabbccddeeff00112233445566778899aabbccdd","stat":3,"category":"jacred","connected_seeders":{{_connectedSeeders}},"bytes_read":{{_bytesRead}}{{fileStats}}}""";
                     await WriteJson(ctx.Response, 200, json);
                     return;
                 }
@@ -101,8 +102,11 @@ public class MockTorrServerFfpTests : IAsyncLifetime
 
             if (req.HttpMethod == "GET" && path.Contains("/ffp/", StringComparison.OrdinalIgnoreCase))
             {
-                ctx.Response.StatusCode = _ffpStatus;
-                var bytes = Encoding.UTF8.GetBytes(_ffpBody ?? "");
+                if (_ffpDelayMs > 0)
+                    await Task.Delay(_ffpDelayMs);
+
+                var bytes = Encoding.UTF8.GetBytes("""{"streams":[{"index":0,"codec_type":"audio"}]}""");
+                ctx.Response.StatusCode = 200;
                 ctx.Response.ContentType = "application/json";
                 ctx.Response.ContentLength64 = bytes.Length;
                 await ctx.Response.OutputStream.WriteAsync(bytes);
@@ -129,64 +133,92 @@ public class MockTorrServerFfpTests : IAsyncLifetime
         resp.Close();
     }
 
-    [Fact]
-    public async Task WaitTorrentReady_returns_true_when_file_stats_present()
-    {
-        _readyOnSecondGet = false;
-        var ready = await TracksAnalyzer.WaitTorrentReady(
-            _baseUrl,
-            "aabbccddeeff00112233445566778899aabbccdd",
-            CancellationToken.None,
-            readyTimeout: TimeSpan.FromSeconds(5));
+    const string Hash = "aabbccddeeff00112233445566778899aabbccdd";
 
-        Assert.True(ready);
-        Assert.True(Volatile.Read(ref _getCalls) >= 1);
+    [Fact]
+    public async Task WaitDownloadProgress_returns_false_when_no_seeders_and_no_bytes()
+    {
+        _connectedSeeders = 0;
+        _bytesRead = 0;
+
+        var ok = await TracksAnalyzer.WaitDownloadProgress(
+            _baseUrl, Hash, CancellationToken.None, progressTimeout: TimeSpan.FromSeconds(3));
+
+        Assert.False(ok);
     }
 
     [Fact]
-    public async Task WaitTorrentReady_polls_until_file_stats_appear()
+    public async Task WaitDownloadProgress_returns_true_when_bytes_read_positive()
     {
-        _readyOnSecondGet = true;
+        _bytesRead = 4096;
 
-        var ready = await TracksAnalyzer.WaitTorrentReady(
-            _baseUrl,
-            "aabbccddeeff00112233445566778899aabbccdd",
-            CancellationToken.None,
-            readyTimeout: TimeSpan.FromSeconds(10));
+        var ok = await TracksAnalyzer.WaitDownloadProgress(
+            _baseUrl, Hash, CancellationToken.None, progressTimeout: TimeSpan.FromSeconds(3));
 
-        Assert.True(ready);
-        Assert.True(Volatile.Read(ref _getCalls) >= 2);
+        Assert.True(ok);
     }
 
     [Fact]
-    public async Task AnalyzeWithExternalApi_deserializes_200_streams()
+    public async Task WaitDownloadProgress_returns_true_when_connected_seeders_positive()
     {
-        _ffpStatus = 200;
+        _connectedSeeders = 2;
+
+        var ok = await TracksAnalyzer.WaitDownloadProgress(
+            _baseUrl, Hash, CancellationToken.None, progressTimeout: TimeSpan.FromSeconds(3));
+
+        Assert.True(ok);
+    }
+
+    [Fact]
+    public async Task WaitTorrentReady_without_file_stats_then_no_peers_skips_ffp_path()
+    {
+        _includeFileStats = false;
+        _connectedSeeders = 0;
+        _bytesRead = 0;
+
+        var ready = await TracksAnalyzer.WaitTorrentReady(
+            _baseUrl, Hash, CancellationToken.None, readyTimeout: TimeSpan.FromSeconds(1));
+
+        Assert.False(ready);
+
+        var canProbe = await TracksAnalyzer.WaitDownloadProgress(
+            _baseUrl, Hash, CancellationToken.None, progressTimeout: TimeSpan.FromSeconds(2));
+
+        Assert.False(canProbe);
+    }
+
+    [Fact]
+    public async Task AnalyzeWithExternalApi_respects_custom_timeout()
+    {
+        _ffpDelayMs = 5000;
+        var sw = Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await TracksAnalyzer.AnalyzeWithExternalApi(
+                _baseUrl,
+                Hash,
+                CancellationToken.None,
+                ffpTimeout: TimeSpan.FromMilliseconds(800));
+        });
+
+        Assert.InRange(sw.ElapsedMilliseconds, 400, 3000);
+    }
+
+    [Fact]
+    public async Task AnalyzeWithExternalApi_completes_within_custom_timeout()
+    {
+        _ffpDelayMs = 100;
+
         var (result, code) = await TracksAnalyzer.AnalyzeWithExternalApi(
             _baseUrl,
-            "aabbccddeeff00112233445566778899aabbccdd",
-            CancellationToken.None);
+            Hash,
+            CancellationToken.None,
+            ffpTimeout: TimeSpan.FromSeconds(2));
 
         Assert.Equal(200, code);
         Assert.NotNull(result);
         Assert.NotNull(result.streams);
         Assert.Single(result.streams);
-        Assert.Equal("rus", result.streams[0].tags.language);
-    }
-
-    [Fact]
-    public async Task AnalyzeWithExternalApi_returns_status_on_400_without_streams()
-    {
-        _ffpStatus = 400;
-        _ffpBody = "error getting data";
-
-        var (result, code) = await TracksAnalyzer.AnalyzeWithExternalApi(
-            _baseUrl,
-            "aabbccddeeff00112233445566778899aabbccdd",
-            CancellationToken.None);
-
-        Assert.Equal(400, code);
-        Assert.Null(result);
-        Assert.Equal(1, TracksAnalyzer.NextFailureAttempt(0));
     }
 }

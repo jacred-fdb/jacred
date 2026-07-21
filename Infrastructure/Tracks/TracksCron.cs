@@ -170,7 +170,7 @@ namespace JacRed.Infrastructure.Tracks
                                 await done.ConfigureAwait(false);
                             }
 
-                            inFlight.Add(TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask));
+                            inFlight.Add(TracksDB.Add(t.magnet, t.ffprobe_tryingdata, t.types, torrentKey, typetask, t.sid));
                         }
                         catch (Exception ex)
                         {

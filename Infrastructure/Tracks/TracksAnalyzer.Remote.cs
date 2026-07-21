@@ -23,6 +23,23 @@ namespace JacRed.Infrastructure.Tracks
 
         static readonly TimeSpan ListCacheTtl = TimeSpan.FromSeconds(10);
 
+        static TimeSpan GetTracksReadTimeout() =>
+            TimeSpan.FromSeconds(Math.Max(1, AppInit.conf?.tracksreadtimeout ?? 30));
+
+        static TimeSpan GetTracksPeerWaitTimeout() =>
+            TimeSpan.FromSeconds(Math.Max(1, AppInit.conf?.trackspeerwaittimeout ?? 30));
+
+        static TimeSpan GetFfpTimeout(int sid) =>
+            TimeSpan.FromSeconds(Math.Max(1, sid > 0
+                ? AppInit.conf?.tracksffptimeout ?? 60
+                : AppInit.conf?.tracksffptimeoutnosid ?? 30));
+
+        static TimeSpan GetAnalyzeOverallTimeout(int sid) =>
+            GetTracksReadTimeout() + GetTracksPeerWaitTimeout() + GetFfpTimeout(sid) + TimeSpan.FromSeconds(30);
+
+        static bool HasDownloadProgress(TracksDB.TorrentInfo info) =>
+            info != null && (info.bytes_read > 0 || info.connected_seeders > 0);
+
         static readonly object _concurrencyGate = new object();
         static SemaphoreSlim _analyzeConcurrency;
         static int _analyzeConcurrencyLimit = -1;
@@ -330,15 +347,17 @@ namespace JacRed.Infrastructure.Tracks
         }
 
         internal static async Task<(FfprobeModel result, int statusCode)> AnalyzeWithExternalApi(
-            string tsuri, string infohash, CancellationToken token, int? typetask = null)
+            string tsuri, string infohash, CancellationToken token, int? typetask = null, TimeSpan? ffpTimeout = null)
         {
             // File index 1: movies/TV almost always put the main media first.
-            // TorrServer ProbeUrl budget is 5 minutes — match it so we don't abort early.
+            var timeout = ffpTimeout ?? GetFfpTimeout(1);
             string apiUrl = $"{tsuri}/ffp/{infohash.ToUpper()}/1";
+
+            TracksDB.Log($"Запрос /ffp для {infohash} (таймаут {timeout.TotalSeconds:F0}s)...", typetask);
 
             var client = GetHttpClient(tsuri);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            cts.CancelAfter(TimeSpan.FromMinutes(5));
+            cts.CancelAfter(timeout);
 
             using var response = await client.GetAsync(apiUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token)
                 .ConfigureAwait(false);
@@ -368,7 +387,7 @@ namespace JacRed.Infrastructure.Tracks
             string tsuri, string infohash, CancellationToken token, int? typetask = null,
             TimeSpan? readyTimeout = null)
         {
-            var timeout = readyTimeout ?? TimeSpan.FromSeconds(90);
+            var timeout = readyTimeout ?? GetTracksReadTimeout();
             var deadline = DateTime.UtcNow + timeout;
             var pollInterval = TimeSpan.FromSeconds(2);
 
@@ -398,7 +417,45 @@ namespace JacRed.Infrastructure.Tracks
                 await Task.Delay(remaining < pollInterval ? remaining : pollInterval, token).ConfigureAwait(false);
             }
 
-            TracksDB.Log($"Торрент {infohash} не получил file_stats за {timeout.TotalSeconds:F0}s — вызываем /ffp всё равно", typetask);
+            TracksDB.Log($"Торрент {infohash} не получил file_stats за {timeout.TotalSeconds:F0}s — проверяем сиды перед /ffp", typetask);
+            return false;
+        }
+
+        /// <summary>
+        /// Polls TorrServer until download progress is visible (seeders or bytes_read)
+        /// or <paramref name="progressTimeout"/> elapses.
+        /// </summary>
+        internal static async Task<bool> WaitDownloadProgress(
+            string tsuri, string infohash, CancellationToken token, int? typetask = null,
+            TimeSpan? progressTimeout = null)
+        {
+            var timeout = progressTimeout ?? GetTracksPeerWaitTimeout();
+            var deadline = DateTime.UtcNow + timeout;
+            var pollInterval = TimeSpan.FromSeconds(2);
+
+            TracksDB.Log($"Проверка прогресса загрузки {infohash} (до {timeout.TotalSeconds:F0}s)...", typetask);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                token.ThrowIfCancellationRequested();
+
+                var info = await GetTorrentFromServer(tsuri, infohash, token, typetask).ConfigureAwait(false);
+                if (HasDownloadProgress(info))
+                {
+                    TracksDB.Log(
+                        $"Торрент {infohash}: прогресс загрузки (seeders={info.connected_seeders}, bytes_read={info.bytes_read})",
+                        typetask);
+                    return true;
+                }
+
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    break;
+
+                await Task.Delay(remaining < pollInterval ? remaining : pollInterval, token).ConfigureAwait(false);
+            }
+
+            TracksDB.Log($"Торрент {infohash}: нет сидов/данных — пропуск /ffp", typetask);
             return false;
         }
 

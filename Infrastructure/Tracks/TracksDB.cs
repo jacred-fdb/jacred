@@ -109,8 +109,8 @@ namespace JacRed.Infrastructure.Tracks
         public static List<ffStream> Get(string magnet, string[] types = null, bool memoryOnly = false) =>
             TracksAnalyzer.Get(magnet, types, memoryOnly);
 
-        public static System.Threading.Tasks.Task Add(string magnet, int currentAttempt, string[] types = null, string torrentKey = null, int typetask = 1) =>
-            TracksAnalyzer.Add(magnet, currentAttempt, types, torrentKey, typetask);
+        public static System.Threading.Tasks.Task Add(string magnet, int currentAttempt, string[] types = null, string torrentKey = null, int typetask = 1, int sid = 0) =>
+            TracksAnalyzer.Add(magnet, currentAttempt, types, torrentKey, typetask, sid);
 
         public static void Log(string message, int? typetask = null, LogLevel? level = null) =>
             TracksLogging.Log(message, typetask, level);
@@ -157,6 +157,10 @@ namespace JacRed.Infrastructure.Tracks
             public int stat { get; set; }
             public string stat_string { get; set; }
             public List<TorrentFileStat> file_stats { get; set; }
+            public int connected_seeders { get; set; }
+            public int active_peers { get; set; }
+            public long download_speed { get; set; }
+            public long bytes_read { get; set; }
         }
 
         /// <summary>File entry from TorrServer torrent status (1-based ids).</summary>

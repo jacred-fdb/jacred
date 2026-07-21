@@ -46,6 +46,10 @@ trackscategory: jacred # Категория для торрентов из jacre
 tracksdelay: 20000 # Задержка между запросами к tsuri, мс
 tracksatempt: 20 # Количество неудачных попыток извлечь дорожки, после этого торрент исключается из tracks
 tracksconcurrency: 2 # Глобальный лимит параллельных анализов к tsuri
+tracksffptimeout: 60 # Таймаут HTTP /ffp при sid > 0, сек
+tracksffptimeoutnosid: 30 # Таймаут HTTP /ffp при sid == 0, сек
+tracksreadtimeout: 30 # Ожидание file_stats от TorrServer, сек
+trackspeerwaittimeout: 30 # Проверка сидов/bytes_read перед /ffp, сек
 tracksmod: 0 # Режим треков: 0 — все, 1 — только за текущие сутки
 tracksinterval:
   task1: 60 # Интервал запуска задачи tracks за последние сутки, мин

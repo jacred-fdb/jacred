@@ -37,6 +37,29 @@ public class TorrentInfoDeserializeTests
     }
 
     [Fact]
+    public void Deserializes_peer_stats_from_TorrServer_get_status()
+    {
+        const string json = """
+            {
+              "hash": "aabbccddeeff00112233445566778899aabbccdd",
+              "stat": 3,
+              "connected_seeders": 2,
+              "active_peers": 5,
+              "download_speed": 1024,
+              "bytes_read": 65536
+            }
+            """;
+
+        var info = JsonConvert.DeserializeObject<TracksDB.TorrentInfo>(json);
+
+        Assert.NotNull(info);
+        Assert.Equal(2, info.connected_seeders);
+        Assert.Equal(5, info.active_peers);
+        Assert.Equal(1024, info.download_speed);
+        Assert.Equal(65536, info.bytes_read);
+    }
+
+    [Fact]
     public void Ready_when_file_stats_non_empty()
     {
         var notReady = new TracksDB.TorrentInfo { stat = 1, file_stats = null };
