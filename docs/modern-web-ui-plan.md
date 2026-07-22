@@ -17,6 +17,7 @@
 | Icons | **lucide-vue-next** |
 | Toasts | **vue-sonner** (shadcn-vue Sonner) |
 | Routing | **Vue Router 4** |
+| PWA / SW | **vite-plugin-pwa** (Workbox) + Vue register helper |
 | API types | **openapi-typescript** from `openapi.yaml` |
 
 **Hosting (recommended): embed Vite build into the .NET artifact** — see [§3](#3-hosting-embed-in-dotnet-vs-separate).
@@ -223,11 +224,138 @@ Own the generated files under `components/ui` — customize JacRed accent/surfac
 
 ---
 
-## 8. PWA
+## 8. PWA & service worker — use `vite-plugin-pwa`
 
-- `vite-plugin-pwa` / Workbox with hashed precache
-- Manifest shortcuts: Search, Stats
-- Offline fallback + `/health` “server down” banner
+**Yes — adopt [`vite-plugin-pwa`](https://vite-pwa-org.netlify.app/) as the main PWA package.**  
+It replaces the hand-maintained `wwwroot/sw.js` + `manifest.json` + `js/pwa.js` with Workbox-generated precache that tracks **hashed Vite assets** (the hard part of today’s custom SW).
+
+### Why not keep the custom `sw.js`?
+
+| Today (`wwwroot/sw.js`) | With `vite-plugin-pwa` |
+|-------------------------|-------------------------|
+| Manual `CRITICAL_PRECACHE` / `OPTIONAL_PRECACHE` path lists | Precache manifest auto-built from Vite `dist` |
+| Cache name bumped by scripts (`bump-sw-cache.sh`) | Workbox revision hashes invalidate automatically |
+| Separate HTML shells cached per route | One SPA `index.html` + navigateFallback |
+| Easy to miss new chunks after a redesign | Build-integrated; CI can’t ship without SW matching assets |
+
+Keep **app-level** “server down” UX in Vue (port of `offline-inline.js` → `/health` probe). That is not the SW’s job.
+
+### Recommended packages
+
+| Package | Role |
+|---------|------|
+| **`vite-plugin-pwa`** | Manifest + SW generation, Workbox, inject into `index.html` |
+| **`virtual:pwa-register/vue`** | Vue composable: register SW, `needRefresh` / `offlineReady` prompts |
+| **`@vite-pwa/assets-generator`** (optional) | Generate icons / apple touch from one source (`jacred.png`) |
+
+No need for a second SW framework (Serwist, Workbox CLI alone, etc.) unless `vite-plugin-pwa` hits a hard limit.
+
+### Strategy choice
+
+| Mode | When |
+|------|------|
+| **`generateSW`** (default) | Enough for most JacRed needs: precache app shell, runtimeCaching rules in config |
+| **`injectManifest`** | If we must port custom logic (special offline HTML, migrate-from-old-caches, CSP-safe offline form) into `src/sw.ts` |
+
+**Recommendation:** start with **`generateSW` + `navigateFallback`**. Switch to **`injectManifest`** only if offline parity needs the current minimal offline HTML / migration helpers.
+
+### Config sketch (JacRed)
+
+```ts
+// vite.config.ts
+import { VitePWA } from 'vite-plugin-pwa'
+
+VitePWA({
+  registerType: 'prompt', // or 'autoUpdate' — prefer prompt so users aren’t mid-search when SW swaps
+  includeAssets: ['img/favicon.ico', 'img/icon-192.png', 'img/icon-512.png', 'img/icon-maskable-512.png'],
+  manifest: {
+    id: '/',
+    name: 'JacRed — Поиск торрентов',
+    short_name: 'JacRed',
+    description: 'Торрент агрегатор. Поиск торрентов и статистика трекеров',
+    lang: 'ru',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    background_color: '#0a0a0f',
+    theme_color: '#0a0a0f',
+    orientation: 'any',
+    categories: ['utilities', 'entertainment'],
+    icons: [
+      { src: 'img/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: 'img/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: 'img/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+    shortcuts: [
+      { name: 'Поиск торрентов', short_name: 'Поиск', url: '/', icons: [{ src: 'img/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+      { name: 'Статистика трекеров', short_name: 'Статистика', url: '/stats', icons: [{ src: 'img/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    ],
+  },
+  workbox: {
+    navigateFallback: '/index.html',
+    navigateFallbackDenylist: [/^\/api\//, /^\/swagger/, /^\/torznab/, /^\/sync\//, /^\/health/, /^\/opensearch\.xml/],
+    globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
+    runtimeCaching: [
+      {
+        // Tracker icons & fonts — cache-first
+        urlPattern: ({ url }) => url.pathname.startsWith('/img/') || url.pathname.startsWith('/fonts/'),
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'jacred-static',
+          expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+        },
+      },
+      {
+        // Never treat JSON API as offline app data (stale torrents are worse than empty)
+        urlPattern: ({ url }) =>
+          url.pathname.startsWith('/api/') ||
+          url.pathname.startsWith('/stats/torrents') ||
+          url.pathname.startsWith('/stats/meta') ||
+          url.pathname.startsWith('/stats/tracks'),
+        handler: 'NetworkOnly',
+      },
+    ],
+  },
+  devOptions: { enabled: true }, // optional: test SW in vite dev
+})
+```
+
+### Vue app integration
+
+```ts
+// main.ts / composable
+import { useRegisterSW } from 'virtual:pwa-register/vue'
+
+const { needRefresh, updateServiceWorker } = useRegisterSW()
+// show shadcn-vue Dialog / sonner: "Доступна новая версия" → updateServiceWorker()
+```
+
+Also port:
+
+- Theme-aware `theme-color` meta (today `theme.js`) — still in app code, not SW
+- `/health` probe banner when online but JacRed API is down (today `offline-inline.js`)
+- Drop legacy `bump-sw-cache.sh` once Workbox revisions own cache busting
+
+### Caching policy (product rules)
+
+| Resource | Strategy |
+|----------|----------|
+| JS/CSS/HTML app shell | Precache (Workbox) |
+| Tracker `.ico`, fonts, brand images | CacheFirst + expiration |
+| `/api/*`, `/stats/torrents|meta|tracks` | **NetworkOnly** (no stale search/stats) |
+| `/health` | NetworkOnly (used by online banner) |
+| SPA navigations `/`, `/stats`, `/settings` | `navigateFallback` → cached `index.html` |
+
+### ASP.NET / Docker notes
+
+- Serve generated `sw.js` / `workbox-*.js` / `manifest.webmanifest` from `wwwroot` with correct MIME types (already fine via static files).
+- Do **not** put SW under aggressive CDN cache without revision URLs — Workbox file names are hashed; HTML registration must stay fresh (`no-store` on `index.html` as today).
+- Remove old `wwwroot/sw.js`, `manifest.json`, `js/pwa.js` after cutover so two SWs never fight.
+
+### Phase placement
+
+- Wire **`vite-plugin-pwa` in Phase 0** (manifest + basic precache) so every build is installable.
+- Polish update prompt + `/health` banner in **Phase 4**; delete legacy SW scripts then.
 
 ---
 
@@ -249,12 +377,12 @@ RUN npm ci && npm run build
 
 ## 10. Phases
 
-0. **Scaffold** — Vue 3 + Vite 8 + TS + Tailwind v4 + shadcn-vue init; AppShell; API client; Docker/CI hook  
+0. **Scaffold** — Vue 3 + Vite 8 + TS + Tailwind v4 + shadcn-vue; **`vite-plugin-pwa`** (manifest + generateSW); AppShell; API client; Docker/CI  
 1. **Search** — full parity + GSAP results motion; cut `/` to SPA  
 2. **Stats** — tracker grid  
 3. **Settings** — schema form + raw editor + validate/diff/save  
-4. **PWA + delete legacy** Bootstrap/HTML/JS  
-5. **Optional** — virtualize lists, recent searches, i18n EN  
+4. **PWA polish** — update prompt (`virtual:pwa-register/vue`), `/health` banner, remove legacy `sw.js` / `manifest.json` / Bootstrap  
+5. **Optional** — `@vite-pwa/assets-generator`, virtualize lists, recent searches, i18n EN  
 
 ---
 
@@ -278,6 +406,9 @@ RUN npm ci && npm run build
 | SPA refresh 404 | .NET fallback → `index.html` |
 | GSAP vs CSS motion | GSAP for 2–3 page moments only |
 | Dual UI during migration | Feature flag / route cutover per phase |
+| Old + new SW both registered | Delete legacy `sw.js` on cutover; one-time `unregister` helper if needed |
+| Stale API in Cache | Keep API routes **NetworkOnly** in Workbox |
+| Update mid-search | Prefer `registerType: 'prompt'` over blind `autoUpdate` |
 
 ---
 
@@ -287,8 +418,9 @@ RUN npm ci && npm run build
 - [ ] **shadcn-vue** is the only component system (no Bootstrap, no HeroUI)
 - [ ] Vite 8 + TypeScript 6+ + Tailwind v4 + GSAP + vue-query + lucide + sonner
 - [ ] Embedded in .NET publish/Docker; no Node at runtime
-- [ ] PWA + typed OpenAPI client
-- [ ] Legacy `wwwroot` HTML/JS removed after cutover
+- [ ] PWA via **vite-plugin-pwa** (installable, offline shell, no hand-maintained SW path lists)
+- [ ] Typed OpenAPI client
+- [ ] Legacy `wwwroot` HTML/JS/`sw.js` removed after cutover
 
 ---
 
