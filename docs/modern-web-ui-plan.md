@@ -1,24 +1,25 @@
 # JacRed Modern Web UI — Rewrite Plan
 
-> Replace the Bootstrap/vanilla `wwwroot` UI with a **fully new** SPA using modern tooling. Keep the **.NET JacRed API** as the backend.
+> Replace the Bootstrap/vanilla `wwwroot` UI with a **fully new** SPA. Keep the **.NET JacRed API** as the backend.
 
-**Chosen stack**
+**Chosen stack (primary)**
 
 | Layer | Choice |
 |--------|--------|
-| UI runtime | **React 19** |
+| UI runtime | **Vue 3** (`<script setup>` + Composition API) |
 | Bundler | **Vite 8** (Rolldown) |
-| Language | **TypeScript 6** (or 7.x if you want the Go-native compiler immediately) |
-| Components | **HeroUI v3** (`@heroui/react` + `@heroui/styles`) |
-| CSS | **Tailwind CSS v4** |
+| Language | **TypeScript 6** (7.x optional later) |
+| Components | **shadcn-vue** (main UI system) |
+| CSS | **Tailwind CSS v4** (`@tailwindcss/vite`) |
+| Primitives | **Reka UI** (via shadcn-vue) |
 | Motion | **GSAP** (+ ScrollTrigger where useful) |
-| Server state | **TanStack Query** |
-| Icons | **lucide-react** |
-| Toasts | **sonner** |
-| Routing | **React Router 7** (SPA) |
+| Server state | **TanStack Query** (`@tanstack/vue-query`) |
+| Icons | **lucide-vue-next** |
+| Toasts | **vue-sonner** (shadcn-vue Sonner) |
+| Routing | **Vue Router 4** |
 | API types | **openapi-typescript** from `openapi.yaml` |
 
-**Hosting decision (recommended): embed built assets in the .NET artifact** — see [§3](#3-hosting-embed-in-dotnet-vs-separate).
+**Hosting (recommended): embed Vite build into the .NET artifact** — see [§3](#3-hosting-embed-in-dotnet-vs-separate).
 
 ---
 
@@ -33,28 +34,37 @@
 | PWA | `manifest.json` + custom `sw.js` |
 | Host | `HomeController` serves HTML; static files from `wwwroot` |
 
-**Parity features to keep (product behavior, not UI look):**
+**Parity features (behavior, not look):**
 
 - Search: query, exact mode, sort, filters, URL sync, load-more, card/list, magnet/hash/TorrServer, API key
 - Stats: tracker grid, sort/search, meta/tracks
 - Settings: schema form + raw YAML/JSON, validate/diff/format/save, Dev key / LAN access
-- Theme, PWA offline shell, Russian UI, OpenSearch (`/opensearch.xml` stays on .NET)
+- Theme, PWA offline shell, Russian UI, OpenSearch (stays on .NET)
 
-This is a **greenfield UI**, not a Bootstrap restyle. Visual language, tokens, and components are new (HeroUI + JacRed brand).
+Greenfield UI: **shadcn-vue + JacRed brand tokens**, not a Bootstrap port.
 
 ---
 
-## 2. Why this stack (and not Next / shadcn)
+## 2. Why Vue + shadcn-vue as main
 
 | Decision | Rationale |
 |----------|-----------|
-| **Vite SPA vs Next.js** | JacRed is same-origin over a .NET API. No need for SSR/RSC/Node in production. Vite 8 + static `dist/` fits Docker single-binary better. |
-| **HeroUI v3 vs shadcn** | HeroUI v3 is built for React 19 + Tailwind v4, React Aria a11y, compound components, CSS-variable theming — strong match for a polished admin/search UI. |
-| **GSAP kept** | Already part of JacRed’s feel (results rise, sticky search). HeroUI handles micro-interactions in CSS; GSAP for intentional page/result choreography only (2–3 motions). |
-| **TanStack Query** | Ideal for search/stats/config: cache, abort, retries, 401 → API-key modal. |
-| **sonner + lucide** | Lightweight, modern defaults; replace Bootstrap toasts/icons. |
+| **shadcn-vue is the design system** | Copy-in components you own (`components/ui/*`); full control, Tailwind v4 / OKLCH, accessible via Reka UI. |
+| **Vue 3 + Vite 8** | Fast SPA, no Node in production; ideal next to ASP.NET same-origin API. |
+| **Not HeroUI / React** | Stack choice is Vue-first; shadcn-vue is the canonical component layer. |
+| **Not Nuxt (v1)** | SSR not needed for self-hosted JacRed; plain Vite SPA keeps Docker = one .NET process. |
+| **GSAP kept** | Page/result choreography only; control-level motion stays CSS / shadcn defaults. |
+| **vue-query + vue-sonner + lucide-vue-next** | Vue equivalents of the modern React toolchain. |
 
-**Note on TypeScript:** npm currently publishes **7.x** as latest. Pin **TypeScript 6** if you want the last JS-based compiler line; move to **7** when ready for the native compiler. Either works with Vite 8 / React 19.
+**Scaffold reference:** [shadcn-vue Vite + Tailwind v4](https://www.shadcn-vue.com/docs/installation/vite)
+
+```bash
+npm create vite@latest web -- --template vue-ts
+# add tailwindcss + @tailwindcss/vite
+# configure @/* alias in tsconfig.json AND tsconfig.app.json
+npx shadcn-vue@latest init
+npx shadcn-vue@latest add button input select switch tabs dialog sheet badge tooltip sonner
+```
 
 ---
 
@@ -63,53 +73,36 @@ This is a **greenfield UI**, not a Bootstrap restyle. Visual language, tokens, a
 ### Option A — Embed in .NET build artifact (**recommended**)
 
 ```
-CI / Docker build:
-  Node builds web/ → dist/
-  copy dist/ → wwwroot/ (or publish output)
-  dotnet publish → single artifact / Docker image
+CI / Docker:
+  cd web && npm ci && npm run build   → dist/
+  copy/merge into wwwroot
+  dotnet publish → one artifact / image
 Runtime:
-  one process (ASP.NET) serves API + UI on one port (e.g. 9117)
+  ASP.NET serves API + SPA on one port (e.g. 9117)
 ```
 
 | Pros | Cons |
 |------|------|
-| Same UX as today: one install, one port, one Docker image | Node required at **build** time (not runtime) |
-| No CORS; API key / cookies / tunnel just work | Frontend release tied to app release (or rebuild image) |
-| `jacred.sh`, systemd, reverse proxy unchanged | Slightly larger image (hashed JS/CSS) |
-| Offline/PWA same-origin simple | — |
+| One install, one Docker image, one port | Node at **build** time only |
+| No CORS; tunnels/API key work as today | UI ships with app releases |
+| Matches `jacred.sh` / current ops | — |
 
-**This matches how JacRed is distributed today** and is the default for self-hosted aggregators (Jackett-style).
+### Option B — Separate frontend
 
-### Option B — Separate frontend deploy
+Only if you later need an independent CDN/marketing host. Adds CORS, dual deploys, weaker PWA story. **Not for core JacRed.**
 
-```
-web/ → own host (nginx, Cloudflare Pages, etc.)
-API → JacRed :9117
-Browser calls API via VITE_API_BASE + CORS
-```
-
-| Pros | Cons |
-|------|------|
-| Independent UI deploys | CORS, cookies, tunnel, apikey more fragile |
-| CDN for static assets | Two things to install/upgrade for users |
-| — | Breaks “one binary / one Docker” story |
-| — | PWA/offline and OpenSearch harder |
-
-**Use Option B only if** you later want a public marketing site or multi-tenant cloud UI. For core JacRed: **Option A**.
-
-### Recommended hybrid workflow
-
-- Source of truth: `web/` in this repo (monorepo).
-- **Do not** hand-edit built files in `wwwroot`.
-- CI/Docker: `npm ci && npm run build` → emit into publish `wwwroot`.
-- Optionally keep committed `wwwroot` **empty of app JS** (only `openapi.yaml`, favicons during transition) so there is no dual source of truth.
-- Dev: Vite `server.proxy` → local JacRed (`localhost:9117`).
+### Dev workflow (Option A)
 
 ```ts
 // vite.config.ts (sketch)
+import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
+
 export default defineConfig({
-  plugins: [react(), /* PWA plugin */],
-  build: { outDir: '../wwwroot', emptyOutDir: true /* careful with openapi/img during migration */ },
+  plugins: [vue(), tailwindcss()],
+  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:9117',
@@ -120,36 +113,37 @@ export default defineConfig({
       '/opensearch.xml': 'http://127.0.0.1:9117',
     },
   },
-});
+  build: { outDir: 'dist', emptyOutDir: true },
+})
 ```
 
-During migration, prefer `outDir: 'dist'` and a copy step that **merges** into `wwwroot` (preserve `openapi.yaml`, tracker icons) until cutover is complete.
+CI copies `web/dist` → publish `wwwroot` (merge carefully so `openapi.yaml` / tracker icons are not wiped — put statics in `web/public`).
 
 ---
 
-## 4. Target architecture
+## 4. Architecture
 
 ```
 ┌──────────────────────────────────────────────┐
 │  Browser PWA                                 │
-│  React 19 + HeroUI v3 + TanStack Query       │
+│  Vue 3 + shadcn-vue + vue-query + GSAP       │
 │  Routes: /  /stats  /settings                │
 └──────────────────┬───────────────────────────┘
                    │ same-origin fetch
                    ▼
 ┌──────────────────────────────────────────────┐
-│  ASP.NET JacRed (unchanged)                  │
+│  ASP.NET JacRed                              │
 │  API + Torznab + Sync + OpenSearch           │
-│  Serves static SPA from wwwroot              │
+│  SPA static files from wwwroot               │
 └──────────────────────────────────────────────┘
 ```
 
-**.NET changes (small):**
+**.NET touches:**
 
-1. SPA fallback: `/`, `/stats`, `/settings` → `wwwroot/index.html` (or Vite multi-page if preferred — SPA + React Router is simpler).
-2. Long-cache hashed assets (`/assets/*`); HTML `no-store` (as today).
-3. Dockerfile **build** stage: install Node 22 LTS, build `web/`, copy into publish output.
-4. Runtime stage: **no Node**.
+1. SPA fallback: `/`, `/stats`, `/settings` → `wwwroot/index.html`
+2. Hashed `/assets/*` long-cache; HTML `no-store`
+3. Docker **build** stage: Node 22 → `npm ci && npm run build` → copy into publish
+4. Runtime: **no Node**
 
 ---
 
@@ -159,149 +153,119 @@ During migration, prefer `outDir: 'dist'` and a copy step that **merges** into `
 web/
   package.json
   vite.config.ts
+  components.json          # shadcn-vue
   tsconfig.json
+  tsconfig.app.json
   index.html
   public/
-    img/                 # from wwwroot/img (brand + tracker icos)
+    img/                   # brand + /img/ico/*.ico
     manifest.webmanifest
   src/
-    main.tsx
-    app/App.tsx
-    app/router.tsx
-    styles/
-      globals.css        # @import "tailwindcss"; @import "@heroui/styles";
-      theme.css          # JacRed tokens (oklch) overriding HeroUI vars
+    main.ts
+    App.vue
+    style.css              # @import "tailwindcss"; theme tokens
+    router/index.ts
     pages/
-      SearchPage.tsx
-      StatsPage.tsx
-      SettingsPage.tsx
+      SearchPage.vue
+      StatsPage.vue
+      SettingsPage.vue
     components/
-      layout/AppShell.tsx
+      layout/AppShell.vue
       search/...
       stats/...
       settings/...
+      ui/                  # shadcn-vue generated (owned source)
     lib/
       api/client.ts
-      api/types.ts       # generated
+      api/types.ts         # openapi-typescript
       magnets.ts
       storage.ts
-    hooks/
+      utils.ts             # cn() from shadcn
+    composables/
       useTorrents.ts
       useStats.ts
       useConfig.ts
       useTheme.ts
     motion/
-      gsap.ts            # register plugins; reduced-motion guard
+      gsap.ts
 ```
 
 ---
 
-## 6. UI / UX direction (fully new)
+## 6. shadcn-vue component map
 
-- **One app shell**: shared nav (Search / Stats / Settings), theme toggle, API key / Dev key entry.
-- **HeroUI compounds**: Button, Input, Select, Switch, Tabs, Modal, Drawer/Sheet, Badge, Table (optional stats), Spinner, Tooltip.
-- **Search first viewport**: brand + one search field + short subtitle + primary CTA — no stats clutter in the hero.
-- **Results**: avoid decorative cards; use clear list/rows with action buttons; optional denser list mode.
-- **Theme**: CSS variables / OKLCH via HeroUI; light + dark; drop Bootstrap `data-bs-theme`.
-- **Motion (GSAP)**: (1) first visit hero settle, (2) results stagger on search, (3) sticky search dock transition — respect `prefers-reduced-motion`.
-- **Copy**: keep Russian as default; structure strings for later i18n.
+| Current UI | shadcn-vue |
+|------------|------------|
+| Nav actions | `Button` (ghost/icon) |
+| Search field | `Input` + `Button` |
+| Filters | `Sheet` (mobile) + `Collapsible` / panel |
+| Sort | `ToggleGroup` or radio-styled `Button` group |
+| Exact search | `Switch` |
+| API key / TorrServer / shortcuts | `Dialog` |
+| Results actions | `Button` + `Tooltip` + `Badge` |
+| Toasts | `Sonner` (`vue-sonner`) |
+| Settings Form / YAML | `Tabs` |
+| Diff preview | `Dialog` + `ScrollArea` |
+| Stats sort | `Select` |
+| Theme | class/`data-theme` + CSS variables (shadcn OKLCH) |
+
+Own the generated files under `components/ui` — customize JacRed accent/surfaces there and in `style.css` `@theme`.
 
 ---
 
 ## 7. Data layer
 
-1. Generate types from `wwwroot/openapi.yaml` → `src/lib/api/types.ts`.
-2. `apiClient` with:
-   - API key / Dev key headers (parity with `common.js`)
-   - timeouts (15s search, 5s conf)
-   - typed error helpers (401)
-3. TanStack Query:
-   - `useTorrentsQuery(search, filters, sort)`
-   - `useStatsQuery` / `useStatsMetaQuery`
-   - `useConfigQuery` + mutations (validate, diff, save, format)
-4. URL state (`?s=&sort=&…`) via React Router search params.
-5. Local prefs: theme, list view, TorrServer URL/creds, filter panel open → `localStorage` typed helpers.
+1. `openapi-typescript` → `src/lib/api/types.ts`
+2. Typed `apiClient` (API key / Dev key headers, timeouts, 401 handling)
+3. `@tanstack/vue-query` for torrents, stats, config (+ mutations)
+4. Vue Router query as URL source of truth (`?s=&sort=&…`)
+5. `localStorage` helpers for theme, list view, TorrServer, filter panel
 
 ---
 
 ## 8. PWA
 
-- Vite PWA plugin (e.g. `vite-plugin-pwa` / Workbox) generating SW with hashed precache.
-- Manifest shortcuts: Search, Stats.
-- Network-first for API; cache-first for static; offline fallback page.
-- Keep `/health` probe for “server unreachable” banner (port of `offline-inline.js`).
+- `vite-plugin-pwa` / Workbox with hashed precache
+- Manifest shortcuts: Search, Stats
+- Offline fallback + `/health` “server down” banner
 
 ---
 
-## 9. Build & Docker integration (Option A)
-
-**Dockerfile build stage additions (sketch):**
+## 9. Build & Docker (embed)
 
 ```dockerfile
-# after COPY . .
+# build stage (sketch)
 RUN apk add --no-cache nodejs npm
 WORKDIR /src/web
 RUN npm ci && npm run build
-WORKDIR /src
-# ensure publish includes wwwroot with SPA assets
+# copy dist into /src/wwwroot before dotnet publish
 ```
 
-**`build.sh`:** run `web` build before `dotnet publish` when Node is available; fail CI if web build fails.
-
-**`.csproj`:** optional MSBuild target `NpmBuild` BeforeTargets Publish for local `dotnet publish`.
-
-**Git:**
-
-- Commit `web/` source.
-- Ignore `web/node_modules`, `web/dist`.
-- Built `wwwroot` assets: prefer **CI-produced** (cleaner) over committing bundles.
+- `build.sh` / CI: fail if `web` build fails
+- Optional MSBuild `NpmBuild` before Publish
+- Ignore `web/node_modules`, `web/dist`; prefer CI-produced wwwroot assets
 
 ---
 
-## 10. Phased delivery
+## 10. Phases
 
-### Phase 0 — Scaffold & pipeline
-
-- Create `web/` with React 19 + Vite 8 + TS + Tailwind v4 + HeroUI v3.
-- Theme tokens, AppShell, sonner, lucide, QueryClientProvider.
-- OpenAPI codegen + API client + API key modal.
-- Vite proxy for local .NET.
-- Wire Docker/CI to build and copy into artifact (feature flag: still serve old HTML until Phase 1).
-
-### Phase 1 — Search (new UI)
-
-- Full search parity; GSAP result motion; TorrServer dialog.
-- Cut `/` over to SPA.
-
-### Phase 2 — Stats
-
-- Tracker grid + controls; share shell/auth.
-
-### Phase 3 — Settings
-
-- Schema form + raw editor (CodeMirror/Monaco lazy).
-- Validate / diff / save + access-denied UX.
-
-### Phase 4 — PWA + remove legacy
-
-- SW/manifest polish.
-- Delete Bootstrap, old HTML/JS, vendor duplicates.
-- A11y + Playwright smoke tests.
-
-### Phase 5 — Optional
-
-- Virtualized results, recent searches, i18n EN, React Compiler opt-in via Vite 8 babel preset.
+0. **Scaffold** — Vue 3 + Vite 8 + TS + Tailwind v4 + shadcn-vue init; AppShell; API client; Docker/CI hook  
+1. **Search** — full parity + GSAP results motion; cut `/` to SPA  
+2. **Stats** — tracker grid  
+3. **Settings** — schema form + raw editor + validate/diff/save  
+4. **PWA + delete legacy** Bootstrap/HTML/JS  
+5. **Optional** — virtualize lists, recent searches, i18n EN  
 
 ---
 
 ## 11. Testing
 
-| Level | Tool | Focus |
-|-------|------|--------|
-| Unit | Vitest | magnets, filters, storage, config path helpers |
-| Component | Testing Library | SearchForm, ResultRow actions, ConfigForm |
-| E2E | Playwright | search, API key, settings validate (mock API) |
-| Contract | CI | `openapi-typescript` regenerates cleanly |
+| Level | Tool |
+|-------|------|
+| Unit | Vitest |
+| Component | Vue Testing Library |
+| E2E | Playwright |
+| Contract | OpenAPI → types in CI |
 
 ---
 
@@ -309,43 +273,28 @@ WORKDIR /src
 
 | Risk | Mitigation |
 |------|------------|
-| `emptyOutDir` wipes `openapi.yaml` / icons | Merge copy step; put statics in `web/public` |
-| SPA deep links 404 on refresh | .NET fallback all UI routes → `index.html` |
-| HeroUI v3 API learning curve | Stick to compound patterns; no v2 Provider |
-| GSAP + HeroUI motion overlap | GSAP only for page-level; leave control animations to CSS |
-| Image size growth | Code-split settings editor; analyze rollup output |
-| TS 6 vs 7 | Start on 6 as specified; bump to 7 in a follow-up |
+| shadcn-vue CLI alias on Vite split tsconfig | Set `paths` in both `tsconfig.json` and `tsconfig.app.json` |
+| `emptyOutDir` wipes openapi/icons | Emit to `dist`, merge copy; statics in `public/` |
+| SPA refresh 404 | .NET fallback → `index.html` |
+| GSAP vs CSS motion | GSAP for 2–3 page moments only |
+| Dual UI during migration | Feature flag / route cutover per phase |
 
 ---
 
 ## 13. Success criteria
 
-- [ ] New SPA for Search / Stats / Settings with parity behavior
-- [ ] Stack: React 19, Vite 8, TypeScript 6+, HeroUI v3, Tailwind v4, GSAP, TanStack Query, lucide, sonner
-- [ ] **Embedded** in .NET publish/Docker; no Node at runtime
-- [ ] No Bootstrap / legacy wwwroot JS after cutover
-- [ ] PWA installable; same-origin API
-- [ ] Typed API client from OpenAPI
+- [ ] Vue 3 SPA: Search / Stats / Settings with parity behavior
+- [ ] **shadcn-vue** is the only component system (no Bootstrap, no HeroUI)
+- [ ] Vite 8 + TypeScript 6+ + Tailwind v4 + GSAP + vue-query + lucide + sonner
+- [ ] Embedded in .NET publish/Docker; no Node at runtime
+- [ ] PWA + typed OpenAPI client
+- [ ] Legacy `wwwroot` HTML/JS removed after cutover
 
 ---
 
-## 14. Immediate next steps
+## 14. Next steps
 
-1. Approve **Option A (embed in .NET artifact)** vs separate (default: A).
-2. Scaffold `web/` with the stack above.
-3. Implement AppShell + API client + Search page.
-4. Hook Dockerfile / `build.sh` / CI.
-5. Flip `HomeController` to SPA fallback and retire old HTML page-by-page.
-
----
-
-## Appendix — npm versions observed (plan date)
-
-| Package | Latest seen |
-|---------|-------------|
-| `react` | 19.x |
-| `vite` | 8.x |
-| `typescript` | 7.x latest (6.x available to pin) |
-| `@heroui/react` | 3.x |
-| `gsap` | 3.x |
-| `@tanstack/react-query` | 5.x |
+1. Scaffold `web/` with **Vue + shadcn-vue** (Tailwind v4).
+2. AppShell + theme + API client + API key dialog.
+3. Search page → wire Docker/`build.sh`.
+4. SPA fallback in `HomeController`; retire old pages phase by phase.
