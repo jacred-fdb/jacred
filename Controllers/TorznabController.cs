@@ -16,10 +16,12 @@ namespace JacRed.Controllers
     public class TorznabController : BaseController
     {
         readonly IJackettSearchService _searchService;
+        readonly ITrackerCatalogService _trackerCatalogService;
 
-        public TorznabController(IMemoryCache memoryCache, IJackettSearchService searchService) : base(memoryCache)
+        public TorznabController(IMemoryCache memoryCache, IJackettSearchService searchService, ITrackerCatalogService trackerCatalogService) : base(memoryCache)
         {
             _searchService = searchService;
+            _trackerCatalogService = trackerCatalogService;
         }
 
         public static bool IsTorznabXmlEnabled() =>
@@ -47,7 +49,7 @@ namespace JacRed.Controllers
             {
                 var configured = (query["configured"].ToString() ?? "").ToLowerInvariant();
                 if (configured == "" || configured == "true")
-                    return Content(TorznabXmlFormatter.IndexersXml, "application/xml; charset=utf-8");
+                    return Content(TorznabXmlFormatter.IndexersXml(await _trackerCatalogService.GetTrackerNamesAsync()), "application/xml; charset=utf-8");
                 return Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?><indexers></indexers>", "application/xml; charset=utf-8");
             }
 

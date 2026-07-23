@@ -66,12 +66,12 @@ paths:
       operationId: health
       security: []
       responses:
-        '200':
+        "200":
           description: Service is running
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: "#/components/schemas/HealthResponse"
 
   /version:
     get:
@@ -80,12 +80,12 @@ paths:
       operationId: version
       security: []
       responses:
-        '200':
+        "200":
           description: Version metadata
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VersionResponse'
+                $ref: "#/components/schemas/VersionResponse"
 
   /lastupdatedb:
     get:
@@ -94,7 +94,7 @@ paths:
       operationId: lastUpdateDb
       security: []
       responses:
-        '200':
+        "200":
           description: Last update timestamp
           content:
             application/json:
@@ -103,7 +103,7 @@ paths:
                 properties:
                   lastupdatedb:
                     type: string
-                    example: '04.07.2026 15:30'
+                    example: "04.07.2026 15:30"
 
   /api/v1.0/conf:
     get:
@@ -113,9 +113,9 @@ paths:
       operationId: checkApiKey
       security: []
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
+        "200":
           description: Key validation result
           content:
             application/json:
@@ -138,7 +138,7 @@ paths:
           schema:
             type: string
             example: all
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: query
           in: query
           schema:
@@ -159,7 +159,7 @@ paths:
           in: query
           schema:
             type: integer
-            description: '-1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime'
+            description: "-1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime"
         - name: Tracker[]
           in: query
           schema:
@@ -173,14 +173,14 @@ paths:
             type: string
           description: Single-tracker alias for Tracker[]
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JackettRootObject'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/JackettRootObject"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1.0/torrents:
     get:
@@ -188,7 +188,7 @@ paths:
       summary: Native torrent search
       operationId: torrentsSearch
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: search
           in: query
           required: true
@@ -213,6 +213,7 @@ paths:
             type: string
             enum: [sid, pir, size, create, update]
         - name: tracker
+          description: Tracker name filter; accepts a comma-separated list (for example, kinozal,rutracker)
           in: query
           schema:
             type: string
@@ -237,16 +238,35 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Torrent map keyed by URL
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties:
-                  $ref: '#/components/schemas/TorrentListItem'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/TorrentListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1.0/trackers:
+    get:
+      tags: [Search]
+      summary: List available tracker names
+      operationId: trackerNames
+      parameters:
+        - $ref: "#/components/parameters/ApiKeyQuery"
+      responses:
+        "200":
+          description: Available tracker names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1.0/qualitys:
     get:
@@ -254,7 +274,7 @@ paths:
       summary: Quality aggregation by title
       operationId: qualitys
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: name
           in: query
           schema:
@@ -278,14 +298,14 @@ paths:
             type: integer
             default: 1000
       responses:
-        '200':
+        "200":
           description: Quality map
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /torznab/api:
     get:
@@ -294,7 +314,7 @@ paths:
       description: Native Torznab XML when torznab.enable is true.
       operationId: torznabRoot
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: t
           in: query
           schema:
@@ -309,13 +329,13 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Torznab XML
           content:
             application/xml:
               schema:
                 type: string
-        '404':
+        "404":
           description: Torznab disabled
 
   /api/v2.0/indexers/{indexer}/results/torznab/api:
@@ -330,13 +350,13 @@ paths:
           schema:
             type: string
             example: all
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: t
           in: query
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Torznab XML
           content:
             application/xml:
@@ -350,7 +370,7 @@ paths:
       operationId: indexersList
       security: []
       responses:
-        '200':
+        "200":
           description: Indexer list
           content:
             application/json:
@@ -368,21 +388,21 @@ paths:
         Returns a JSON array with `enable: true` and `protocol: torrent`.
       operationId: prowlarrIndexerList
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: X-Api-Key
           in: header
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Enabled torrent indexers
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProwlarrIndexer'
-        '404':
+                  $ref: "#/components/schemas/ProwlarrIndexer"
+        "404":
           description: Torznab disabled
 
   /api/v1/indexer/{indexerId}:
@@ -400,15 +420,15 @@ paths:
           schema:
             type: integer
             example: 1
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
+        "200":
           description: Indexer detail
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProwlarrIndexerDetail'
-        '404':
+                $ref: "#/components/schemas/ProwlarrIndexerDetail"
+        "404":
           description: Torznab disabled or unknown indexer id
 
   /api/v1/indexer/{indexerId}/newznab:
@@ -426,7 +446,7 @@ paths:
           schema:
             type: integer
             example: 1
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: t
           in: query
           schema:
@@ -441,13 +461,13 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Torznab XML
           content:
             application/xml:
               schema:
                 type: string
-        '404':
+        "404":
           description: Torznab disabled
 
   /api/v1/search:
@@ -464,7 +484,7 @@ paths:
         (`title`/`title_original`/`year`, `is_serial` 1=movie / 2=serial) for richer TV/movie results.
       operationId: prowlarrSearch
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: X-Api-Key
           in: header
           schema:
@@ -500,27 +520,27 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProwlarrRelease'
-        '404':
+                  $ref: "#/components/schemas/ProwlarrRelease"
+        "404":
           description: Torznab disabled
 
   /stats/Torrents:
     get:
       tags: [Stats]
       summary: Tracker summary (stats.json)
-      description: 'All trackers from Data/temp/stats.json. Used by web UI `/stats`. Requires `openstats: true`.'
+      description: "All trackers from Data/temp/stats.json. Used by web UI `/stats`. Requires `openstats: true`."
       operationId: statsTorrents
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
+        "200":
           description: Tracker summary array
           content:
             application/json:
@@ -531,17 +551,17 @@ paths:
     get:
       tags: [Stats]
       summary: Tracks export aggregate (tracks-stats.json cache)
-      description: 'Read-only cache from Data/temp/tracks-stats.json. Requires `openstats: true`. Force refresh via `/dev/TracksStats?refresh=true`.'
+      description: "Read-only cache from Data/temp/tracks-stats.json. Requires `openstats: true`. Force refresh via `/dev/TracksStats?refresh=true`."
       operationId: statsTracks
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: includeTorrentDb
           in: query
           schema:
             type: boolean
             default: true
       responses:
-        '200':
+        "200":
           description: Tracks export aggregate
           content:
             application/json:
@@ -562,12 +582,12 @@ paths:
     get:
       tags: [Stats]
       summary: Last stats collection time
-      description: 'Requires `openstats: true`. Returns updatedAt for stats.json and tracks-stats.json. Used by web UI `/stats`.'
+      description: "Requires `openstats: true`. Returns updatedAt for stats.json and tracks-stats.json. Used by web UI `/stats`."
       operationId: statsMeta
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
+        "200":
           description: Collection timestamps
           content:
             application/json:
@@ -592,7 +612,7 @@ paths:
       operationId: syncConf
       security: []
       responses:
-        '200':
+        "200":
           description: Sync capabilities
           content:
             application/json:
@@ -612,21 +632,21 @@ paths:
       summary: Sync FileDB key listing
       operationId: syncFdb
       security: []
-      description: 'Requires `opensync: true` in server config.'
+      description: "Requires `opensync: true` in server config."
       parameters:
         - name: key
           in: query
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: FDB sync payload
 
   /sync/fdb/torrents:
     get:
       tags: [Sync]
       summary: Sync FileDB torrent collections
-      description: 'Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`. Requires `opensync: true`.'
+      description: "Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`. Requires `opensync: true`."
       operationId: syncFdbTorrents
       security: []
       parameters:
@@ -648,7 +668,7 @@ paths:
             type: boolean
             default: false
       responses:
-        '200':
+        "200":
           description: Collections with nextread pagination flag
           content:
             application/json:
@@ -674,15 +694,15 @@ paths:
             enum: [yaml, json]
             default: yaml
       responses:
-        '200':
+        "200":
           description: Configuration payload
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigGetResponse'
-        '401':
+                $ref: "#/components/schemas/ConfigGetResponse"
+        "401":
           description: Invalid or missing devkey
-        '403':
+        "403":
           description: Forbidden (LAN or devkey required)
 
     post:
@@ -697,17 +717,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Saved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigSaveResponse'
-        '401':
+                $ref: "#/components/schemas/ConfigSaveResponse"
+        "401":
           description: Invalid devkey
-        '403':
+        "403":
           description: Forbidden (LAN or devkey required)
 
   /api/v1.0/config/schema:
@@ -718,7 +738,7 @@ paths:
       security:
         - DevKeyHeader: []
       responses:
-        '200':
+        "200":
           description: Field groups and validation metadata
           content:
             application/json:
@@ -728,7 +748,7 @@ paths:
                   ok:
                     type: boolean
                   schema:
-                    $ref: '#/components/schemas/ConfigFormSchema'
+                    $ref: "#/components/schemas/ConfigFormSchema"
 
   /api/v1.0/config/validate:
     post:
@@ -742,14 +762,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Validation result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigValidationResponse'
+                $ref: "#/components/schemas/ConfigValidationResponse"
 
   /api/v1.0/config/diff:
     post:
@@ -764,14 +784,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Diff entries and validation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigDiffResponse'
+                $ref: "#/components/schemas/ConfigDiffResponse"
 
   /api/v1.0/config/render:
     post:
@@ -797,12 +817,12 @@ paths:
                   enum: [yaml, json]
                   default: yaml
       responses:
-        '200':
+        "200":
           description: Formatted text
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigRenderResponse'
+                $ref: "#/components/schemas/ConfigRenderResponse"
 
   /api/v1.0/config/parse:
     post:
@@ -825,7 +845,7 @@ paths:
                   type: string
                   enum: [yaml, json]
       responses:
-        '200':
+        "200":
           description: Parsed configuration
           content:
             application/json:
@@ -851,14 +871,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Normalized data and formatted text
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigFormatResponse'
+                $ref: "#/components/schemas/ConfigFormatResponse"
 
   /openapi.yaml:
     get:
@@ -867,7 +887,7 @@ paths:
       operationId: openApiYaml
       security: []
       responses:
-        '200':
+        "200":
           description: This document
           content:
             application/yaml:
@@ -881,7 +901,7 @@ paths:
       operationId: webSearch
       security: []
       responses:
-        '200':
+        "200":
           description: HTML
           content:
             text/html:
@@ -895,7 +915,7 @@ paths:
       operationId: webStats
       security: []
       responses:
-        '200':
+        "200":
           description: HTML
           content:
             text/html:
@@ -909,7 +929,7 @@ paths:
       operationId: webSettings
       security: []
       responses:
-        '200':
+        "200":
           description: HTML
           content:
             text/html:
@@ -953,7 +973,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
 
   schemas:
     HealthResponse:
@@ -1154,7 +1174,7 @@ components:
           type: string
           description: Serialized config text
         schema:
-          $ref: '#/components/schemas/ConfigFormSchema'
+          $ref: "#/components/schemas/ConfigFormSchema"
         sensitiveFields:
           type: array
           items:
@@ -1221,11 +1241,11 @@ components:
         diffs:
           type: array
           items:
-            $ref: '#/components/schemas/ConfigDiffEntry'
+            $ref: "#/components/schemas/ConfigDiffEntry"
         changeCount:
           type: integer
         validation:
-          $ref: '#/components/schemas/ConfigValidationResponse'
+          $ref: "#/components/schemas/ConfigValidationResponse"
 
     ConfigRenderResponse:
       type: object
@@ -1270,7 +1290,7 @@ components:
               fields:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ConfigFieldSchema'
+                  $ref: "#/components/schemas/ConfigFieldSchema"
               trackers:
                 type: array
                 items:
@@ -1305,7 +1325,7 @@ components:
         Results:
           type: array
           items:
-            $ref: '#/components/schemas/JackettResult'
+            $ref: "#/components/schemas/JackettResult"
 
     JackettResult:
       type: object

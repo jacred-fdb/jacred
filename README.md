@@ -670,7 +670,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
   - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный JSON API JacRed, не Torznab и не Jackett).
-  - Параметры: `query` (поисковый запрос), `tracker` (трекер), `category` (категория), `quality` (качество).
+  - Параметры: `query` (поисковый запрос), `tracker` (трекер или список трекеров через запятую), `category` (категория), `quality` (качество).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.
 
 ### Управление конфигурацией (Config API)

@@ -153,7 +153,16 @@ namespace JacRed.Application.Search
             #endregion
 
             if (!string.IsNullOrWhiteSpace(tracker))
-                query = query.Where(i => i.trackerName == tracker);
+            {
+                var trackers = tracker
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(i => i.Trim())
+                    .Where(i => !string.IsNullOrWhiteSpace(i))
+                    .ToHashSet(StringComparer.Ordinal);
+
+                if (trackers.Count > 0)
+                    query = query.Where(i => trackers.Contains(i.trackerName));
+            }
 
             if (relased > 0)
                 query = query.Where(i => i.relased == relased);

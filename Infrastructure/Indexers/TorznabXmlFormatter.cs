@@ -36,7 +36,9 @@ namespace JacRed.Infrastructure.Indexers
 </caps>";
         }
 
-        public const string IndexersXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+        public static string IndexersXml(IEnumerable<string> trackers)
+        {
+            var sb = new StringBuilder(@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <indexers>
   <indexer id=""all"" configured=""true"">
     <title>JacRed (all trackers)</title>
@@ -44,8 +46,23 @@ namespace JacRed.Infrastructure.Indexers
     <link>https://github.com/jacred-fdb/jacred</link>
     <language>ru-RU</language>
     <type>public</type>
-  </indexer>
-</indexers>";
+  </indexer>");
+
+            foreach (var tracker in trackers ?? Enumerable.Empty<string>())
+            {
+                var escaped = EscapeXml(tracker);
+                sb.Append($@"
+  <indexer id=""{escaped}"" configured=""true"">
+    <title>{escaped}</title>
+    <description>JacRed tracker: {escaped}</description>
+    <link>https://github.com/jacred-fdb/jacred</link>
+    <language>ru-RU</language>
+    <type>public</type>
+  </indexer>");
+            }
+
+            return sb.Append("\n</indexers>").ToString();
+        }
 
         public static string WrapRss(string itemsXml, string siteOrigin, string torznabApiUrl)
         {
