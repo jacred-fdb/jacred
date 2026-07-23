@@ -10,7 +10,7 @@ namespace JacRed.Application.Search
     public class TrackerCatalogService : ITrackerCatalogService
     {
         const string CacheKey = "api:trackers:names";
-        static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
+        static readonly TimeSpan CacheDuration = TimeSpan.FromHours(4);
         readonly IMemoryCache _memoryCache;
 
         public TrackerCatalogService(IMemoryCache memoryCache)
