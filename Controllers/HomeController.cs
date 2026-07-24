@@ -6,25 +6,14 @@ namespace JacRed.Controllers
 {
     public class HomeController : Controller
     {
+        /// <summary>SPA shell for /, /stats, /settings (Vue app in wwwroot/index.html).</summary>
         [Route("/")]
-        public ActionResult Index()
+        [Route("/stats")]
+        [Route("/settings")]
+        public ActionResult Spa()
         {
             SetNoStoreHtmlHeaders(Response);
             return File(System.IO.File.OpenRead("wwwroot/index.html"), "text/html");
-        }
-
-        [Route("/stats")]
-        public ActionResult Stats()
-        {
-            SetNoStoreHtmlHeaders(Response);
-            return File(System.IO.File.OpenRead("wwwroot/stats.html"), "text/html");
-        }
-
-        [Route("/settings")]
-        public ActionResult Settings()
-        {
-            SetNoStoreHtmlHeaders(Response);
-            return File(System.IO.File.OpenRead("wwwroot/settings.html"), "text/html");
         }
 
         static void SetNoStoreHtmlHeaders(Microsoft.AspNetCore.Http.HttpResponse response)

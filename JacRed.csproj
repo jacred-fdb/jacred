@@ -22,16 +22,19 @@
     <Content Remove="router\**" />
     <Content Remove="dist\**" />
     <Content Remove="tests\**" />
+    <Content Remove="web\**" />
     <EmbeddedResource Remove="Data\**" />
     <EmbeddedResource Remove="temp\**" />
     <EmbeddedResource Remove="router\**" />
     <EmbeddedResource Remove="dist\**" />
     <EmbeddedResource Remove="tests\**" />
+    <EmbeddedResource Remove="web\**" />
     <None Remove="Data\**" />
     <None Remove="temp\**" />
     <None Remove="router\**" />
     <None Remove="dist\**" />
     <None Remove="tests\**" />
+    <None Remove="web\**" />
   </ItemGroup>
 
   <ItemGroup>

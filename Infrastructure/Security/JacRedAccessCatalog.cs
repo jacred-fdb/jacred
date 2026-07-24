@@ -10,10 +10,10 @@ namespace JacRed.Infrastructure.Security
 
         public static IReadOnlyList<RouteEntry> Routes { get; } = new RouteEntry[]
         {
-            // Public — web shell & health
-            new("/", JacRedAccessPolicy.Public, "HomeController", "index.html"),
-            new("/stats", JacRedAccessPolicy.Public, "HomeController", "stats.html shell only"),
-            new("/settings", JacRedAccessPolicy.Public, "HomeController", "settings.html shell"),
+            // Public — Vue SPA shells & health
+            new("/", JacRedAccessPolicy.Public, "HomeController", "SPA index.html"),
+            new("/stats", JacRedAccessPolicy.Public, "HomeController", "SPA route → index.html"),
+            new("/settings", JacRedAccessPolicy.Public, "HomeController", "SPA route → index.html"),
             new("/opensearch.xml", JacRedAccessPolicy.Public, "HomeController"),
             new("/health", JacRedAccessPolicy.Public, "HealthController"),
             new("/version", JacRedAccessPolicy.Public, "HealthController"),

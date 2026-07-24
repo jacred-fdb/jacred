@@ -102,7 +102,7 @@ namespace JacRed.Infrastructure.OpenApi
                 options.SchemaFilter<ReadOnlyPropertySchemaFilter>();
 
                 // JacRed.xml contains malformed XML in cron doc comments (&query etc.) — breaks Swashbuckle at runtime.
-                // Static spec: wwwroot/openapi.yaml (also served as /swagger/v1/swagger.json).
+                // Static spec: published wwwroot/openapi.yaml from web/public/openapi.yaml.
 
                 options.AddSecurityDefinition("ApiKeyQuery", new OpenApiSecurityScheme
                 {

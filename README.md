@@ -1,6 +1,6 @@
 # JacRed
 
-![Jacred — A Torrent aggregator & file database](wwwroot/img/jacred-social-preview.png)
+![Jacred — A Torrent aggregator & file database](web/public/img/jacred-social-preview.png)
 
 [![Build](https://github.com/jacred-fdb/jacred/actions/workflows/build.yml/badge.svg)](https://github.com/jacred-fdb/jacred/actions/workflows/build.yml)
 [![Release](https://github.com/jacred-fdb/jacred/actions/workflows/release.yml/badge.svg)](https://github.com/jacred-fdb/jacred/actions/workflows/release.yml)
@@ -560,10 +560,10 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 | ------- | -------- | ---------------------------- |
 | `/dev/`, `/cron/`, `/jsondb` | DevAdmin | — |
 | `/api/v1.0/config` | ConfigApi | — |
-| `/`, `/stats`, `/settings` | Public | HTML-оболочки |
+| `/`, `/stats`, `/settings` | Public | Vue SPA (`index.html`) |
 | `/health`, `/version`, `/lastupdatedb`, `/api/v1.0/conf` | Public | — |
 | `/sync/*` | Public | `opensync` для данных sync |
-| `/swagger`, `/openapi.yaml`, статика `/css/` … | Public | `web: true` для UI |
+| `/swagger`, `/openapi.yaml`, статика `/assets/` … | Public | `web: true` для UI |
 | **Всё остальное** | ApiKeyWhenConfigured | `openstats` для `/stats/*` JSON |
 
 ### Доступ по контексту клиента
@@ -623,8 +623,8 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 | URL | Назначение |
 |-----|------------|
 | `GET /swagger` | Swagger UI (интерактивная документация) |
-| `GET /swagger/v1/swagger.json` | OpenAPI 3.0 JSON (конвертируется из `wwwroot/openapi.yaml`) |
-| `GET /openapi.yaml` | Статическая OpenAPI 3.0 YAML (`wwwroot/openapi.yaml`) |
+| `GET /swagger/v1/swagger.json` | OpenAPI 3.0 JSON (конвертируется из `web/public/openapi.yaml` → publish `wwwroot/openapi.yaml`) |
+| `GET /openapi.yaml` | Статическая OpenAPI 3.0 YAML (source: `web/public/openapi.yaml`) |
 
 Swagger UI по умолчанию загружает **`/openapi.yaml`**; в выпадающем списке также доступен JSON (`/swagger/v1/swagger.json`).
 
@@ -637,8 +637,9 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 ### Основные эндпоинты
 
 - **`GET /`** — веб-интерфейс поиска (если `web: true`).
-- **`GET /stats`** — страница статистики (если `web: true`; данные — `/stats/torrents`, `/stats/meta`).
-- **`GET /settings`** — веб-редактор конфигурации (если `web: true`; см. **«Config API»** ниже).
+- **`GET /stats`** — страница статистики SPA (если `web: true`; данные — `/stats/torrents`, `/stats/meta`).
+- **`GET /settings`** — настройки SPA (Config API: LAN или `X-Dev-Key`).
+- **Веб-UI:** Vue 3 SPA в [`web/`](web/) (Vite + Tailwind + shadcn-vue); `./scripts/build-web-ui.sh` собирает publish-папку `wwwroot/` (в git не хранится).
 - **`GET /health`** — проверка работы. Ответ JSON: `{"status":"OK"}`.
 - **`GET /version`** — версия приложения. Ответ JSON: `{"version":"1.0.0"}`.
 - **`GET /lastupdatedb`** — дата/время последнего обновления БД (UTC). Ответ JSON: `{"lastupdatedb":"dd.MM.yyyy HH:mm"}`.
