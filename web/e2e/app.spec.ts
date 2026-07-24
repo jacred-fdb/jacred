@@ -107,9 +107,12 @@ test('navigates stats and switches locale/theme', async ({ page }) => {
   }
 
   const initialTheme = await page.locator('html').getAttribute('data-theme')
-  await page
-    .getByRole('button', { name: /dark theme|light theme|тёмная|светлая/i })
-    .click()
+  await page.getByRole('button', { name: /appearance|оформление/i }).click()
+  const nextTheme =
+    initialTheme === 'dark'
+      ? /light theme|светлая тема/i
+      : /dark theme|тёмная тема/i
+  await page.getByRole('menuitem', { name: nextTheme }).click()
   await expect(page.locator('html')).not.toHaveAttribute(
     'data-theme',
     initialTheme ?? '',
