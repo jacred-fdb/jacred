@@ -21,4 +21,21 @@ describe('SettingsField', () => {
     await wrapper.get('button').trigger('click')
     expect(wrapper.get('input').attributes('type')).toBe('text')
   })
+
+  it('does not paint a warning ring on sensitive fields', () => {
+    const wrapper = mount(SettingsField, {
+      props: {
+        field: {
+          key: 'apikey',
+          label: 'API key',
+          type: 'password',
+          sensitive: true,
+        },
+        data: { apikey: 'secret' },
+      },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('div').classes().join(' ')).not.toMatch(/ring/)
+  })
 })

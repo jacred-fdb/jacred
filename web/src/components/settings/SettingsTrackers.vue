@@ -86,7 +86,7 @@ function setOpen(id: string, open: boolean) {
         :open="openId === tracker.id"
         @update:open="(v) => setOpen(tracker.id, v)"
       >
-        <div class="jr-glass overflow-hidden rounded-xl border">
+        <div class="jr-glass-panel overflow-hidden rounded-xl border">
           <CollapsibleTrigger
             class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/30"
           >
@@ -113,10 +113,10 @@ function setOpen(id: string, open: boolean) {
             </span>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div class="space-y-2.5 border-t border-border/60 p-3">
+            <div class="space-y-3 border-t border-border/60 p-3">
               <div
-                v-if="parts.bools.length"
-                class="grid items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-3"
+                v-if="parts.bools.length || parts.compact.length"
+                class="jr-settings-grid"
               >
                 <SettingsField
                   v-for="field in parts.bools"
@@ -126,11 +126,6 @@ function setOpen(id: string, open: boolean) {
                   :prefix="tracker.id"
                   @change="emit('change', $event)"
                 />
-              </div>
-              <div
-                v-if="parts.compact.length"
-                class="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3"
-              >
                 <SettingsField
                   v-for="field in parts.compact"
                   :key="`${tracker.id}.${field.key}`"
@@ -152,7 +147,7 @@ function setOpen(id: string, open: boolean) {
               </div>
               <div
                 v-if="parts.auth.length"
-                class="grid items-start gap-3 sm:grid-cols-2"
+                class="jr-settings-grid jr-settings-grid--auth"
               >
                 <SettingsField
                   v-for="field in parts.auth"

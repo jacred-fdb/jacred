@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<ToggleGroupRootProps & {
   size?: ToggleGroupVariants['size']
   spacing?: number
 }>(), {
-  spacing: 0,
+  spacing: 1,
 })
 
 const emits = defineEmits<ToggleGroupRootEmits>()

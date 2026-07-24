@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   getApiKey,
   getDevKey,
+  getSurface,
   getTorrServerPassword,
   setApiKey,
   setDevKey,
+  setSurface,
   setTorrServerCreds,
   StorageKeys,
 } from '@/lib/storage'
@@ -43,5 +45,14 @@ describe('secret storage', () => {
     expect(localStorage.getItem(StorageKeys.torrServerPassword)).toBe(
       'password',
     )
+  })
+})
+
+describe('surface storage', () => {
+  it('defaults to solid and persists glass', () => {
+    expect(getSurface()).toBe('solid')
+    setSurface('glass')
+    expect(getSurface()).toBe('glass')
+    expect(localStorage.getItem(StorageKeys.surface)).toBe('glass')
   })
 })

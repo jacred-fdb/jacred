@@ -124,8 +124,47 @@ const {
       aria-busy="true"
       :aria-label="t('settings.loading')"
     >
-      <div class="h-10 animate-pulse rounded-lg bg-muted/70" />
-      <div class="h-64 animate-pulse rounded-xl bg-muted/70" />
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="h-6 w-28 animate-pulse rounded-full bg-muted/70" />
+        <div class="h-6 w-14 animate-pulse rounded-full bg-muted/70" />
+        <div class="h-6 w-36 animate-pulse rounded-full bg-muted/70" />
+      </div>
+      <div
+        class="flex h-12 animate-pulse flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-2"
+      >
+        <div class="h-8 w-28 rounded-md bg-muted-foreground/15" />
+        <div class="h-8 w-20 rounded-md bg-muted-foreground/15" />
+        <div class="ml-auto h-8 w-16 rounded-md bg-muted-foreground/15" />
+        <div class="h-8 w-20 rounded-md bg-primary/20" />
+      </div>
+      <div class="flex h-auto w-full flex-wrap gap-1 rounded-[10px] bg-secondary p-0.5">
+        <div
+          v-for="i in 8"
+          :key="i"
+          class="h-8 w-24 animate-pulse rounded-[8px] bg-muted-foreground/10"
+        />
+      </div>
+      <div class="jr-glass animate-pulse space-y-4 rounded-xl border p-4">
+        <div class="h-5 w-48 rounded bg-muted-foreground/20" />
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="space-y-1.5">
+            <div class="h-3 w-24 rounded bg-muted-foreground/15" />
+            <div class="h-9 rounded-md bg-muted-foreground/10" />
+          </div>
+          <div class="space-y-1.5">
+            <div class="h-3 w-16 rounded bg-muted-foreground/15" />
+            <div class="h-9 rounded-md bg-muted-foreground/10" />
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <div class="h-3 w-20 rounded bg-muted-foreground/15" />
+          <div class="h-9 rounded-md bg-muted-foreground/10" />
+        </div>
+        <div class="space-y-1.5">
+          <div class="h-3 w-24 rounded bg-muted-foreground/15" />
+          <div class="h-9 rounded-md bg-muted-foreground/10" />
+        </div>
+      </div>
     </div>
 
     <template v-else-if="hasEditor && schema">
@@ -144,16 +183,26 @@ const {
       </div>
 
       <div
-        class="sticky z-20 flex flex-wrap items-center gap-2 rounded-lg border bg-background/90 px-2 py-2 backdrop-blur-md"
+        class="jr-settings-dock sticky z-20 flex flex-wrap items-center gap-2 bg-background py-2"
         style="top: var(--jr-header-offset)"
       >
         <Tabs
           :model-value="mode"
           @update:model-value="(v) => switchMode(v as 'form' | 'raw')"
         >
-          <TabsList class="h-9">
-            <TabsTrigger value="form" class="h-8">{{ t('settings.form') }}</TabsTrigger>
-            <TabsTrigger value="raw" class="h-8">{{ t('settings.raw') }}</TabsTrigger>
+          <TabsList class="h-9 rounded-[10px] bg-secondary p-0.5">
+            <TabsTrigger
+              value="form"
+              class="h-8 rounded-[8px] data-active:bg-background data-active:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+            >
+              {{ t('settings.form') }}
+            </TabsTrigger>
+            <TabsTrigger
+              value="raw"
+              class="h-8 rounded-[8px] data-active:bg-background data-active:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+            >
+              {{ t('settings.raw') }}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 

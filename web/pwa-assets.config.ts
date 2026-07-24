@@ -18,15 +18,15 @@ export default defineConfig({
     transparent: {
       sizes: [32, 64, 192, 512],
       favicons: [[32, 'favicon.ico']],
-      padding: 0.05,
+      padding: 0,
     },
     maskable: {
       sizes: [192, 512],
-      padding: 0.1,
+      padding: 0,
     },
     apple: {
       sizes: [180],
-      padding: 0.1,
+      padding: 0,
     },
     assetName(type, size) {
       const width = typeof size === 'number' ? size : size.width

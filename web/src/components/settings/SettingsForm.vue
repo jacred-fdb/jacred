@@ -59,29 +59,31 @@ const groupLayout = computed(() => {
 
 <template>
   <div class="space-y-4">
-    <ToggleGroup
-      v-if="groups.length"
-      type="single"
-      :model-value="currentTab ?? undefined"
-      variant="outline"
-      size="sm"
-      class="flex w-full flex-wrap justify-start gap-1.5"
-      @update:model-value="(v) => v && emit('update:activeTab', String(v))"
-    >
-      <ToggleGroupItem
-        v-for="group in groups"
-        :key="group.id"
-        :value="tabIdForGroup(group)"
-        class="h-8 gap-1.5 px-2.5"
+    <div class="jr-settings-tabs min-w-0">
+      <ToggleGroup
+        v-if="groups.length"
+        type="single"
+        :model-value="currentTab ?? undefined"
+        size="sm"
+        :spacing="1"
+        class="jr-settings-tabs__track flex h-auto w-max max-w-full flex-nowrap justify-start rounded-[10px] bg-secondary p-0.5"
+        @update:model-value="(v) => v && emit('update:activeTab', String(v))"
       >
-        <component
-          :is="settingsGroupIcon(group.id)"
-          class="size-3.5 shrink-0 opacity-80"
-          aria-hidden="true"
-        />
-        {{ group.title }}
-      </ToggleGroupItem>
-    </ToggleGroup>
+        <ToggleGroupItem
+          v-for="group in groups"
+          :key="group.id"
+          :value="tabIdForGroup(group)"
+          class="!rounded-[8px] h-8 shrink-0 gap-1.5 border-0 px-2.5 shadow-none data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+        >
+          <component
+            :is="settingsGroupIcon(group.id)"
+            class="size-3.5 shrink-0 opacity-80"
+            aria-hidden="true"
+          />
+          {{ group.title }}
+        </ToggleGroupItem>
+      </ToggleGroup>
+    </div>
 
     <div v-if="activeGroup" class="space-y-3">
       <p
@@ -103,8 +105,8 @@ const groupLayout = computed(() => {
         class="space-y-3 rounded-xl border jr-glass-panel p-3"
       >
         <div
-          v-if="groupLayout.bools.length"
-          class="grid items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-3"
+          v-if="groupLayout.bools.length || groupLayout.compact.length"
+          class="jr-settings-grid"
         >
           <SettingsField
             v-for="field in groupLayout.bools"
@@ -113,14 +115,20 @@ const groupLayout = computed(() => {
             :data="data"
             @change="emit('change', $event)"
           />
-        </div>
-        <div
-          v-if="groupLayout.compact.length"
-          class="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        >
           <SettingsField
             v-for="field in groupLayout.compact"
             :key="field.key"
+            :field="field"
+            :data="data"
+            @change="emit('change', $event)"
+          />
+        </div>
+        <!-- Sync tracker pickers sit with compact fields, not after secrets -->
+        <div
+          v-for="field in groupLayout.checkboxLists"
+          :key="field.key"
+        >
+          <SettingsCheckboxList
             :field="field"
             :data="data"
             @change="emit('change', $event)"
@@ -137,22 +145,11 @@ const groupLayout = computed(() => {
         </div>
         <div
           v-if="groupLayout.auth.length"
-          class="grid items-start gap-3 sm:grid-cols-2"
+          class="jr-settings-grid jr-settings-grid--auth"
         >
           <SettingsField
             v-for="field in groupLayout.auth"
             :key="field.key"
-            :field="field"
-            :data="data"
-            @change="emit('change', $event)"
-          />
-        </div>
-        <div
-          v-for="field in groupLayout.checkboxLists"
-          :key="field.key"
-          class="col-span-full"
-        >
-          <SettingsCheckboxList
             :field="field"
             :data="data"
             @change="emit('change', $event)"

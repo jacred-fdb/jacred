@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { ArrowUp } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
+import { JR_VIRTUAL_REMEASURE } from '@/lib/result-layout'
 
 const { t } = useI18n()
 const { y } = useWindowScroll()
@@ -14,6 +15,7 @@ function scrollToTop() {
   window.scrollTo(0, 0)
   document.documentElement.scrollTop = 0
   document.body.scrollTop = 0
+  window.dispatchEvent(new Event(JR_VIRTUAL_REMEASURE))
 }
 </script>
 
@@ -24,7 +26,7 @@ function scrollToTop() {
       type="button"
       variant="secondary"
       size="icon"
-      class="jr-scroll-top fixed right-4 z-50 size-11 rounded-full border shadow-lg"
+      class="jr-scroll-top fixed z-50 size-11 rounded-full border shadow-lg"
       :aria-label="t('app.backToTop')"
       @click="scrollToTop"
     >

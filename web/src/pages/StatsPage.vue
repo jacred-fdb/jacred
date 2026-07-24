@@ -113,7 +113,10 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
       </Button>
     </div>
 
-    <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
+    <div
+      class="jr-stats-dock sticky z-20 flex flex-col gap-2 bg-background py-2 lg:flex-row lg:items-center"
+      style="top: var(--jr-header-offset)"
+    >
       <div class="relative min-w-0 flex-1">
         <Search
           class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -129,7 +132,7 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
         />
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
         <Select
           :model-value="sort"
           @update:model-value="(v) => setSort(String(v) as StatsSort)"
@@ -151,17 +154,23 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
         <ToggleGroup
           type="single"
           :model-value="view"
-          variant="outline"
           size="sm"
-          class="h-9"
+          :spacing="1"
+          class="h-9 w-max max-w-full rounded-[10px] bg-secondary p-0.5"
           :aria-label="t('stats.viewMode')"
           @update:model-value="(v) => v && setView(v as 'table' | 'cards')"
         >
-          <ToggleGroupItem value="table" class="gap-1.5 px-2.5">
+          <ToggleGroupItem
+            value="table"
+            class="!rounded-[8px] gap-1.5 border-0 px-2.5 shadow-none data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+          >
             <Table2 class="size-3.5" />
             <span class="hidden sm:inline">{{ t('stats.table') }}</span>
           </ToggleGroupItem>
-          <ToggleGroupItem value="cards" class="gap-1.5 px-2.5">
+          <ToggleGroupItem
+            value="cards"
+            class="!rounded-[8px] gap-1.5 border-0 px-2.5 shadow-none data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+          >
             <LayoutGrid class="size-3.5" />
             <span class="hidden sm:inline">{{
               showMobileList ? t('stats.list') : t('stats.cards')
@@ -217,8 +226,60 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
       aria-busy="true"
       :aria-label="t('stats.loading')"
     >
-      <div class="h-28 animate-pulse rounded-xl bg-muted/70" />
-      <div class="h-64 animate-pulse rounded-xl bg-muted/70" />
+      <div class="jr-glass animate-pulse rounded-xl border p-4">
+        <div class="mb-3 h-4 w-40 rounded bg-muted-foreground/20" />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div
+            v-for="i in 3"
+            :key="`p-${i}`"
+            class="h-16 rounded-lg bg-muted-foreground/15"
+          />
+        </div>
+        <div class="mt-3 grid grid-cols-1 gap-1.5 border-t border-border/60 pt-3 sm:grid-cols-3">
+          <div
+            v-for="i in 3"
+            :key="`s-${i}`"
+            class="h-9 rounded-md bg-muted-foreground/10"
+          />
+        </div>
+      </div>
+      <div
+        v-if="view === 'table'"
+        class="animate-pulse overflow-hidden rounded-xl border"
+      >
+        <div class="h-10 border-b bg-muted/50" />
+        <div
+          v-for="i in 8"
+          :key="i"
+          class="flex h-11 items-center gap-3 border-b border-border/40 px-3 last:border-0"
+        >
+          <div class="size-5 shrink-0 rounded-sm bg-muted-foreground/20" />
+          <div class="h-3.5 w-28 rounded bg-muted-foreground/20" />
+          <div class="ml-auto h-3.5 w-16 rounded bg-muted-foreground/15" />
+          <div class="h-3.5 w-12 rounded bg-muted-foreground/15" />
+          <div class="h-3.5 w-12 rounded bg-muted-foreground/15" />
+        </div>
+      </div>
+      <div
+        v-else
+        class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      >
+        <div
+          v-for="i in 4"
+          :key="i"
+          class="jr-glass animate-pulse space-y-3 rounded-xl border p-4"
+        >
+          <div class="flex items-center gap-2.5">
+            <div class="size-5 rounded-sm bg-muted-foreground/20" />
+            <div class="h-4 w-32 rounded bg-muted-foreground/20" />
+          </div>
+          <div class="h-14 rounded-lg bg-muted-foreground/15" />
+          <div class="grid grid-cols-2 gap-1.5">
+            <div class="h-14 rounded-lg bg-muted-foreground/10" />
+            <div class="h-14 rounded-lg bg-muted-foreground/10" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <template v-else>

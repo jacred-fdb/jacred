@@ -168,8 +168,8 @@ async function onSendTorr() {
         'jr-glass border transition-colors hover:border-primary/40',
         'focus-within:ring-1 focus-within:ring-ring/40',
         listView
-          ? 'flex flex-col gap-1.5 rounded-md px-2 py-1.5 sm:flex-row sm:items-center sm:gap-2.5'
-          : 'jr-result-card flex flex-col gap-0 overflow-hidden rounded-lg p-0 shadow-sm sm:gap-2 sm:p-2.5',
+          ? 'flex flex-col gap-1 rounded-md px-2 py-1.5 sm:flex-row sm:items-center sm:gap-2 sm:py-1'
+          : 'jr-result-card flex flex-col gap-0 rounded-lg p-0 sm:gap-1.5 sm:p-2',
       )
     "
   >
@@ -180,7 +180,7 @@ async function onSendTorr() {
           type="button"
           :class="
             cn(
-              'inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-colors',
+              'jr-tracker-filter relative inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-[transform,background-color,color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100',
               isActiveTracker
                 ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -204,40 +204,43 @@ async function onSendTorr() {
         <component
           :is="titleNode"
           v-bind="titleBind"
-          class="block min-w-0 flex-1 text-[0.8125rem] leading-snug font-medium text-foreground no-underline line-clamp-2 hover:text-primary sm:text-sm"
+          class="block min-w-0 flex-1 text-[0.8125rem] leading-snug font-medium text-foreground no-underline line-clamp-2 hover:text-primary sm:text-sm sm:line-clamp-1"
           :title="title"
         >
           {{ title || t('search.card.untitled') }}
         </component>
       </div>
 
-      <div
-        class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 sm:hidden"
-      >
-        <span v-if="qualityLabel" :class="qualityClass">{{ qualityLabel }}</span>
+      <div class="jr-result-meta jr-result-meta--list">
         <span
-          class="jr-meta-chip jr-meta-chip--size"
+          v-if="qualityLabel"
+          :class="cn(qualityClass, 'jr-result-meta__quality')"
+        >
+          {{ qualityLabel }}
+        </span>
+        <span
+          class="jr-meta-chip jr-meta-chip--size jr-result-meta__size"
           :title="t('search.card.size')"
         >
           <HardDrive class="size-3.5 shrink-0" />
           <span class="jr-meta-chip__value">{{ item.sizeName || '—' }}</span>
         </span>
         <span
-          class="jr-meta-chip jr-meta-chip--seeds"
+          class="jr-meta-chip jr-meta-chip--seeds jr-result-meta__seeds"
           :title="t('search.card.seeds')"
         >
           <ArrowUp class="size-3.5 shrink-0" />
           <span class="jr-meta-chip__value">{{ item.sid ?? 0 }}</span>
         </span>
         <span
-          class="jr-meta-chip jr-meta-chip--peers"
+          class="jr-meta-chip jr-meta-chip--peers jr-result-meta__peers"
           :title="t('search.card.peers')"
         >
           <ArrowDown class="size-3.5 shrink-0" />
           <span class="jr-meta-chip__value">{{ item.pir ?? 0 }}</span>
         </span>
         <span
-          class="jr-meta-chip jr-meta-chip--added"
+          class="jr-meta-chip jr-meta-chip--added jr-result-meta__added"
           :title="t('search.card.added')"
         >
           <CalendarPlus class="size-3.5 shrink-0" />
@@ -245,47 +248,7 @@ async function onSendTorr() {
         </span>
         <span
           v-if="showUpdate"
-          class="jr-meta-chip jr-meta-chip--updated"
-          :title="t('search.card.updated')"
-        >
-          <RefreshCw class="size-3.5 shrink-0" />
-          <span class="jr-meta-chip__value">{{ updateStr }}</span>
-        </span>
-      </div>
-
-      <div class="hidden shrink-0 items-center gap-2 sm:flex">
-        <span v-if="qualityLabel" :class="qualityClass">{{ qualityLabel }}</span>
-        <span
-          class="jr-meta-chip jr-meta-chip--size"
-          :title="t('search.card.size')"
-        >
-          <HardDrive class="size-3.5 shrink-0" />
-          <span class="jr-meta-chip__value">{{ item.sizeName || '—' }}</span>
-        </span>
-        <span
-          class="jr-meta-chip jr-meta-chip--seeds"
-          :title="t('search.card.seeds')"
-        >
-          <ArrowUp class="size-3.5 shrink-0" />
-          <span class="jr-meta-chip__value">{{ item.sid ?? 0 }}</span>
-        </span>
-        <span
-          class="jr-meta-chip jr-meta-chip--peers"
-          :title="t('search.card.peers')"
-        >
-          <ArrowDown class="size-3.5 shrink-0" />
-          <span class="jr-meta-chip__value">{{ item.pir ?? 0 }}</span>
-        </span>
-        <span
-          class="jr-meta-chip jr-meta-chip--added"
-          :title="t('search.card.added')"
-        >
-          <CalendarPlus class="size-3.5 shrink-0" />
-          <span class="jr-meta-chip__value">{{ createStr }}</span>
-        </span>
-        <span
-          v-if="showUpdate"
-          class="jr-meta-chip jr-meta-chip--updated"
+          class="jr-meta-chip jr-meta-chip--updated jr-result-meta__updated"
           :title="t('search.card.updated')"
         >
           <RefreshCw class="size-3.5 shrink-0" />
@@ -307,12 +270,14 @@ async function onSendTorr() {
 
     <!-- Card: head / meta / actions bands (thicker on mobile) -->
     <template v-else>
-      <div class="jr-result-card__head flex items-start gap-2 px-2.5 pt-2.5 pb-2 sm:p-0">
+      <div
+        class="jr-result-card__head flex items-start gap-2 px-2.5 pt-2 pb-1.5 sm:p-0"
+      >
         <button
           type="button"
           :class="
             cn(
-              'mt-0.5 inline-flex shrink-0 items-center justify-center rounded-md p-0.5 transition-colors',
+              'jr-tracker-filter relative mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-[transform,background-color,color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100',
               isActiveTracker
                 ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -345,9 +310,7 @@ async function onSendTorr() {
         }}</span>
       </div>
 
-      <div
-        class="jr-result-card__meta flex flex-wrap items-center gap-x-2 gap-y-1 px-2.5 py-2 sm:gap-x-2.5 sm:p-0"
-      >
+      <div class="jr-result-card__meta jr-result-meta">
         <span
           class="jr-meta-chip jr-meta-chip--size"
           :title="t('search.card.size')"
@@ -386,7 +349,7 @@ async function onSendTorr() {
         </span>
       </div>
 
-      <div class="jr-result-card__actions w-full px-2.5 pt-2 pb-2.5 sm:p-0">
+      <div class="jr-result-card__actions w-full px-2.5 pt-1.5 pb-2 sm:p-0">
         <TorrentActionRail
           :magnet="magnet"
           :has-magnet="hasMagnet"

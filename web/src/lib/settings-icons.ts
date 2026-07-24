@@ -6,6 +6,7 @@ import {
   Layers,
   Plug,
   RefreshCw,
+  Rss,
   ScrollText,
   Search,
   Shield,
@@ -23,6 +24,7 @@ const GROUP_ICONS: Record<string, Component> = {
   fdb: Database,
   evercache: Zap,
   search: Search,
+  torznab: Rss,
   proxy: Shield,
   trackers: Layers,
 }

@@ -34,7 +34,7 @@ function toggle(slug: string, on: boolean) {
 </script>
 
 <template>
-  <div class="space-y-2 sm:col-span-2 lg:col-span-3">
+  <div class="space-y-2">
     <div class="flex items-baseline justify-between gap-2">
       <label class="text-sm font-medium">{{ field.label }}</label>
       <span class="text-xs text-muted-foreground">
@@ -48,11 +48,11 @@ function toggle(slug: string, on: boolean) {
       <label
         v-for="slug in field.enumValues || []"
         :key="slug"
-        class="flex cursor-pointer items-center gap-2 rounded-lg border border-border/70 px-2.5 py-2 text-sm hover:bg-muted/40"
+        class="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-secondary/40 px-2.5 py-2 text-sm hover:bg-muted/40"
       >
         <input
           type="checkbox"
-          class="size-4 accent-[var(--primary)]"
+          class="size-4 shrink-0 accent-[var(--primary)]"
           :checked="selected.has(slug)"
           @change="
             toggle(slug, ($event.target as HTMLInputElement).checked)

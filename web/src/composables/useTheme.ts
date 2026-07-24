@@ -5,9 +5,9 @@ import {
   type ThemeValue,
 } from '@/lib/storage'
 
-/** Keep in sync with --background in style.css (legacy surfaces) */
-const THEME_COLOR_DARK = '#0a0a0f'
-const THEME_COLOR_LIGHT = '#f8f9fa'
+/** Keep in sync with --background in style.css (Apple HIG surfaces) */
+const THEME_COLOR_DARK = '#000000'
+const THEME_COLOR_LIGHT = '#f2f2f7'
 
 const theme = ref<ThemeValue>(getTheme())
 
@@ -29,10 +29,9 @@ function applyTheme(value: ThemeValue) {
     'meta[name="apple-mobile-web-app-status-bar-style"]',
   )
   if (statusBar) {
-    statusBar.setAttribute(
-      'content',
-      value === 'dark' ? 'black-translucent' : 'default',
-    )
+    // Always translucent with viewport-fit=cover + header safe-area padding
+    // (light `default` fights edge-to-edge layout in standalone PWA).
+    statusBar.setAttribute('content', 'black-translucent')
   }
 }
 

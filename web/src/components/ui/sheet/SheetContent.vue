@@ -38,8 +38,7 @@ const delegatedProps = reactiveOmit(props, 'class', 'side', 'showCloseButton')
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
 const isBottom = computed(() => props.side === 'bottom')
-const { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } =
-  useSheetDrag(isBottom)
+useSheetDrag(isBottom)
 </script>
 
 <template>
@@ -50,12 +49,12 @@ const { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } =
       :data-side="side"
       :class="
         cn(
-          'jr-glass text-popover-foreground fixed z-50 flex flex-col gap-4 bg-clip-padding text-sm shadow-lg transition duration-200 ease-in-out',
-          'data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:max-h-[min(92dvh,40rem)] data-[side=bottom]:border-t data-[side=bottom]:rounded-t-2xl',
-          'data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r',
-          'data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l',
-          'data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b',
-          'data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm',
+          'text-popover-foreground fixed z-50 flex flex-col bg-clip-padding text-sm shadow-lg transition duration-200 ease-in-out',
+          isBottom
+            ? 'inset-x-0 bottom-0 max-h-[min(92dvh,40rem)] gap-0 overflow-hidden rounded-t-2xl border-t bg-background pb-[env(safe-area-inset-bottom,0px)]'
+            : 'jr-glass gap-4',
+          !isBottom &&
+            'data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm',
           'data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
           'data-[side=bottom]:data-open:slide-in-from-bottom data-[side=bottom]:data-closed:slide-out-to-bottom',
           'data-[side=left]:data-open:slide-in-from-left data-[side=left]:data-closed:slide-out-to-left',
@@ -68,18 +67,16 @@ const { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } =
     >
       <div
         v-if="isBottom"
-        class="jr-sheet-handle mx-auto flex w-full max-w-xs shrink-0 cursor-grab touch-none flex-col items-center pt-1 pb-1 active:cursor-grabbing"
+        class="jr-sheet-drag-zone jr-sheet-drag-zone--handle shrink-0"
         :aria-label="t('search.filters.dragHandle')"
-        role="presentation"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointercancel="onPointerCancel"
+        role="img"
       >
-        <span
-          class="bg-muted-foreground/40 h-1 w-10 rounded-full"
-          aria-hidden="true"
-        />
+        <div class="jr-sheet-handle mx-auto flex w-full flex-col items-center">
+          <span
+            class="bg-muted-foreground/40 mt-1.5 h-1 w-10 rounded-full"
+            aria-hidden="true"
+          />
+        </div>
       </div>
 
       <slot />
@@ -91,7 +88,7 @@ const { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } =
       >
         <Button variant="ghost" class="absolute top-3 right-3" size="icon-sm">
           <XIcon />
-          <span class="sr-only">Close</span>
+          <span class="sr-only">{{ t('app.close') }}</span>
         </Button>
       </DialogClose>
     </DialogContent>

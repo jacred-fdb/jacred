@@ -115,7 +115,9 @@ export function useTorrents() {
   })
 
   const allItems = computed(() => torrentsQuery.data.value ?? [])
-  const isLoading = computed(() => torrentsQuery.isFetching.value)
+  /** First load only — keep previous rows mounted while refetching (avoids scroll jump). */
+  const isLoading = computed(() => torrentsQuery.isLoading.value)
+  const isFetching = computed(() => torrentsQuery.isFetching.value)
   const errorMessage = computed(() => {
     if (!torrentsQuery.isError.value || !torrentsQuery.error.value) return ''
     return mapSearchError(torrentsQuery.error.value, t)
@@ -409,6 +411,7 @@ export function useTorrents() {
     filteredItems,
     visibleItems,
     isLoading,
+    isFetching,
     errorMessage,
     currentQuery,
     resultsEl,

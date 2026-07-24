@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useMediaQuery, useOnline } from '@vueuse/core'
+import { useMediaQuery, useOnline, until } from '@vueuse/core'
 import type { ComponentPublicInstance } from 'vue'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Loader2, Search, WifiOff, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
@@ -9,14 +9,15 @@ import { Input } from '@/components/ui/input'
 import VirtualList from '@/components/VirtualList.vue'
 import SearchFilters from '@/components/search/SearchFilters.vue'
 import TorrentCard from '@/components/search/TorrentCard.vue'
+import TorrentResultSkeleton from '@/components/search/TorrentResultSkeleton.vue'
 import { useTorrents } from '@/composables/useTorrents'
 import { useShellTools } from '@/composables/useShellTools'
 import {
   clearRecentSearches,
   getRecentSearches,
 } from '@/lib/recent-searches'
+import { resultEstimateSize, resultGap } from '@/lib/result-layout'
 import { torrentKey } from '@/lib/torrents'
-import { cn } from '@/lib/utils'
 
 defineOptions({ name: 'SearchPage' })
 
@@ -33,6 +34,7 @@ const {
   facets,
   visibleItems,
   isLoading,
+  isFetching,
   errorMessage,
   currentQuery,
   activeFilterCount,
@@ -53,6 +55,7 @@ const resultsEl = searchState.resultsEl
 
 const listRef = ref<{
   syncScrollMargin?: () => void
+  observeChrome?: () => void
   getFirstVisibleIndex?: () => number
   scrollToIndex?: (
     index: number,
@@ -63,12 +66,11 @@ const recent = ref(getRecentSearches())
 const isSmUp = useMediaQuery('(min-width: 640px)')
 const isOnline = useOnline()
 
-const LIST_GAP = 4
-const CARD_GAP = 10
-const estimateSize = computed(() => {
-  if (listView.value) return isSmUp.value ? 76 : 114
-  return isSmUp.value ? 140 : 156
-})
+const estimateSize = computed(() =>
+  resultEstimateSize(listView.value, isSmUp.value),
+)
+const listGap = computed(() => resultGap(true, isSmUp.value))
+const cardGap = computed(() => resultGap(false, isSmUp.value))
 
 const hasResults = computed(
   () => !!currentQuery.value && visibleItems.value.length > 0,
@@ -84,6 +86,9 @@ const showNothingFound = computed(
     !errorMessage.value,
 )
 
+let settleToken = 0
+let viewAnchorToken = 0
+
 /** Pin viewport to document top so results start under the search dock. */
 function pinResultsStart() {
   window.scrollTo(0, 0)
@@ -91,18 +96,39 @@ function pinResultsStart() {
   document.body.scrollTop = 0
 }
 
+/** One intentional pin + margin sync after a user-initiated search settles. */
 async function settleListLayout() {
+  const token = ++settleToken
   pinResultsStart()
   await nextTick()
-  pinResultsStart()
+  if (token !== settleToken) return
   await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    requestAnimationFrame(() => resolve())
   })
+  if (token !== settleToken) return
+  listRef.value?.observeChrome?.()
+  listRef.value?.syncScrollMargin?.()
+  // Second frame: VirtualList may mount only after isLoading flips false.
+  await nextTick()
+  if (token !== settleToken) return
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+  if (token !== settleToken) return
   pinResultsStart()
   listRef.value?.syncScrollMargin?.()
-  // Late layout (virtual row measure / sticky dock) can re-trigger scroll anchoring.
-  window.setTimeout(pinResultsStart, 50)
-  window.setTimeout(pinResultsStart, 120)
+}
+
+/** Wait for the in-flight torrents fetch so VirtualList exists before pinning. */
+async function waitForSearchPaint() {
+  await nextTick()
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+  if (isLoading.value || isFetching.value) {
+    await until(() => !isLoading.value && !isFetching.value).toBe(true)
+  }
+  await settleListLayout()
 }
 
 function onSubmit(e: Event) {
@@ -115,7 +141,7 @@ function onSubmit(e: Event) {
   pinResultsStart()
   void search().then(async () => {
     recent.value = getRecentSearches()
-    await settleListLayout()
+    await waitForSearchPaint()
   })
 }
 
@@ -127,7 +153,7 @@ function applyRecent(q: string) {
   pinResultsStart()
   void search().then(async () => {
     recent.value = getRecentSearches()
-    await settleListLayout()
+    await waitForSearchPaint()
   })
 }
 
@@ -139,35 +165,41 @@ function onClearRecent() {
 /** Keep the same result under the fold when list ↔ cards row heights change. */
 async function onListViewUpdate(next: boolean) {
   if (next === listView.value) return
+  const token = ++viewAnchorToken
   const anchorIndex = listRef.value?.getFirstVisibleIndex?.() ?? 0
   toggleListView()
   // VirtualList remounts on layout key — wait until the new instance is ready.
   await nextTick()
   await nextTick()
+  if (token !== viewAnchorToken) return
   await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    requestAnimationFrame(() => resolve())
   })
+  if (token !== viewAnchorToken) return
+  listRef.value?.observeChrome?.()
   listRef.value?.syncScrollMargin?.()
   listRef.value?.scrollToIndex?.(anchorIndex, 'start')
-  // Late measureElement passes change totalSize — re-anchor once settled.
-  window.setTimeout(() => {
+  // Re-anchor only if late measure drifted the first visible row.
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+  if (token !== viewAnchorToken) return
+  const drifted = listRef.value?.getFirstVisibleIndex?.() ?? anchorIndex
+  if (Math.abs(drifted - anchorIndex) > 1) {
     listRef.value?.scrollToIndex?.(anchorIndex, 'start')
-  }, 50)
-  window.setTimeout(() => {
-    listRef.value?.scrollToIndex?.(anchorIndex, 'start')
-  }, 120)
+  }
 }
 
-watch(isLoading, (loading) => {
-  if (loading) pinResultsStart()
-})
-
-watch(hasResults, (ready) => {
-  if (ready) void settleListLayout()
-})
-
 watch(filtersOpen, () => {
-  void nextTick(() => listRef.value?.syncScrollMargin?.())
+  void nextTick(() => {
+    listRef.value?.observeChrome?.()
+    listRef.value?.syncScrollMargin?.()
+  })
+})
+
+onBeforeUnmount(() => {
+  settleToken += 1
+  viewAnchorToken += 1
 })
 
 function bindResultsEl(
@@ -188,11 +220,11 @@ function bindResultsEl(
 
 <template>
   <section class="flex flex-col gap-4">
-    <header class="space-y-1">
+    <header class="space-y-1 text-center">
       <h1 class="text-2xl font-semibold tracking-tight text-balance sm:text-[1.75rem]">
         {{ t('search.title') }}
       </h1>
-      <p class="max-w-2xl text-sm text-pretty text-muted-foreground">
+      <p class="mx-auto max-w-2xl text-sm text-pretty text-muted-foreground">
         {{ t('search.subtitle') }}
       </p>
     </header>
@@ -208,7 +240,7 @@ function bindResultsEl(
 
     <!-- Same chrome before and after search — sticky without a sudden “card” skin -->
     <div
-      class="jr-search-dock sticky z-20 flex flex-col gap-2 bg-background/90 py-1 backdrop-blur-md sm:gap-3"
+      class="jr-search-dock sticky z-20 flex flex-col gap-2.5 bg-background py-2.5 sm:gap-3"
       style="top: var(--jr-header-offset)"
     >
       <form
@@ -227,7 +259,7 @@ function bindResultsEl(
             name="s"
             autocomplete="off"
             enterkeyhint="search"
-            class="h-11 pr-10 pl-9"
+            class="h-11 rounded-[12px] border-0 bg-secondary pr-10 pl-9 shadow-none focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-secondary"
             :placeholder="t('search.placeholder')"
             :aria-label="t('search.queryAria')"
           />
@@ -236,7 +268,7 @@ function bindResultsEl(
             type="button"
             variant="ghost"
             size="icon"
-            class="absolute top-1/2 right-1 size-8 -translate-y-1/2"
+            class="absolute top-1/2 right-1 size-8 -translate-y-1/2 rounded-[10px]"
             :aria-label="t('search.clear')"
             @click="clearSearch"
           >
@@ -245,7 +277,7 @@ function bindResultsEl(
         </div>
         <Button
           type="submit"
-          class="h-11 shrink-0 gap-2 px-5 sm:min-w-[7.5rem]"
+          class="h-11 shrink-0 gap-2 rounded-[12px] px-5 sm:min-w-[7.5rem]"
           :disabled="isLoading || !isOnline"
           :aria-busy="isLoading"
         >
@@ -310,22 +342,17 @@ function bindResultsEl(
     </p>
 
     <div
-      v-if="isLoading"
-      class="flex flex-col gap-2"
+      v-if="isLoading && !hasResults"
+      class="flex flex-col"
+      :style="{ gap: `${listView ? listGap : cardGap}px` }"
       aria-busy="true"
       :aria-label="t('search.loadingResults')"
     >
-      <div
+      <TorrentResultSkeleton
         v-for="i in 6"
         :key="i"
-        :class="
-          cn(
-            'animate-pulse bg-muted/70',
-            listView
-              ? cn('rounded-md', isSmUp ? 'h-12' : 'h-[7.15rem]')
-              : cn('rounded-lg', isSmUp ? 'h-[7.25rem]' : 'h-[9.75rem]'),
-          )
-        "
+        :list-view="listView"
+        :is-sm-up="isSmUp"
       />
     </div>
 
@@ -356,13 +383,14 @@ function bindResultsEl(
         :ref="bindResultsEl"
         class="jr-results-list"
         aria-live="polite"
+        :aria-busy="isFetching"
       >
         <VirtualList
           :key="`${currentQuery || 'empty'}:${listView ? 'list' : 'cards'}`"
           ref="listRef"
           :items="visibleItems"
           :estimate-size="estimateSize"
-          :gap="listView ? LIST_GAP : CARD_GAP"
+          :gap="listView ? listGap : cardGap"
         >
           <template #default="{ item, index }">
             <TorrentCard

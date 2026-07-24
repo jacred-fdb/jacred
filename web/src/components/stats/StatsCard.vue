@@ -111,6 +111,40 @@ const pairs = computed((): Metric[][] => {
     ],
   ]
 })
+
+const compactMetrics = computed((): Metric[] => {
+  const tracksData = tracks.value
+  return [
+    metric(
+      'new',
+      'new',
+      t('stats.card.new'),
+      formatStatNumber(props.item.newtor, props.fullNumbers, locale.value),
+      formatStatNumberFull(props.item.newtor, locale.value),
+    ),
+    metric(
+      'update',
+      'update',
+      t('stats.card.updated'),
+      formatStatNumber(props.item.update, props.fullNumbers, locale.value),
+      formatStatNumberFull(props.item.update, locale.value),
+    ),
+    metric(
+      'total',
+      'total',
+      t('stats.card.total'),
+      formatStatNumber(props.item.alltorrents, props.fullNumbers, locale.value),
+      formatStatNumberFull(props.item.alltorrents, locale.value),
+    ),
+    metric(
+      'confirm',
+      'confirm',
+      t('stats.card.confirmed'),
+      formatStatNumber(tracksData.confirm, props.fullNumbers, locale.value),
+      formatStatNumberFull(tracksData.confirm, locale.value),
+    ),
+  ]
+})
 </script>
 
 <template>
@@ -118,12 +152,14 @@ const pairs = computed((): Metric[][] => {
     data-result-card
     :class="
       cn(
-        'jr-glass rounded-xl border p-4 text-card-foreground',
-        compact && 'p-3',
+        'jr-glass rounded-xl border text-card-foreground',
+        compact ? 'p-3' : 'p-4',
       )
     "
   >
-    <header class="mb-3 flex items-center gap-2.5">
+    <header
+      :class="cn('flex items-center gap-2.5', compact ? 'mb-2' : 'mb-3')"
+    >
       <img
         :src="iconSrc"
         alt=""
@@ -133,7 +169,7 @@ const pairs = computed((): Metric[][] => {
         loading="lazy"
         @error="($event.target as HTMLImageElement).style.visibility = 'hidden'"
       />
-      <div class="min-w-0">
+      <div class="min-w-0 flex-1">
         <div class="truncate font-semibold">{{ displayName }}</div>
         <div
           v-if="showSlug"
@@ -142,9 +178,44 @@ const pairs = computed((): Metric[][] => {
           {{ slug }}
         </div>
       </div>
+      <div
+        v-if="compact"
+        class="shrink-0 text-right text-xs tabular-nums text-muted-foreground"
+        :title="lastNew.full"
+      >
+        {{ lastNew.value }}
+      </div>
     </header>
 
-    <div class="space-y-1.5">
+    <!-- Mobile list: dense single row of key metrics -->
+    <div
+      v-if="compact"
+      class="flex flex-wrap items-center gap-1.5"
+    >
+      <div
+        v-for="m in compactMetrics"
+        :key="m.key"
+        :class="
+          cn(
+            'inline-flex min-w-0 items-baseline gap-1 rounded-md px-2 py-1',
+            `jr-stat-chip--${m.chip}`,
+          )
+        "
+      >
+        <span class="text-[10px] font-medium tracking-wide uppercase opacity-80">{{
+          m.label
+        }}</span>
+        <strong
+          class="text-sm font-semibold tabular-nums"
+          :aria-label="m.full"
+          :title="m.full"
+        >
+          {{ m.value }}
+        </strong>
+      </div>
+    </div>
+
+    <div v-else class="space-y-1.5">
       <div
         :class="
           cn(

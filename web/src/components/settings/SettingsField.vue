@@ -22,6 +22,7 @@ import {
   type ConfigField,
   type ConfigFieldChange,
 } from '@/lib/config-schema'
+import { isSettingsFullWidthField } from '@/lib/settings-layout'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<{
@@ -113,34 +114,32 @@ function apply(v: string) {
   emit('change', { path: path.value, value })
 }
 
-const WIDE_KEYS = new Set(['cookie', 'alias', 'aliasurl'])
-
-const fullWidth = computed(() => {
-  const f = props.field
-  if (f.type === 'json' || f.type === 'stringList') return true
-  return WIDE_KEYS.has(f.key.toLowerCase())
-})
+const fullWidth = computed(() => isSettingsFullWidthField(props.field))
+const isBool = computed(() => props.field.type === 'bool')
 </script>
 
 <template>
   <div
     :class="
       cn(
-        'space-y-1.5',
+        'jr-settings-field',
+        isBool && 'jr-settings-field--bool',
         fullWidth && 'col-span-full',
-        field.sensitive && 'rounded-lg ring-1 ring-[color-mix(in_oklch,var(--warning)_22%,transparent)]',
       )
     "
   >
-    <template v-if="field.type === 'bool'">
-      <div class="flex min-h-10 items-center justify-between gap-3 py-1">
+    <template v-if="isBool">
+      <div class="jr-settings-field__control flex w-full items-center justify-between gap-3">
         <div class="min-w-0">
-          <label :for="fieldId" class="text-sm font-medium">{{
-            field.label
-          }}</label>
+          <label
+            :for="fieldId"
+            class="jr-settings-field__label block text-sm leading-5 font-medium"
+          >
+            {{ field.label }}
+          </label>
           <p
             v-if="field.description"
-            class="line-clamp-2 text-xs text-muted-foreground"
+            class="jr-settings-field__desc text-xs leading-4 text-muted-foreground"
           >
             {{ field.description }}
           </p>
@@ -150,91 +149,104 @@ const fullWidth = computed(() => {
     </template>
 
     <template v-else>
-      <label :for="fieldId" class="block text-sm leading-5 font-medium">{{
-        field.label
-      }}</label>
+      <label
+        :for="fieldId"
+        class="jr-settings-field__label block text-sm leading-5 font-medium"
+      >
+        {{ field.label }}
+      </label>
       <p
         v-if="field.description"
-        class="text-xs leading-4 text-muted-foreground"
+        class="jr-settings-field__desc text-xs leading-4 text-muted-foreground"
       >
         {{ field.description }}
       </p>
-
-      <textarea
-        v-if="field.type === 'stringList' || field.type === 'json'"
-        :id="fieldId"
-        :value="textValue"
-        :rows="field.type === 'json' ? 6 : 4"
-        spellcheck="false"
-        class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[80px] w-full rounded-md border px-3 py-2 font-mono text-sm focus-visible:ring-2 focus-visible:outline-none"
-        @input="textValue = ($event.target as HTMLTextAreaElement).value"
-      />
-
-      <Select
-        v-else-if="field.type === 'select'"
-        :model-value="selectValue"
-        @update:model-value="(v) => (selectValue = String(v))"
+      <!-- Reserve desc space when missing so neighbors share a control baseline -->
+      <p
+        v-else
+        class="jr-settings-field__desc text-xs leading-4 opacity-0"
+        aria-hidden="true"
       >
-        <SelectTrigger :id="fieldId" class="h-9 w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem
-            v-for="opt in field.enumValues || []"
-            :key="opt"
-            :value="opt"
-          >
-            {{ opt }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+        &nbsp;
+      </p>
 
-      <Input
-        v-else-if="field.type === 'int'"
-        :id="fieldId"
-        type="number"
-        class="h-9"
-        :model-value="textValue"
-        :min="field.min ?? undefined"
-        :max="field.max ?? undefined"
-        @update:model-value="(v) => (textValue = String(v))"
-      />
-
-      <div v-else-if="field.type === 'password'" class="relative">
-        <Input
+      <div class="jr-settings-field__control">
+        <textarea
+          v-if="field.type === 'stringList' || field.type === 'json'"
           :id="fieldId"
-          :type="showPassword ? 'text' : 'password'"
-          class="h-9 pr-10 font-mono"
+          :value="textValue"
+          :rows="field.type === 'json' ? 6 : 4"
+          spellcheck="false"
+          class="border-input dark:bg-input/30 placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-[80px] w-full rounded-lg border bg-transparent px-2.5 py-2 font-mono text-sm outline-none focus-visible:ring-3"
+          @input="textValue = ($event.target as HTMLTextAreaElement).value"
+        />
+
+        <Select
+          v-else-if="field.type === 'select'"
+          :model-value="selectValue"
+          @update:model-value="(v) => (selectValue = String(v))"
+        >
+          <SelectTrigger :id="fieldId" class="h-9 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="opt in field.enumValues || []"
+              :key="opt"
+              :value="opt"
+            >
+              {{ opt }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Input
+          v-else-if="field.type === 'int'"
+          :id="fieldId"
+          type="number"
+          class="h-9"
           :model-value="textValue"
-          autocomplete="new-password"
+          :min="field.min ?? undefined"
+          :max="field.max ?? undefined"
           @update:model-value="(v) => (textValue = String(v))"
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          class="absolute top-1/2 right-0.5 size-8 -translate-y-1/2"
-          :aria-label="
-            showPassword
-              ? t('settings.hidePassword')
-              : t('settings.showPassword')
-          "
-          @click="showPassword = !showPassword"
-        >
-          <EyeOff v-if="showPassword" class="size-4" />
-          <Eye v-else class="size-4" />
-        </Button>
-      </div>
 
-      <Input
-        v-else
-        :id="fieldId"
-        type="text"
-        class="h-9"
-        :model-value="textValue"
-        autocomplete="off"
-        @update:model-value="(v) => (textValue = String(v))"
-      />
+        <div v-else-if="field.type === 'password'" class="relative">
+          <Input
+            :id="fieldId"
+            :type="showPassword ? 'text' : 'password'"
+            class="h-9 pr-10 font-mono"
+            :model-value="textValue"
+            autocomplete="new-password"
+            @update:model-value="(v) => (textValue = String(v))"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            class="absolute top-1/2 right-0.5 size-8 -translate-y-1/2"
+            :aria-label="
+              showPassword
+                ? t('settings.hidePassword')
+                : t('settings.showPassword')
+            "
+            @click="showPassword = !showPassword"
+          >
+            <EyeOff v-if="showPassword" class="size-4" />
+            <Eye v-else class="size-4" />
+          </Button>
+        </div>
+
+        <Input
+          v-else
+          :id="fieldId"
+          type="text"
+          class="h-9"
+          :model-value="textValue"
+          autocomplete="off"
+          @update:model-value="(v) => (textValue = String(v))"
+        />
+      </div>
     </template>
   </div>
 </template>

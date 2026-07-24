@@ -3,6 +3,7 @@ export const StorageKeys = {
   apiKey: 'api_key',
   devKey: 'dev_key',
   theme: 'theme',
+  surface: 'jacredSurface',
   listView: 'jacredListView',
   filtersOpen: 'jacredFiltersOpen',
   torrServerUrl: 'jacredTorServerUrl',
@@ -54,6 +55,17 @@ export function getTheme(): ThemeValue {
 
 export function setTheme(theme: ThemeValue): void {
   setItem(StorageKeys.theme, theme)
+}
+
+export type SurfaceValue = 'solid' | 'glass'
+
+export function getSurface(): SurfaceValue {
+  const raw = getItem(StorageKeys.surface)
+  return raw === 'glass' ? 'glass' : 'solid'
+}
+
+export function setSurface(surface: SurfaceValue): void {
+  setItem(StorageKeys.surface, surface)
 }
 
 export function getApiKey(): string {

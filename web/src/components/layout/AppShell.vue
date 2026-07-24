@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  onMounted,
+  onUnmounted,
+  ref,
+} from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import {
   BarChart3,
+  Check,
+  Ellipsis,
   Keyboard,
   KeyRound,
   Moon,
@@ -14,6 +22,12 @@ import {
   Sun,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
 import {
   Tooltip,
@@ -24,6 +38,7 @@ import {
 import AppFooter from '@/components/layout/AppFooter.vue'
 import ScrollToTopButton from '@/components/layout/ScrollToTopButton.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useSurface } from '@/composables/useSurface'
 import { useLegacySwCleanup } from '@/composables/useLegacySwCleanup'
 import { useHealth } from '@/composables/useHealth'
 import { usePageTitle } from '@/composables/usePageTitle'
@@ -51,7 +66,8 @@ useLegacySwCleanup()
 usePageTitle()
 const route = useRoute()
 const { t, locale } = useI18n()
-const { isDark, toggleTheme } = useTheme()
+const { isDark, setTheme } = useTheme()
+const { surface, setSurface } = useSurface()
 const { isOnline, isLoading } = useHealth()
 const shell = useShellTools()
 const {
@@ -143,6 +159,10 @@ function syncHeaderOffset() {
   }
 }
 
+function onVisualViewportChange() {
+  syncHeaderOffset()
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   if (headerRef.value && typeof ResizeObserver !== 'undefined') {
@@ -152,10 +172,18 @@ onMounted(() => {
   } else {
     syncHeaderOffset()
   }
+  window.visualViewport?.addEventListener('resize', onVisualViewportChange, {
+    passive: true,
+  })
+  window.visualViewport?.addEventListener('scroll', onVisualViewportChange, {
+    passive: true,
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
+  window.visualViewport?.removeEventListener('resize', onVisualViewportChange)
+  window.visualViewport?.removeEventListener('scroll', onVisualViewportChange)
   headerResizeObserver?.disconnect()
   headerResizeObserver = null
   document.documentElement.style.removeProperty('--jr-header-offset')
@@ -209,16 +237,17 @@ onUnmounted(() => {
               <RouterLink
                 :to="item.to"
                 class="gap-1.5"
+                :aria-label="item.label"
                 :aria-current="isActive(item.name) ? 'page' : undefined"
               >
                 <component :is="item.icon" class="size-4" />
-                {{ item.label }}
+                <span class="hidden lg:inline">{{ item.label }}</span>
               </RouterLink>
             </Button>
           </nav>
 
           <div class="ml-auto flex items-center gap-1 sm:gap-1.5">
-            <div class="flex items-center gap-0.5">
+            <div class="hidden items-center gap-0.5 lg:flex">
               <Tooltip v-for="tool in tools" :key="tool.id">
                 <TooltipTrigger as-child>
                   <Button
@@ -235,6 +264,30 @@ onUnmounted(() => {
                 <TooltipContent>{{ tool.label }}</TooltipContent>
               </Tooltip>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 lg:hidden"
+                  :aria-label="t('app.tools')"
+                >
+                  <Ellipsis class="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="min-w-44">
+                <DropdownMenuItem
+                  v-for="tool in tools"
+                  :key="tool.id"
+                  class="gap-2"
+                  @select="tool.action"
+                >
+                  <component :is="tool.icon" class="size-4" />
+                  {{ tool.label }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Tooltip>
               <TooltipTrigger as-child>
@@ -272,7 +325,7 @@ onUnmounted(() => {
                       )
                     "
                   />
-                  <span class="hidden sm:inline">{{
+                  <span class="hidden lg:inline">{{
                     isLoading
                       ? t('app.checking')
                       : isOnline
@@ -292,7 +345,7 @@ onUnmounted(() => {
               </TooltipContent>
             </Tooltip>
             <div
-              class="hidden items-center rounded-md border border-[var(--jr-glass-border)] bg-[var(--jr-glass-panel)] p-0.5 sm:flex"
+              class="hidden items-center gap-0.5 rounded-[10px] bg-secondary p-0.5 sm:flex"
               role="group"
               :aria-label="`${t('app.langRu')} / ${t('app.langEn')}`"
             >
@@ -300,7 +353,12 @@ onUnmounted(() => {
                 type="button"
                 size="sm"
                 :variant="locale === 'ru' ? 'secondary' : 'ghost'"
-                class="h-7 px-2 text-xs"
+                :class="
+                  cn(
+                    'h-7 rounded-[8px] border-0 px-2 text-xs shadow-none',
+                    locale === 'ru' && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
+                  )
+                "
                 @click="setLocale('ru')"
               >
                 {{ t('app.langRu') }}
@@ -309,7 +367,12 @@ onUnmounted(() => {
                 type="button"
                 size="sm"
                 :variant="locale === 'en' ? 'secondary' : 'ghost'"
-                class="h-7 px-2 text-xs"
+                :class="
+                  cn(
+                    'h-7 rounded-[8px] border-0 px-2 text-xs shadow-none',
+                    locale === 'en' && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
+                  )
+                "
                 @click="setLocale('en')"
               >
                 {{ t('app.langEn') }}
@@ -327,16 +390,79 @@ onUnmounted(() => {
                 locale === 'ru' ? t('app.langEn') : t('app.langRu')
               }}</span>
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              :aria-label="isDark ? t('app.themeLight') : t('app.themeDark')"
-              @click="toggleTheme"
-            >
-              <Sun v-if="isDark" class="size-4" />
-              <Moon v-else class="size-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="t('app.appearance')"
+                >
+                  <Sun v-if="isDark" class="size-4" />
+                  <Moon v-else class="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="min-w-44">
+                <div
+                  class="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                >
+                  {{ t('app.themeSection') }}
+                </div>
+                <DropdownMenuItem
+                  class="justify-between gap-3"
+                  @select="setTheme('light')"
+                >
+                  {{ t('app.themeLight') }}
+                  <Check
+                    v-if="!isDark"
+                    class="size-4 text-primary"
+                    aria-hidden="true"
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  class="justify-between gap-3"
+                  @select="setTheme('dark')"
+                >
+                  {{ t('app.themeDark') }}
+                  <Check
+                    v-if="isDark"
+                    class="size-4 text-primary"
+                    aria-hidden="true"
+                  />
+                </DropdownMenuItem>
+                <div
+                  role="separator"
+                  class="my-1 h-px bg-[var(--jr-glass-border)]"
+                />
+                <div
+                  class="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                >
+                  {{ t('app.surfaceSection') }}
+                </div>
+                <DropdownMenuItem
+                  class="justify-between gap-3"
+                  @select="setSurface('solid')"
+                >
+                  {{ t('app.surfaceSolid') }}
+                  <Check
+                    v-if="surface === 'solid'"
+                    class="size-4 text-primary"
+                    aria-hidden="true"
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  class="justify-between gap-3"
+                  @select="setSurface('glass')"
+                >
+                  {{ t('app.surfaceGlass') }}
+                  <Check
+                    v-if="surface === 'glass'"
+                    class="size-4 text-primary"
+                    aria-hidden="true"
+                  />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -384,7 +510,13 @@ onUnmounted(() => {
 
       <AppFooter />
 
-      <Toaster rich-colors close-button position="top-center" />
+      <Toaster
+        rich-colors
+        close-button
+        position="top-center"
+        offset="calc(0.75rem + env(safe-area-inset-top, 0px))"
+        mobile-offset="0.75rem"
+      />
       <ScrollToTopButton />
 
       <ApiKeyDialog v-model:open="apiKeyOpen" @saved="notifyApiKeySaved" />

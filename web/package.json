@@ -27,7 +27,8 @@
     "esbuild": true,
     "fsevents": true,
     "sharp": true,
-    "vue-demi": true
+    "vue-demi": true,
+    "workerd@1.20260722.1": true
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",

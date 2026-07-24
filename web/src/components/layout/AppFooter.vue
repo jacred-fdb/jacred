@@ -21,7 +21,7 @@ const TELEGRAM = 'https://t.me/pavelpikta'
           :href="GITHUB"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-[transform,background-color,color] duration-100 hover:bg-muted hover:text-foreground active:scale-[0.97] motion-reduce:active:scale-100"
           :aria-label="t('app.footer.github')"
         >
           <svg
@@ -39,7 +39,7 @@ const TELEGRAM = 'https://t.me/pavelpikta'
           :href="TELEGRAM"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-[transform,background-color,color] duration-100 hover:bg-muted hover:text-foreground active:scale-[0.97] motion-reduce:active:scale-100"
           :aria-label="t('app.footer.telegram')"
         >
           <svg
@@ -57,7 +57,7 @@ const TELEGRAM = 'https://t.me/pavelpikta'
 
       <a
         href="/swagger"
-        class="inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline transition-colors hover:text-foreground"
+        class="inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline transition-[transform,color] duration-100 hover:text-foreground active:scale-[0.97] motion-reduce:active:scale-100"
         :title="t('app.footer.swaggerTitle')"
       >
         <Braces class="size-4 shrink-0 opacity-80" aria-hidden="true" />

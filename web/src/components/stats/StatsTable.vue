@@ -112,7 +112,8 @@ function cellClass(key: string, sort: StatsSort) {
 </script>
 
 <template>
-  <div class="jr-glass overflow-x-auto rounded-xl border">
+  <div class="overflow-x-auto rounded-xl border bg-card">
+    <!-- Solid scrollport by design: sticky first column + backdrop-filter mispaint on Safari -->
     <p class="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground sm:hidden">
       {{ t('stats.scrollHint') }}
     </p>
@@ -169,10 +170,10 @@ function cellClass(key: string, sort: StatsSort) {
         <tr
           v-for="item in rows"
           :key="item.trackerName"
-          class="border-b border-border/60 last:border-0 hover:bg-muted/30"
+          class="group border-b border-border/60 last:border-0 hover:bg-muted/30"
         >
           <td
-            class="sticky left-0 z-10 bg-background px-3 py-2.5 shadow-[1px_0_0_var(--border)]"
+            class="sticky left-0 z-10 bg-card px-3 py-2.5 shadow-[1px_0_0_var(--border)] transition-colors group-hover:bg-muted/30"
           >
             <Tooltip>
               <TooltipTrigger as-child>

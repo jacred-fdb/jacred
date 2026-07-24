@@ -86,7 +86,7 @@ const changeLabel = computed(() =>
 
         <ScrollArea class="h-[min(40vh,360px)] rounded-lg border border-border">
           <table class="w-full text-sm">
-            <thead class="sticky top-0 bg-muted/90 backdrop-blur">
+            <thead class="sticky top-0 z-10 bg-muted">
               <tr class="text-left">
                 <th class="px-3 py-2 font-medium">{{ t('settings.diff.path') }}</th>
                 <th class="px-3 py-2 font-medium">{{ t('settings.diff.before') }}</th>
