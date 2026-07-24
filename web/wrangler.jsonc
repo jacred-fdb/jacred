@@ -1,0 +1,56 @@
+{
+  "name": "jacred-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-24",
+  "workers_dev": false,
+  "preview_urls": false,
+  // "limits": {
+  //   "cpu_ms": 150,
+  // },
+  // "routes": [
+  //   {
+  //     "pattern": "jacred.example.com",
+  //     "zone_name": "example.com",
+  //     "custom_domain": true,
+  //   },
+  // ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+    },
+  },
+  "logpush": false,
+  "upload_source_maps": true,
+  "dev": {
+    "local_protocol": "http",
+    "port": 8787,
+    "ip": "localhost",
+  },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // SPA page `/stats` must stay on assets; only JSON endpoints go to the Worker.
+    "run_worker_first": [
+      "/api/*",
+      "/stats/torrents",
+      "/stats/meta",
+      "/stats/tracks",
+      "/health",
+      "/version",
+      "/lastupdatedb",
+      "/opensearch.xml",
+      "/swagger",
+      "/swagger/*",
+    ],
+  },
+  // Set JACRED_ORIGIN in .dev.vars (local) or via `wrangler secret` / dashboard vars (deploy).
+  // Example: https://jacred.example.com
+}

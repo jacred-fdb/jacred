@@ -26,3 +26,7 @@ dist-ssr
 # Test files
 playwright-report
 test-results
+
+# Cloudflare Wrangler local vars (secrets)
+.dev.vars
+.wrangler
