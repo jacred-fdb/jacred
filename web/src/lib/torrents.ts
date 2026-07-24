@@ -72,8 +72,6 @@ export const URL_FILTER_KEYS = [
   'exclude',
 ] as const
 
-export const PAGE_SIZE = 20
-
 export function normalizeSortParam(val: string | null | undefined): SortValue | '' {
   const v = String(val || '').toLowerCase()
   if (v === 'create' || v === 'added') return 'date'
@@ -82,7 +80,7 @@ export function normalizeSortParam(val: string | null | undefined): SortValue | 
   return ''
 }
 
-export function toTimestamp(ts: number | string | null | undefined): number {
+function toTimestamp(ts: number | string | null | undefined): number {
   if (ts == null || ts === '') return 0
   if (typeof ts === 'number') {
     const d = new Date(ts < 1e12 ? ts * 1000 : ts)

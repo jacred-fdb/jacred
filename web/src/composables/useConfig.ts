@@ -18,13 +18,13 @@ import {
 import {
   getDevKey,
   getItem,
-  setDevKey,
   setItem,
   StorageKeys,
 } from '@/lib/storage'
 
 export type SettingsMode = 'form' | 'raw'
 
+/** Settings page state: schema/config load, form+raw modes, validation, and save flow. */
 export function useConfig() {
   const { t } = useI18n()
   const shell = useShellTools()
@@ -385,5 +385,3 @@ export function useConfig() {
     openDevKey: shell.openDevKey,
   }
 }
-
-export { setDevKey, getDevKey }

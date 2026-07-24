@@ -1,5 +1,6 @@
 const MAX_MAGNET_LENGTH = 8_192
 
+/** Rejects non-magnet schemes and oversized payloads before copy / TorrServer send. */
 export function isSafeMagnetUrl(value: string | null | undefined): boolean {
   if (!value || typeof value !== 'string') return false
   const magnet = value.trim()
@@ -7,6 +8,7 @@ export function isSafeMagnetUrl(value: string | null | undefined): boolean {
   return /^magnet:\?/i.test(magnet)
 }
 
+/** Extracts a lowercase info-hash from a magnet URI, or `''` if invalid. */
 export function extractInfoHash(magnet: string | null | undefined): string {
   if (!isSafeMagnetUrl(magnet)) return ''
   const m = (magnet as string).match(
@@ -15,6 +17,7 @@ export function extractInfoHash(magnet: string | null | undefined): string {
   return m ? m[1].toLowerCase() : ''
 }
 
+/** Clipboard write with a `document.execCommand` fallback for older WebViews. */
 export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text)
@@ -62,6 +65,7 @@ export class TorrServerError extends Error {
   }
 }
 
+/** POST magnet to a TorrServer `/torrents` endpoint (Basic auth supported via URL or creds). */
 export async function sendToTorrServer(
   magnet: string,
   creds: TorrServerCredentials,

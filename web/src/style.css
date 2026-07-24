@@ -99,7 +99,6 @@
   /* Glass — light vibrancy (readable over #F2F2F7, not a white slab) */
   --jr-glass-blur: 22px;
   --jr-glass-blur-nav: 28px;
-  --jr-glass-blur-inset: 12px;
   --jr-glass-saturate: 200%;
   --jr-glass: rgba(255, 255, 255, 0.58);
   --jr-glass-hover: rgba(255, 255, 255, 0.78);
@@ -211,7 +210,6 @@
   /* Glass — deep black vibrancy (black page bleeds through) */
   --jr-glass-blur: 32px;
   --jr-glass-blur-nav: 36px;
-  --jr-glass-blur-inset: 16px;
   --jr-glass-saturate: 210%;
   --jr-glass: rgba(0, 0, 0, 0.42);
   --jr-glass-hover: rgba(28, 28, 30, 0.55);
@@ -296,16 +294,8 @@
     backdrop-filter: none;
   }
 
-  .jr-glass--interactive:hover,
   article[data-result-card].jr-glass:hover {
     background: color-mix(in oklch, var(--muted) 35%, var(--card));
-  }
-
-  .jr-glass-inset {
-    background: color-mix(in oklch, var(--muted) 40%, var(--card));
-    border-color: var(--jr-glass-border);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 
   html[data-surface='glass'] .jr-glass {
@@ -316,7 +306,6 @@
       blur(var(--jr-glass-blur));
   }
 
-  html[data-surface='glass'] .jr-glass--interactive:hover,
   html[data-surface='glass'] article[data-result-card].jr-glass:hover {
     background: var(--jr-glass-hover);
   }
@@ -327,14 +316,6 @@
       blur(var(--jr-glass-blur));
     backdrop-filter: saturate(var(--jr-glass-saturate))
       blur(var(--jr-glass-blur));
-  }
-
-  html[data-surface='glass'] .jr-glass-inset {
-    background: color-mix(in oklch, var(--jr-glass) 70%, transparent);
-    -webkit-backdrop-filter: saturate(var(--jr-glass-saturate))
-      blur(var(--jr-glass-blur-inset));
-    backdrop-filter: saturate(var(--jr-glass-saturate))
-      blur(var(--jr-glass-blur-inset));
   }
 
   /* Chrome — always vibrancy (independent of content surface mode) */
@@ -362,22 +343,17 @@
     .jr-glass-panel {
       background: var(--card);
     }
-    .jr-glass--interactive:hover,
     article[data-result-card].jr-glass:hover {
       background: color-mix(in oklch, var(--muted) 35%, var(--card));
     }
     html[data-surface='glass'] .jr-glass {
       background: var(--jr-glass-fallback);
     }
-    html[data-surface='glass'] .jr-glass--interactive:hover,
     html[data-surface='glass'] article[data-result-card].jr-glass:hover {
       background: color-mix(in oklch, var(--jr-glass-hover) 50%, var(--jr-glass-fallback));
     }
     html[data-surface='glass'] .jr-glass-panel {
       background: var(--jr-glass-panel-fallback);
-    }
-    html[data-surface='glass'] .jr-glass-inset {
-      background: color-mix(in oklch, var(--jr-glass-fallback) 85%, transparent);
     }
     .jr-glass-nav {
       background: var(--jr-glass-nav-fallback);
@@ -681,11 +657,6 @@
     background: var(--warning-soft);
     color: var(--warning);
   }
-  .jr-tone-info {
-    border-color: color-mix(in oklch, var(--info) 30%, transparent);
-    background: var(--info-soft);
-    color: var(--info);
-  }
   .jr-tone-success-row {
     background: color-mix(in oklch, var(--success) 6%, transparent);
   }
@@ -912,11 +883,9 @@
   /* Softer content glass on touch — keep vibrancy, cut GPU fill vs desktop blur */
   :root {
     --jr-glass-blur: 14px;
-    --jr-glass-blur-inset: 8px;
   }
   .dark {
     --jr-glass-blur: 18px;
-    --jr-glass-blur-inset: 10px;
   }
 
   [data-slot='select-item'],
@@ -968,7 +937,6 @@
   .jr-glass,
   .jr-glass-nav,
   .jr-glass-panel,
-  .jr-glass-inset,
   .jr-action-rail,
   [data-slot='dropdown-menu-content'].jr-glass,
   [data-slot='select-content'].jr-glass,
@@ -980,20 +948,11 @@
   .jr-glass-panel,
   html[data-surface='glass'] .jr-glass,
   html[data-surface='glass'] .jr-glass-panel,
-  html[data-surface='glass'] .jr-glass--interactive:hover,
   html[data-surface='glass'] article[data-result-card].jr-glass:hover {
     background: var(--card) !important;
   }
   .jr-glass-nav {
     background: var(--jr-glass-nav-fallback) !important;
-  }
-  .jr-glass-inset,
-  html[data-surface='glass'] .jr-glass-inset {
-    background: color-mix(
-      in oklch,
-      var(--muted) 40%,
-      var(--card)
-    ) !important;
   }
   [data-slot='dropdown-menu-content'].jr-glass,
   [data-slot='select-content'].jr-glass,

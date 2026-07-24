@@ -39,6 +39,7 @@ applyTheme(theme.value)
 
 watch(theme, (value) => applyTheme(value))
 
+/** Light/dark theme with meta theme-color and status-bar sync for PWA. */
 export function useTheme() {
   const isDark = computed(() => theme.value === 'dark')
 

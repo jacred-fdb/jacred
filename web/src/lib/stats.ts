@@ -56,16 +56,6 @@ export const TRACKER_LABELS: Record<string, string> = {
   torrentby: 'Torrent.by',
 }
 
-export const STATS_SORT_OPTIONS: { value: StatsSort; label: string }[] = [
-  { value: 'name', label: 'По имени' },
-  { value: 'newtor', label: 'Новые' },
-  { value: 'update', label: 'Обновлено' },
-  { value: 'alltorrents', label: 'Всего' },
-  { value: 'confirm', label: 'Подтверждено' },
-  { value: 'wait', label: 'Ожидает' },
-  { value: 'skip', label: 'Пропущено' },
-]
-
 export function getTrackerDisplayName(slug: string | null | undefined): string {
   const key = String(slug || '').toLowerCase()
   if (!key) return '—'
@@ -206,17 +196,6 @@ export function aggregateTrackers(list: TrackerStat[]): StatsAggregate {
     agg.skip += t.skip
   }
   return agg
-}
-
-export function pluralTrackers(n: number): string {
-  const abs = Math.abs(n | 0)
-  const mod10 = abs % 10
-  const mod100 = abs % 100
-  if (mod10 === 1 && mod100 !== 11) return `${n} трекер`
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
-    return `${n} трекера`
-  }
-  return `${n} трекеров`
 }
 
 export function isDesktopViewport(): boolean {

@@ -10,6 +10,10 @@ const shortcutsOpen = ref(false)
 const apiKeySaveHandlers = new Set<SaveHandler>()
 const devKeySaveHandlers = new Set<SaveHandler>()
 
+/**
+ * Shared shell dialogs (API key, Dev key, TorrServer, shortcuts)
+ * and save-notification fan-out for pages that need to reload after a key change.
+ */
 export function useShellTools() {
   function openApiKey() {
     apiKeyOpen.value = true
@@ -25,13 +29,6 @@ export function useShellTools() {
 
   function openShortcuts() {
     shortcutsOpen.value = true
-  }
-
-  function closeDialogs() {
-    apiKeyOpen.value = false
-    devKeyOpen.value = false
-    torrServerOpen.value = false
-    shortcutsOpen.value = false
   }
 
   function anyDialogOpen() {
@@ -76,7 +73,6 @@ export function useShellTools() {
     openDevKey,
     openTorrServer,
     openShortcuts,
-    closeDialogs,
     anyDialogOpen,
     onApiKeySaved,
     onDevKeySaved,

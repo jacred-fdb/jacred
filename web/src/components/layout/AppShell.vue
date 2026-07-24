@@ -41,6 +41,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useSurface } from '@/composables/useSurface'
 import { useLegacySwCleanup } from '@/composables/useLegacySwCleanup'
 import { useHealth } from '@/composables/useHealth'
+import { isTypingTarget } from '@/composables/useKeyboardShortcut'
 import { usePageTitle } from '@/composables/usePageTitle'
 import { useShellTools } from '@/composables/useShellTools'
 import {
@@ -130,13 +131,6 @@ function setLocale(next: AppLocale) {
   persistLocale(next)
   const titleKey = route.meta.titleKey as string | undefined
   if (titleKey) document.title = t(titleKey)
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  return target.isContentEditable
 }
 
 function onKeydown(e: KeyboardEvent) {

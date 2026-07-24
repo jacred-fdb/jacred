@@ -66,6 +66,10 @@ function mapSearchError(err: unknown, t: (key: string, values?: Record<string, u
   return t('search.errors.requestFailed')
 }
 
+/**
+ * Search page state: query/sort/filters synced to the URL, TanStack Query fetch,
+ * client-side facet filtering, and `/` focus shortcut.
+ */
 export function useTorrents() {
   const route = useRoute()
   const router = useRouter()

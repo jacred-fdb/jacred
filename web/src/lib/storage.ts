@@ -12,7 +12,6 @@ export const StorageKeys = {
   search: 'search',
   sort: 'sort',
   exact: 'exact',
-  pwaInstallDismissed: 'pwaInstallDismissed',
   settingsFormTab: 'jacredSettingsFormTab',
   settingsMode: 'jacredSettingsMode',
   legacySwCleanupDone: 'jacredLegacySwCleanupDone',

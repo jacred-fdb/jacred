@@ -34,6 +34,10 @@ async function sleep(ms: number) {
   await new Promise((r) => window.setTimeout(r, ms))
 }
 
+/**
+ * Stats page state: tracker list fetch with retries, sort/view/query URL sync,
+ * and desktop/mobile view defaults.
+ */
 export function useStats() {
   const { t, locale } = useI18n()
   const route = useRoute()

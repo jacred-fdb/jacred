@@ -189,28 +189,6 @@ export function resolveActiveTab(
   return valid.has(activeTabId) ? activeTabId : null
 }
 
-export function findFieldMeta(
-  schema: ConfigSchema | null | undefined,
-  path: string,
-): ConfigField | null {
-  if (!schema?.groups) return null
-  for (const group of schema.groups) {
-    if (group.id === 'trackers') {
-      const [trackerName, ...rest] = path.split('.')
-      const tracker = (group.trackers || []).find((t) => t.id === trackerName)
-      if (tracker && rest.length) {
-        return (
-          (tracker.fields || []).find((f) => f.key === rest.join('.')) || null
-        )
-      }
-    } else {
-      const field = (group.fields || []).find((f) => f.key === path)
-      if (field) return field
-    }
-  }
-  return null
-}
-
 export function formatConfigValue(value: unknown, sensitive?: boolean): string {
   if (sensitive) return '••••••'
   if (value === undefined) return '—'

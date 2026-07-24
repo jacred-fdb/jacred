@@ -3,7 +3,7 @@ import { getItem, setItem, StorageKeys } from '@/lib/storage'
 
 /**
  * One-shot cleanup of the legacy hand-rolled /sw.js after SPA cutover.
- * Safe to call in Phase 0 — no-ops until an old worker is registered.
+ * No-ops when no old worker is registered or cleanup already ran.
  */
 export function useLegacySwCleanup() {
   onMounted(async () => {

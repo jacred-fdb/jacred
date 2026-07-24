@@ -39,7 +39,10 @@ const DRAG_ZONE_SEL = '.jr-sheet-drag-zone'
 /**
  * Bottom-sheet drag: 1:1 tracking, velocity handoff, spring settle / dismiss.
  * Listens on the sheet panel (non-passive) and starts only from `.jr-sheet-drag-zone`
- * (handle and/or header) — required for reliable dismiss on iOS Safari.
+ * (handle and/or header) — required for reliable dismiss on iOS Safari / Edge.
+ *
+ * iOS often fires `pointercancel` instead of `pointerup` on finger lift; treat
+ * cancel-with-drag as a release, not an abort.
  */
 export function useSheetDrag(enabled: Ref<boolean>) {
   const dialog = injectDialogRootContext()
@@ -108,7 +111,6 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     if (!enabled.value || prefersReducedMotion()) return
     if (e.button !== 0) return
     if (!isInDragZone(e.target)) return
-    // Don't steal clicks from the close button inside the chrome
     if (
       e.target instanceof Element &&
       e.target.closest('[data-slot="sheet-close"]')
@@ -124,7 +126,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     try {
       el.setPointerCapture(e.pointerId)
     } catch {
-      /* ignore */
+      /* iOS may reject capture — still track via bubbling listeners */
     }
     e.preventDefault()
   }
@@ -146,82 +148,139 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     e.preventDefault()
   }
 
+  function snapBack(el: HTMLElement) {
+    const from = currentY
+    controls = animate(
+      el,
+      { y: [from, 0] },
+      {
+        type: 'spring',
+        bounce: 0.12,
+        duration: 0.4,
+        velocity: velocityY,
+        onComplete: () => clearMotionStyles(el),
+      },
+    )
+  }
+
   function finishDismiss(el: HTMLElement) {
     const height = el.offsetHeight || 1
-    const projected = currentY + project(velocityY)
+    const from = Math.max(0, currentY)
+    const projected = from + project(velocityY)
+    // Apple-like: short flick or ~20% pull dismisses (was 32% / 650 — too stiff on iOS).
     const shouldDismiss =
-      velocityY > 650 ||
-      projected > height * 0.32 ||
-      currentY > height * 0.32
+      velocityY > 420 ||
+      projected > height * 0.2 ||
+      from > height * 0.2
 
-    const hadFlick = Math.abs(velocityY) > 550
+    const hadFlick = Math.abs(velocityY) > 400
 
     if (shouldDismiss) {
       el.classList.add('jr-sheet--drag-dismiss')
+      const target = height + 48
       controls = animate(
         el,
-        { y: height + 48 },
+        { y: [from, target] },
         {
           type: 'spring',
-          bounce: hadFlick ? 0.12 : 0,
-          duration: 0.35,
-          velocity: velocityY,
+          bounce: hadFlick ? 0.08 : 0,
+          duration: 0.32,
+          velocity: Math.max(0, velocityY),
           onComplete: () => {
             dialog.onOpenChange(false)
             clearMotionStyles(el)
           },
         },
       )
+      // Fallback if the spring never completes (WebKit / Motion edge cases)
+      window.setTimeout(() => {
+        if (dialog.open.value) {
+          dialog.onOpenChange(false)
+          clearMotionStyles(el)
+        }
+      }, 450)
     } else {
-      controls = animate(
-        el,
-        { y: 0 },
-        {
-          type: 'spring',
-          bounce: hadFlick ? 0.18 : 0,
-          duration: 0.4,
-          velocity: velocityY,
-          onComplete: () => {
-            clearMotionStyles(el)
-          },
-        },
-      )
+      snapBack(el)
     }
   }
 
-  function onPointerUp(e: PointerEvent) {
+  function endDrag(
+    clientY: number | undefined,
+    timeStamp: number | undefined,
+    mode: 'up' | 'cancel',
+  ) {
     if (!dragging) return
-    if (activePointerId != null && e.pointerId !== activePointerId) return
     dragging = false
+    const pointerId = activePointerId
     activePointerId = null
     const el = panel()
     if (!el) return
-    sampleVelocity(e.clientY, e.timeStamp)
+
+    if (clientY != null && timeStamp != null) {
+      sampleVelocity(clientY, timeStamp)
+    }
+
+    try {
+      if (pointerId != null && el.hasPointerCapture?.(pointerId)) {
+        el.releasePointerCapture(pointerId)
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Bare cancel with almost no movement → snap back.
+    // iOS often sends pointercancel on finger-up after a real drag → treat as release.
+    if (
+      mode === 'cancel' &&
+      Math.abs(currentY) < 10 &&
+      Math.abs(velocityY) < 120
+    ) {
+      snapBack(el)
+      return
+    }
+
     finishDismiss(el)
   }
 
+  function onPointerUp(e: PointerEvent) {
+    if (activePointerId != null && e.pointerId !== activePointerId) return
+    endDrag(e.clientY, e.timeStamp, 'up')
+  }
+
   function onPointerCancel(e: PointerEvent) {
+    if (activePointerId != null && e.pointerId !== activePointerId) return
+    endDrag(e.clientY, e.timeStamp, 'cancel')
+  }
+
+  function onLostPointerCapture(e: PointerEvent) {
     if (!dragging) return
     if (activePointerId != null && e.pointerId !== activePointerId) return
-    dragging = false
-    activePointerId = null
-    const el = panel()
-    if (!el) return
-    controls = animate(
-      el,
-      { y: 0 },
-      {
-        type: 'spring',
-        bounce: 0,
-        duration: 0.35,
-        onComplete: () => clearMotionStyles(el),
-      },
-    )
+    endDrag(e.clientY, e.timeStamp, 'up')
+  }
+
+  /** Touch fallback when Pointer Events are incomplete (older WebKit). */
+  function onTouchEnd(e: TouchEvent) {
+    if (!dragging) return
+    const touch = e.changedTouches[0]
+    endDrag(touch?.clientY, e.timeStamp, 'up')
   }
 
   function onTouchMove(e: TouchEvent) {
     if (!dragging) return
     e.preventDefault()
+    const touch = e.touches[0]
+    if (!touch) return
+    const el = panel()
+    if (!el) return
+
+    const height = el.offsetHeight || 1
+    let y = originY + (touch.clientY - startPointerY)
+    if (y < 0) y = -rubberband(-y, height)
+    else if (y > height) y = height + rubberband(y - height, height)
+
+    sampleVelocity(touch.clientY, e.timeStamp)
+    currentY = y
+    setY(el, y)
   }
 
   function unbindPanel() {
@@ -230,7 +289,10 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     boundPanel.removeEventListener('pointermove', onPointerMove)
     boundPanel.removeEventListener('pointerup', onPointerUp)
     boundPanel.removeEventListener('pointercancel', onPointerCancel)
+    boundPanel.removeEventListener('lostpointercapture', onLostPointerCapture)
     boundPanel.removeEventListener('touchmove', onTouchMove)
+    boundPanel.removeEventListener('touchend', onTouchEnd)
+    boundPanel.removeEventListener('touchcancel', onTouchEnd)
     boundPanel = null
   }
 
@@ -242,7 +304,12 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     el.addEventListener('pointermove', onPointerMove, { passive: false })
     el.addEventListener('pointerup', onPointerUp, { passive: false })
     el.addEventListener('pointercancel', onPointerCancel, { passive: false })
+    el.addEventListener('lostpointercapture', onLostPointerCapture, {
+      passive: true,
+    })
     el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: false })
+    el.addEventListener('touchcancel', onTouchEnd, { passive: false })
   }
 
   watch(

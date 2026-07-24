@@ -70,6 +70,9 @@ async function parseBody(res: Response): Promise<unknown> {
   return text
 }
 
+/**
+ * Typed fetch wrapper: timeout, optional API/Dev keys, JSON parse, and `ApiError` on failure.
+ */
 export async function apiRequest<T = unknown>(
   path: string,
   init: RequestInit & {
@@ -132,7 +135,7 @@ export async function apiRequest<T = unknown>(
   }
 }
 
-/** Typed helpers for the paths we use in Phase 0+ */
+/** Typed helpers for JacRed HTTP endpoints used by the SPA. */
 export const apiClient = {
   getHealth(options?: ApiClientOptions) {
     return apiRequest<GetJson<'/health'> | string>(
@@ -175,10 +178,6 @@ export const apiClient = {
     })
   },
 
-  getStatsTracks(options?: ApiClientOptions) {
-    return apiRequest('/stats/tracks', { method: 'GET' }, options)
-  },
-
   getConfig(
     query?: { format?: string },
     options?: ApiClientOptions,
@@ -186,14 +185,6 @@ export const apiClient = {
     return apiRequest<GetJson<'/api/v1.0/config'>>(
       '/api/v1.0/config',
       { method: 'GET', query },
-      { ...options, withDevKey: true, withApiKey: true },
-    )
-  },
-
-  getConfigSchema(options?: ApiClientOptions) {
-    return apiRequest<GetJson<'/api/v1.0/config/schema'>>(
-      '/api/v1.0/config/schema',
-      { method: 'GET' },
       { ...options, withDevKey: true, withApiKey: true },
     )
   },

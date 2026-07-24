@@ -5,6 +5,10 @@ import { useShellTools } from '@/composables/useShellTools'
 
 const CONF_TIMEOUT_MS = 5_000
 
+/**
+ * Ensures search/stats can call authenticated APIs.
+ * Opens the API key dialog when the instance requires a key and none is stored.
+ */
 export function useApiKeyGate() {
   const { t } = useI18n()
   const shell = useShellTools()
