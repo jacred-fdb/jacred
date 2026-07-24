@@ -69,7 +69,7 @@ namespace JacRed.Application.Dev.Migrations
                     foreach (var (url, t, newKey) in toMigrate)
                     {
                         fdb.Database.Remove(url);
-                        FileDB.MigrateTorrentToNewKey(t, newKey);
+                        FileDB.MoveTorrentToNewKey(t, newKey);
                         migrated++;
                     }
 

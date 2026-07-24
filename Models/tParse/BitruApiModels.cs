@@ -6,7 +6,7 @@ namespace JacRed.Models.tParse
     /// <summary>Ответ api.php?get=torrents. Official error shape is {"error":"message"} (string).</summary>
     public class BitruApiResponse
     {
-        /// <summary>May be bool (legacy) or string message (official docs / live).</summary>
+        /// <summary>May be bool or string message (Bitru API docs / live responses differ).</summary>
         [JsonProperty("error")]
         public object Error { get; set; }
 

@@ -21,7 +21,7 @@ namespace JacRed.Controllers.Dev
 
         public JsonResult ExportTracksStatus() => Json(_tracksAdminService.ExportTracksStatus());
 
-        public JsonResult BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true) =>
-            Json(_tracksAdminService.BackfillTracks(dryRun, migrateLegacy, includeTorrentDb));
+        public JsonResult BackfillTracks(bool dryRun = false, bool includeTorrentDb = true) =>
+            Json(_tracksAdminService.BackfillTracks(dryRun, includeTorrentDb));
     }
 }

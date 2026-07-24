@@ -38,12 +38,10 @@ namespace JacRed.Infrastructure.Security
             if (string.IsNullOrEmpty(path)) return false;
             return path.Equals("/opensearch.xml", StringComparison.OrdinalIgnoreCase)
                 || path.Equals("/manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
-                || path.Equals("/manifest.json", StringComparison.OrdinalIgnoreCase)
                 || path.Equals("/sw.js", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/workbox-", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith("/img/", StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith("/fonts/", StringComparison.OrdinalIgnoreCase);
+                || path.StartsWith("/img/", StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool IsPathWhitelisted(string path)

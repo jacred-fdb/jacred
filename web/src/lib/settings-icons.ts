@@ -14,7 +14,7 @@ import {
   Zap,
 } from '@lucide/vue'
 
-/** Lucide counterparts of legacy Bootstrap group icons (settings-form.js). */
+/** Lucide icons for settings schema group ids. */
 const GROUP_ICONS: Record<string, Component> = {
   server: HardDrive,
   api: Plug,

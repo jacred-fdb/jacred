@@ -128,9 +128,7 @@ export default defineConfig(({ mode }) => {
           globIgnores: ['img/jacred.png', 'img/jacred-social-preview.png'],
           runtimeCaching: [
             {
-              urlPattern: ({ url }) =>
-                url.pathname.startsWith('/img/') ||
-                url.pathname.startsWith('/fonts/'),
+              urlPattern: ({ url }) => url.pathname.startsWith('/img/'),
               handler: 'CacheFirst',
               options: {
                 cacheName: 'jacred-static',

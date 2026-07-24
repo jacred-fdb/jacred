@@ -56,7 +56,7 @@ tags:
   - name: Config
     description: init.yaml / init.conf read/write (LAN or X-Dev-Key)
   - name: Web
-    description: PWA HTML shells
+    description: Vue SPA shell routes
 
 paths:
   /health:
@@ -868,7 +868,7 @@ paths:
   /:
     get:
       tags: [Web]
-      summary: Search PWA
+      summary: Search SPA shell
       operationId: webSearch
       security: []
       responses:
@@ -882,7 +882,7 @@ paths:
   /stats:
     get:
       tags: [Web]
-      summary: Statistics PWA
+      summary: Statistics SPA shell
       operationId: webStats
       security: []
       responses:
@@ -896,7 +896,7 @@ paths:
   /settings:
     get:
       tags: [Web]
-      summary: Settings PWA
+      summary: Settings SPA shell
       operationId: webSettings
       security: []
       responses:

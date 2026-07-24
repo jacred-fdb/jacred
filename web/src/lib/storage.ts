@@ -1,4 +1,4 @@
-/** localStorage keys — same names as legacy wwwroot UI for upgrade continuity */
+/** localStorage keys used by the Vue SPA (stable string values across upgrades) */
 export const StorageKeys = {
   apiKey: 'api_key',
   devKey: 'dev_key',
@@ -14,7 +14,6 @@ export const StorageKeys = {
   exact: 'exact',
   settingsFormTab: 'jacredSettingsFormTab',
   settingsMode: 'jacredSettingsMode',
-  legacySwCleanupDone: 'jacredLegacySwCleanupDone',
   locale: 'jacredLocale',
   recentSearches: 'jacredRecentSearches',
 } as const

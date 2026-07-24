@@ -14,7 +14,6 @@ namespace JacRed.Infrastructure.Trackers.Bitru
         /// <summary>
         /// Убирает из названия сезон, эпизод, качество и т.д. — для name/originalname.
         /// API v2 ищет по базовому имени; сезон указывается отдельным параметром season.
-        /// Публичный для использования в FixBitruNamesMigration.
         /// </summary>
         public static string CleanTitleForSearch(string title)
         {

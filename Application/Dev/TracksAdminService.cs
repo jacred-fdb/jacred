@@ -56,12 +56,11 @@ namespace JacRed.Application.Dev
         }
 
         /// <summary>
-        /// Backfill в Data/tracks: .json для новых файлов, миграция legacy → canonical lowercase layout, данные из FileDB.
+        /// Backfill missing track JSON files in Data/tracks from FileDB / in-memory sources.
         /// </summary>
-        public object BackfillTracks(bool dryRun = false, bool migrateLegacy = true, bool includeTorrentDb = true)
+        public object BackfillTracks(bool dryRun = false, bool includeTorrentDb = true)
         {
-
-            var result = TracksDB.BackfillTracks("Data/tracks", dryRun, includeTorrentDb, migrateLegacy);
+            var result = TracksDB.BackfillTracks("Data/tracks", dryRun, includeTorrentDb);
             return new { ok = true, result };
         }
 

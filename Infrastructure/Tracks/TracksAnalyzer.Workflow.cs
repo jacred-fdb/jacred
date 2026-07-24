@@ -366,20 +366,6 @@ namespace JacRed.Infrastructure.Tracks
                 await File.WriteAllTextAsync(path, json, Encoding.UTF8);
                 TracksIndexManager.RegisterTrackHash(infohash);
 
-                string legacyPath = TracksPathResolver.ResolveLegacyTrackPath(infohash);
-                if (legacyPath != null && !string.Equals(path, legacyPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    try { File.Delete(legacyPath); }
-                    catch { }
-                }
-
-                string uppercaseJson = TracksPathResolver.UppercaseLayoutPath("Data/tracks", infohash, withExtension: true);
-                if (File.Exists(uppercaseJson) && !string.Equals(uppercaseJson, path, StringComparison.OrdinalIgnoreCase))
-                {
-                    try { File.Delete(uppercaseJson); }
-                    catch { }
-                }
-
                 var audioLanguages = result.streams
                     .Where(s => s.codec_type == "audio" && s.tags?.language != null)
                     .Select(s => s.tags.language)

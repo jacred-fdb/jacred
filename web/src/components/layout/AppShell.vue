@@ -39,7 +39,6 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 import ScrollToTopButton from '@/components/layout/ScrollToTopButton.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useSurface } from '@/composables/useSurface'
-import { useLegacySwCleanup } from '@/composables/useLegacySwCleanup'
 import { useHealth } from '@/composables/useHealth'
 import { isTypingTarget } from '@/composables/useKeyboardShortcut'
 import { usePageTitle } from '@/composables/usePageTitle'
@@ -63,7 +62,6 @@ const DevKeyDialog = defineAsyncComponent(
   () => import('@/components/settings/DevKeyDialog.vue'),
 )
 
-useLegacySwCleanup()
 usePageTitle()
 const route = useRoute()
 const { t, locale } = useI18n()

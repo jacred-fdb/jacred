@@ -167,7 +167,7 @@ namespace JacRed.Application.Dev
                     foreach (var (url, t, newKey) in toMigrate)
                     {
                         fdb.Database.Remove(url);
-                        FileDB.MigrateTorrentToNewKey(t, newKey);
+                        FileDB.MoveTorrentToNewKey(t, newKey);
                     }
                     if (fdb.Database.Count == 0)
                         FileDB.RemoveKeyFromMasterDb(item.Key);

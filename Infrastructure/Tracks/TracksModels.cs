@@ -87,10 +87,8 @@ namespace JacRed.Infrastructure.Tracks
         public string tracksDir { get; set; }
         public bool dryRun { get; set; }
         public bool includeTorrentDb { get; set; }
-        public bool migrateLegacy { get; set; }
         public TracksExportStats stats { get; set; }
         public int written { get; set; }
-        public int migratedLegacy { get; set; }
         public int skippedExisting { get; set; }
         public int writeErrors { get; set; }
         public List<object> errorSamples { get; set; } = new List<object>();

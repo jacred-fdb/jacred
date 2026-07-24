@@ -116,13 +116,13 @@ namespace JacRed.Infrastructure.Persistence
             return $"{search_name}:{search_originalname}";
         }
 
-        /// <summary>Ключ бакета по name/originalname (для поиска и миграции).</summary>
+        /// <summary>Ключ бакета по name/originalname (для поиска и переноса).</summary>
         public static string KeyForTorrent(string name, string originalname) => keyDb(name, originalname);
 
         #endregion
 
-        /// <summary>Перенос торрента в бакет с ключом newKey (после смены name/originalname). Вызывается из FileDB и из DevMaintenanceService.UpdateSearchName.</summary>
-        public static void MigrateTorrentToNewKey(TorrentDetails t, string newKey)
+        /// <summary>Перенос торрента в бакет с ключом newKey (после смены name/originalname).</summary>
+        public static void MoveTorrentToNewKey(TorrentDetails t, string newKey)
         {
             using (var fdb = OpenWrite(newKey))
             {
@@ -130,7 +130,7 @@ namespace JacRed.Infrastructure.Persistence
             }
         }
 
-        /// <summary>Удаляет ключ из masterDb (например после миграции, когда бакет опустел). Вызывать только если бакет действительно пуст.</summary>
+        /// <summary>Удаляет ключ из masterDb (например после переноса, когда бакет опустел). Вызывать только если бакет действительно пуст.</summary>
         public static void RemoveKeyFromMasterDb(string key)
         {
             if (string.IsNullOrEmpty(key))

@@ -72,7 +72,7 @@ namespace JacRed.Infrastructure.Indexers
             return bound;
         }
 
-        /// <summary>Same hint logic as legacy JackettSearchResults category block.</summary>
+        /// <summary>Same hint logic as the JackettSearchResults category block.</summary>
         public static int ApplyCategoryIsSerialHint(int isSerial, List<int> categories)
         {
             // Only refine when client sent is_serial=0 (Jackett "other"). Do not infer from

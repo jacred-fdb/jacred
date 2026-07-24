@@ -13,9 +13,6 @@ namespace JacRed.Infrastructure.Tracks
 {
     public static class TracksDB
     {
-        /// <summary>Legacy entry point — calls <see cref="StartupInit"/>.</summary>
-        public static void Configuration() => StartupInit();
-
         /// <summary>
         /// Fast startup: load stats cache + compact tracks index. Full index rebuild runs in background.
         /// Individual tracks are loaded on demand via <see cref="Get"/>.
@@ -142,8 +139,8 @@ namespace JacRed.Infrastructure.Tracks
         public static TracksExportResult ExportAll(string outputDir = "Data/tracks-export", bool dryRun = false, bool includeTorrentDb = true, TracksExportJobStatus progress = null) =>
             TracksExportService.ExportAll(outputDir, dryRun, includeTorrentDb, progress);
 
-        public static TracksBackfillResult BackfillTracks(string tracksDir = "Data/tracks", bool dryRun = false, bool includeTorrentDb = true, bool migrateLegacy = true) =>
-            TracksExportService.BackfillTracks(tracksDir, dryRun, includeTorrentDb, migrateLegacy);
+        public static TracksBackfillResult BackfillTracks(string tracksDir = "Data/tracks", bool dryRun = false, bool includeTorrentDb = true) =>
+            TracksExportService.BackfillTracks(tracksDir, dryRun, includeTorrentDb);
 
         /// <summary>Класс для десериализации информации о торренте (tsuri API).</summary>
         public class TorrentInfo

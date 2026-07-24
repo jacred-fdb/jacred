@@ -249,7 +249,7 @@ namespace JacRed.Infrastructure.Persistence
                 if (foundById)
                     Database.TryAdd(t.url, t);
 
-                // Drop legacy bare episode/movie URL once a #quality row is stored.
+                // Drop bare episode/movie URL once a #quality row is stored.
                 if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrEmpty(t.url) && t.url.Contains('#', StringComparison.Ordinal))
                 {
@@ -268,7 +268,7 @@ namespace JacRed.Infrastructure.Persistence
                     {
                         Database.Remove(t.url);
                         savechanges = true;
-                        MigrateTorrentToNewKey(t, newKey);
+                        MoveTorrentToNewKey(t, newKey);
                         if (Database.Count == 0)
                             RemoveKeyFromMasterDb(fdbkey);
                         return;
@@ -335,7 +335,7 @@ namespace JacRed.Infrastructure.Persistence
                 Database.TryAdd(t.url, t);
                 AddOrUpdateMasterDb(t);
 
-                // Drop legacy bare episode/movie URL once a #quality row is stored.
+                // Drop bare episode/movie URL once a #quality row is stored.
                 if (string.Equals(t.trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrEmpty(t.url) && t.url.Contains('#', StringComparison.Ordinal))
                 {

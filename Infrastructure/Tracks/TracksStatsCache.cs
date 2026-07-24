@@ -84,7 +84,7 @@ namespace JacRed.Infrastructure.Tracks
                         stats.filesScanned++;
 
                         string filename = Path.GetFileName(file);
-                        if (TracksPathResolver.ShouldSkipLegacyTrackFile(folder2, filename))
+                        if (!TracksPathResolver.IsTrackJsonFile(filename))
                             continue;
 
                         string infohash = TracksPathResolver.InfohashFromTrackRelPath(

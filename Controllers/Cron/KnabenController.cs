@@ -10,7 +10,7 @@ namespace JacRed.Controllers.Cron
     /// Config: init.yaml Knaben (host, parseDelay, useproxy).
     /// Parse: /cron/knaben/parse?pages=1&amp;query=&amp;orderBy=date — query, hours, orderBy (date|seeders|peers).
     /// Name: Call the Midwife S15E08→Call the Midwife; War.Machine.2026→War Machine; [2026, ...]→relased.
-    /// Title normalized for FileDB (2160p, .HDR→ HDR). Migrate: /dev/fixKnabenNames.
+    /// Title normalized for FileDB (2160p, .HDR→ HDR).
     /// </summary>
     [Route("/cron/knaben/[action]")]
     public class KnabenController : BaseController

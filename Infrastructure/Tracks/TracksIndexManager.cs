@@ -173,7 +173,7 @@ namespace JacRed.Infrastructure.Tracks
                     foreach (var file in Directory.GetFiles(folder2))
                     {
                         string filename = Path.GetFileName(file);
-                        if (TracksPathResolver.ShouldSkipLegacyTrackFile(folder2, filename))
+                        if (!TracksPathResolver.IsTrackJsonFile(filename))
                             continue;
 
                         string infohash = TracksPathResolver.InfohashFromTrackRelPath(

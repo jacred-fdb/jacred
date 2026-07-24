@@ -701,7 +701,7 @@ REST API и страница **`/settings`** для редактирования
 
 ### Разработка и отладка
 
-- **`GET /dev/*`** — инструменты разработки и отладки БД.
+- **`GET /dev/*`** — инструменты разработки и обслуживания FileDB (диагностика, точечные fix-джобы, tracks).
   - Доступ: политика **DevAdmin** — LAN или `devkey` (см. [Безопасность](#безопасность-и-доступ-к-api)).
 
 | Эндпоинт | Описание |
@@ -709,7 +709,7 @@ REST API и страница **`/settings`** для редактирования
 | **`/dev/UpdateSize`** | Пересчитывает поле `size` (байты) из `sizeName` для всех торрентов. Обновляет `updateTime`. |
 | **`/dev/ResetCheckTime`** | Сбрасывает `checkTime` на вчера для всех торрентов (для повторной проверки). |
 | **`/dev/UpdateDetails`** | Обновляет детали торрентов через `updateFullDetails` (качество, сезоны и т.п.). |
-| **`/dev/UpdateSearchName`** | Пересчитывает `_sn` и `_so` из `name`/`originalname`, мигрирует торренты при смене ключа бакета. |
+| **`/dev/UpdateSearchName`** | Пересчитывает `_sn` и `_so` из `name`/`originalname`, переносит торренты при смене ключа бакета. |
 | **`/dev/FixKnabenNames`** | Нормализует имена торрентов Knaben: убирает метаданные из title, оставляет базовое имя. Исправляет поиск в API v1/v2. Возвращает `{ ok, processed, updated, migrated }`. |
 | **`/dev/FixBitruNames`** | Нормализует name/originalname торрентов Bitru: убирает сезон, эпизод, качество. Исправляет поиск в API v1/v2. Возвращает `{ ok, processed, updated, migrated }`. |
 | **`/dev/FindCorrupt`** | Сканирует БД на повреждённые записи (null Value, пустые name/originalname/trackerName). Только чтение. Параметр: `?sampleSize=20`. |
@@ -717,22 +717,20 @@ REST API и страница **`/settings`** для редактирования
 | **`/dev/FindDuplicateKeys`** | Ищет дубликаты ключей вида `X:X` (например `ponies:ponies`). Параметры: `?tracker=lostfilm`, `?excludeNumeric=false`. |
 | **`/dev/RemoveBucket`** | Удаляет бакет по ключу. Параметры: `?key=ponies:ponies` — удалить; `?key=...&migrateName=...&migrateOriginalname=...` — перенести торренты в новый бакет. |
 | **`/dev/FindEmptySearchFields`** | Ищет торренты с пустыми `_sn` или `_so`. Только чтение. Параметр: `?sampleSize=20`. |
-| **`/dev/FixEmptySearchFields`** | Заполняет пустые `_sn`/`_so` из name/originalname/title, мигрирует при смене ключа. Пересобирает fastdb. |
-| **`/dev/MigrateAnilibertyUrls`** | Мигрирует торренты Aniliberty на URL с хешем из magnet (`?hash=...`). |
+| **`/dev/FixEmptySearchFields`** | Заполняет пустые `_sn`/`_so` из name/originalname/title, переносит при смене ключа. Пересобирает fastdb. |
+| **`/dev/MigrateAnilibertyUrls`** | Приводит URL Aniliberty к виду с хешем из magnet (`?hash=...`). |
 | **`/dev/RemoveDuplicateAniliberty`** | Удаляет дубликаты Aniliberty по хешу magnet, оставляет запись с последним `updateTime`. |
 | **`/dev/FixAnimelayerDuplicates`** | Устраняет дубликаты Animelayer: нормализует HTTP→HTTPS, удаляет HTTP-дубликаты. |
 | **`/dev/TracksStats`** | Статистика ffprobe/tracks (кэш `Data/temp/tracks-stats.json`, обновляется вместе с `stats.json` по `timeStatsUpdate`). Параметры: `?includeTorrentDb=true`, `?refresh=true` — принудительный пересчёт (игнорирует отложенный сбор при пустом index). |
 | **`/dev/ExportTracks`** | Экспорт ffprobe в JSON для lampa-tracks/R2. Параметры: `?dir=Data/tracks-export`, `?dryRun=true`, `?includeTorrentDb=true`, `?background=true`. Формат: `{aa}/{b}/{hash}.json`, тело `{ "streams": [ ... ] }`. |
 | **`/dev/ExportTracksStatus`** | Статус фонового экспорта (см. `ExportTracks` с `background=true`). |
-| **`/dev/BackfillTracks`** | Миграция `Data/tracks`: файлы без расширения → `.json`, дописывание недостающих из FileDB. Параметры: `?dryRun=true`, `?migrateLegacy=true`, `?includeTorrentDb=true`. |
+| **`/dev/BackfillTracks`** | Дописывает недостающие файлы в `Data/tracks` из FileDB. Параметры: `?dryRun=true`, `?includeTorrentDb=true`. |
 
 **Хранение tracks (`Data/tracks/`):**
 
-- Канонический layout (JacRed + lampa-tracks): `{aa}/{b}/{hash}.json` — **lowercase hex** (совпадает с hash-значением).
-- Чтение поддерживает uppercase export и файлы без `.json`.
-- **`BackfillTracks`** приводит файлы к `.json` и нормализует регистр в canonical lowercase layout.
-- При сохранении через модуль tracks устаревшие форматы файлов удаляются автоматически.
-- Для массовой миграции — **`/dev/BackfillTracks`** (сначала `?dryRun=true`).
+- Layout: `{aa}/{b}/{hash}.json` — **lowercase hex** (совпадает с hash-значением).
+- Читаются и индексируются только файлы с расширением `.json` в этом layout.
+- Для заполнения недостающих файлов из FileDB — **`/dev/BackfillTracks`** (сначала `?dryRun=true`).
 
 Примеры:
 

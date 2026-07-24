@@ -13,9 +13,6 @@
 # Tests are not published into the runtime image
 tests/
 
-# Router (separate front-end, not needed for main app runtime)
-router/node_modules
-
 # Vue SPA: rebuild inside image; keep sources, skip local install/output
 web/node_modules
 web/dist

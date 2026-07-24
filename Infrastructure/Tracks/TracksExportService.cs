@@ -53,7 +53,7 @@ namespace JacRed.Infrastructure.Tracks
         /// </summary>
         static string ExportFilePath(string outputDir, string infohash)
         {
-            string path = TracksPathResolver.TrackLayoutPath(outputDir, infohash, withExtension: true);
+            string path = TracksPathResolver.TrackLayoutPath(outputDir, infohash);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             return path;
         }
@@ -96,7 +96,7 @@ namespace JacRed.Infrastructure.Tracks
                             stats.filesScanned++;
 
                         string filename = Path.GetFileName(file);
-                        if (TracksPathResolver.ShouldSkipLegacyTrackFile(folder2, filename))
+                        if (!TracksPathResolver.IsTrackJsonFile(filename))
                             continue;
 
                         string infohash = TracksPathResolver.InfohashFromTrackRelPath(
@@ -358,25 +358,21 @@ namespace JacRed.Infrastructure.Tracks
         }
 
         /// <summary>
-        /// Backfill в Data/tracks: миграция legacy-файлов без расширения → .json и запись недостающих из FileDB.
+        /// Backfill missing track JSON files in Data/tracks from in-memory / FileDB sources.
         /// </summary>
-        internal static TracksBackfillResult BackfillTracks(string tracksDir = "Data/tracks", bool dryRun = false, bool includeTorrentDb = true, bool migrateLegacy = true)
+        internal static TracksBackfillResult BackfillTracks(string tracksDir = "Data/tracks", bool dryRun = false, bool includeTorrentDb = true)
         {
             var result = new TracksBackfillResult
             {
                 tracksDir = tracksDir,
                 dryRun = dryRun,
-                includeTorrentDb = includeTorrentDb,
-                migrateLegacy = migrateLegacy
+                includeTorrentDb = includeTorrentDb
             };
 
             var data = new Dictionary<string, FfprobeModel>(StringComparer.OrdinalIgnoreCase);
             result.stats = new TracksExportStats();
             CollectAllInto(data, result.stats, includeTorrentDb);
             result.stats.total = data.Count;
-
-            if (migrateLegacy)
-                result.migratedLegacy = TracksPathResolver.MigrateTrackLayoutInPlace(tracksDir, dryRun);
 
             if (dryRun)
             {
@@ -403,7 +399,7 @@ namespace JacRed.Infrastructure.Tracks
                         continue;
                     }
 
-                    string jsonPath = TracksPathResolver.TrackLayoutPath(tracksDir, item.Key, withExtension: true);
+                    string jsonPath = TracksPathResolver.TrackLayoutPath(tracksDir, item.Key);
                     Directory.CreateDirectory(Path.GetDirectoryName(jsonPath));
 
                     string json = JsonConvert.SerializeObject(item.Value, Formatting.Indented);
@@ -428,10 +424,8 @@ namespace JacRed.Infrastructure.Tracks
                     backfilledAt = DateTime.UtcNow,
                     tracksDir,
                     includeTorrentDb,
-                    migrateLegacy,
                     result.stats,
                     result.written,
-                    result.migratedLegacy,
                     result.skippedExisting,
                     result.writeErrors
                 }, Formatting.Indented), Encoding.UTF8);

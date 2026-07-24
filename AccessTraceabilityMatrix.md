@@ -35,7 +35,7 @@
 | `/api/v1.0/conf` | Public | Проверка apikey (Jackett) |
 | `/sync/` | Public | Middleware пропускает; `opensync` в SyncController |
 | `/swagger`, `/openapi.yaml` | Public | Документация API |
-| `/assets/`, `/img/`, `/fonts/` | Public | Статика SPA (при `web=true`) |
+| `/assets/`, `/img/` | Public | Статика SPA (при `web=true`) |
 | `/opensearch.xml`, `/manifest.webmanifest`, `/sw.js`, `/workbox-*` | Public | PWA (vite-plugin-pwa) |
 | *всё остальное* | ApiKeyWhenConfigured | Поиск, JSON stats, torznab, jackett |
 

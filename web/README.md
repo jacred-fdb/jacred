@@ -69,7 +69,8 @@ The Worker forwards `User-Agent`, `Referer`, `Origin`, API keys, and visitor IP 
 
 ## Stack
 
-See [docs/modern-web-ui-plan.md](../docs/modern-web-ui-plan.md).
+Vue 3 + Vite + Tailwind v4 + shadcn-vue (reka-ui) + TanStack Query / Virtual + vue-i18n.
+Optional Cloudflare Workers deploy via `wrangler` (see above).
 
 ## Useful scripts
 
