@@ -1,6 +1,18 @@
 ---
 version: 2
 updates:
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    groups:
+      web-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(web)"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

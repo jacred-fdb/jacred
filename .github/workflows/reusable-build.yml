@@ -99,8 +99,17 @@ jobs:
           ref: ${{ steps.checkout_ref.outputs.ref }}
           fetch-depth: 0
 
-      - name: Bump service worker cache version
-        run: ./scripts/bump-sw-cache.sh
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build Vue SPA into wwwroot
+        run: |
+          chmod +x ./scripts/build-web-ui.sh
+          ./scripts/build-web-ui.sh
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6.0.0

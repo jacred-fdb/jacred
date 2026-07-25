@@ -182,8 +182,8 @@ build_for() {
 echo "==> Restoring packages..."
 dotnet restore --verbosity minimal
 
-echo "==> Bumping service worker cache version..."
-"$SCRIPT_DIR/scripts/bump-sw-cache.sh"
+echo "==> Building Vue SPA into wwwroot..."
+"$SCRIPT_DIR/scripts/build-web-ui.sh"
 
 for platform in "${PLATFORMS[@]}"; do
   build_for "$platform" "$BUILD_ROOT/$platform" "$platform"

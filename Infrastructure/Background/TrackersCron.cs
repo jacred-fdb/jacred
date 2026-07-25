@@ -62,6 +62,7 @@ namespace JacRed.Infrastructure.Background
                         }
                     }
 
+                    Directory.CreateDirectory("wwwroot");
                     File.WriteAllLines("wwwroot/trackers.txt", trackers);
                     JacRedLog.Information(JacRedLogCategories.Trackers, $"end / {DateTime.Now:yyyy-MM-dd HH:mm:ss} wrote {trackers.Count} trackers to wwwroot/trackers.txt");
                 }

@@ -9,8 +9,8 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-al
 ARG TARGETARCH
 ARG JACRED_VERSION=dev
 
-# Install bash and git for version generation script
-RUN apk add --no-cache bash git
+# Install bash, git (version script), and Node for Vue SPA build
+RUN apk add --no-cache bash git nodejs npm
 
 # Create output directory
 RUN mkdir -p /dist
@@ -20,9 +20,9 @@ WORKDIR /src
 # Copy repository source (no git clone)
 COPY . .
 
-# Restore and publish
+# Build Vue SPA into wwwroot (fully generated; not in git), then publish .NET
 RUN set -eu; \
-    chmod +x ./scripts/bump-sw-cache.sh && ./scripts/bump-sw-cache.sh; \
+    chmod +x ./scripts/build-web-ui.sh && ./scripts/build-web-ui.sh; \
     case "${TARGETARCH}" in \
     386)   RID=linux-musl-x86 ;; \
     amd64) RID=linux-musl-x64 ;; \

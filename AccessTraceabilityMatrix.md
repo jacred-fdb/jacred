@@ -2,7 +2,7 @@
 
 **Источник истины (код):** `Infrastructure/Security/JacRedEndpointRegistry.cs`  
 **Проверка:** `JacRedAccessCatalog.VerifyRegistry()` — выполняется при старте (несовпадения пишутся в лог)  
-**Последняя проверка:** 2026-07-09 — все маршруты каталога совпадают с реестром  
+**Последняя проверка:** 2026-07-23 — SPA cutover: shells → `index.html`; статика `/assets/`, PWA `manifest.webmanifest` / Workbox
 **README (оператор):** [Безопасность и доступ](README.md#безопасность-и-доступ-к-api) · [Логирование](README.md#консольное-логирование-logging)
 
 ---
@@ -30,13 +30,13 @@
 | `/cron/` | DevAdmin | Запуск синхронизации трекеров |
 | `/jsondb`, `/jsondb/` | DevAdmin | Администрирование FileDB |
 | `/api/v1.0/config` | ConfigApi | API настроек (секреты в ответе) |
-| `/`, `/stats`, `/settings` | Public | Только HTML-оболочки |
+| `/`, `/stats`, `/settings` | Public | Vue SPA shell (`index.html`) |
 | `/health`, `/version`, `/lastupdatedb` | Public | Health-пробы |
 | `/api/v1.0/conf` | Public | Проверка apikey (Jackett) |
 | `/sync/` | Public | Middleware пропускает; `opensync` в SyncController |
 | `/swagger`, `/openapi.yaml` | Public | Документация API |
-| `/css/`, `/js/`, `/img/`, `/vendor/`, `/fonts/` | Public | Статика (при `web=true`) |
-| `/opensearch.xml`, `/manifest.json`, `/sw.js` | Public | Метаданные PWA |
+| `/assets/`, `/img/`, `/fonts/` | Public | Статика SPA (при `web=true`) |
+| `/opensearch.xml`, `/manifest.webmanifest`, `/sw.js`, `/workbox-*` | Public | PWA (vite-plugin-pwa) |
 | *всё остальное* | ApiKeyWhenConfigured | Поиск, JSON stats, torznab, jackett |
 
 ---
@@ -47,9 +47,9 @@
 
 | Маршрут | Контроллер | Вторичная проверка |
 |---------|------------|-------------------|
-| `GET /` | HomeController | — |
-| `GET /stats` | HomeController | HTML-оболочка (JSON на `/stats/*` не публичный) |
-| `GET /settings` | HomeController | HTML-оболочка |
+| `GET /` | HomeController | Vue SPA |
+| `GET /stats` | HomeController | SPA route → `index.html` (JSON на `/stats/*` не публичный) |
+| `GET /settings` | HomeController | SPA route → `index.html` |
 | `GET /opensearch.xml` | HomeController | — |
 | `GET /health` | HealthController | — |
 | `GET /version` | HealthController | — |
