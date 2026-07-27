@@ -103,7 +103,7 @@ test('searches via Jackett API v2 with dedicated filters', async ({ page }) => {
   expect(jackettUrl).toContain('/api/v2.0/indexers/all/results')
   expect(jackettUrl).toContain('query=matrix')
 
-  await page.getByRole('button', { name: /фильтры|filters/i }).click()
+  await page.locator('#search-filters-trigger').click()
   await page.getByPlaceholder(/localized title|локализованное/i).fill('Матрица')
   await page.getByPlaceholder(/original title/i).fill('The Matrix')
   await expect
