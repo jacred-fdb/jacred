@@ -262,7 +262,7 @@ export function buildJackettSearchQuery(
 }
 
 const QUALITY_TITLE_RE: Record<string, RegExp> = {
-  '4k': /(4k|uhd)[ \]|,|$]|2160[pр]|ultrahd/i,
+  '4k': /(4k|uhd)[ \],$]|2160[pр]|ultrahd/i,
   '1080p': /fullhd|1080[pр]/i,
   '720p': /720[pр]/i,
 }
