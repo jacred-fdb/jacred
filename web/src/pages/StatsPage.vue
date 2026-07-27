@@ -115,7 +115,7 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
     </div>
 
     <div
-      class="jr-sticky-dock jr-stats-dock sticky flex flex-col gap-2 py-2 lg:flex-row lg:items-center"
+      class="jr-sticky-dock jr-stats-dock sticky flex min-w-0 flex-col gap-2 sm:gap-2.5 lg:flex-row lg:items-center lg:gap-3"
       style="top: var(--jr-header-offset)"
     >
       <div class="relative min-w-0 flex-1">
@@ -126,14 +126,14 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
           id="stats-search"
           :model-value="query"
           type="search"
-          class="h-9 pl-9"
+          class="h-9 rounded-[12px] border-0 bg-secondary pl-9 shadow-none focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-secondary"
           :placeholder="t('stats.searchTracker')"
           :aria-label="t('stats.searchAria')"
           @update:model-value="(v) => setQuery(String(v))"
         />
       </div>
 
-      <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
         <Select
           :model-value="sort"
           @update:model-value="(v) => setSort(String(v) as StatsSort)"
@@ -185,7 +185,7 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
               type="button"
               variant="outline"
               size="icon"
-              class="size-9"
+              class="size-9 shrink-0"
               :aria-label="t('stats.moreOptions')"
             >
               <Ellipsis class="size-4" />
@@ -207,7 +207,7 @@ function bindGridEl(el: Element | ComponentPublicInstance | null) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <span class="text-sm text-muted-foreground lg:ml-1">
+        <span class="shrink-0 whitespace-nowrap text-sm text-muted-foreground lg:ml-1">
           {{ counterLabel }}
         </span>
       </div>

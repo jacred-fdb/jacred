@@ -391,7 +391,8 @@
     html[data-surface='glass'] .jr-glass-nav {
       background: var(--jr-glass-nav-fallback);
     }
-    html[data-surface='glass'] .jr-search-dock {
+    html[data-surface='glass'] .jr-search-dock,
+    html[data-surface='glass'] .jr-stats-dock {
       background: var(--card);
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
@@ -466,10 +467,9 @@
     box-shadow: none;
     background-color: var(--background);
   }
-  /* Glass mode: full-bleed sticky strips (settings/stats) */
-  html[data-surface='glass'] .jr-sticky-dock:not(.jr-search-dock),
-  html[data-surface='glass'] .jr-settings-dock,
-  html[data-surface='glass'] .jr-stats-dock {
+  /* Glass mode: full-bleed sticky strips (settings only; search/stats are islands) */
+  html[data-surface='glass'] .jr-sticky-dock:not(.jr-search-dock):not(.jr-stats-dock),
+  html[data-surface='glass'] .jr-settings-dock {
     background-color: color-mix(
       in srgb,
       var(--jr-glass-nav) 88%,
@@ -481,8 +481,9 @@
       blur(calc(var(--jr-glass-blur) * 0.55));
   }
 
-  /* Search panel — floating chrome island (solid elevated / Regular glass) */
-  .jr-search-dock {
+  /* Floating chrome islands — search + stats (solid elevated / Regular glass) */
+  .jr-search-dock,
+  .jr-stats-dock {
     background-color: var(--card);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -492,11 +493,13 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  html.dark[data-surface='solid'] .jr-search-dock {
+  html.dark[data-surface='solid'] .jr-search-dock,
+  html.dark[data-surface='solid'] .jr-stats-dock {
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
-  html[data-surface='glass'] .jr-search-dock {
+  html[data-surface='glass'] .jr-search-dock,
+  html[data-surface='glass'] .jr-stats-dock {
     background: var(--jr-glass-nav);
     border-color: var(--jr-glass-border);
     box-shadow:
@@ -507,13 +510,15 @@
     backdrop-filter: saturate(var(--jr-glass-saturate))
       blur(calc(var(--jr-glass-blur) * 0.55));
   }
-  html.dark[data-surface='glass'] .jr-search-dock {
+  html.dark[data-surface='glass'] .jr-search-dock,
+  html.dark[data-surface='glass'] .jr-stats-dock {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.16),
       0 1px 2px rgba(0, 0, 0, 0.35);
   }
   @media (min-width: 640px) {
-    .jr-search-dock {
+    .jr-search-dock,
+    .jr-stats-dock {
       padding: 0.875rem 1rem;
     }
   }
@@ -1578,7 +1583,9 @@
     background: var(--jr-glass-nav-fallback) !important;
   }
   .jr-search-dock,
-  html[data-surface='glass'] .jr-search-dock {
+  html[data-surface='glass'] .jr-search-dock,
+  .jr-stats-dock,
+  html[data-surface='glass'] .jr-stats-dock {
     background-color: var(--card) !important;
     border-color: var(--border) !important;
     box-shadow: inset 0 1px 0
@@ -1586,12 +1593,10 @@
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  html[data-surface='glass'] .jr-sticky-dock:not(.jr-search-dock),
+  html[data-surface='glass'] .jr-sticky-dock:not(.jr-search-dock):not(.jr-stats-dock),
   html[data-surface='glass'] .jr-settings-dock,
-  html[data-surface='glass'] .jr-stats-dock,
-  .jr-sticky-dock:not(.jr-search-dock),
-  .jr-settings-dock,
-  .jr-stats-dock {
+  .jr-sticky-dock:not(.jr-search-dock):not(.jr-stats-dock),
+  .jr-settings-dock {
     background-color: var(--background) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
@@ -1620,16 +1625,16 @@
   header.jr-glass-nav::after {
     content: none;
   }
-  .jr-search-dock {
+  .jr-search-dock,
+  .jr-stats-dock {
     background-color: var(--card) !important;
     border-color: var(--foreground) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
   }
-  .jr-sticky-dock:not(.jr-search-dock),
-  .jr-settings-dock,
-  .jr-stats-dock {
+  .jr-sticky-dock:not(.jr-search-dock):not(.jr-stats-dock),
+  .jr-settings-dock {
     background-color: var(--background) !important;
     border-bottom: 1px solid var(--border);
     -webkit-backdrop-filter: none !important;
