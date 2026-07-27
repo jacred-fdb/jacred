@@ -18,6 +18,8 @@ export type TorrentItem = {
   voices?: string[] | null
   seasons?: Array<number | string> | null
   types?: string[] | null
+  /** Language codes from JacRed Jackett enrichment (e.g. ru, en). */
+  languages?: string[] | null
 }
 
 export type SortValue = 'sid' | 'size' | 'date' | 'update'
@@ -114,6 +116,22 @@ export function formatQualityLabel(q: number | string | null | undefined): strin
   return `${n}p`
 }
 
+/** JacRed may merge trackers into "a, b" on one result — split for facets/filters. */
+export function splitTrackerNames(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const part of String(raw).split(',')) {
+    const name = part.trim()
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(name)
+  }
+  return out
+}
+
 export type QualityTier = '4k' | '1440' | '1080' | '720' | 'sd' | 'default'
 
 export function qualityTier(q: number | string | null | undefined): QualityTier {
@@ -161,21 +179,36 @@ export function applyClientFilters(
   })
 }
 
-export function buildFacets(items: TorrentItem[]) {
+export function buildFacets(
+  items: TorrentItem[],
+  options: { splitTrackers?: boolean } = {},
+) {
   const quality = new Set<string>()
   const years = new Set<string>()
   const trackers = new Set<string>()
   const voices = new Set<string>()
   const seasons = new Set<string>()
   const types = new Set<string>()
+  const lang = new Set<string>()
+  const splitTrackers = options.splitTrackers !== false
 
   for (const el of items) {
     if (el.quality != null && el.quality !== '') quality.add(String(el.quality))
     if (el.relased != null && el.relased !== '') years.add(String(el.relased))
-    if (el.tracker) trackers.add(el.tracker)
+    if (el.tracker) {
+      if (splitTrackers) {
+        for (const name of splitTrackerNames(el.tracker)) trackers.add(name)
+      } else {
+        trackers.add(el.tracker)
+      }
+    }
     el.voices?.forEach((v) => voices.add(v))
     el.seasons?.forEach((s) => seasons.add(String(s)))
     el.types?.forEach((t) => types.add(t))
+    el.languages?.forEach((l) => {
+      const code = String(l).trim().toLowerCase().slice(0, 2)
+      if (code) lang.add(code)
+    })
   }
 
   const sorted = (set: Set<string>) => Array.from(set).sort()
@@ -187,6 +220,7 @@ export function buildFacets(items: TorrentItem[]) {
     voice: sorted(voices),
     season: sorted(seasons),
     type: sorted(types),
+    lang: sorted(lang),
   }
 }
 

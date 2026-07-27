@@ -160,6 +160,15 @@ paths:
           schema:
             type: integer
             description: '-1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime'
+        - name: Category[]
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: 'Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime)'
         - name: Tracker[]
           in: query
           schema:
@@ -1316,6 +1325,39 @@ components:
         Details:
           type: string
           format: uri
+        PublishDate:
+          type: string
+        languages:
+          type: array
+          items:
+            type: string
+        info:
+          type: object
+          properties:
+            quality:
+              type: integer
+            videotype:
+              type: string
+            voices:
+              type: array
+              items:
+                type: string
+            seasons:
+              type: array
+              items:
+                type: integer
+            types:
+              type: array
+              items:
+                type: string
+            sizeName:
+              type: string
+            name:
+              type: string
+            originalname:
+              type: string
+            relased:
+              type: integer
 
     TorrentListItem:
       type: object

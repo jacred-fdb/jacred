@@ -6,6 +6,7 @@ export const StorageKeys = {
   surface: 'jacredSurface',
   listView: 'jacredListView',
   filtersOpen: 'jacredFiltersOpen',
+  apiMode: 'jacredApiMode',
   torrServerUrl: 'jacredTorServerUrl',
   torrServerLogin: 'jacredTorServerLogin',
   torrServerPassword: 'jacredTorServerPassword',

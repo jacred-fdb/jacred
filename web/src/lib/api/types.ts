@@ -793,6 +793,19 @@ export interface components {
             MagnetUri?: string;
             /** Format: uri */
             Details?: string;
+            PublishDate?: string;
+            languages?: string[];
+            info?: {
+                quality?: number;
+                videotype?: string;
+                voices?: string[];
+                seasons?: number[];
+                types?: string[];
+                sizeName?: string;
+                name?: string;
+                originalname?: string;
+                relased?: number;
+            };
         };
         TorrentListItem: {
             tracker?: string;
@@ -958,6 +971,8 @@ export interface operations {
                 title_original?: string;
                 year?: number;
                 is_serial?: number;
+                /** @description Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime) */
+                "Category[]"?: string[];
                 /** @description Jackett-style filter by internal tracker id (e.g. kinozal, rutracker) */
                 "Tracker[]"?: string[];
                 /** @description Single-tracker alias for Tracker[] */

@@ -15,6 +15,7 @@ import {
   getRecentSearches,
 } from '@/lib/recent-searches'
 import { resultGap } from '@/lib/result-layout'
+import type { ApiMode } from '@/lib/jackett'
 import {
   torrentKey,
   type SearchFilters as SearchFilterState,
@@ -29,9 +30,11 @@ const {
   query,
   sort,
   exact,
+  apiMode,
   listView,
   filtersOpen,
   filters,
+  v2Filters,
   facets,
   visibleItems,
   isLoading,
@@ -45,9 +48,13 @@ const {
   prefetchRecent,
   setSort,
   setExact,
+  setApiMode,
   toggleListView,
   setFiltersOpen,
   updateServerFilter,
+  updateV2Filter,
+  toggleV2Category,
+  toggleV2ListFilter,
   updateClientFilter,
   resetFilters,
   toggleTrackerFilter,
@@ -63,6 +70,9 @@ const listGap = computed(() => resultGap(true, isSmUp.value))
 const cardGap = computed(() => resultGap(false, isSmUp.value))
 const resultsGap = computed(() =>
   listView.value ? listGap.value : cardGap.value,
+)
+const activeTrackers = computed(() =>
+  apiMode.value === 'v2' ? v2Filters.value.trackers : [filters.value.tracker].filter(Boolean),
 )
 
 const hasResults = computed(
@@ -203,6 +213,10 @@ function onExactUpdate(value: boolean) {
   runServerFilterSearch(() => setExact(value))
 }
 
+function onApiModeUpdate(value: ApiMode) {
+  runServerFilterSearch(() => setApiMode(value))
+}
+
 function onServerFilter(
   key: keyof SearchFilterState,
   value: string,
@@ -210,11 +224,35 @@ function onServerFilter(
   runServerFilterSearch(() => updateServerFilter(key, value))
 }
 
+function onV2Filter(
+  key: 'title' | 'titleOriginal' | 'year' | 'isSerial' | 'videotype',
+  value: string,
+) {
+  runServerFilterSearch(() => updateV2Filter(key, value))
+}
+
+function onToggleCategory(category: string) {
+  runServerFilterSearch(() => toggleV2Category(category))
+}
+
+function onToggleList(
+  key: 'trackers' | 'qualities' | 'voices' | 'seasons' | 'langs',
+  value: string,
+) {
+  toggleV2ListFilter(key, value)
+  pinClientFilter()
+}
+
 function onResetFilters() {
   runServerFilterSearch(() => resetFilters())
 }
 
 function onToggleTrackerFilter(tracker: string) {
+  if (apiMode.value === 'v2') {
+    toggleTrackerFilter(tracker)
+    pinClientFilter()
+    return
+  }
   runServerFilterSearch(() => toggleTrackerFilter(tracker))
 }
 
@@ -260,10 +298,10 @@ onBeforeUnmount(() => {
 <template>
   <section class="flex flex-col gap-4">
     <header class="space-y-1 text-center">
-      <h1 class="text-2xl font-semibold tracking-tight text-balance">
+      <h1 class="text-2xl font-semibold tracking-[-0.02em] text-balance leading-tight">
         {{ t('search.title') }}
       </h1>
-      <p class="mx-auto max-w-2xl text-sm text-pretty text-muted-foreground">
+      <p class="mx-auto max-w-2xl text-sm leading-relaxed text-pretty text-muted-foreground tracking-[0.01em]">
         {{ t('search.subtitle') }}
       </p>
     </header>
@@ -297,7 +335,7 @@ onBeforeUnmount(() => {
             name="s"
             autocomplete="off"
             enterkeyhint="search"
-            class="h-11 rounded-[12px] border-0 bg-secondary pr-10 pl-9 shadow-none focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-secondary"
+            class="h-11 rounded-[12px] border-0 bg-secondary pr-10 pl-9 shadow-none transition-[box-shadow,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-secondary"
             :placeholder="t('search.placeholder')"
             :aria-label="t('search.queryAria')"
           />
@@ -306,7 +344,7 @@ onBeforeUnmount(() => {
             type="button"
             variant="ghost"
             size="icon"
-            class="absolute top-1/2 right-1 size-8 -translate-y-1/2 rounded-[10px]"
+            class="absolute top-1/2 right-1 size-8 -translate-y-1/2 rounded-[10px] transition-transform duration-100 ease-out active:scale-[0.97]"
             :aria-label="t('search.clear')"
             @click="clearSearch"
           >
@@ -315,7 +353,7 @@ onBeforeUnmount(() => {
         </div>
         <Button
           type="submit"
-          class="h-11 min-w-[7.5rem] shrink-0 gap-2 rounded-[12px] px-5"
+          class="h-11 min-w-[7.5rem] shrink-0 gap-2 rounded-[12px] px-5 transition-transform duration-100 ease-out active:scale-[0.97]"
           :disabled="showSearchBusy || !isOnline"
           :aria-busy="showSearchBusy"
         >
@@ -357,16 +395,22 @@ onBeforeUnmount(() => {
       <SearchFilters
         :open="filtersOpen"
         :exact="exact"
+        :api-mode="apiMode"
         :sort="sort"
         :list-view="listView"
         :filters="filters"
+        :v2-filters="v2Filters"
         :facets="facets"
         :active-count="activeFilterCount"
         @update:open="setFiltersOpen"
         @update:exact="onExactUpdate"
+        @update:api-mode="onApiModeUpdate"
         @update:sort="onSortUpdate"
         @update:list-view="onListViewUpdate"
         @server-filter="onServerFilter"
+        @v2-filter="onV2Filter"
+        @toggle-category="onToggleCategory"
+        @toggle-list="onToggleList"
         @client-filter="onClientFilter"
         @reset="onResetFilters"
       />
@@ -450,7 +494,7 @@ onBeforeUnmount(() => {
           :list-view="listView"
           :position="index + 1"
           :set-size="visibleItems.length"
-          :active-tracker="filters.tracker"
+          :active-trackers="activeTrackers"
           @filter-tracker="onToggleTrackerFilter"
           @open-torr-server="openTorrServer"
         />

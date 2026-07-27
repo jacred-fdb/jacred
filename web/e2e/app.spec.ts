@@ -30,6 +30,26 @@ test.beforeEach(async ({ page }) => {
       ],
     }),
   )
+  await page.route('**/api/v2.0/indexers/**/results**', (route) =>
+    route.fulfill({
+      json: {
+        Results: [
+          {
+            Tracker: 'rutor',
+            Title: 'Jackett Example',
+            Size: 1200000000,
+            Seeders: 20,
+            Peers: 2,
+            MagnetUri:
+              'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567',
+            Details: 'https://example.test/t/1',
+            PublishDate: '2026-07-23T10:00:00Z',
+            info: { sizeName: '1.12 GB', quality: 1080 },
+          },
+        ],
+      },
+    }),
+  )
   await page.route('**/stats/torrents**', (route) =>
     route.fulfill({
       json: [{ trackerName: 'rutor', newtor: 2, alltorrents: 10 }],
@@ -48,6 +68,48 @@ test('searches and exposes result actions', async ({ page }) => {
   await expect(
     page.getByRole('link', { name: /открыть в клиенте|open in client/i }).first(),
   ).toHaveAttribute('href', /^magnet:\?/)
+})
+
+test('searches via Jackett API v2 with dedicated filters', async ({ page }) => {
+  let jackettUrl = ''
+  await page.route('**/api/v2.0/indexers/**/results**', async (route) => {
+    jackettUrl = route.request().url()
+    await route.fulfill({
+      json: {
+        Results: [
+          {
+            Tracker: 'rutor',
+            Title: 'Jackett Example',
+            Size: 1200000000,
+            Seeders: 20,
+            Peers: 2,
+            MagnetUri:
+              'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567',
+            PublishDate: '2026-07-23T10:00:00Z',
+            info: { sizeName: '1.12 GB' },
+          },
+        ],
+      },
+    })
+  })
+
+  await page.goto('/?api=v2')
+  await expect(
+    page.getByRole('group', { name: /search api|api поиска/i }),
+  ).toBeVisible()
+  await page.getByRole('searchbox').fill('matrix')
+  await page.getByRole('button', { name: /искать|search/i }).click()
+  await expect(page.getByText('Jackett Example')).toBeVisible()
+  expect(jackettUrl).toContain('/api/v2.0/indexers/all/results')
+  expect(jackettUrl).toContain('query=matrix')
+
+  await page.getByRole('button', { name: /фильтры|filters/i }).click()
+  await page.getByPlaceholder(/localized title|локализованное/i).fill('Матрица')
+  await page.getByPlaceholder(/original title/i).fill('The Matrix')
+  await expect
+    .poll(() => jackettUrl, { timeout: 5_000 })
+    .toMatch(/title=/)
+  expect(decodeURIComponent(jackettUrl)).toMatch(/title_original=The(\+| )Matrix/)
 })
 
 test('keeps scroll near top after search (no false re-pin)', async ({

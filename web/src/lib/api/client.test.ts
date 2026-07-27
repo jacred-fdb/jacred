@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiRequest } from '@/lib/api/client'
+import { apiClient, apiRequest, buildUrl } from '@/lib/api/client'
 
 vi.mock('@/lib/storage', () => ({
   getApiKey: () => 'api-secret',
@@ -8,6 +8,20 @@ vi.mock('@/lib/storage', () => ({
 
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+describe('buildUrl', () => {
+  it('encodes repeated array query params', () => {
+    const url = buildUrl('https://example.test', '/api/v2.0/indexers/all/results', {
+      query: 'matrix',
+      'Category[]': ['2000', '5070'],
+      year: 1999,
+    })
+    expect(url).toContain('query=matrix')
+    expect(url).toContain('year=1999')
+    expect(url).toContain('Category%5B%5D=2000')
+    expect(url).toContain('Category%5B%5D=5070')
+  })
 })
 
 describe('apiRequest', () => {
@@ -55,5 +69,30 @@ describe('apiRequest', () => {
     const request = apiRequest('/test', {}, { signal: controller.signal })
     controller.abort()
     await expect(request).rejects.toMatchObject({ name: 'AbortError' })
+  })
+})
+
+describe('apiClient.getJackettResults', () => {
+  it('calls Jackett v2 results with Category[]', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ Results: [] }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+
+    await apiClient.getJackettResults('all', {
+      query: 'matrix',
+      'Category[]': ['2000', '5000'],
+      is_serial: 1,
+    })
+
+    const called = String(fetchMock.mock.calls[0]?.[0])
+    expect(called).toContain('/api/v2.0/indexers/all/results')
+    expect(called).toContain('query=matrix')
+    expect(called).toContain('is_serial=1')
+    expect(called).toContain('Category%5B%5D=2000')
+    expect(called).toContain('Category%5B%5D=5000')
   })
 })

@@ -28,6 +28,7 @@ import {
   getSafeIconPath,
   isSafeHttpUrl,
   qualityTier,
+  splitTrackerNames,
   type TorrentItem,
 } from '@/lib/torrents'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,7 @@ const props = defineProps<{
   listView: boolean
   position: number
   setSize: number
-  activeTracker: string
+  activeTrackers: string[]
 }>()
 
 const emit = defineEmits<{
@@ -68,12 +69,16 @@ const showUpdate = computed(
   () => !!updateStr.value && updateStr.value !== createStr.value,
 )
 const tracker = computed(() => props.item.tracker || '')
-const isActiveTracker = computed(
-  () =>
-    !!props.activeTracker &&
-    tracker.value.toLowerCase() === props.activeTracker.toLowerCase(),
-)
-const iconSrc = computed(() => getSafeIconPath(tracker.value))
+const isActiveTracker = computed(() => {
+  if (!props.activeTrackers.length) return false
+  const selected = new Set(
+    props.activeTrackers.map((t) => t.toLowerCase()).filter(Boolean),
+  )
+  return splitTrackerNames(tracker.value).some((name) =>
+    selected.has(name.toLowerCase()),
+  )
+})
+const iconSrc = computed(() => getSafeIconPath(splitTrackerNames(tracker.value)[0] || tracker.value))
 
 const qualityClass = computed(() => {
   switch (tier.value) {
