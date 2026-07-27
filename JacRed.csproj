@@ -63,7 +63,7 @@
   <!-- Version generation from Git -->
   <PropertyGroup>
     <VersionInfoFile>$(IntermediateOutputPath)VersionInfo.g.cs</VersionInfoFile>
-    <GenerateVersionScript>$(MSBuildProjectDirectory)/generate-version.sh</GenerateVersionScript>
+    <GenerateVersionScript>$(MSBuildProjectDirectory)/scripts/generate-version.sh</GenerateVersionScript>
   </PropertyGroup>
 
   <Target Name="GenerateVersionInfo" BeforeTargets="BeforeCompile">

@@ -29,11 +29,11 @@ Vite proxies `/api`, `/stats/*`, `/health`, `/opensearch.xml` to the API.
 
 ```bash
 # from repo root
-./scripts/build-web-ui.sh   # recreates ../wwwroot from dist/
+make web                    # preferred; or ./scripts/build-web-ui.sh
 dotnet publish …
 ```
 
-Also invoked from `Dockerfile`, `build.sh`, and CI. Runtime: ASP.NET serves API + SPA from `wwwroot/` on one port.
+Also invoked from `Dockerfile`, `scripts/build.sh` / `make publish`, and CI. Runtime: ASP.NET serves API + SPA from `wwwroot/` on one port.
 
 ## Cloudflare Workers (optional)
 

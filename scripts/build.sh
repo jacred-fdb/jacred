@@ -3,18 +3,20 @@
 # Output: dist/<platform>/
 #
 # Usage:
-#   ./build.sh                    # current OS/arch
-#   ./build.sh linux-arm64        # single target
-#   ./build.sh linux-x64 linux-arm64
-#   ./build.sh --all              # all supported targets
-#   ./build.sh --help
+#   ./scripts/build.sh                    # current OS/arch
+#   ./scripts/build.sh linux-arm64        # single target
+#   ./scripts/build.sh linux-x64 linux-arm64
+#   ./scripts/build.sh --all              # all supported targets
+#   ./scripts/build.sh --help
+#   make publish RID=linux-arm64          # preferred via Makefile
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
 
-OUTPUT_BASE="${OUTPUT_BASE:-$SCRIPT_DIR/dist}"
+OUTPUT_BASE="${OUTPUT_BASE:-$ROOT_DIR/dist}"
 
 # https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 ALL_PLATFORMS=(
@@ -148,7 +150,7 @@ else
   echo "==> Building for current platform: $CURRENT_PLATFORM"
 fi
 
-BUILD_ROOT="$SCRIPT_DIR/.builds"
+BUILD_ROOT="$ROOT_DIR/.builds"
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT"
 trap 'rm -rf "$BUILD_ROOT"' EXIT
@@ -183,7 +185,7 @@ echo "==> Restoring packages..."
 dotnet restore --verbosity minimal
 
 echo "==> Building Vue SPA into wwwroot..."
-"$SCRIPT_DIR/scripts/build-web-ui.sh"
+"$SCRIPT_DIR/build-web-ui.sh"
 
 for platform in "${PLATFORMS[@]}"; do
   build_for "$platform" "$BUILD_ROOT/$platform" "$platform"
