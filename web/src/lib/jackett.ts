@@ -309,7 +309,7 @@ function videotypeMatches(item: TorrentItem, videotype: string, title: string): 
   if (!want) return true
   const raw = (item.videotype || '').toLowerCase()
   if (raw) return raw === want
-  const hasHdr = /[\[| ]hdr(10)?[ |\]|,|$]/i.test(title)
+  const hasHdr = /[[| ]hdr(10)?[ |\],$]/i.test(title)
   if (want === 'hdr') return hasHdr
   if (want === 'sdr') return !hasHdr
   return true
