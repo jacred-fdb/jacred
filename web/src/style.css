@@ -93,7 +93,7 @@
   --jr-peers: #ff3b30;
   --jr-peers-soft: color-mix(in srgb, var(--jr-peers) 10%, transparent);
 
-  /* Glass chrome tokens (menus/sheets/nav); content cards use .jr-elevated */
+  /* Glass chrome tokens (nav/docks/menus/sheets); content cards stay solid .jr-elevated */
   --jr-glass-blur: 28px;
   --jr-glass-blur-nav: 34px;
   --jr-glass-saturate: 220%;
@@ -108,16 +108,9 @@
   --jr-glass-menu: rgba(255, 255, 255, 0.7);
   --jr-vibrancy-secondary: rgba(60, 60, 67, 0.72);
   --jr-label: rgba(60, 60, 67, 0.78);
-  --jr-chrome-island: rgba(255, 255, 255, 0.72);
+  /* Nested chrome island (filters) — denser than Clear, no second blur */
+  --jr-chrome-island: rgba(255, 255, 255, 0.84);
   --jr-page-glow: rgba(0, 122, 255, 0.12);
-  /* Elevated cards in glass mode — soft frost (no per-card blur) */
-  --jr-elevated-glass: rgba(255, 255, 255, 0.58);
-  --jr-elevated-glass-hover: rgba(255, 255, 255, 0.74);
-  --jr-elevated-glass-border: rgba(60, 60, 67, 0.2);
-  --jr-elevated-glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 1px 2px rgba(60, 60, 67, 0.05),
-    0 10px 28px rgba(60, 60, 67, 0.08);
   /* Brand bar (+ mobile tabs until AppShell measures) */
   --jr-header-offset: calc(3.5rem + env(safe-area-inset-top, 0px));
 
@@ -224,17 +217,8 @@
   --jr-glass-menu: rgba(44, 44, 46, 0.7);
   --jr-vibrancy-secondary: rgba(235, 235, 245, 0.72);
   --jr-label: rgba(235, 235, 245, 0.78);
-  --jr-chrome-island: rgba(255, 255, 255, 0.16);
+  --jr-chrome-island: rgba(255, 255, 255, 0.22);
   --jr-page-glow: rgba(10, 132, 255, 0.26);
-  /* Deep black glass cards — dark translucent + luminous edge over atmosphere */
-  --jr-elevated-glass: rgba(8, 8, 10, 0.58);
-  --jr-elevated-glass-hover: rgba(18, 18, 22, 0.72);
-  --jr-elevated-glass-border: rgba(255, 255, 255, 0.16);
-  --jr-elevated-glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.5),
-    0 14px 36px rgba(0, 0, 0, 0.45);
 
   --jr-online: #30d158;
   --jr-offline: #ff453a;
@@ -285,7 +269,7 @@
 }
 
 @layer components {
-  /* Elevated content — solid --card; glass mode uses deep frost fill (no N× blur) */
+  /* Elevated content — always solid --card (glass is chrome-only per HIG) */
   .jr-elevated {
     background: var(--card);
     border-color: var(--border);
@@ -296,51 +280,6 @@
 
   article[data-result-card].jr-elevated:hover {
     background: color-mix(in oklch, var(--muted) 35%, var(--card));
-  }
-
-  /* Glass surface: elevated cards become deep frost / deep black glass */
-  html[data-surface='glass'] .jr-elevated {
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.07) 0%,
-        transparent 42%
-      ),
-      var(--jr-elevated-glass);
-    border-color: var(--jr-elevated-glass-border);
-    box-shadow: var(--jr-elevated-glass-shadow);
-  }
-  html[data-surface='glass'] article[data-result-card].jr-elevated:hover {
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        transparent 42%
-      ),
-      var(--jr-elevated-glass-hover);
-    border-color: color-mix(
-      in srgb,
-      var(--jr-elevated-glass-border) 65%,
-      var(--primary) 35%
-    );
-  }
-  html.dark[data-surface='glass'] .jr-elevated {
-    background:
-      linear-gradient(
-        165deg,
-        rgba(255, 255, 255, 0.09) 0%,
-        transparent 38%
-      ),
-      var(--jr-elevated-glass);
-  }
-  html.dark[data-surface='glass'] article[data-result-card].jr-elevated:hover {
-    background:
-      linear-gradient(
-        165deg,
-        rgba(255, 255, 255, 0.12) 0%,
-        transparent 38%
-      ),
-      var(--jr-elevated-glass-hover);
   }
 
   html[data-surface='glass'] body {
@@ -371,19 +310,19 @@
     background-color: #05060a;
   }
 
-  /* Search filters island — frost fill only (dock is opaque; no fake blur) */
+  /* Nested filters island — denser frost fill only (no second blur over dock glass) */
   html[data-surface='glass'] .jr-filters-panel {
     border-color: var(--jr-glass-border);
     background: var(--jr-chrome-island);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.32),
       0 1px 2px rgba(60, 60, 67, 0.06);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
   html.dark[data-surface='glass'] .jr-filters-panel {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
       0 1px 2px rgba(0, 0, 0, 0.35);
   }
 
@@ -448,16 +387,14 @@
     article[data-result-card].jr-elevated:hover {
       background: color-mix(in oklch, var(--muted) 35%, var(--card));
     }
-    html[data-surface='glass'] .jr-elevated {
-      background: var(--jr-glass-panel-fallback);
-      box-shadow: none;
-    }
-    html[data-surface='glass'] article[data-result-card].jr-elevated:hover {
-      background: color-mix(in oklch, var(--muted) 35%, var(--card));
-    }
     .jr-glass-nav,
     html[data-surface='glass'] .jr-glass-nav {
       background: var(--jr-glass-nav-fallback);
+    }
+    html[data-surface='glass'] .jr-search-dock {
+      background: var(--card);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
     }
     html[data-surface='glass'] .jr-filters-panel {
       background: var(--jr-glass-panel-fallback);
@@ -529,9 +466,8 @@
     box-shadow: none;
     background-color: var(--background);
   }
-  /* Glass mode: light translucent dock (dense — still Safari-safe) */
-  html[data-surface='glass'] .jr-sticky-dock,
-  html[data-surface='glass'] .jr-search-dock,
+  /* Glass mode: full-bleed sticky strips (settings/stats) */
+  html[data-surface='glass'] .jr-sticky-dock:not(.jr-search-dock),
   html[data-surface='glass'] .jr-settings-dock,
   html[data-surface='glass'] .jr-stats-dock {
     background-color: color-mix(
@@ -543,6 +479,43 @@
       blur(calc(var(--jr-glass-blur) * 0.55));
     backdrop-filter: saturate(var(--jr-glass-saturate))
       blur(calc(var(--jr-glass-blur) * 0.55));
+  }
+
+  /* Search panel — floating chrome island (solid elevated / Regular glass) */
+  .jr-search-dock {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 0.75rem 0.875rem;
+    box-shadow: inset 0 1px 0
+      color-mix(in srgb, var(--foreground) 8%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  html.dark[data-surface='solid'] .jr-search-dock {
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  html[data-surface='glass'] .jr-search-dock {
+    background: var(--jr-glass-nav);
+    border-color: var(--jr-glass-border);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 1px 2px rgba(60, 60, 67, 0.06);
+    -webkit-backdrop-filter: saturate(var(--jr-glass-saturate))
+      blur(calc(var(--jr-glass-blur) * 0.55));
+    backdrop-filter: saturate(var(--jr-glass-saturate))
+      blur(calc(var(--jr-glass-blur) * 0.55));
+  }
+  html.dark[data-surface='glass'] .jr-search-dock {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  @media (min-width: 640px) {
+    .jr-search-dock {
+      padding: 0.875rem 1rem;
+    }
   }
   .jr-sticky-dock::after,
   .jr-search-dock::after,
@@ -657,7 +630,7 @@
     }
   }
 
-  /* Inset filter group on opaque dock — never backdrop-filter here */
+  /* Inset filter group on search island — never backdrop-filter here */
   .jr-filters-panel {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -667,9 +640,9 @@
     box-shadow: inset 0 1px 0
       color-mix(in srgb, var(--foreground) 8%, transparent);
   }
-  /* Solid dark: keep panel clearly stepped above #000 dock */
+  /* Solid dark: step above --card search island */
   html.dark[data-surface='solid'] .jr-filters-panel {
-    background: var(--card);
+    background: var(--secondary);
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
@@ -938,7 +911,7 @@
   .jr-filter-chip--on:hover {
     background: var(--primary-hover);
   }
-  /* Solid dark: panel is --card; chips use pure black + clear primary fill */
+  /* Solid dark: panel is --secondary on card island; chips use pure black + clear primary */
   html.dark[data-surface='solid'] .jr-filter-chip--off {
     color: rgba(235, 235, 245, 0.86);
     background: #000000;
@@ -1404,14 +1377,16 @@
   transform: translateY(4px);
 }
 
-/* Materialize glass overlays — opacity + soft saturate (fade-only under reduced-motion) */
+/* Materialize glass overlays — opacity + scale (fade-only under reduced-motion) */
 @keyframes jr-materialize-in {
   from {
     opacity: 0;
+    scale: 0.98;
     filter: saturate(0.7);
   }
   to {
     opacity: 1;
+    scale: 1;
     filter: none;
   }
 }
@@ -1580,9 +1555,7 @@
   }
   .jr-elevated,
   article[data-result-card].jr-elevated,
-  article[data-result-card].jr-elevated:hover,
-  html[data-surface='glass'] .jr-elevated,
-  html[data-surface='glass'] article[data-result-card].jr-elevated:hover {
+  article[data-result-card].jr-elevated:hover {
     background: var(--card) !important;
     box-shadow: none !important;
   }
@@ -1604,12 +1577,19 @@
   html[data-surface='glass'] .jr-glass-nav {
     background: var(--jr-glass-nav-fallback) !important;
   }
-  html[data-surface='glass'] .jr-sticky-dock,
-  html[data-surface='glass'] .jr-search-dock,
+  .jr-search-dock,
+  html[data-surface='glass'] .jr-search-dock {
+    background-color: var(--card) !important;
+    border-color: var(--border) !important;
+    box-shadow: inset 0 1px 0
+      color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html[data-surface='glass'] .jr-sticky-dock:not(.jr-search-dock),
   html[data-surface='glass'] .jr-settings-dock,
   html[data-surface='glass'] .jr-stats-dock,
-  .jr-sticky-dock,
-  .jr-search-dock,
+  .jr-sticky-dock:not(.jr-search-dock),
   .jr-settings-dock,
   .jr-stats-dock {
     background-color: var(--background) !important;
@@ -1640,8 +1620,14 @@
   header.jr-glass-nav::after {
     content: none;
   }
-  .jr-sticky-dock,
-  .jr-search-dock,
+  .jr-search-dock {
+    background-color: var(--card) !important;
+    border-color: var(--foreground) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  .jr-sticky-dock:not(.jr-search-dock),
   .jr-settings-dock,
   .jr-stats-dock {
     background-color: var(--background) !important;
@@ -1650,8 +1636,7 @@
     backdrop-filter: none !important;
   }
   .jr-elevated,
-  article[data-result-card].jr-elevated,
-  html[data-surface='glass'] .jr-elevated {
+  article[data-result-card].jr-elevated {
     background: var(--card) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;

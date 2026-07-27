@@ -316,7 +316,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div
-      class="jr-sticky-dock jr-search-dock sticky flex flex-col gap-2 py-2 sm:gap-2.5 sm:py-2.5"
+      class="jr-sticky-dock jr-search-dock sticky flex flex-col gap-2 sm:gap-2.5"
       style="top: var(--jr-header-offset)"
     >
       <form

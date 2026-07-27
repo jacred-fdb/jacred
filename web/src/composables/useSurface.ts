@@ -14,7 +14,7 @@ function applySurface(value: SurfaceValue) {
 
 applySurface(surface.value)
 
-/** Solid vs glass chrome/atmosphere; persisted as `html[data-surface]`. */
+/** Solid vs glass functional chrome + atmosphere; content stays solid. */
 export function useSurface() {
   function setSurface(value: SurfaceValue) {
     surface.value = value
