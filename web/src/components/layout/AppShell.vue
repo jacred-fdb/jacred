@@ -85,53 +85,60 @@ const {
   notifyDevKeySaved,
 } = shell
 
-const nav = computed(() => [
-  { to: '/', label: t('nav.search'), icon: Search, name: 'search' },
-  { to: '/stats', label: t('nav.stats'), icon: BarChart3, name: 'stats' },
-  {
-    to: '/settings',
-    label: t('nav.settings'),
-    icon: Settings,
-    name: 'settings',
-  },
-])
+const isRu = computed(() => locale.value === 'ru')
 
-const tools = computed(() => [
-  {
-    id: 'api',
-    label: t('search.apiKey'),
-    icon: KeyRound,
-    action: openApiKey,
-  },
-  {
-    id: 'dev',
-    label: t('settings.devKey'),
-    icon: Shield,
-    action: openDevKey,
-  },
-  {
-    id: 'torr',
-    label: t('search.torrServer'),
-    icon: Server,
-    action: openTorrServer,
-  },
-  {
-    id: 'keys',
-    label: t('search.shortcuts'),
-    icon: Keyboard,
-    action: openShortcuts,
-  },
-])
+const nav = computed(() => {
+  void locale.value
+  return [
+    { to: '/', label: t('nav.search'), icon: Search, name: 'search' },
+    { to: '/stats', label: t('nav.stats'), icon: BarChart3, name: 'stats' },
+    {
+      to: '/settings',
+      label: t('nav.settings'),
+      icon: Settings,
+      name: 'settings',
+    },
+  ]
+})
+
+const tools = computed(() => {
+  void locale.value
+  return [
+    {
+      id: 'api',
+      label: t('search.apiKey'),
+      icon: KeyRound,
+      action: openApiKey,
+    },
+    {
+      id: 'dev',
+      label: t('settings.devKey'),
+      icon: Shield,
+      action: openDevKey,
+    },
+    {
+      id: 'torr',
+      label: t('search.torrServer'),
+      icon: Server,
+      action: openTorrServer,
+    },
+    {
+      id: 'keys',
+      label: t('search.shortcuts'),
+      icon: Keyboard,
+      action: openShortcuts,
+    },
+  ]
+})
 
 function isActive(name: string) {
   return route.name === name
 }
 
 function setLocale(next: AppLocale) {
+  if (locale.value === next) return
   locale.value = next
   persistLocale(next)
-  const titleKey = route.meta.titleKey as string | undefined
-  if (titleKey) document.title = t(titleKey)
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -344,11 +351,12 @@ onUnmounted(() => {
               <Button
                 type="button"
                 size="sm"
-                :variant="locale === 'ru' ? 'secondary' : 'ghost'"
+                :variant="isRu ? 'secondary' : 'ghost'"
+                :aria-pressed="isRu"
                 :class="
                   cn(
                     segmentItemCompact,
-                    locale === 'ru' && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
+                    isRu && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
                   )
                 "
                 @click="setLocale('ru')"
@@ -358,11 +366,12 @@ onUnmounted(() => {
               <Button
                 type="button"
                 size="sm"
-                :variant="locale === 'en' ? 'secondary' : 'ghost'"
+                :variant="!isRu ? 'secondary' : 'ghost'"
+                :aria-pressed="!isRu"
                 :class="
                   cn(
                     segmentItemCompact,
-                    locale === 'en' && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
+                    !isRu && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
                   )
                 "
                 @click="setLocale('en')"
@@ -375,11 +384,11 @@ onUnmounted(() => {
               variant="ghost"
               size="icon"
               class="sm:hidden"
-              :aria-label="locale === 'ru' ? t('app.langEn') : t('app.langRu')"
-              @click="setLocale(locale === 'ru' ? 'en' : 'ru')"
+              :aria-label="isRu ? t('app.langEn') : t('app.langRu')"
+              @click="setLocale(isRu ? 'en' : 'ru')"
             >
               <span class="text-xs font-semibold">{{
-                locale === 'ru' ? t('app.langEn') : t('app.langRu')
+                isRu ? t('app.langEn') : t('app.langRu')
               }}</span>
             </Button>
             <DropdownMenu>

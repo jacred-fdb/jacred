@@ -6,7 +6,7 @@ import {
 /**
  * Generate PWA icons from the JacRed brand image into `public/img/`.
  * Run: npm run generate-pwa-assets
- * Also wired via VitePWA `pwaAssets` on build.
+ * VitePWA `pwaAssets` stays disabled (assets-generator during closeBundle hung builds).
  */
 export default defineConfig({
   headLinkOptions: {

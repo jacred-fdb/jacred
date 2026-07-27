@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
-import { apiClient, ApiError } from '@/lib/api/client'
+import { apiClient } from '@/lib/api/client'
 
 /** Polls `/health` and exposes a boolean online signal for the shell status pill. */
 export function useHealth() {
@@ -29,8 +29,5 @@ export function useHealth() {
   return {
     ...query,
     isOnline,
-    isApiError: computed(
-      () => query.error.value instanceof ApiError,
-    ),
   }
 }

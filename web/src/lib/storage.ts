@@ -12,6 +12,7 @@ export const StorageKeys = {
   torrServerPassword: 'jacredTorServerPassword',
   search: 'search',
   sort: 'sort',
+  sortDir: 'jacredSortDir',
   exact: 'exact',
   settingsFormTab: 'jacredSettingsFormTab',
   settingsMode: 'jacredSettingsMode',

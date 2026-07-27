@@ -38,12 +38,14 @@ import {
   buildFacets,
   countActiveFilters,
   EMPTY_FILTERS,
+  normalizeSortDirection,
   normalizeSortParam,
   pluralResults,
   SORT_API_MAP,
   sortItems,
   splitTrackerNames,
   type SearchFilters,
+  type SortDirection,
   type SortValue,
   type TorrentItem,
   URL_FILTER_KEYS,
@@ -146,6 +148,7 @@ export function useTorrents() {
 
   const query = ref('')
   const sort = ref<SortValue>('sid')
+  const sortDir = ref<SortDirection>('desc')
   const exact = ref(false)
   const apiMode = ref<ApiMode>('v1')
   const listView = ref(false)
@@ -182,10 +185,9 @@ export function useTorrents() {
   })
 
   const rawItems = computed(() => torrentsQuery.data.value ?? [])
-  const allItems = computed(() => {
-    if (apiMode.value === 'v2') return sortItems(rawItems.value, sort.value)
-    return rawItems.value
-  })
+  const allItems = computed(() =>
+    sortItems(rawItems.value, sort.value, sortDir.value),
+  )
   /** Keep previous rows while refetching (avoids scroll jump). */
   const isLoading = computed(() => torrentsQuery.isLoading.value)
   const isFetching = computed(() => torrentsQuery.isFetching.value)
@@ -300,6 +302,7 @@ export function useTorrents() {
     const params: Record<string, string> = {}
     if (q) params.s = q
     if (sort.value !== 'sid') params.sort = sort.value
+    if (sortDir.value === 'asc') params.order = 'asc'
     if (listView.value) params.view = 'list'
     if (apiMode.value === 'v2') {
       params.api = 'v2'
@@ -415,6 +418,14 @@ export function useTorrents() {
       if (s) sort.value = s
     }
 
+    if (typeof qp.order === 'string') {
+      sortDir.value = normalizeSortDirection(qp.order)
+    } else if (initial && !hasUrlSearch) {
+      sortDir.value = normalizeSortDirection(getItem(StorageKeys.sortDir))
+    } else {
+      sortDir.value = 'desc'
+    }
+
     if (apiMode.value === 'v1') {
       if (qp.exact != null) {
         exact.value = String(qp.exact) === '1'
@@ -479,13 +490,22 @@ export function useTorrents() {
   }
 
   function setSort(value: SortValue) {
+    if (value === sort.value) {
+      sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+      setItem(StorageKeys.sortDir, sortDir.value)
+      syncUrl()
+      return
+    }
     sort.value = value
+    sortDir.value = 'desc'
     setItem(StorageKeys.sort, value)
+    setItem(StorageKeys.sortDir, 'desc')
     if (apiMode.value === 'v2') {
       syncUrl()
       return
     }
     if (query.value.trim()) void search()
+    else syncUrl()
   }
 
   function setExact(value: boolean) {
@@ -649,8 +669,10 @@ export function useTorrents() {
     void queryClient.removeQueries({ queryKey: ['torrents'] })
     removeItem(StorageKeys.search)
     removeItem(StorageKeys.sort)
+    removeItem(StorageKeys.sortDir)
     removeItem(StorageKeys.exact)
     sort.value = 'sid'
+    sortDir.value = 'desc'
     exact.value = false
     filters.value = { ...EMPTY_FILTERS }
     v2Filters.value = { ...EMPTY_V2_FILTERS }
@@ -712,6 +734,7 @@ export function useTorrents() {
       currentQuery.value = ''
       activeKey.value = null
       sort.value = 'sid'
+      sortDir.value = 'desc'
       exact.value = false
       // Preserve listView / apiMode from URL/storage via readBootState.
       const shouldSearch = readBootState()
@@ -722,6 +745,7 @@ export function useTorrents() {
   return {
     query,
     sort,
+    sortDir,
     exact,
     apiMode,
     listView,

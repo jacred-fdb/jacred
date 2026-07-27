@@ -13,4 +13,9 @@ describe('translations', () => {
   it('keeps RU and EN key coverage identical', () => {
     expect(keyPaths(en)).toEqual(keyPaths(ru))
   })
+
+  it('keeps search API mode labels aligned with EN', () => {
+    expect(ru.search.apiMode.native).toBe(en.search.apiMode.native)
+    expect(ru.search.apiMode.jackett).toBe(en.search.apiMode.jackett)
+  })
 })

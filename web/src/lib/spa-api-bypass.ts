@@ -47,21 +47,23 @@ export const NAVIGATE_FALLBACK_DENYLIST: RegExp[] = [
   /^\/openapi\.yaml$/,
 ]
 
+/**
+ * Workbox `urlPattern` matcher for API/backend routes.
+ *
+ * Must stay closure-free: `generateSW` embeds this via `.toString()` into `sw.js`
+ * and cannot resolve module imports from the Vite config.
+ */
+export function matchApiUrlPattern({ url }: { url: { pathname: string } }): boolean {
+  // Regex is inlined (not imported) so Workbox can serialize this function into the SW.
+  return /^\/(?:api\/|swagger|sync\/|cron\/|dev\/|jsondb(?:\/|$)|torznab(?:\/|$)|stats\/.+|health(?:\/|$)|version(?:\/|$)|lastupdatedb(?:\/|$)|opensearch\.xml$|openapi\.yaml$)/i.test(
+    url.pathname,
+  )
+}
+
 /** True when pathname is an API/backend route (not SPA / static asset). */
 export function isApiPathname(pathname: string): boolean {
   const p = pathname.split('?')[0] || ''
-  if (p === '/health' || p === '/version' || p === '/lastupdatedb') return true
-  if (p === '/opensearch.xml' || p === '/openapi.yaml') return true
-  if (p === '/jsondb' || p.startsWith('/jsondb/')) return true
-  if (p === '/torznab' || p.startsWith('/torznab/')) return true
-  if (p.startsWith('/api/')) return true
-  if (p.startsWith('/swagger')) return true
-  if (p.startsWith('/sync/')) return true
-  if (p.startsWith('/cron/')) return true
-  if (p.startsWith('/dev/')) return true
-  // /stats → SPA; /stats/meta|torrents|tracks|… → API
-  if (/^\/stats\/.+/i.test(p)) return true
-  return false
+  return matchApiUrlPattern({ url: { pathname: p } })
 }
 
 /** Vite `server.proxy` keys → upstream JacRed. */

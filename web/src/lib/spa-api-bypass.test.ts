@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isApiPathname,
+  matchApiUrlPattern,
   NAVIGATE_FALLBACK_DENYLIST,
   WORKER_FIRST_PATTERNS,
 } from '@/lib/spa-api-bypass'
@@ -34,6 +35,31 @@ describe('isApiPathname', () => {
     expect(isApiPathname('/dev/updateSize')).toBe(true)
     expect(isApiPathname('/jsondb/save')).toBe(true)
     expect(isApiPathname('/swagger/index.html')).toBe(true)
+  })
+})
+
+describe('matchApiUrlPattern', () => {
+  it('is closure-free for Workbox generateSW serialization', () => {
+    const src = matchApiUrlPattern.toString()
+    // Must not call out to other identifiers — only url + inline regex.
+    expect(src).not.toMatch(/\breturn\s+\w+\(/)
+    expect(src).toMatch(/\/\\?\^/)
+  })
+
+  it('matches the same paths as isApiPathname', () => {
+    for (const pathname of [
+      '/health',
+      '/version',
+      '/',
+      '/stats',
+      '/stats/meta',
+      '/api/v1.0/torrents',
+      '/swagger/index.html',
+    ]) {
+      expect(matchApiUrlPattern({ url: { pathname } })).toBe(
+        isApiPathname(pathname),
+      )
+    }
   })
 })
 

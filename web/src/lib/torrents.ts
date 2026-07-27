@@ -24,6 +24,8 @@ export type TorrentItem = {
 
 export type SortValue = 'sid' | 'size' | 'date' | 'update'
 
+export type SortDirection = 'asc' | 'desc'
+
 export const SORT_API_MAP: Record<SortValue, string> = {
   sid: 'sid',
   size: 'size',
@@ -80,6 +82,12 @@ export function normalizeSortParam(val: string | null | undefined): SortValue | 
   if (v === 'pir') return 'sid'
   if (v === 'sid' || v === 'size' || v === 'date' || v === 'update') return v
   return ''
+}
+
+export function normalizeSortDirection(
+  val: string | null | undefined,
+): SortDirection {
+  return String(val || '').toLowerCase() === 'asc' ? 'asc' : 'desc'
 }
 
 function toTimestamp(ts: number | string | null | undefined): number {
@@ -144,22 +152,33 @@ export function qualityTier(q: number | string | null | undefined): QualityTier 
   return 'sd'
 }
 
-export function sortItems(items: TorrentItem[], sortVal: SortValue): TorrentItem[] {
+export function sortItems(
+  items: TorrentItem[],
+  sortVal: SortValue,
+  direction: SortDirection = 'desc',
+): TorrentItem[] {
   const list = items.slice()
+  const dir = direction === 'asc' ? -1 : 1
   switch (sortVal) {
     case 'size':
-      return list.sort((a, b) => (Number(b.size) || 0) - (Number(a.size) || 0))
+      return list.sort(
+        (a, b) => ((Number(b.size) || 0) - (Number(a.size) || 0)) * dir,
+      )
     case 'date':
       return list.sort(
-        (a, b) => toTimestamp(b.createTime) - toTimestamp(a.createTime),
+        (a, b) =>
+          (toTimestamp(b.createTime) - toTimestamp(a.createTime)) * dir,
       )
     case 'update':
       return list.sort(
-        (a, b) => toTimestamp(b.updateTime) - toTimestamp(a.updateTime),
+        (a, b) =>
+          (toTimestamp(b.updateTime) - toTimestamp(a.updateTime)) * dir,
       )
     case 'sid':
     default:
-      return list.sort((a, b) => (Number(b.sid) || 0) - (Number(a.sid) || 0))
+      return list.sort(
+        (a, b) => ((Number(b.sid) || 0) - (Number(a.sid) || 0)) * dir,
+      )
   }
 }
 

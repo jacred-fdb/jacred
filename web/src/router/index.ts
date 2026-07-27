@@ -7,19 +7,16 @@ const router = createRouter({
       path: '/',
       name: 'search',
       component: () => import('@/pages/SearchPage.vue'),
-      meta: { titleKey: 'search.pageTitle' },
     },
     {
       path: '/stats',
       name: 'stats',
       component: () => import('@/pages/StatsPage.vue'),
-      meta: { titleKey: 'stats.pageTitle' },
     },
     {
       path: '/settings',
       name: 'settings',
       component: () => import('@/pages/SettingsPage.vue'),
-      meta: { titleKey: 'settings.pageTitle' },
     },
   ],
   scrollBehavior(to, from, savedPosition) {

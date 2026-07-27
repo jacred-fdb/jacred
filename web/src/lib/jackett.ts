@@ -75,23 +75,6 @@ export const EMPTY_V2_FILTERS: V2SearchFilters = {
   exclude: '',
 }
 
-/** URL query keys for v2 filters (avoid clashing with share-target `title`). */
-export const URL_V2_FILTER_KEYS = [
-  'jtitle',
-  'joriginal',
-  'year',
-  'is_serial',
-  'cat',
-  'tracker',
-  'qlt',
-  'voice',
-  'season',
-  'lang',
-  'videotype',
-  'refine',
-  'exclude',
-] as const
-
 export const V2_CATEGORY_OPTIONS = [
   { value: '2000', labelKey: 'search.filters.catMovies' },
   { value: '5000', labelKey: 'search.filters.catTv' },

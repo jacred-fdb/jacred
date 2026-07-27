@@ -1,4 +1,4 @@
-import { onUnmounted, ref, type Ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 
 type SaveHandler = () => void
 
@@ -79,11 +79,4 @@ export function useShellTools() {
     notifyApiKeySaved,
     notifyDevKeySaved,
   }
-}
-
-export type ShellTools = {
-  apiKeyOpen: Ref<boolean>
-  devKeyOpen: Ref<boolean>
-  torrServerOpen: Ref<boolean>
-  shortcutsOpen: Ref<boolean>
 }

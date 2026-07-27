@@ -43,22 +43,6 @@ export type ConfigSchema = {
 
 export type ConfigFormat = 'yaml' | 'json'
 
-export type ConfigGetResponse = {
-  ok?: boolean
-  path?: string
-  examplePath?: string
-  format?: ConfigFormat | string
-  displayFormat?: string
-  exists?: boolean
-  lastModifiedUtc?: string
-  data?: Record<string, unknown>
-  content?: string
-  schema?: ConfigSchema
-  sensitiveFields?: string[]
-  note?: string
-  error?: string
-}
-
 export type ConfigValidation = {
   ok?: boolean
   error?: string

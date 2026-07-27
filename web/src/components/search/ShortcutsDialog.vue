@@ -10,14 +10,17 @@ import {
 } from '@/components/ui/dialog'
 
 const open = defineModel<boolean>('open', { default: false })
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
-const rows = computed(() => [
-  { keys: '/', desc: t('search.shortcutsDialog.focus') },
-  { keys: 'Enter', desc: t('search.shortcutsDialog.search') },
-  { keys: 'Esc', desc: t('search.shortcutsDialog.closeFilters') },
-  { keys: '?', desc: t('search.shortcutsDialog.help') },
-])
+const rows = computed(() => {
+  void locale.value
+  return [
+    { keys: '/', desc: t('search.shortcutsDialog.focus') },
+    { keys: 'Enter', desc: t('search.shortcutsDialog.search') },
+    { keys: 'Esc', desc: t('search.shortcutsDialog.closeFilters') },
+    { keys: '?', desc: t('search.shortcutsDialog.help') },
+  ]
+})
 </script>
 
 <template>

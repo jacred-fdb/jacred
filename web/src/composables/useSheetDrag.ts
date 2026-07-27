@@ -46,6 +46,8 @@ function readLiveY(el: HTMLElement): number {
 type VelocitySample = { y: number; t: number }
 
 const DRAG_ZONE_SEL = '.jr-sheet-drag-zone'
+const SHEET_BODY_SEL = '.jr-sheet-body'
+const SHEET_PANEL_SEL = '[data-slot="sheet-content"][data-side="bottom"]'
 /** Commit to drag only after this much pointer travel (tap vs dismiss). */
 const DRAG_HYSTERESIS_PX = 10
 /** Flick speed that earns snap-back bounce (§4 momentum-only). */
@@ -53,18 +55,20 @@ const FLICK_BOUNCE_V = 400
 
 /**
  * Bottom-sheet drag: 1:1 tracking, velocity handoff, spring open / settle / dismiss.
- * Listens on the sheet panel (non-passive) and starts only from `.jr-sheet-drag-zone`.
  *
- * iOS often fires `pointercancel` instead of `pointerup` on finger lift; treat
- * cancel-with-drag as a release, not an abort.
+ * IMPORTANT: Reka DialogContentImpl *replaces* `rootContext.contentElement` with a
+ * new ref on mount. Watching the original empty ref never sees the panel — so we
+ * resolve the DOM node via querySelector / event target, not a one-shot watch on
+ * the stale context ref. (X button worked because it reads the live ref at click.)
  */
 export function useSheetDrag(enabled: Ref<boolean>) {
   const dialog = injectDialogRootContext()
 
   let dragging = false
-  /** Pointer down in drag zone but not yet past hysteresis. */
   let pending = false
+  let pendingFromBody = false
   let startPointerY = 0
+  let startPointerX = 0
   let originY = 0
   let currentY = 0
   let velocityY = 0
@@ -74,9 +78,16 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   let activePointerId: number | null = null
   let openedForEl: HTMLElement | null = null
   let dismissFallbackTimer: number | null = null
+  let windowBound = false
+
+  function resolvePanel(): HTMLElement | null {
+    const fromCtx = dialog.contentElement?.value
+    if (fromCtx instanceof HTMLElement) return fromCtx
+    return document.querySelector(SHEET_PANEL_SEL)
+  }
 
   function panel(): HTMLElement | null {
-    return dialog.contentElement.value ?? null
+    return boundPanel ?? resolvePanel()
   }
 
   function stopAnim() {
@@ -102,12 +113,13 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     el.classList.remove('jr-sheet--drag-dismiss', 'jr-sheet--dragging')
   }
 
-  function beginPending(el: HTMLElement, clientY: number, timeStamp: number) {
+  function beginPending(el: HTMLElement, clientX: number, clientY: number, timeStamp: number) {
     stopAnim()
     el.style.transition = 'none'
     el.style.willChange = 'transform'
     originY = readLiveY(el)
     currentY = originY
+    startPointerX = clientX
     startPointerY = clientY
     samples = [{ y: clientY, t: timeStamp }]
     velocityY = 0
@@ -115,10 +127,20 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     dragging = false
   }
 
+  function abortPending(el: HTMLElement) {
+    pending = false
+    pendingFromBody = false
+    dragging = false
+    activePointerId = null
+    clearMotionStyles(el)
+    unbindWindow()
+  }
+
   function commitDrag(el: HTMLElement) {
     pending = false
     dragging = true
     el.classList.add('jr-sheet--dragging')
+    bindWindow()
   }
 
   function sampleVelocity(clientY: number, timeStamp: number) {
@@ -136,6 +158,14 @@ export function useSheetDrag(enabled: Ref<boolean>) {
 
   function isInDragZone(target: EventTarget | null): boolean {
     return target instanceof Element && !!target.closest(DRAG_ZONE_SEL)
+  }
+
+  function sheetBodyAtTop(target: EventTarget | null): HTMLElement | null {
+    if (!(target instanceof Element)) return null
+    const body = target.closest(SHEET_BODY_SEL)
+    if (!(body instanceof HTMLElement)) return null
+    if (body.scrollTop > 1) return null
+    return body
   }
 
   function springOpen(el: HTMLElement) {
@@ -162,7 +192,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
         {
           type: 'spring',
           bounce: 0,
-          duration: 0.4,
+          duration: 0.3,
           onComplete: () => clearMotionStyles(el),
         },
       )
@@ -196,7 +226,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
         {
           type: 'spring',
           bounce: 0,
-          duration: 0.32,
+          duration: 0.3,
           onComplete: () => {
             clearDismissFallback()
             dialog.onOpenChange(false)
@@ -216,42 +246,111 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   }
 
   function onPointerDown(e: PointerEvent) {
-    if (!enabled.value || prefersReducedMotion()) return
+    if (!enabled.value || !dialog.open.value) return
     if (e.button !== 0) return
-    if (!isInDragZone(e.target)) return
+
+    const el = panel()
+    if (!el) return
+    // Ignore presses outside this sheet (document capture).
+    if (e.target instanceof Node && !el.contains(e.target)) return
+
+    const inChrome = isInDragZone(e.target)
+    if (inChrome) {
+      if (
+        e.target instanceof Element &&
+        e.target.closest('[data-slot="sheet-close"]')
+      ) {
+        return
+      }
+      pendingFromBody = false
+      activePointerId = e.pointerId
+      beginPending(el, e.clientX, e.clientY, e.timeStamp)
+      bindWindow()
+      try {
+        el.setPointerCapture(e.pointerId)
+      } catch {
+        /* iOS may reject capture */
+      }
+      // Chrome zone: take the gesture so Safari doesn't scroll the page behind.
+      e.preventDefault()
+      return
+    }
+
     if (
       e.target instanceof Element &&
       e.target.closest('[data-slot="sheet-close"]')
     ) {
       return
     }
+    if (!sheetBodyAtTop(e.target)) return
 
-    const el = panel()
-    if (!el) return
-
+    pendingFromBody = true
     activePointerId = e.pointerId
-    beginPending(el, e.clientY, e.timeStamp)
-    try {
-      el.setPointerCapture(e.pointerId)
-    } catch {
-      /* iOS may reject capture — still track via bubbling listeners */
-    }
-    e.preventDefault()
+    beginPending(el, e.clientX, e.clientY, e.timeStamp)
+    bindWindow()
+    // No preventDefault yet — allow abort into native scroll.
   }
 
-  function trackMove(el: HTMLElement, clientY: number, timeStamp: number) {
+  function trackMove(
+    el: HTMLElement,
+    clientX: number,
+    clientY: number,
+    timeStamp: number,
+  ): boolean {
+    const reduced = prefersReducedMotion()
+
     if (pending && !dragging) {
       const dy = clientY - startPointerY
-      if (Math.abs(dy) < DRAG_HYSTERESIS_PX) {
+      const dx = clientX - startPointerX
+
+      if (pendingFromBody) {
+        if (
+          dy < -DRAG_HYSTERESIS_PX ||
+          (Math.abs(dx) > DRAG_HYSTERESIS_PX && Math.abs(dx) > Math.abs(dy))
+        ) {
+          abortPending(el)
+          return false
+        }
+        if (dy < DRAG_HYSTERESIS_PX) {
+          sampleVelocity(clientY, timeStamp)
+          return false
+        }
+      } else if (Math.abs(dy) < DRAG_HYSTERESIS_PX && Math.abs(dx) < DRAG_HYSTERESIS_PX) {
         sampleVelocity(clientY, timeStamp)
-        return
+        return false
+      } else if (dy < DRAG_HYSTERESIS_PX) {
+        // Chrome: only commit on downward pull (dismiss direction).
+        if (dy < -DRAG_HYSTERESIS_PX) {
+          abortPending(el)
+          return false
+        }
+        sampleVelocity(clientY, timeStamp)
+        return false
       }
-      // Re-anchor so the sheet doesn't jump when hysteresis commits.
+
+      if (reduced) {
+        pending = false
+        pendingFromBody = false
+        dragging = false
+        activePointerId = null
+        clearMotionStyles(el)
+        unbindWindow()
+        dialog.onOpenChange(false)
+        openedForEl = null
+        return false
+      }
+
       originY = readLiveY(el)
       startPointerY = clientY
+      startPointerX = clientX
       commitDrag(el)
+      try {
+        if (activePointerId != null) el.setPointerCapture(activePointerId)
+      } catch {
+        /* ignore */
+      }
     }
-    if (!dragging) return
+    if (!dragging) return false
 
     const height = el.offsetHeight || 1
     let y = originY + (clientY - startPointerY)
@@ -261,6 +360,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     sampleVelocity(clientY, timeStamp)
     currentY = y
     setY(el, y)
+    return true
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -268,8 +368,8 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     if (activePointerId != null && e.pointerId !== activePointerId) return
     const el = panel()
     if (!el) return
-    trackMove(el, e.clientY, e.timeStamp)
-    e.preventDefault()
+    const tracking = trackMove(el, e.clientX, e.clientY, e.timeStamp)
+    if (tracking || dragging) e.preventDefault()
   }
 
   function snapBack(el: HTMLElement) {
@@ -287,7 +387,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
         {
           type: 'spring',
           bounce: hadFlick ? 0.12 : 0,
-          duration: 0.4,
+          duration: 0.3,
           velocity: vel,
           onComplete: () => clearMotionStyles(el),
         },
@@ -299,7 +399,6 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     const height = el.offsetHeight || 1
     const from = Math.max(0, currentY)
     const projected = from + project(velocityY)
-    // Short flick or ~20% pull dismisses (stiffer thresholds felt stuck on iOS).
     const shouldDismiss =
       velocityY > 420 ||
       projected > height * 0.2 ||
@@ -323,7 +422,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
           {
             type: 'spring',
             bounce: hadFlick ? 0.08 : 0,
-            duration: 0.32,
+            duration: 0.3,
             velocity: Math.max(0, vel),
             onComplete: () => {
               clearDismissFallback()
@@ -354,10 +453,12 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     if (!pending && !dragging) return
     const wasDragging = dragging
     pending = false
+    pendingFromBody = false
     dragging = false
     const pointerId = activePointerId
     activePointerId = null
     const el = panel()
+    unbindWindow()
     if (!el) return
 
     if (clientY != null && timeStamp != null) {
@@ -372,7 +473,6 @@ export function useSheetDrag(enabled: Ref<boolean>) {
       /* ignore */
     }
 
-    // Tap / cancel with almost no movement → snap back (or no-op at rest).
     if (
       !wasDragging ||
       (mode === 'cancel' &&
@@ -403,7 +503,6 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     endDrag(e.clientY, e.timeStamp, 'up')
   }
 
-  /** Touch fallback when Pointer Events are incomplete (older WebKit). */
   function onTouchEnd(e: TouchEvent) {
     if (!pending && !dragging) return
     const touch = e.changedTouches[0]
@@ -412,24 +511,42 @@ export function useSheetDrag(enabled: Ref<boolean>) {
 
   function onTouchMove(e: TouchEvent) {
     if (!pending && !dragging) return
-    e.preventDefault()
     const touch = e.touches[0]
     if (!touch) return
     const el = panel()
     if (!el) return
-    trackMove(el, touch.clientY, e.timeStamp)
+    const tracking = trackMove(el, touch.clientX, touch.clientY, e.timeStamp)
+    if (tracking || dragging) e.preventDefault()
+  }
+
+  function unbindWindow() {
+    if (!windowBound) return
+    windowBound = false
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('pointercancel', onPointerCancel)
+    window.removeEventListener('touchmove', onTouchMove)
+    window.removeEventListener('touchend', onTouchEnd)
+    window.removeEventListener('touchcancel', onTouchEnd)
+  }
+
+  function bindWindow() {
+    if (windowBound) return
+    windowBound = true
+    // Window-level tracking survives iOS pointercancel on the panel.
+    window.addEventListener('pointermove', onPointerMove, { passive: false })
+    window.addEventListener('pointerup', onPointerUp, { passive: false })
+    window.addEventListener('pointercancel', onPointerCancel, { passive: false })
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd, { passive: false })
+    window.addEventListener('touchcancel', onTouchEnd, { passive: false })
   }
 
   function unbindPanel() {
+    unbindWindow()
     if (!boundPanel) return
     boundPanel.removeEventListener('pointerdown', onPointerDown)
-    boundPanel.removeEventListener('pointermove', onPointerMove)
-    boundPanel.removeEventListener('pointerup', onPointerUp)
-    boundPanel.removeEventListener('pointercancel', onPointerCancel)
     boundPanel.removeEventListener('lostpointercapture', onLostPointerCapture)
-    boundPanel.removeEventListener('touchmove', onTouchMove)
-    boundPanel.removeEventListener('touchend', onTouchEnd)
-    boundPanel.removeEventListener('touchcancel', onTouchEnd)
     boundPanel = null
   }
 
@@ -438,28 +555,34 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     if (!el || !enabled.value) return
     boundPanel = el
     el.addEventListener('pointerdown', onPointerDown, { passive: false })
-    el.addEventListener('pointermove', onPointerMove, { passive: false })
-    el.addEventListener('pointerup', onPointerUp, { passive: false })
-    el.addEventListener('pointercancel', onPointerCancel, { passive: false })
     el.addEventListener('lostpointercapture', onLostPointerCapture, {
       passive: true,
     })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd, { passive: false })
-    el.addEventListener('touchcancel', onTouchEnd, { passive: false })
+  }
+
+  async function attachWhenOpen() {
+    unbindPanel()
+    openedForEl = null
+    clearDismissFallback()
+    if (!enabled.value || !dialog.open.value) return
+
+    // Reka replaces contentElement on Content mount — wait for DOM.
+    await nextTick()
+    await nextTick()
+    let el = resolvePanel()
+    if (!el) {
+      await new Promise<void>((r) => requestAnimationFrame(() => r()))
+      el = resolvePanel()
+    }
+    if (!el || !dialog.open.value) return
+    bindPanel(el)
+    springOpen(el)
   }
 
   watch(
-    [enabled, () => dialog.contentElement.value, () => dialog.open.value],
-    ([isEnabled, el, open]) => {
-      bindPanel(isEnabled && open ? (el ?? null) : null)
-      if (isEnabled && open && el) {
-        void nextTick(() => springOpen(el))
-      }
-      if (!open) {
-        openedForEl = null
-        clearDismissFallback()
-      }
+    [enabled, () => dialog.open.value],
+    () => {
+      void attachWhenOpen()
     },
     { immediate: true, flush: 'post' },
   )

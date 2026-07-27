@@ -14,7 +14,11 @@ export function resolveLocale(): AppLocale {
 
 export function persistLocale(locale: AppLocale) {
   setItem(StorageKeys.locale, locale)
-  document.documentElement.lang = locale
+  const root = document.documentElement
+  root.lang = locale
+  // App has its own i18n — block browser MT (Edge/Chrome) from fighting the RU/EN toggle.
+  root.setAttribute('translate', 'no')
+  root.classList.add('notranslate')
 }
 
 const i18n = createI18n({

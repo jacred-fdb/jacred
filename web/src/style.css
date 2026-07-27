@@ -493,6 +493,10 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+  .jr-search-dock {
+    container-type: inline-size;
+    container-name: search-dock;
+  }
   html.dark[data-surface='solid'] .jr-search-dock,
   html.dark[data-surface='solid'] .jr-stats-dock {
     border-color: rgba(255, 255, 255, 0.14);
@@ -529,31 +533,44 @@
     content: none;
   }
 
-  /* Search toolbar — sort | controls + view (view stays end-aligned when wrap) */
+  /* Search toolbar — two bands (sort | controls). Density from dock CQ + observer. */
   .jr-search-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
+    gap: 0.5rem;
+    max-width: 100%;
+    min-width: 0;
   }
-  .jr-toolbar-end {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
+  .jr-toolbar-band--sort {
     width: 100%;
+    min-width: 0;
+  }
+  .jr-toolbar-band--controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
   .jr-toolbar-cluster {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 0.5rem 0.625rem;
+    gap: 0.5rem;
+    flex: 0 1 auto;
     min-width: 0;
   }
+  .jr-toolbar-spacer {
+    flex: 1 1 auto;
+    min-width: 0.5rem;
+  }
   .jr-toolbar-view {
-    margin-left: auto;
+    flex-shrink: 0;
   }
   .jr-toolbar-sep {
-    display: none;
+    display: block;
     width: 1px;
     height: 1.25rem;
     flex-shrink: 0;
@@ -563,13 +580,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.125rem;
+    flex-shrink: 0;
   }
   .jr-toolbar-btn {
     height: 2rem;
     gap: 0.375rem;
     border-radius: 10px;
     border-color: transparent;
-    padding-inline: 0.625rem;
+    padding-inline: 0.5rem;
     color: var(--jr-label);
     box-shadow: none;
     transition:
@@ -609,30 +627,32 @@
   .jr-exact-toggle:hover {
     color: var(--foreground);
   }
-  @media (min-width: 1024px) {
-    .jr-search-toolbar {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.75rem;
+
+  /* Band 1: sort labels always (primary path) */
+  .jr-toolbar-label--sort {
+    display: inline;
+  }
+  /* Band 2: progressive labels — CQ ceiling; observer may only restrict */
+  .jr-toolbar-label--exact,
+  .jr-toolbar-label--secondary {
+    display: none;
+  }
+  @container search-dock (min-width: 40rem) {
+    .jr-toolbar-label--exact {
+      display: inline;
     }
-    .jr-toolbar-group--sort {
-      min-width: 0;
+  }
+  @container search-dock (min-width: 56rem) {
+    .jr-toolbar-label--secondary {
+      display: inline;
     }
-    .jr-toolbar-end {
-      width: auto;
-      flex: 0 1 auto;
-      flex-wrap: nowrap;
-      margin-left: auto;
-    }
-    .jr-toolbar-view {
-      margin-left: 0;
-    }
-    .jr-toolbar-sep {
-      display: block;
-    }
-    .jr-toolbar-btn {
-      padding-inline: 0.75rem;
-    }
+  }
+  .jr-search-dock[data-toolbar-density='compact'] .jr-toolbar-label--exact,
+  .jr-search-dock[data-toolbar-density='compact'] .jr-toolbar-label--secondary {
+    display: none !important;
+  }
+  .jr-search-dock[data-toolbar-density='regular'] .jr-toolbar-label--secondary {
+    display: none !important;
   }
 
   /* Inset filter group on search island — never backdrop-filter here */
@@ -687,7 +707,13 @@
   }
   @media (min-width: 640px) {
     .jr-filters-facets {
-      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    }
+  }
+  /* Native: keep all facet selects on one row when the panel is wide enough */
+  @media (min-width: 1100px) {
+    .jr-native-filters .jr-filters-facets {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
     }
   }
   .jr-filter-section__stack {
@@ -802,10 +828,6 @@
   @media (min-width: 640px) {
     .jr-filter-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .jr-filter-grid--compact {
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-      align-items: start;
     }
   }
   .jr-filter-field {
@@ -1269,17 +1291,22 @@
     cursor: grabbing;
   }
   .jr-sheet-drag-zone--handle {
-    /* 44px hit target around the handle hairline */
-    min-height: 44px;
+    /* Large grabber hit target — primary dismiss affordance on iOS */
+    min-height: 52px;
     display: flex;
     align-items: flex-start;
     justify-content: center;
+    touch-action: none;
   }
   .jr-sheet-handle {
     touch-action: none;
     pointer-events: none;
     width: 100%;
     max-width: 20rem;
+  }
+  .jr-sheet-body {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .jr-scroll-top {
@@ -1312,9 +1339,6 @@
 
   .jr-settings-tabs {
     overflow-x: visible;
-  }
-  .jr-sort-tabs {
-    overflow-x: hidden;
   }
 
   /* Instant press feedback on segmented controls */
@@ -1468,15 +1492,18 @@
   }
 
   /* Keep visual h-8; min-height:44 here breaks equal-width sort chips */
-  .jr-segment-track [data-slot='toggle-group-item'],
-  .jr-sort-tabs [data-slot='toggle-group-item'],
   .jr-settings-tabs [data-slot='toggle-group-item'] {
     position: relative;
     min-width: 0;
     min-height: 0;
   }
+  .jr-segment-track [data-slot='toggle-group-item'] {
+    position: relative;
+    min-height: 0;
+    /* Intrinsic width — long RU labels must not spill into the sibling chip */
+    min-width: min-content;
+  }
   .jr-segment-track [data-slot='toggle-group-item']::before,
-  .jr-sort-tabs [data-slot='toggle-group-item']::before,
   .jr-settings-tabs [data-slot='toggle-group-item']::before {
     content: '';
     position: absolute;

@@ -26,8 +26,6 @@ export type ApiClientOptions = {
   signal?: AbortSignal
 }
 
-type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
-
 type PathKey = keyof paths
 type GetJson<Path extends PathKey> = paths[Path] extends {
   get: {
@@ -327,4 +325,4 @@ export const apiClient = {
   },
 }
 
-export type { PathKey, HttpMethod, paths }
+export type { paths }

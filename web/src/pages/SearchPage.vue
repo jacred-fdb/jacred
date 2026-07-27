@@ -29,6 +29,7 @@ const { openTorrServer } = useShellTools()
 const {
   query,
   sort,
+  sortDir,
   exact,
   apiMode,
   listView,
@@ -206,6 +207,11 @@ function runServerFilterSearch(apply: () => void) {
 }
 
 function onSortUpdate(value: SortValue) {
+  // Same chip → direction flip only (no refetch). New field → pin + refetch on v1.
+  if (value === sort.value) {
+    setSort(value)
+    return
+  }
   runServerFilterSearch(() => setSort(value))
 }
 
@@ -397,6 +403,7 @@ onBeforeUnmount(() => {
         :exact="exact"
         :api-mode="apiMode"
         :sort="sort"
+        :sort-dir="sortDir"
         :list-view="listView"
         :filters="filters"
         :v2-filters="v2Filters"
