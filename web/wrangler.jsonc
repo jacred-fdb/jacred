@@ -37,7 +37,8 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    // SPA page `/stats` must stay on assets; only JSON endpoints go to the Worker.
+    // SPA shells `/`, `/stats`, `/settings` stay on assets.
+    // Keep in sync with src/lib/spa-api-bypass.ts → WORKER_FIRST_PATTERNS.
     "run_worker_first": [
       "/api/*",
       "/stats/torrents",
@@ -49,6 +50,13 @@
       "/opensearch.xml",
       "/swagger",
       "/swagger/*",
+      "/sync/*",
+      "/torznab",
+      "/torznab/*",
+      "/cron/*",
+      "/dev/*",
+      "/jsondb",
+      "/jsondb/*",
     ],
   },
   // Set JACRED_ORIGIN in .dev.vars (local) or via `wrangler secret` / dashboard vars (deploy).

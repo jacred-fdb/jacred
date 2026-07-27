@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 const props = defineProps<{
   item: TrackerStat
   fullNumbers: boolean
+  /** Mobile list: summary-style primary + secondary tiles (not dense chips). */
   compact?: boolean
 }>()
 const { t, locale } = useI18n()
@@ -53,6 +54,57 @@ const lastNew = computed((): Metric =>
     props.item.lastnewtor || '—',
   ),
 )
+
+const primary = computed((): Metric[] => [
+  metric(
+    'total',
+    'total',
+    t('stats.card.total'),
+    formatStatNumber(props.item.alltorrents, props.fullNumbers, locale.value),
+    formatStatNumberFull(props.item.alltorrents, locale.value),
+  ),
+  metric(
+    'new',
+    'new',
+    t('stats.card.newToday'),
+    formatStatNumber(props.item.newtor, props.fullNumbers, locale.value),
+    formatStatNumberFull(props.item.newtor, locale.value),
+  ),
+  metric(
+    'update',
+    'update',
+    t('stats.card.updated'),
+    formatStatNumber(props.item.update, props.fullNumbers, locale.value),
+    formatStatNumberFull(props.item.update, locale.value),
+  ),
+])
+
+const secondary = computed((): Metric[] => {
+  const tracksData = tracks.value
+  return [
+    metric(
+      'wait',
+      'wait',
+      t('stats.card.waiting'),
+      formatStatNumber(tracksData.wait, props.fullNumbers, locale.value),
+      formatStatNumberFull(tracksData.wait, locale.value),
+    ),
+    metric(
+      'confirm',
+      'confirm',
+      t('stats.card.confirmed'),
+      formatStatNumber(tracksData.confirm, props.fullNumbers, locale.value),
+      formatStatNumberFull(tracksData.confirm, locale.value),
+    ),
+    metric(
+      'skip',
+      'skip',
+      t('stats.card.skipped'),
+      formatStatNumber(tracksData.skip, props.fullNumbers, locale.value),
+      formatStatNumberFull(tracksData.skip, locale.value),
+    ),
+  ]
+})
 
 const pairs = computed((): Metric[][] => {
   const tracksData = tracks.value
@@ -111,55 +163,14 @@ const pairs = computed((): Metric[][] => {
     ],
   ]
 })
-
-const compactMetrics = computed((): Metric[] => {
-  const tracksData = tracks.value
-  return [
-    metric(
-      'new',
-      'new',
-      t('stats.card.new'),
-      formatStatNumber(props.item.newtor, props.fullNumbers, locale.value),
-      formatStatNumberFull(props.item.newtor, locale.value),
-    ),
-    metric(
-      'update',
-      'update',
-      t('stats.card.updated'),
-      formatStatNumber(props.item.update, props.fullNumbers, locale.value),
-      formatStatNumberFull(props.item.update, locale.value),
-    ),
-    metric(
-      'total',
-      'total',
-      t('stats.card.total'),
-      formatStatNumber(props.item.alltorrents, props.fullNumbers, locale.value),
-      formatStatNumberFull(props.item.alltorrents, locale.value),
-    ),
-    metric(
-      'confirm',
-      'confirm',
-      t('stats.card.confirmed'),
-      formatStatNumber(tracksData.confirm, props.fullNumbers, locale.value),
-      formatStatNumberFull(tracksData.confirm, locale.value),
-    ),
-  ]
-})
 </script>
 
 <template>
   <article
     data-result-card
-    :class="
-      cn(
-        'jr-glass rounded-xl border text-card-foreground',
-        compact ? 'p-3' : 'p-4',
-      )
-    "
+    class="jr-elevated rounded-xl border p-4 text-card-foreground"
   >
-    <header
-      :class="cn('flex items-center gap-2.5', compact ? 'mb-2' : 'mb-3')"
-    >
+    <header class="mb-3 flex items-center gap-2.5">
       <img
         :src="iconSrc"
         alt=""
@@ -179,7 +190,7 @@ const compactMetrics = computed((): Metric[] => {
         </div>
       </div>
       <div
-        v-if="compact"
+        v-if="compact && lastNew.value !== '—'"
         class="shrink-0 text-right text-xs tabular-nums text-muted-foreground"
         :title="lastNew.full"
       >
@@ -187,31 +198,48 @@ const compactMetrics = computed((): Metric[] => {
       </div>
     </header>
 
-    <!-- Mobile list: dense single row of key metrics -->
-    <div
-      v-if="compact"
-      class="flex flex-wrap items-center gap-1.5"
-    >
-      <div
-        v-for="m in compactMetrics"
-        :key="m.key"
-        :class="
-          cn(
-            'inline-flex min-w-0 items-baseline gap-1 rounded-md px-2 py-1',
-            `jr-stat-chip--${m.chip}`,
-          )
-        "
-      >
-        <span class="text-[10px] font-medium tracking-wide uppercase opacity-80">{{
-          m.label
-        }}</span>
-        <strong
-          class="text-sm font-semibold tabular-nums"
-          :aria-label="m.full"
-          :title="m.full"
+    <!-- Mobile: same structure as StatsSummary (primary tiles + secondary rows) -->
+    <div v-if="compact" class="space-y-3">
+      <div class="grid grid-cols-1 gap-3">
+        <div
+          v-for="m in primary"
+          :key="m.key"
+          :class="cn('min-w-0 rounded-lg px-3 py-2.5', `jr-stat-chip--${m.chip}`)"
         >
-          {{ m.value }}
-        </strong>
+          <div class="text-xs font-medium tracking-wide uppercase opacity-80">
+            {{ m.label }}
+          </div>
+          <div
+            class="mt-1 truncate text-2xl font-semibold tabular-nums tracking-tight"
+            :aria-label="m.full"
+            :title="m.full"
+          >
+            {{ m.value }}
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 gap-1.5 border-t border-border/60 pt-3">
+        <div
+          v-for="m in secondary"
+          :key="m.key"
+          :class="
+            cn(
+              'flex min-w-0 items-baseline justify-between gap-2 rounded-md px-2.5 py-1.5',
+              `jr-stat-chip--${m.chip}`,
+            )
+          "
+        >
+          <span class="text-xs font-medium tracking-wide uppercase opacity-80">{{
+            m.label
+          }}</span>
+          <strong
+            class="truncate text-sm font-semibold tabular-nums"
+            :aria-label="m.full"
+            :title="m.full"
+          >
+            {{ m.value }}
+          </strong>
+        </div>
       </div>
     </div>
 

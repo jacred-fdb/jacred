@@ -28,6 +28,7 @@ import {
   getSafeIconPath,
   isSafeHttpUrl,
   qualityTier,
+  splitTrackerNames,
   type TorrentItem,
 } from '@/lib/torrents'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,7 @@ const props = defineProps<{
   listView: boolean
   position: number
   setSize: number
-  activeTracker: string
+  activeTrackers: string[]
 }>()
 
 const emit = defineEmits<{
@@ -68,12 +69,16 @@ const showUpdate = computed(
   () => !!updateStr.value && updateStr.value !== createStr.value,
 )
 const tracker = computed(() => props.item.tracker || '')
-const isActiveTracker = computed(
-  () =>
-    !!props.activeTracker &&
-    tracker.value.toLowerCase() === props.activeTracker.toLowerCase(),
-)
-const iconSrc = computed(() => getSafeIconPath(tracker.value))
+const isActiveTracker = computed(() => {
+  if (!props.activeTrackers.length) return false
+  const selected = new Set(
+    props.activeTrackers.map((t) => t.toLowerCase()).filter(Boolean),
+  )
+  return splitTrackerNames(tracker.value).some((name) =>
+    selected.has(name.toLowerCase()),
+  )
+})
+const iconSrc = computed(() => getSafeIconPath(splitTrackerNames(tracker.value)[0] || tracker.value))
 
 const qualityClass = computed(() => {
   switch (tier.value) {
@@ -96,7 +101,7 @@ const titleNode = computed(() => (safeUrl.value ? 'a' : 'span'))
 const titleBind = computed(() =>
   safeUrl.value
     ? { href: safeUrl.value, target: '_blank', rel: 'noopener noreferrer' }
-    : { 'aria-disabled': true },
+    : {},
 )
 
 onUnmounted(() => {
@@ -165,7 +170,7 @@ async function onSendTorr() {
     :data-layout="listView ? 'list' : 'card'"
     :class="
       cn(
-        'jr-glass border transition-colors hover:border-primary/40',
+        'jr-elevated border transition-colors hover:border-primary/40',
         'focus-within:ring-1 focus-within:ring-ring/40',
         listView
           ? 'flex flex-col gap-1 rounded-md px-2 py-1.5 sm:flex-row sm:items-center sm:gap-2 sm:py-1'
@@ -173,7 +178,6 @@ async function onSendTorr() {
       )
     "
   >
-    <!-- List: mobile dense stack; desktop row -->
     <template v-if="listView">
       <div class="flex min-w-0 flex-1 items-start gap-2 sm:items-center">
         <button
@@ -222,28 +226,28 @@ async function onSendTorr() {
           class="jr-meta-chip jr-meta-chip--size jr-result-meta__size"
           :title="t('search.card.size')"
         >
-          <HardDrive class="size-3.5 shrink-0" />
+          <HardDrive class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ item.sizeName || '—' }}</span>
         </span>
         <span
           class="jr-meta-chip jr-meta-chip--seeds jr-result-meta__seeds"
           :title="t('search.card.seeds')"
         >
-          <ArrowUp class="size-3.5 shrink-0" />
+          <ArrowUp class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ item.sid ?? 0 }}</span>
         </span>
         <span
           class="jr-meta-chip jr-meta-chip--peers jr-result-meta__peers"
           :title="t('search.card.peers')"
         >
-          <ArrowDown class="size-3.5 shrink-0" />
+          <ArrowDown class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ item.pir ?? 0 }}</span>
         </span>
         <span
           class="jr-meta-chip jr-meta-chip--added jr-result-meta__added"
           :title="t('search.card.added')"
         >
-          <CalendarPlus class="size-3.5 shrink-0" />
+          <CalendarPlus class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ createStr }}</span>
         </span>
         <span
@@ -251,7 +255,7 @@ async function onSendTorr() {
           class="jr-meta-chip jr-meta-chip--updated jr-result-meta__updated"
           :title="t('search.card.updated')"
         >
-          <RefreshCw class="size-3.5 shrink-0" />
+          <RefreshCw class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ updateStr }}</span>
         </span>
       </div>
@@ -268,7 +272,6 @@ async function onSendTorr() {
       </div>
     </template>
 
-    <!-- Card: head / meta / actions bands (thicker on mobile) -->
     <template v-else>
       <div
         class="jr-result-card__head flex items-start gap-2 px-2.5 pt-2 pb-1.5 sm:p-0"
@@ -300,7 +303,7 @@ async function onSendTorr() {
         <component
           :is="titleNode"
           v-bind="titleBind"
-          class="min-w-0 flex-1 text-[0.95rem] leading-snug font-semibold text-foreground no-underline line-clamp-3 hover:text-primary sm:line-clamp-2"
+          class="min-w-0 flex-1 text-[0.95rem] leading-snug font-semibold text-foreground no-underline line-clamp-2 hover:text-primary"
           :title="title"
         >
           {{ title || t('search.card.untitled') }}
@@ -315,28 +318,28 @@ async function onSendTorr() {
           class="jr-meta-chip jr-meta-chip--size"
           :title="t('search.card.size')"
         >
-          <HardDrive class="size-3.5 shrink-0" />
+          <HardDrive class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ item.sizeName || '—' }}</span>
         </span>
         <span
           class="jr-meta-chip jr-meta-chip--seeds"
           :title="t('search.card.seeds')"
         >
-          <ArrowUp class="size-3.5 shrink-0" />
+          <ArrowUp class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ item.sid ?? 0 }}</span>
         </span>
         <span
           class="jr-meta-chip jr-meta-chip--peers"
           :title="t('search.card.peers')"
         >
-          <ArrowDown class="size-3.5 shrink-0" />
+          <ArrowDown class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ item.pir ?? 0 }}</span>
         </span>
         <span
           class="jr-meta-chip jr-meta-chip--added"
           :title="t('search.card.added')"
         >
-          <CalendarPlus class="size-3.5 shrink-0" />
+          <CalendarPlus class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ createStr }}</span>
         </span>
         <span
@@ -344,7 +347,7 @@ async function onSendTorr() {
           class="jr-meta-chip jr-meta-chip--updated"
           :title="t('search.card.updated')"
         >
-          <RefreshCw class="size-3.5 shrink-0" />
+          <RefreshCw class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="jr-meta-chip__value">{{ updateStr }}</span>
         </span>
       </div>

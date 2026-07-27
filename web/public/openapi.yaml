@@ -20,11 +20,16 @@ info:
     | `X-Api-Key` header | Same as query apikey |
     | `Authorization: Bearer` | Same as apikey |
     | `X-Dev-Key` header | /dev/, /cron/, /jsondb, `/api/v1.0/config/*` из интернета или через туннель |
+    | `devkey` query | Same as `X-Dev-Key` (`?devkey=`) |
 
     **Config API** (`/api/v1.0/config/*`): LAN-клиент **или** `X-Dev-Key` / `?devkey=`.
     Same-host reverse proxy (Cloudflare Tunnel, nginx) **сам по себе не заменяет** devkey.
 
     **Sync** (`/sync/*`): middleware пропускает без ключей; данные sync требуют `opensync: true` в конфиге.
+
+    **Dev/cron/jsondb:** `/dev/*`, `/cron/*`, `/jsondb/*` require DevAdmin (`X-Dev-Key` / `?devkey=`).
+    Those operational actions are **not** enumerated in this public spec; see the Controllers and
+    [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
     Полная матрица: [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
@@ -54,7 +59,7 @@ tags:
   - name: Sync
     description: Remote sync protocol (requires opensync)
   - name: Config
-    description: init.yaml / init.conf read/write (LAN or X-Dev-Key)
+    description: init.yaml / init.conf read/write (LAN or X-Dev-Key / ?devkey=)
   - name: Web
     description: PWA HTML shells
 
@@ -160,6 +165,15 @@ paths:
           schema:
             type: integer
             description: '-1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime'
+        - name: Category[]
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: 'Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime)'
         - name: Tracker[]
           in: query
           schema:
@@ -191,9 +205,10 @@ paths:
         - $ref: '#/components/parameters/ApiKeyQuery'
         - name: search
           in: query
-          required: true
+          required: false
           schema:
             type: string
+          description: Empty or omitted yields an empty result array
         - name: altname
           in: query
           schema:
@@ -299,11 +314,17 @@ paths:
             default: 1000
       responses:
         '200':
-          description: Quality map
+          description: |
+            Nested map: title key → release year → TorrentQuality.
+            Empty name and originalname yields `{}`.
           content:
             application/json:
               schema:
                 type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/TorrentQuality'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -319,7 +340,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [caps, indexers, search, tvsearch, movie, tv]
+            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
         - name: q
           in: query
           schema:
@@ -368,7 +389,8 @@ paths:
       tags: [Torznab]
       summary: List configured indexers (Jackett/Prowlarr)
       operationId: indexersList
-      security: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
       responses:
         '200':
           description: Indexer list
@@ -378,6 +400,8 @@ paths:
                 type: array
                 items:
                   type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /api/v1/indexer:
     get:
@@ -405,7 +429,7 @@ paths:
         '404':
           description: Torznab disabled
 
-  /api/v1/indexer/{indexerId}:
+  /api/v1/indexer/{id}:
     get:
       tags: [Torznab]
       summary: Prowlarr indexer detail
@@ -414,7 +438,7 @@ paths:
         JacRed exposes a single aggregate indexer with `id=1`.
       operationId: prowlarrIndexerDetail
       parameters:
-        - name: indexerId
+        - name: id
           in: path
           required: true
           schema:
@@ -431,7 +455,7 @@ paths:
         '404':
           description: Torznab disabled or unknown indexer id
 
-  /api/v1/indexer/{indexerId}/newznab:
+  /api/v1/indexer/{indexer}/newznab:
     get:
       tags: [Torznab]
       summary: Prowlarr Torznab proxy
@@ -440,12 +464,12 @@ paths:
         Same handler as `/torznab/api` and Jackett alias paths.
       operationId: prowlarrNewznab
       parameters:
-        - name: indexerId
+        - name: indexer
           in: path
           required: true
           schema:
-            type: integer
-            example: 1
+            type: string
+            example: "1"
         - $ref: '#/components/parameters/ApiKeyQuery'
         - name: t
           in: query
@@ -535,25 +559,33 @@ paths:
     get:
       tags: [Stats]
       summary: Tracker summary (stats.json)
-      description: 'All trackers from Data/temp/stats.json. Used by web UI `/stats`. Requires `openstats: true`.'
+      description: |
+        All trackers from Data/temp/stats.json. Used by web UI `/stats`.
+        When `openstats: false`, still returns **200** with body `[]` (soft disable; not a middleware 401).
+        Missing/invalid API key (when configured) is a separate **401**.
       operationId: statsTorrents
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
       responses:
         '200':
-          description: Tracker summary array
+          description: Tracker summary array (or `[]` when openstats is false)
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/TrackerStat'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /stats/tracks:
     get:
       tags: [Stats]
       summary: Tracks export aggregate (tracks-stats.json cache)
-      description: 'Read-only cache from Data/temp/tracks-stats.json. Requires `openstats: true`. Force refresh via `/dev/TracksStats?refresh=true`.'
+      description: |
+        Read-only cache from Data/temp/tracks-stats.json. Force refresh via `/dev/TracksStats?refresh=true`.
+        When `openstats: false`, still returns **200** with `{ ok: false }` (soft disable; not a middleware 401).
+        Missing/invalid API key (when configured) is a separate **401**.
       operationId: statsTracks
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
@@ -564,7 +596,7 @@ paths:
             default: true
       responses:
         '200':
-          description: Tracks export aggregate
+          description: 'Tracks export aggregate (or `{ ok: false }` when openstats is false)'
           content:
             application/json:
               schema:
@@ -579,22 +611,29 @@ paths:
                     type: boolean
                   stats:
                     type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /stats/meta:
     get:
       tags: [Stats]
       summary: Last stats collection time
-      description: 'Requires `openstats: true`. Returns updatedAt for stats.json and tracks-stats.json. Used by web UI `/stats`.'
+      description: |
+        Returns updatedAt for stats.json and tracks-stats.json. Used by web UI `/stats`.
+        When `openstats: false`, still returns **200** with `{ ok: false }` (soft disable; not a middleware 401).
+        Missing/invalid API key (when configured) is a separate **401**.
       operationId: statsMeta
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
       responses:
         '200':
-          description: Collection timestamps
+          description: 'Collection timestamps (or `{ ok: false }` when openstats is false)'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatsMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /sync/conf:
     get:
@@ -666,6 +705,34 @@ paths:
               schema:
                 type: object
 
+  /sync/torrents:
+    get:
+      tags: [Sync]
+      summary: Legacy sync torrents stub
+      description: |
+        Deprecated stub. Always returns `{ error: "use GET /sync/fdb/torrents" }`.
+        Prefer `/sync/fdb/torrents`.
+      operationId: syncTorrentsStub
+      deprecated: true
+      security: []
+      parameters:
+        - name: time
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Redirect-style error payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: use GET /sync/fdb/torrents
+
   /api/v1.0/config:
     get:
       tags: [Config]
@@ -676,6 +743,7 @@ paths:
       operationId: configGet
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       parameters:
         - name: format
           in: query
@@ -703,6 +771,7 @@ paths:
       operationId: configSave
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       requestBody:
         required: true
         content:
@@ -728,6 +797,7 @@ paths:
       operationId: configSchema
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       responses:
         '200':
           description: Field groups and validation metadata
@@ -748,6 +818,7 @@ paths:
       operationId: configValidate
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       requestBody:
         required: true
         content:
@@ -770,6 +841,7 @@ paths:
       operationId: configDiff
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       requestBody:
         required: true
         content:
@@ -792,6 +864,7 @@ paths:
       operationId: configRender
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       requestBody:
         required: true
         content:
@@ -822,6 +895,7 @@ paths:
       operationId: configParse
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       requestBody:
         required: true
         content:
@@ -857,6 +931,7 @@ paths:
       operationId: configFormat
       security:
         - DevKeyHeader: []
+        - DevKeyQuery: []
       requestBody:
         required: true
         content:
@@ -882,6 +957,21 @@ paths:
           description: This document
           content:
             application/yaml:
+              schema:
+                type: string
+
+  /opensearch.xml:
+    get:
+      tags: [System]
+      summary: OpenSearch description document
+      description: Browser/search-plugin discovery for JacRed HTML search (`/?s={searchTerms}`).
+      operationId: openSearchXml
+      security: []
+      responses:
+        '200':
+          description: OpenSearchDescription XML
+          content:
+            application/opensearchdescription+xml:
               schema:
                 type: string
 
@@ -948,6 +1038,11 @@ components:
       in: header
       name: X-Dev-Key
       description: Admin/dev key — required from internet or tunnel when `devkey` is set; LAN clients may omit it.
+    DevKeyQuery:
+      type: apiKey
+      in: query
+      name: devkey
+      description: Same as X-Dev-Key (`?devkey=`).
 
   parameters:
     ApiKeyQuery:
@@ -1147,6 +1242,10 @@ components:
         path:
           type: string
           example: init.yaml
+        examplePath:
+          type: string
+          description: Path to example config file shipped with the app
+          example: Data/example.yaml
         format:
           type: string
           enum: [yaml, json]
@@ -1317,6 +1416,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/JackettResult'
+        jacred:
+          type: boolean
+          description: Always true for JacRed responses (read-only marker)
+          example: true
 
     JackettResult:
       type: object
@@ -1326,7 +1429,8 @@ components:
         Title:
           type: string
         Size:
-          type: integer
+          type: number
+          description: Size in bytes (may be fractional from parsers)
         Seeders:
           type: integer
         Peers:
@@ -1336,6 +1440,75 @@ components:
         Details:
           type: string
           format: uri
+        PublishDate:
+          type: string
+        Category:
+          type: array
+          items:
+            type: integer
+          description: Torznab category ids
+        CategoryDesc:
+          type: string
+        ffprobe:
+          type: array
+          nullable: true
+          description: ffprobe streams when tracks is enabled
+          items:
+            type: object
+            additionalProperties: true
+        languages:
+          type: array
+          items:
+            type: string
+        info:
+          type: object
+          properties:
+            quality:
+              type: integer
+            videotype:
+              type: string
+            voices:
+              type: array
+              items:
+                type: string
+            seasons:
+              type: array
+              items:
+                type: integer
+            types:
+              type: array
+              items:
+                type: string
+            sizeName:
+              type: string
+            name:
+              type: string
+            originalname:
+              type: string
+            relased:
+              type: integer
+
+    TorrentQuality:
+      type: object
+      properties:
+        qualitys:
+          type: array
+          items:
+            type: integer
+        types:
+          type: array
+          items:
+            type: string
+        languages:
+          type: array
+          items:
+            type: string
+        createTime:
+          type: string
+          format: date-time
+        updateTime:
+          type: string
+          format: date-time
 
     TorrentListItem:
       type: object

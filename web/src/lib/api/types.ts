@@ -201,7 +201,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/indexer/{indexerId}": {
+    "/api/v1/indexer/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -222,7 +222,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/indexer/{indexerId}/newznab": {
+    "/api/v1/indexer/{indexer}/newznab": {
         parameters: {
             query?: never;
             header?: never;
@@ -278,7 +278,9 @@ export interface paths {
         };
         /**
          * Tracker summary (stats.json)
-         * @description All trackers from Data/temp/stats.json. Used by web UI `/stats`. Requires `openstats: true`.
+         * @description All trackers from Data/temp/stats.json. Used by web UI `/stats`.
+         *     When `openstats: false`, still returns **200** with body `[]` (soft disable; not a middleware 401).
+         *     Missing/invalid API key (when configured) is a separate **401**.
          */
         get: operations["statsTorrents"];
         put?: never;
@@ -298,7 +300,9 @@ export interface paths {
         };
         /**
          * Tracks export aggregate (tracks-stats.json cache)
-         * @description Read-only cache from Data/temp/tracks-stats.json. Requires `openstats: true`. Force refresh via `/dev/TracksStats?refresh=true`.
+         * @description Read-only cache from Data/temp/tracks-stats.json. Force refresh via `/dev/TracksStats?refresh=true`.
+         *     When `openstats: false`, still returns **200** with `{ ok: false }` (soft disable; not a middleware 401).
+         *     Missing/invalid API key (when configured) is a separate **401**.
          */
         get: operations["statsTracks"];
         put?: never;
@@ -318,7 +322,9 @@ export interface paths {
         };
         /**
          * Last stats collection time
-         * @description Requires `openstats: true`. Returns updatedAt for stats.json and tracks-stats.json. Used by web UI `/stats`.
+         * @description Returns updatedAt for stats.json and tracks-stats.json. Used by web UI `/stats`.
+         *     When `openstats: false`, still returns **200** with `{ ok: false }` (soft disable; not a middleware 401).
+         *     Missing/invalid API key (when configured) is a separate **401**.
          */
         get: operations["statsMeta"];
         put?: never;
@@ -378,6 +384,28 @@ export interface paths {
          * @description Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`. Requires `opensync: true`.
          */
         get: operations["syncFdbTorrents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync/torrents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Legacy sync torrents stub
+         * @deprecated
+         * @description Deprecated stub. Always returns `{ error: "use GET /sync/fdb/torrents" }`.
+         *     Prefer `/sync/fdb/torrents`.
+         */
+        get: operations["syncTorrentsStub"];
         put?: never;
         post?: never;
         delete?: never;
@@ -531,6 +559,26 @@ export interface paths {
         };
         /** OpenAPI specification (YAML) */
         get: operations["openApiYaml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/opensearch.xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * OpenSearch description document
+         * @description Browser/search-plugin discovery for JacRed HTML search (`/?s={searchTerms}`).
+         */
+        get: operations["openSearchXml"];
         put?: never;
         post?: never;
         delete?: never;
@@ -698,6 +746,11 @@ export interface components {
             ok?: boolean;
             /** @example init.yaml */
             path?: string;
+            /**
+             * @description Path to example config file shipped with the app
+             * @example Data/example.yaml
+             */
+            examplePath?: string;
             /** @enum {string} */
             format?: "yaml" | "json";
             displayFormat?: string;
@@ -783,16 +836,51 @@ export interface components {
         };
         JackettRootObject: {
             Results?: components["schemas"]["JackettResult"][];
+            /**
+             * @description Always true for JacRed responses (read-only marker)
+             * @example true
+             */
+            jacred?: boolean;
         };
         JackettResult: {
             Tracker?: string;
             Title?: string;
+            /** @description Size in bytes (may be fractional from parsers) */
             Size?: number;
             Seeders?: number;
             Peers?: number;
             MagnetUri?: string;
             /** Format: uri */
             Details?: string;
+            PublishDate?: string;
+            /** @description Torznab category ids */
+            Category?: number[];
+            CategoryDesc?: string;
+            /** @description ffprobe streams when tracks is enabled */
+            ffprobe?: {
+                [key: string]: unknown;
+            }[] | null;
+            languages?: string[];
+            info?: {
+                quality?: number;
+                videotype?: string;
+                voices?: string[];
+                seasons?: number[];
+                types?: string[];
+                sizeName?: string;
+                name?: string;
+                originalname?: string;
+                relased?: number;
+            };
+        };
+        TorrentQuality: {
+            qualitys?: number[];
+            types?: string[];
+            languages?: string[];
+            /** Format: date-time */
+            createTime?: string;
+            /** Format: date-time */
+            updateTime?: string;
         };
         TorrentListItem: {
             tracker?: string;
@@ -958,6 +1046,8 @@ export interface operations {
                 title_original?: string;
                 year?: number;
                 is_serial?: number;
+                /** @description Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime) */
+                "Category[]"?: string[];
                 /** @description Jackett-style filter by internal tracker id (e.g. kinozal, rutracker) */
                 "Tracker[]"?: string[];
                 /** @description Single-tracker alias for Tracker[] */
@@ -985,10 +1075,11 @@ export interface operations {
     };
     torrentsSearch: {
         parameters: {
-            query: {
+            query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                search: string;
+                /** @description Empty or omitted yields an empty result array */
+                search?: string;
                 altname?: string;
                 exact?: boolean;
                 type?: string;
@@ -1035,13 +1126,20 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Quality map */
+            /**
+             * @description Nested map: title key → release year → TorrentQuality.
+             *     Empty name and originalname yields `{}`.
+             */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: components["schemas"]["TorrentQuality"];
+                        };
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1052,7 +1150,7 @@ export interface operations {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                t?: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv";
+                t?: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
                 q?: string;
                 cat?: string;
             };
@@ -1108,7 +1206,10 @@ export interface operations {
     };
     indexersList: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description API key (alternative — X-Api-Key header or Bearer) */
+                apikey?: components["parameters"]["ApiKeyQuery"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1124,6 +1225,7 @@ export interface operations {
                     "application/json": Record<string, never>[];
                 };
             };
+            401: components["responses"]["Unauthorized"];
         };
     };
     prowlarrIndexerList: {
@@ -1166,7 +1268,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                indexerId: number;
+                id: number;
             };
             cookie?: never;
         };
@@ -1201,7 +1303,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                indexerId: number;
+                indexer: string;
             };
             cookie?: never;
         };
@@ -1281,7 +1383,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Tracker summary array */
+            /** @description Tracker summary array (or `[]` when openstats is false) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1290,6 +1392,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrackerStat"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
         };
     };
     statsTracks: {
@@ -1305,7 +1408,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Tracks export aggregate */
+            /** @description Tracks export aggregate (or `{ ok: false }` when openstats is false) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1320,6 +1423,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
         };
     };
     statsMeta: {
@@ -1334,7 +1438,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Collection timestamps */
+            /** @description Collection timestamps (or `{ ok: false }` when openstats is false) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1343,6 +1447,7 @@ export interface operations {
                     "application/json": components["schemas"]["StatsMeta"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
         };
     };
     syncConf: {
@@ -1409,6 +1514,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    syncTorrentsStub: {
+        parameters: {
+            query?: {
+                time?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect-style error payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example use GET /sync/fdb/torrents */
+                        error?: string;
+                    };
                 };
             };
         };
@@ -1665,6 +1795,26 @@ export interface operations {
                 };
                 content: {
                     "application/yaml": string;
+                };
+            };
+        };
+    };
+    openSearchXml: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OpenSearchDescription XML */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/opensearchdescription+xml": string;
                 };
             };
         };

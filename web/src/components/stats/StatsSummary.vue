@@ -29,7 +29,7 @@ const secondary = computed(() => [
 
 <template>
   <section
-    class="jr-glass rounded-xl border p-4"
+    class="jr-elevated rounded-xl border p-4"
     :aria-label="t('stats.summary')"
   >
     <h2 class="mb-3 text-sm font-semibold text-muted-foreground">

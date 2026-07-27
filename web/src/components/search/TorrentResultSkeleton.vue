@@ -13,7 +13,7 @@ defineProps<{
     :data-layout="listView ? 'list' : 'card'"
     :class="
       cn(
-        'animate-pulse border border-border/60 bg-muted/40',
+        'animate-pulse border border-border/60 jr-elevated',
         listView
           ? 'flex flex-col gap-1 rounded-md px-2 py-1.5 sm:flex-row sm:items-center sm:gap-2 sm:py-1'
           : 'jr-result-card flex flex-col gap-0 overflow-hidden rounded-lg sm:gap-1.5 sm:p-2',

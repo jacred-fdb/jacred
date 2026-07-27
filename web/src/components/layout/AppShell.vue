@@ -48,6 +48,7 @@ import {
   persistLocale,
   type AppLocale,
 } from '@/i18n'
+import { segmentItemCompact, segmentTrackCompact } from '@/lib/segment-classes'
 import { cn } from '@/lib/utils'
 
 const ApiKeyDialog = defineAsyncComponent(
@@ -166,10 +167,8 @@ onMounted(() => {
   } else {
     syncHeaderOffset()
   }
+  // resize only — visualViewport.scroll mid-gesture shifts sticky docks
   window.visualViewport?.addEventListener('resize', onVisualViewportChange, {
-    passive: true,
-  })
-  window.visualViewport?.addEventListener('scroll', onVisualViewportChange, {
     passive: true,
   })
 })
@@ -177,7 +176,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   window.visualViewport?.removeEventListener('resize', onVisualViewportChange)
-  window.visualViewport?.removeEventListener('scroll', onVisualViewportChange)
   headerResizeObserver?.disconnect()
   headerResizeObserver = null
   document.documentElement.style.removeProperty('--jr-header-offset')
@@ -195,7 +193,7 @@ onUnmounted(() => {
       </a>
       <header
         ref="headerRef"
-        class="jr-glass-nav sticky top-0 z-40 border-b"
+        class="jr-glass-nav sticky top-0 z-40"
         style="padding-top: env(safe-area-inset-top)"
       >
         <div
@@ -339,7 +337,7 @@ onUnmounted(() => {
               </TooltipContent>
             </Tooltip>
             <div
-              class="hidden items-center gap-0.5 rounded-[10px] bg-secondary p-0.5 sm:flex"
+              :class="cn(segmentTrackCompact, 'hidden sm:flex')"
               role="group"
               :aria-label="`${t('app.langRu')} / ${t('app.langEn')}`"
             >
@@ -349,7 +347,7 @@ onUnmounted(() => {
                 :variant="locale === 'ru' ? 'secondary' : 'ghost'"
                 :class="
                   cn(
-                    'h-7 rounded-[8px] border-0 px-2 text-xs shadow-none',
+                    segmentItemCompact,
                     locale === 'ru' && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
                   )
                 "
@@ -363,7 +361,7 @@ onUnmounted(() => {
                 :variant="locale === 'en' ? 'secondary' : 'ghost'"
                 :class="
                   cn(
-                    'h-7 rounded-[8px] border-0 px-2 text-xs shadow-none',
+                    segmentItemCompact,
                     locale === 'en' && 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.28)]',
                   )
                 "
@@ -435,6 +433,7 @@ onUnmounted(() => {
                 </div>
                 <DropdownMenuItem
                   class="justify-between gap-3"
+                  :title="t('app.surfaceSolidHint')"
                   @select="setSurface('solid')"
                 >
                   {{ t('app.surfaceSolid') }}
@@ -446,6 +445,7 @@ onUnmounted(() => {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   class="justify-between gap-3"
+                  :title="t('app.surfaceGlassHint')"
                   @select="setSurface('glass')"
                 >
                   {{ t('app.surfaceGlass') }}
@@ -509,7 +509,7 @@ onUnmounted(() => {
         close-button
         position="top-center"
         offset="calc(0.75rem + env(safe-area-inset-top, 0px))"
-        mobile-offset="0.75rem"
+        mobile-offset="calc(0.75rem + env(safe-area-inset-top, 0px))"
       />
       <ScrollToTopButton />
 

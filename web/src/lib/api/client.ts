@@ -41,15 +41,31 @@ type GetJson<Path extends PathKey> = paths[Path] extends {
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
-function buildUrl(
+export type QueryParamValue =
+  | string
+  | number
+  | boolean
+  | undefined
+  | null
+  | Array<string | number | boolean>
+
+/** Build absolute URL with scalar and repeated array query params (e.g. Category[]). */
+export function buildUrl(
   baseUrl: string,
   path: string,
-  query?: Record<string, string | number | boolean | undefined | null>,
+  query?: Record<string, QueryParamValue>,
 ): string {
   const url = new URL(path, baseUrl || window.location.origin)
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined || value === null || value === '') continue
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item === undefined || item === null || item === '') continue
+          url.searchParams.append(key, String(item))
+        }
+        continue
+      }
       url.searchParams.set(key, String(value))
     }
   }
@@ -76,7 +92,7 @@ async function parseBody(res: Response): Promise<unknown> {
 export async function apiRequest<T = unknown>(
   path: string,
   init: RequestInit & {
-    query?: Record<string, string | number | boolean | undefined | null>
+    query?: Record<string, QueryParamValue>
   } = {},
   options: ApiClientOptions = {},
 ): Promise<T> {
@@ -154,11 +170,25 @@ export const apiClient = {
   },
 
   getTorrents(
-    query: Record<string, string | number | boolean | undefined | null>,
+    query: Record<string, QueryParamValue>,
     options?: ApiClientOptions,
   ) {
     return apiRequest<GetJson<'/api/v1.0/torrents'>>(
       '/api/v1.0/torrents',
+      { method: 'GET', query },
+      options,
+    )
+  },
+
+  getJackettResults(
+    status: string,
+    query: Record<string, QueryParamValue>,
+    options?: ApiClientOptions,
+  ) {
+    const path =
+      `/api/v2.0/indexers/${encodeURIComponent(status || 'all')}/results` as const
+    return apiRequest<GetJson<'/api/v2.0/indexers/{status}/results'>>(
+      path,
       { method: 'GET', query },
       options,
     )

@@ -79,14 +79,28 @@ function setOpen(id: string, open: boolean) {
       <span class="text-xs text-muted-foreground">{{ countLabel }}</span>
     </div>
 
-    <div class="space-y-2">
+    <div
+      v-if="search.trim() && !filtered.length"
+      class="jr-elevated rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground"
+    >
+      {{ t('settings.trackerNothingFound') }}
+      <button
+        type="button"
+        class="mt-2 block w-full text-sm font-medium text-primary underline-offset-2 hover:underline"
+        @click="search = ''"
+      >
+        {{ t('settings.trackerClearSearch') }}
+      </button>
+    </div>
+
+    <div v-else class="space-y-2">
       <Collapsible
         v-for="{ tracker, parts } in filteredWithParts"
         :key="tracker.id"
         :open="openId === tracker.id"
         @update:open="(v) => setOpen(tracker.id, v)"
       >
-        <div class="jr-glass-panel overflow-hidden rounded-xl border">
+        <div class="jr-elevated overflow-hidden rounded-xl border">
           <CollapsibleTrigger
             class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/30"
           >

@@ -46,6 +46,7 @@ export type ConfigFormat = 'yaml' | 'json'
 export type ConfigGetResponse = {
   ok?: boolean
   path?: string
+  examplePath?: string
   format?: ConfigFormat | string
   displayFormat?: string
   exists?: boolean

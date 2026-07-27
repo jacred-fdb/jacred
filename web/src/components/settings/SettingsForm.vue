@@ -4,6 +4,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import SettingsCheckboxList from '@/components/settings/SettingsCheckboxList.vue'
 import SettingsField from '@/components/settings/SettingsField.vue'
 import SettingsTrackers from '@/components/settings/SettingsTrackers.vue'
+import { segmentItemWrap, segmentTrackWrap } from '@/lib/segment-classes'
 import {
   resolveActiveTab,
   tabIdForGroup,
@@ -65,15 +66,15 @@ const groupLayout = computed(() => {
         type="single"
         :model-value="currentTab ?? undefined"
         size="sm"
-        :spacing="1"
-        class="jr-settings-tabs__track flex h-auto w-max max-w-full flex-nowrap justify-start rounded-[10px] bg-secondary p-0.5"
+        :spacing="0"
+        :class="segmentTrackWrap"
         @update:model-value="(v) => v && emit('update:activeTab', String(v))"
       >
         <ToggleGroupItem
           v-for="group in groups"
           :key="group.id"
           :value="tabIdForGroup(group)"
-          class="!rounded-[8px] h-8 shrink-0 gap-1.5 border-0 px-2.5 shadow-none data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+          :class="segmentItemWrap"
         >
           <component
             :is="settingsGroupIcon(group.id)"
@@ -102,7 +103,7 @@ const groupLayout = computed(() => {
 
       <div
         v-else
-        class="space-y-3 rounded-xl border jr-glass-panel p-3"
+        class="space-y-3 rounded-xl border jr-elevated p-3"
       >
         <div
           v-if="groupLayout.bools.length || groupLayout.compact.length"

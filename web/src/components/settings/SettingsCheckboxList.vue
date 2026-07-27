@@ -48,7 +48,7 @@ function toggle(slug: string, on: boolean) {
       <label
         v-for="slug in field.enumValues || []"
         :key="slug"
-        class="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-secondary/40 px-2.5 py-2 text-sm hover:bg-muted/40"
+        class="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-background px-2.5 py-2 text-sm hover:bg-muted/40"
       >
         <input
           type="checkbox"

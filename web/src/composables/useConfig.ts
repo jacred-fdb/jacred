@@ -1,4 +1,5 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { apiClient, ApiError } from '@/lib/api/client'
@@ -347,6 +348,17 @@ export function useConfig() {
 
   onUnmounted(() => {
     window.removeEventListener('beforeunload', onBeforeUnload)
+  })
+
+  onBeforeRouteLeave((_to, _from, next) => {
+    if (
+      dirty.value &&
+      !window.confirm(t('settings.messages.reloadConfirm'))
+    ) {
+      next(false)
+      return
+    }
+    next()
   })
 
   return {

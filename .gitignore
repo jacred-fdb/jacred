@@ -38,7 +38,7 @@ web/dist/
 .vs/
 
 # Generated publish surface for Vue SPA + static OpenAPI (source of truth: web/)
-# Created by: ./scripts/build-web-ui.sh (CI / Docker / build.sh)
+# Created by: ./scripts/build-web-ui.sh (CI / Docker / make publish)
 wwwroot/
 
 # Visual Studio 2017 auto generated files

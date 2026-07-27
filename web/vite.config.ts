@@ -4,11 +4,24 @@ import vue from '@vitejs/plugin-vue'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
+import {
+  isApiPathname,
+  NAVIGATE_FALLBACK_DENYLIST,
+  VITE_API_PROXY_PATHS,
+} from './src/lib/spa-api-bypass.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiProxyTarget =
     env.VITE_API_PROXY_TARGET || 'http://localhost:9117'
+
+  const proxy = Object.fromEntries(
+    VITE_API_PROXY_PATHS.map((prefix: (typeof VITE_API_PROXY_PATHS)[number]) => [
+      prefix,
+      apiProxyTarget,
+    ]),
+  )
+
   return {
     plugins: [
       vue(),
@@ -115,15 +128,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [
-            /^\/api\//,
-            /^\/swagger/,
-            /^\/torznab/,
-            /^\/sync\//,
-            /^\/health/,
-            /^\/opensearch\.xml/,
-            /^\/openapi\.yaml/,
-          ],
+          navigateFallbackDenylist: NAVIGATE_FALLBACK_DENYLIST,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
           globIgnores: ['img/jacred.png', 'img/jacred-social-preview.png'],
           runtimeCaching: [
@@ -141,11 +146,7 @@ export default defineConfig(({ mode }) => {
               },
             },
             {
-              urlPattern: ({ url }) =>
-                url.pathname.startsWith('/api/') ||
-                url.pathname.startsWith('/stats/torrents') ||
-                url.pathname.startsWith('/stats/meta') ||
-                url.pathname.startsWith('/stats/tracks'),
+              urlPattern: ({ url }) => isApiPathname(url.pathname),
               handler: 'NetworkOnly',
             },
           ],
@@ -158,15 +159,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      proxy: {
-        '/api': apiProxyTarget,
-        '/stats/torrents': apiProxyTarget,
-        '/stats/meta': apiProxyTarget,
-        '/stats/tracks': apiProxyTarget,
-        '/health': apiProxyTarget,
-        '/opensearch.xml': apiProxyTarget,
-        // openapi.yaml is served from web/public in dev (source of truth)
-      },
+      proxy,
     },
     build: {
       outDir: 'dist',

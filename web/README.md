@@ -20,7 +20,7 @@ npm run test
 npm run dev
 ```
 
-Vite proxies `/api`, `/stats/*`, `/health`, `/opensearch.xml` to the API.  
+Vite proxies API paths from [`src/lib/spa-api-bypass.ts`](src/lib/spa-api-bypass.ts) (`/api`, `/stats/meta|torrents|tracks`, `/health`, `/version`, …) to the JacRed backend.  
 `/openapi.yaml` is served from [`public/openapi.yaml`](public/openapi.yaml).
 
 ## Production embed
@@ -29,11 +29,11 @@ Vite proxies `/api`, `/stats/*`, `/health`, `/opensearch.xml` to the API.
 
 ```bash
 # from repo root
-./scripts/build-web-ui.sh   # recreates ../wwwroot from dist/
+make web                    # preferred; or ./scripts/build-web-ui.sh
 dotnet publish …
 ```
 
-Also invoked from `Dockerfile`, `build.sh`, and CI. Runtime: ASP.NET serves API + SPA from `wwwroot/` on one port.
+Also invoked from `Dockerfile`, `scripts/build.sh` / `make publish`, and CI. Runtime: ASP.NET serves API + SPA from `wwwroot/` on one port.
 
 ## Cloudflare Workers (optional)
 
@@ -60,8 +60,9 @@ npm run preview:cf
 npm run deploy:cf
 ```
 
-Proxied paths: `/api/*`, `/stats/torrents`, `/stats/meta`, `/stats/tracks`, `/health`, `/version`, `/lastupdatedb`, `/opensearch.xml`, `/swagger`, `/swagger/*`.  
-SPA routes (`/`, `/stats`, `/settings`) and static assets (`/openapi.yaml`, `/img/*`) stay on Workers Assets.
+Proxied paths are listed in [`src/lib/spa-api-bypass.ts`](src/lib/spa-api-bypass.ts) (`WORKER_FIRST_PATTERNS`) and mirrored in `wrangler.jsonc` → `assets.run_worker_first`.  
+Important: SPA page is exactly `/stats`; JSON is `/stats/meta`, `/stats/torrents`, `/stats/tracks`.  
+Static assets (`/openapi.yaml`, `/img/*`) stay on Workers Assets.
 
 The Worker forwards `User-Agent`, `Referer`, `Origin`, API keys, and visitor IP (`CF-Connecting-IP` / `X-Forwarded-For` / `X-Real-IP`), and sets `X-JacRed-Client: jacred-web` + `Via`.
 

@@ -639,7 +639,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 - **`GET /`** — веб-интерфейс поиска (если `web: true`).
 - **`GET /stats`** — страница статистики SPA (если `web: true`; данные — `/stats/torrents`, `/stats/meta`).
 - **`GET /settings`** — настройки SPA (Config API: LAN или `X-Dev-Key`).
-- **Веб-UI:** Vue 3 SPA в [`web/`](web/) (Vite + Tailwind + shadcn-vue); `./scripts/build-web-ui.sh` собирает publish-папку `wwwroot/` (в git не хранится).
+- **Веб-UI:** Vue 3 SPA в [`web/`](web/) (Vite + Tailwind + shadcn-vue); `make web` / `./scripts/build-web-ui.sh` собирает publish-папку `wwwroot/` (в git не хранится).
 - **`GET /health`** — проверка работы. Ответ JSON: `{"status":"OK"}`.
 - **`GET /version`** — версия приложения. Ответ JSON: `{"version":"1.0.0"}`.
 - **`GET /lastupdatedb`** — дата/время последнего обновления БД (UTC). Ответ JSON: `{"lastupdatedb":"dd.MM.yyyy HH:mm"}`.
@@ -782,22 +782,43 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 
 ## Сборка
 
+Предпочтительный интерфейс — **`make`** (см. `make help`). Скрипты сборки лежат в [`scripts/`](scripts/).
+
 ### Требования для сборки
 
 - **.NET 10.0 SDK** (см. **`JacRed.csproj`**)
+- **Node.js 22+** (сборка Vue SPA в `wwwroot/`)
 - **Git** (для генерации версии из тегов)
-- **Bash** (для скрипта сборки)
+- **Bash** (для скриптов сборки)
+- **Make** (GNU Make / BSD Make)
 
 ### Сборка для текущей платформы
 
 ```bash
-./build.sh
+make publish
+```
+
+### Сборка для конкретной платформы (RID)
+
+```bash
+make publish RID=linux-arm64
+make publish RID="linux-x64 osx-arm64"
+make publish-linux-arm64
 ```
 
 ### Сборка для всех платформ
 
 ```bash
-./build.sh --all
+make publish-all
+```
+
+### Другие цели
+
+```bash
+make web       # только SPA → wwwroot/
+make test      # .NET тесты
+make docker    # docker build -t jacred .
+make clean
 ```
 
 Поддерживаемые платформы:
@@ -814,7 +835,7 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 - **macOS (osx-arm64, osx-amd64):** каталог с бинарником и зависимостями (`PublishSingleFile=false`) — обход известного бага .NET с `EnableCompressionInSingleFile` на Apple Silicon
 - Self-contained (включает .NET runtime)
 - Оптимизация для скорости выполнения
-- Версия генерируется автоматически из Git тегов через `generate-version.sh`
+- Версия генерируется автоматически из Git тегов через `scripts/generate-version.sh`
 
 ---
 

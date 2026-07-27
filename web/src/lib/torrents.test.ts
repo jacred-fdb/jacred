@@ -3,6 +3,7 @@ import {
   applyClientFilters,
   buildFacets,
   sortItems,
+  splitTrackerNames,
   torrentKey,
   type TorrentItem,
 } from '@/lib/torrents'
@@ -45,5 +46,19 @@ describe('torrent collection helpers', () => {
     expect(buildFacets(items).tracker).toEqual(['one', 'two'])
     expect(buildFacets(items).quality).toEqual(['1080', '2160'])
     expect(torrentKey(items[0]!)).toContain('one')
+  })
+
+  it('splits merged tracker names for facets', () => {
+    expect(splitTrackerNames('mazepa, toloka')).toEqual(['mazepa', 'toloka'])
+    expect(
+      buildFacets([
+        { tracker: 'mazepa, toloka', title: 'a' },
+        { tracker: 'rutor', title: 'b' },
+        { tracker: 'toloka', title: 'c' },
+      ]).tracker,
+    ).toEqual(['mazepa', 'rutor', 'toloka'])
+    expect(
+      buildFacets([{ tracker: 'a, b' }], { splitTrackers: false }).tracker,
+    ).toEqual(['a, b'])
   })
 })

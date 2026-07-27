@@ -27,6 +27,7 @@ import {
   formatMetaDate,
   type ConfigFormat,
 } from '@/lib/config-schema'
+import { segmentItem, segmentTrackChrome } from '@/lib/segment-classes'
 
 const { t, locale } = useI18n()
 const SettingsRawEditor = defineAsyncComponent(
@@ -94,7 +95,7 @@ const {
 
     <div
       v-if="accessDenied"
-      class="jr-glass space-y-3 rounded-xl border border-destructive/30 p-5"
+      class="jr-elevated space-y-3 rounded-xl border border-destructive/30 p-5"
     >
       <div class="flex items-start gap-3">
         <ShieldAlert class="mt-0.5 size-5 text-destructive" />
@@ -144,7 +145,7 @@ const {
           class="h-8 w-24 animate-pulse rounded-[8px] bg-muted-foreground/10"
         />
       </div>
-      <div class="jr-glass animate-pulse space-y-4 rounded-xl border p-4">
+      <div class="jr-elevated animate-pulse space-y-4 rounded-xl border p-4">
         <div class="h-5 w-48 rounded bg-muted-foreground/20" />
         <div class="grid gap-3 sm:grid-cols-2">
           <div class="space-y-1.5">
@@ -167,6 +168,25 @@ const {
       </div>
     </div>
 
+    <div
+      v-else-if="errorMessage"
+      class="jr-elevated space-y-3 rounded-xl border border-dashed px-4 py-12 text-center"
+      role="alert"
+    >
+      <p class="text-sm text-destructive">{{ errorMessage }}</p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        class="h-9 gap-1.5"
+        :disabled="isLoading || isBusy"
+        @click="reload"
+      >
+        <RefreshCw class="size-3.5" />
+        {{ t('settings.reload') }}
+      </Button>
+    </div>
+
     <template v-else-if="hasEditor && schema">
       <div class="flex flex-wrap items-center gap-2 text-sm">
         <Badge v-if="path" variant="secondary" class="gap-1 font-normal">
@@ -183,23 +203,23 @@ const {
       </div>
 
       <div
-        class="jr-settings-dock sticky z-20 flex flex-wrap items-center gap-2 bg-background py-2"
+        class="jr-sticky-dock jr-settings-dock sticky flex flex-wrap items-center gap-2 py-2"
         style="top: var(--jr-header-offset)"
       >
         <Tabs
           :model-value="mode"
           @update:model-value="(v) => switchMode(v as 'form' | 'raw')"
         >
-          <TabsList class="h-9 rounded-[10px] bg-secondary p-0.5">
+          <TabsList :class="segmentTrackChrome">
             <TabsTrigger
               value="form"
-              class="h-8 rounded-[8px] data-active:bg-background data-active:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+              :class="segmentItem"
             >
               {{ t('settings.form') }}
             </TabsTrigger>
             <TabsTrigger
               value="raw"
-              class="h-8 rounded-[8px] data-active:bg-background data-active:shadow-[0_1px_2px_rgba(0,0,0,0.28)]"
+              :class="segmentItem"
             >
               {{ t('settings.raw') }}
             </TabsTrigger>

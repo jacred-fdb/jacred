@@ -1,10 +1,21 @@
-import { animate } from 'motion'
 import { injectDialogRootContext } from 'reka-ui'
 import {
+  nextTick,
   onBeforeUnmount,
   watch,
   type Ref,
 } from 'vue'
+
+type AnimateFn = typeof import('motion').animate
+
+let animateFn: AnimateFn | null = null
+
+async function loadAnimate(): Promise<AnimateFn> {
+  if (animateFn) return animateFn
+  const { animate } = await import('motion')
+  animateFn = animate
+  return animate
+}
 
 function rubberband(overshoot: number, dimension: number, constant = 0.55) {
   return (
@@ -13,7 +24,7 @@ function rubberband(overshoot: number, dimension: number, constant = 0.55) {
   )
 }
 
-/** Apple exponential-decay projection (px). */
+/** Exponential-decay fling projection (px). */
 function project(initialVelocity: number, decelerationRate = 0.998) {
   return ((initialVelocity / 1000) * decelerationRate) / (1 - decelerationRate)
 }
@@ -35,11 +46,14 @@ function readLiveY(el: HTMLElement): number {
 type VelocitySample = { y: number; t: number }
 
 const DRAG_ZONE_SEL = '.jr-sheet-drag-zone'
+/** Commit to drag only after this much pointer travel (tap vs dismiss). */
+const DRAG_HYSTERESIS_PX = 10
+/** Flick speed that earns snap-back bounce (§4 momentum-only). */
+const FLICK_BOUNCE_V = 400
 
 /**
- * Bottom-sheet drag: 1:1 tracking, velocity handoff, spring settle / dismiss.
- * Listens on the sheet panel (non-passive) and starts only from `.jr-sheet-drag-zone`
- * (handle and/or header) — required for reliable dismiss on iOS Safari / Edge.
+ * Bottom-sheet drag: 1:1 tracking, velocity handoff, spring open / settle / dismiss.
+ * Listens on the sheet panel (non-passive) and starts only from `.jr-sheet-drag-zone`.
  *
  * iOS often fires `pointercancel` instead of `pointerup` on finger lift; treat
  * cancel-with-drag as a release, not an abort.
@@ -48,6 +62,8 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   const dialog = injectDialogRootContext()
 
   let dragging = false
+  /** Pointer down in drag zone but not yet past hysteresis. */
+  let pending = false
   let startPointerY = 0
   let originY = 0
   let currentY = 0
@@ -56,6 +72,8 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   let controls: { stop: () => void } | null = null
   let boundPanel: HTMLElement | null = null
   let activePointerId: number | null = null
+  let openedForEl: HTMLElement | null = null
+  let dismissFallbackTimer: number | null = null
 
   function panel(): HTMLElement | null {
     return dialog.contentElement.value ?? null
@@ -64,6 +82,13 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   function stopAnim() {
     controls?.stop()
     controls = null
+  }
+
+  function clearDismissFallback() {
+    if (dismissFallbackTimer != null) {
+      window.clearTimeout(dismissFallbackTimer)
+      dismissFallbackTimer = null
+    }
   }
 
   function setY(el: HTMLElement, y: number) {
@@ -77,9 +102,8 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     el.classList.remove('jr-sheet--drag-dismiss', 'jr-sheet--dragging')
   }
 
-  function beginDrag(el: HTMLElement, clientY: number, timeStamp: number) {
+  function beginPending(el: HTMLElement, clientY: number, timeStamp: number) {
     stopAnim()
-    el.classList.add('jr-sheet--dragging')
     el.style.transition = 'none'
     el.style.willChange = 'transform'
     originY = readLiveY(el)
@@ -87,7 +111,14 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     startPointerY = clientY
     samples = [{ y: clientY, t: timeStamp }]
     velocityY = 0
+    pending = true
+    dragging = false
+  }
+
+  function commitDrag(el: HTMLElement) {
+    pending = false
     dragging = true
+    el.classList.add('jr-sheet--dragging')
   }
 
   function sampleVelocity(clientY: number, timeStamp: number) {
@@ -107,6 +138,83 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     return target instanceof Element && !!target.closest(DRAG_ZONE_SEL)
   }
 
+  function springOpen(el: HTMLElement) {
+    if (openedForEl === el) return
+    openedForEl = el
+    if (prefersReducedMotion()) {
+      clearMotionStyles(el)
+      return
+    }
+    stopAnim()
+    const height = Math.max(el.offsetHeight, 320)
+    setY(el, height)
+    el.style.willChange = 'transform'
+    el.style.transition = 'none'
+    void loadAnimate().then((animate) => {
+      if (!dialog.open.value || panel() !== el) {
+        clearMotionStyles(el)
+        return
+      }
+      const from = readLiveY(el) || height
+      controls = animate(
+        el,
+        { y: [from, 0] },
+        {
+          type: 'spring',
+          bounce: 0,
+          duration: 0.4,
+          onComplete: () => clearMotionStyles(el),
+        },
+      )
+    })
+  }
+
+  function dismissWithSpring() {
+    const el = panel()
+    if (!el || prefersReducedMotion()) {
+      dialog.onOpenChange(false)
+      return
+    }
+    stopAnim()
+    clearDismissFallback()
+    const height = el.offsetHeight || 1
+    const from = Math.max(0, readLiveY(el))
+    currentY = from
+    velocityY = 0
+    el.classList.add('jr-sheet--drag-dismiss')
+    el.style.transition = 'none'
+    el.style.willChange = 'transform'
+    const target = height + 48
+    void loadAnimate().then((animate) => {
+      if (!dialog.open.value) {
+        clearMotionStyles(el)
+        return
+      }
+      controls = animate(
+        el,
+        { y: [from, target] },
+        {
+          type: 'spring',
+          bounce: 0,
+          duration: 0.32,
+          onComplete: () => {
+            clearDismissFallback()
+            dialog.onOpenChange(false)
+            clearMotionStyles(el)
+            openedForEl = null
+          },
+        },
+      )
+    })
+    dismissFallbackTimer = window.setTimeout(() => {
+      if (dialog.open.value) {
+        dialog.onOpenChange(false)
+        clearMotionStyles(el)
+        openedForEl = null
+      }
+    }, 450)
+  }
+
   function onPointerDown(e: PointerEvent) {
     if (!enabled.value || prefersReducedMotion()) return
     if (e.button !== 0) return
@@ -122,7 +230,7 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     if (!el) return
 
     activePointerId = e.pointerId
-    beginDrag(el, e.clientY, e.timeStamp)
+    beginPending(el, e.clientY, e.timeStamp)
     try {
       el.setPointerCapture(e.pointerId)
     } catch {
@@ -131,72 +239,106 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     e.preventDefault()
   }
 
-  function onPointerMove(e: PointerEvent) {
+  function trackMove(el: HTMLElement, clientY: number, timeStamp: number) {
+    if (pending && !dragging) {
+      const dy = clientY - startPointerY
+      if (Math.abs(dy) < DRAG_HYSTERESIS_PX) {
+        sampleVelocity(clientY, timeStamp)
+        return
+      }
+      // Re-anchor so the sheet doesn't jump when hysteresis commits.
+      originY = readLiveY(el)
+      startPointerY = clientY
+      commitDrag(el)
+    }
     if (!dragging) return
-    if (activePointerId != null && e.pointerId !== activePointerId) return
-    const el = panel()
-    if (!el) return
 
     const height = el.offsetHeight || 1
-    let y = originY + (e.clientY - startPointerY)
+    let y = originY + (clientY - startPointerY)
     if (y < 0) y = -rubberband(-y, height)
     else if (y > height) y = height + rubberband(y - height, height)
 
-    sampleVelocity(e.clientY, e.timeStamp)
+    sampleVelocity(clientY, timeStamp)
     currentY = y
     setY(el, y)
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    if (!pending && !dragging) return
+    if (activePointerId != null && e.pointerId !== activePointerId) return
+    const el = panel()
+    if (!el) return
+    trackMove(el, e.clientY, e.timeStamp)
     e.preventDefault()
   }
 
   function snapBack(el: HTMLElement) {
     const from = currentY
-    controls = animate(
-      el,
-      { y: [from, 0] },
-      {
-        type: 'spring',
-        bounce: 0.12,
-        duration: 0.4,
-        velocity: velocityY,
-        onComplete: () => clearMotionStyles(el),
-      },
-    )
+    const vel = velocityY
+    const hadFlick = Math.abs(vel) > FLICK_BOUNCE_V
+    void loadAnimate().then((animate) => {
+      if (!dialog.open.value) {
+        clearMotionStyles(el)
+        return
+      }
+      controls = animate(
+        el,
+        { y: [from, 0] },
+        {
+          type: 'spring',
+          bounce: hadFlick ? 0.12 : 0,
+          duration: 0.4,
+          velocity: vel,
+          onComplete: () => clearMotionStyles(el),
+        },
+      )
+    })
   }
 
   function finishDismiss(el: HTMLElement) {
     const height = el.offsetHeight || 1
     const from = Math.max(0, currentY)
     const projected = from + project(velocityY)
-    // Apple-like: short flick or ~20% pull dismisses (was 32% / 650 — too stiff on iOS).
+    // Short flick or ~20% pull dismisses (stiffer thresholds felt stuck on iOS).
     const shouldDismiss =
       velocityY > 420 ||
       projected > height * 0.2 ||
       from > height * 0.2
 
-    const hadFlick = Math.abs(velocityY) > 400
+    const hadFlick = Math.abs(velocityY) > FLICK_BOUNCE_V
+    const vel = velocityY
 
     if (shouldDismiss) {
+      clearDismissFallback()
       el.classList.add('jr-sheet--drag-dismiss')
       const target = height + 48
-      controls = animate(
-        el,
-        { y: [from, target] },
-        {
-          type: 'spring',
-          bounce: hadFlick ? 0.08 : 0,
-          duration: 0.32,
-          velocity: Math.max(0, velocityY),
-          onComplete: () => {
-            dialog.onOpenChange(false)
-            clearMotionStyles(el)
+      void loadAnimate().then((animate) => {
+        if (!dialog.open.value) {
+          clearMotionStyles(el)
+          return
+        }
+        controls = animate(
+          el,
+          { y: [from, target] },
+          {
+            type: 'spring',
+            bounce: hadFlick ? 0.08 : 0,
+            duration: 0.32,
+            velocity: Math.max(0, vel),
+            onComplete: () => {
+              clearDismissFallback()
+              dialog.onOpenChange(false)
+              clearMotionStyles(el)
+              openedForEl = null
+            },
           },
-        },
-      )
-      // Fallback if the spring never completes (WebKit / Motion edge cases)
-      window.setTimeout(() => {
+        )
+      })
+      dismissFallbackTimer = window.setTimeout(() => {
         if (dialog.open.value) {
           dialog.onOpenChange(false)
           clearMotionStyles(el)
+          openedForEl = null
         }
       }, 450)
     } else {
@@ -209,7 +351,9 @@ export function useSheetDrag(enabled: Ref<boolean>) {
     timeStamp: number | undefined,
     mode: 'up' | 'cancel',
   ) {
-    if (!dragging) return
+    if (!pending && !dragging) return
+    const wasDragging = dragging
+    pending = false
     dragging = false
     const pointerId = activePointerId
     activePointerId = null
@@ -228,14 +372,15 @@ export function useSheetDrag(enabled: Ref<boolean>) {
       /* ignore */
     }
 
-    // Bare cancel with almost no movement → snap back.
-    // iOS often sends pointercancel on finger-up after a real drag → treat as release.
+    // Tap / cancel with almost no movement → snap back (or no-op at rest).
     if (
-      mode === 'cancel' &&
-      Math.abs(currentY) < 10 &&
-      Math.abs(velocityY) < 120
+      !wasDragging ||
+      (mode === 'cancel' &&
+        Math.abs(currentY) < 10 &&
+        Math.abs(velocityY) < 120)
     ) {
-      snapBack(el)
+      if (wasDragging || Math.abs(currentY) > 0.5) snapBack(el)
+      else clearMotionStyles(el)
       return
     }
 
@@ -253,34 +398,26 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   }
 
   function onLostPointerCapture(e: PointerEvent) {
-    if (!dragging) return
+    if (!pending && !dragging) return
     if (activePointerId != null && e.pointerId !== activePointerId) return
     endDrag(e.clientY, e.timeStamp, 'up')
   }
 
   /** Touch fallback when Pointer Events are incomplete (older WebKit). */
   function onTouchEnd(e: TouchEvent) {
-    if (!dragging) return
+    if (!pending && !dragging) return
     const touch = e.changedTouches[0]
     endDrag(touch?.clientY, e.timeStamp, 'up')
   }
 
   function onTouchMove(e: TouchEvent) {
-    if (!dragging) return
+    if (!pending && !dragging) return
     e.preventDefault()
     const touch = e.touches[0]
     if (!touch) return
     const el = panel()
     if (!el) return
-
-    const height = el.offsetHeight || 1
-    let y = originY + (touch.clientY - startPointerY)
-    if (y < 0) y = -rubberband(-y, height)
-    else if (y > height) y = height + rubberband(y - height, height)
-
-    sampleVelocity(touch.clientY, e.timeStamp)
-    currentY = y
-    setY(el, y)
+    trackMove(el, touch.clientY, e.timeStamp)
   }
 
   function unbindPanel() {
@@ -313,15 +450,25 @@ export function useSheetDrag(enabled: Ref<boolean>) {
   }
 
   watch(
-    [enabled, () => dialog.contentElement.value],
-    () => {
-      bindPanel(enabled.value ? panel() : null)
+    [enabled, () => dialog.contentElement.value, () => dialog.open.value],
+    ([isEnabled, el, open]) => {
+      bindPanel(isEnabled && open ? (el ?? null) : null)
+      if (isEnabled && open && el) {
+        void nextTick(() => springOpen(el))
+      }
+      if (!open) {
+        openedForEl = null
+        clearDismissFallback()
+      }
     },
     { immediate: true, flush: 'post' },
   )
 
   onBeforeUnmount(() => {
     stopAnim()
+    clearDismissFallback()
     unbindPanel()
   })
+
+  return { dismissWithSpring }
 }

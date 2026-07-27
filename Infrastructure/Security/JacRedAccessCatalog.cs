@@ -39,7 +39,6 @@ namespace JacRed.Infrastructure.Security
             new("/dev/TracksStats", JacRedAccessPolicy.DevAdmin, "DevTracksController"),
             new("/dev/FixKnabenNames", JacRedAccessPolicy.DevAdmin, "DevMigrationController"),
             new("/jsondb/save", JacRedAccessPolicy.DevAdmin, "DbController"),
-            new("/cron/rutor/sync", JacRedAccessPolicy.DevAdmin, "Cron/RutorController"),
 
             // Search — apikey when configured
             new("/api/v1.0/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),

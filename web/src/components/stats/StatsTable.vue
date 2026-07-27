@@ -113,7 +113,7 @@ function cellClass(key: string, sort: StatsSort) {
 
 <template>
   <div class="overflow-x-auto rounded-xl border bg-card">
-    <!-- Solid scrollport by design: sticky first column + backdrop-filter mispaint on Safari -->
+    <!-- Opaque scrollport: sticky col + backdrop-filter mispaints on Safari -->
     <p class="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground sm:hidden">
       {{ t('stats.scrollHint') }}
     </p>

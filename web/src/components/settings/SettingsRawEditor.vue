@@ -35,7 +35,7 @@ const extensions = computed(() => {
 </script>
 
 <template>
-  <div class="jr-glass-panel overflow-hidden rounded-xl border">
+  <div class="jr-elevated overflow-hidden rounded-xl border">
     <Codemirror
       v-model="content"
       :extensions="extensions"
