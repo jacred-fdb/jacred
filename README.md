@@ -539,7 +539,7 @@ Anifilm, AniLibria, HDRezka.
 
 JacRed использует единый слой доступа: **`UseJacRedSecurity()`** (`SecurityHeadersMiddleware` + `JacRedAuthorizationMiddleware`). Политика определяется **только** по префиксу пути в `JacRedEndpointRegistry` — без атрибутов на контроллерах.
 
-**Сеть:** **Client IP** — после `X-Forwarded-For`; **Peer IP** — прямое TCP-подключение к Kestrel (cloudflared/nginx на том же хосте). См. `ClientNetworkContext`.
+**Сеть:** **Peer IP** — прямое TCP-подключение к Kestrel. **Client IP** из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (cloudflared/nginx на том же хосте); иначе Client IP = peer. См. `ClientNetworkContext`.
 
 ### Политики
 

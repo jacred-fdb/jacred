@@ -57,7 +57,7 @@ namespace JacRed.Controllers
         public IActionResult Schema()
             => ConfigJson(new { ok = true, schema = ConfigSchema.Get() });
 
-        /// <summary>Get current configuration as JSON (secrets included; LAN-only API).</summary>
+        /// <summary>Get current configuration as JSON (secrets included; LAN or valid Dev-key).</summary>
         [HttpGet("")]
         [Produces("application/json")]
         public IActionResult Get([FromQuery] string format = null)
@@ -80,7 +80,7 @@ namespace JacRed.Controllers
                 schema = ConfigSchema.Get(),
                 examplePath = System.IO.File.Exists("Data/example.yaml") ? "Data/example.yaml" : "Data/example.conf",
                 sensitiveFields = ConfigSchema.SensitiveFieldNames,
-                note = "Полный конфиг. API доступен только из локальной сети."
+                note = "Полный конфиг. API доступен из локальной сети или с действительным Dev-ключом."
             });
         }
 

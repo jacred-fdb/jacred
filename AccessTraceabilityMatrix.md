@@ -18,7 +18,7 @@
 
 **Коды отказа:** OPTIONS → 204; ключ задан, но не передан → 401; иначе → 403.
 
-**Сетевой контекст:** Client IP — после `X-Forwarded-For`; Peer IP — прямое TCP-подключение (см. `ClientNetworkContext`).
+**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`).
 
 ---
 

@@ -17,7 +17,7 @@ namespace JacRed.Infrastructure.Security
     }
 
     /// <summary>
-    /// Client IP (after X-Forwarded-For / CF-Connecting-IP) vs peer IP (direct TCP to Kestrel).
+    /// Client IP (proxy headers only when peer is loopback) vs peer IP (direct TCP to Kestrel).
     /// Used with Program UseForwardedHeaders for reverse-proxy deployments.
     /// </summary>
     public sealed class ClientNetworkContext : IClientNetworkContext
@@ -55,15 +55,22 @@ namespace JacRed.Infrastructure.Security
         }
 
         /// <summary>
-        /// Prefer proxy client-identity headers (Cloudflare Tunnel sends CF-Connecting-IP, not always XFF).
-        /// UseForwardedHeaders already applies X-Forwarded-For to Connection.RemoteIpAddress.
+        /// Prefer proxy client-identity headers only when the TCP peer is a same-host reverse proxy
+        /// (loopback). Cloudflare Tunnel sends CF-Connecting-IP, not always XFF.
+        /// UseForwardedHeaders already applies X-Forwarded-For to Connection.RemoteIpAddress when the peer is trusted.
         /// </summary>
         static IPAddress ResolveClientIp(HttpContext httpContext)
         {
-            if (TryParseHeaderIp(httpContext.Request.Headers, "CF-Connecting-IP", out var cfIp))
-                return cfIp;
-            if (TryParseHeaderIp(httpContext.Request.Headers, "X-Real-IP", out var realIp))
-                return realIp;
+            httpContext.Items.TryGetValue(OriginalRemoteIpItemKey, out var peerValue);
+            var peerIp = peerValue as IPAddress;
+            if (IsLoopback(peerIp))
+            {
+                if (TryParseHeaderIp(httpContext.Request.Headers, "CF-Connecting-IP", out var cfIp))
+                    return cfIp;
+                if (TryParseHeaderIp(httpContext.Request.Headers, "X-Real-IP", out var realIp))
+                    return realIp;
+            }
+
             return httpContext.Connection.RemoteIpAddress;
         }
 

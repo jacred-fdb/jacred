@@ -11,6 +11,11 @@
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/ParseAllTask"
 
+# Rutracker via Worker
+# 0 * * * *     curl -s "http://127.0.0.1:9117/cron/rutracker/parse"
+# 20 3 * * *    curl -s "http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse"
+# 40 3 * * 0    curl -s "http://127.0.0.1:9117/cron/rutracker/ParseAllTask"
+
 # Kinozal
 */15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/parse"
 *    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse"

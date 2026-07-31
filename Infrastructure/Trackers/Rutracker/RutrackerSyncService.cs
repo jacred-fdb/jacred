@@ -72,7 +72,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
                     using (var postContent = new System.Net.Http.FormUrlEncodedContent(postParams))
                     {
-                        using (var response = await client.PostAsync($"{AppInit.conf.Rutracker.host}/forum/login.php", postContent))
+                        using (var response = await client.PostAsync($"{AppInit.conf.Rutracker.rqHost()}/forum/login.php", postContent))
                         {
                             if (response.Headers.TryGetValues("Set-Cookie", out var cook))
                             {
@@ -252,7 +252,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
                     return true;
 
-                var fullNews = await HttpClient.Get(t.url, useproxy: AppInit.conf.Rutracker.useproxy);
+                var fullNews = await HttpClient.Get(AppInit.conf.Rutracker.rqHost(t.url), useproxy: AppInit.conf.Rutracker.useproxy);
                 return RutrackerParser.ApplyTopicPageDetails(t, fullNews);
             });
 

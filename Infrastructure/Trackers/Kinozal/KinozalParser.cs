@@ -86,7 +86,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 string title = Match("class=\"r[0-9]+\">([^<]+)</a>");
                 string _sid = Match("<td class='sl_s'>([0-9]+)</td>");
                 string _pir = Match("<td class='sl_p'>([0-9]+)</td>");
-                string sizeName = Match("<td class='s'>([0-9\\.,]+ (МБ|ГБ))</td>");
+                string sizeName = Match("<td class='s'>([0-9\\.,]+ (МБ|ГБ|ТБ))</td>");
 
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
                     continue;

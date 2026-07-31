@@ -198,18 +198,30 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
             string signature = string.Join(",", list.Take(5).Select(x => x.url));
 
             int added = 0;
-            await FileDB.AddOrUpdate(list, (torrent, db) =>
+            await FileDB.AddOrUpdate(list, async (torrent, db) =>
             {
-                if (db.TryGetValue(torrent.url, out TorrentDetails existing))
+                var t = (MazepaDetails)torrent;
+
+                if (db.TryGetValue(t.url, out TorrentDetails cached) && cached.title == t.title && !string.IsNullOrEmpty(cached.magnet))
                 {
-                    torrent.createTime = existing.createTime != default ? existing.createTime : torrent.createTime;
-                }
-                else
-                {
-                    added++;
+                    t.magnet = cached.magnet;
+                    t.createTime = cached.createTime != default ? cached.createTime : t.createTime;
+                    return true;
                 }
 
-                return Task.FromResult(true);
+                byte[] torrentFile = await HttpClient.Download($"{host}/dl.php?id={t.downloadId}", cookie: Cookie(), referer: host);
+                string magnet = BencodeTo.Magnet(torrentFile);
+                if (magnet == null)
+                    return false;
+
+                t.magnet = magnet;
+
+                if (db.TryGetValue(t.url, out TorrentDetails existing))
+                    t.createTime = existing.createTime != default ? existing.createTime : t.createTime;
+                else
+                    added++;
+
+                return true;
             });
 
             return (list.Count, added, signature);

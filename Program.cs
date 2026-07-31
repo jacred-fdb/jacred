@@ -163,6 +163,8 @@ namespace JacRed
                 await next();
             });
 
+            // Trust X-Forwarded-* only from same-host reverse proxy (cloudflared/nginx on loopback).
+            // RFC1918 peers must not rewrite Client IP via spoofable XFF.
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
@@ -170,10 +172,7 @@ namespace JacRed
                 KnownIPNetworks =
                 {
                     new System.Net.IPNetwork(IPAddress.Loopback, 8),
-                    new System.Net.IPNetwork(IPAddress.IPv6Loopback, 128),
-                    new System.Net.IPNetwork(IPAddress.Parse("10.0.0.0"), 8),
-                    new System.Net.IPNetwork(IPAddress.Parse("172.16.0.0"), 12),
-                    new System.Net.IPNetwork(IPAddress.Parse("192.168.0.0"), 16)
+                    new System.Net.IPNetwork(IPAddress.IPv6Loopback, 128)
                 }
             });
 

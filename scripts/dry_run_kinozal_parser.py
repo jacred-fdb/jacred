@@ -133,7 +133,7 @@ def score_page(html: str) -> Tuple[int, int, List[str]]:
         title = re.search(r'class="r[0-9]+">([^<]+)</a>', row)
         sid = re.search(r"<td class='sl_s'>([0-9]+)</td>", row)
         pir = re.search(r"<td class='sl_p'>([0-9]+)</td>", row)
-        size = re.search(r"<td class='s'>([0-9\.,]+ (?:МБ|ГБ))</td>", row)
+        size = re.search(r"<td class='s'>([0-9\.,]+ (?:МБ|ГБ|ТБ))</td>", row)
         time = re.search(r"<td class='sl_p'>[0-9]+</td>\s*<td class='s'>([^<]+)</td>", row)
         if all([url, title, sid, pir, size, time]):
             ok += 1

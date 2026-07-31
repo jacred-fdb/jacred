@@ -115,6 +115,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 return false;
             }
 
+            // Always store the canonical tracker URL in FDB; requests use rqHost(alias).
             url = $"{AppInit.conf.Rutracker.host}/forum/viewtopic.php?t={url}";
             return true;
         }

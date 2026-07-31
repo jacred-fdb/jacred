@@ -66,6 +66,17 @@ public class KinozalParserFixtureTests
     }
 
     [Fact]
+    public void ParseTorrentsFromPage_Fixture_C50_ParsesTerabyteSizes()
+    {
+        string html = FixtureLoader.Read("Kinozal/browse_c50.html");
+        List<TorrentDetails> torrents = KinozalParser.ParseTorrentsFromPage(html, "50");
+
+        TorrentDetails tb = Assert.Single(torrents, t => t.sizeName.Contains("ТБ", StringComparison.Ordinal));
+        Assert.Equal("2.278 ТБ", tb.sizeName);
+        Assert.Contains("МастерШеф", tb.title, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ParseTorrentsFromPage_UnknownCategory_ReturnsEmpty()
     {
         string html = FixtureLoader.Read("Kinozal/browse_c8.html");

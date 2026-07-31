@@ -1,0 +1,129 @@
+# JacRed HTTP job schedule (replaces Data/crontab)
+# schedule: standard 5-field cron (minute hour day month dow)
+# path: relative to base_url
+# enabled: false  # optional — skip this job
+
+base_url: http://127.0.0.1:9117
+
+jobs:
+  # JSON DB
+  - name: jsondb-save
+    schedule: "*/5 * * * *"
+    path: /jsondb/save
+
+  # Rutor
+  - name: rutor-parse
+    schedule: "*/15 * * * *"
+    path: /cron/rutor/parse
+  # Once every 4h (NOT "* */4" — that fires every minute in those hours)
+  - name: rutor-UpdateTasksParse
+    schedule: "5 */4 * * *"
+    path: /cron/rutor/UpdateTasksParse
+  - name: rutor-ParseAllTask
+    schedule: "30 * * * *"
+    path: /cron/rutor/ParseAllTask
+
+  # Rutracker
+  - name: rutracker-parse
+    schedule: "0 * * * *"
+    path: /cron/rutracker/parse
+  - name: rutracker-UpdateTasksParse
+    schedule: "20 * * * *"
+    path: /cron/rutracker/UpdateTasksParse
+  - name: rutracker-ParseAllTask
+    schedule: "40 * * * *"
+    path: /cron/rutracker/ParseAllTask
+
+  # Kinozal
+  - name: kinozal-parse
+    schedule: "*/15 * * * *"
+    path: /cron/kinozal/parse
+  - name: kinozal-UpdateTasksParse
+    schedule: "5 */4 * * *"
+    path: /cron/kinozal/UpdateTasksParse
+  - name: kinozal-ParseAllTask
+    schedule: "30 * * * *"
+    path: /cron/kinozal/ParseAllTask
+
+  # Nnmclub
+  - name: nnmclub-parse
+    schedule: "*/15 * * * *"
+    path: /cron/nnmclub/parse
+  - name: nnmclub-UpdateTasksParse
+    schedule: "5 */4 * * *"
+    path: /cron/nnmclub/UpdateTasksParse
+  - name: nnmclub-ParseAllTask
+    schedule: "30 * * * *"
+    path: /cron/nnmclub/ParseAllTask
+
+  # Selezen
+  - name: selezen-parse
+    schedule: "*/15 * * * *"
+    path: /cron/selezen/parse
+
+  # Megapeer
+  - name: megapeer-parse
+    schedule: "0 * * * *"
+    path: /cron/megapeer/parse
+  - name: megapeer-UpdateTasksParse
+    schedule: "5 */4 * * *"
+    path: /cron/megapeer/UpdateTasksParse
+  - name: megapeer-ParseAllTask
+    schedule: "30 * * * *"
+    path: /cron/megapeer/ParseAllTask
+
+  # Torrentby
+  - name: torrentby-parse
+    schedule: "*/15 * * * *"
+    path: /cron/torrentby/parse
+  - name: torrentby-UpdateTasksParse
+    schedule: "5 */4 * * *"
+    path: /cron/torrentby/UpdateTasksParse
+  - name: torrentby-ParseAllTask
+    schedule: "30 * * * *"
+    path: /cron/torrentby/ParseAllTask
+
+  # Toloka
+  - name: toloka-parse
+    schedule: "*/40 * * * *"
+    path: /cron/toloka/parse
+
+  # Mazepa
+  - name: mazepa-parse
+    schedule: "*/40 * * * *"
+    path: /cron/mazepa/parse
+
+  # Lostfilm
+  - name: lostfilm-parse
+    schedule: "*/15 * * * *"
+    path: /cron/lostfilm/parse
+
+  # Bitru
+  - name: bitru-parse
+    schedule: "*/20 * * * *"
+    path: /cron/bitru/parse
+
+  # Knaben
+  - name: knaben-parse
+    schedule: "*/20 * * * *"
+    path: /cron/knaben/parse
+
+  # Animelayer
+  - name: animelayer-parse
+    schedule: "*/15 * * * *"
+    path: /cron/animelayer/parse
+
+  # Anidub
+  - name: anidub-parse
+    schedule: "*/15 * * * *"
+    path: /cron/anidub/parse
+
+  # Aniliberty
+  - name: aniliberty-parse
+    schedule: "*/15 * * * *"
+    path: /cron/aniliberty/parse
+
+  # Baibako
+  - name: baibako-parse
+    schedule: "*/15 * * * *"
+    path: /cron/baibako/parse

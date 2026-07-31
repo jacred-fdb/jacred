@@ -87,6 +87,28 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
             text = WebUtility.HtmlDecode(text).Trim();
             text = Regex.Replace(text, @"\s+", " ");
 
+            var relative = Regex.Match(text, @"^(Сьогодні|Вчора)\s+(\d{1,2}):(\d{2})$", RegexOptions.IgnoreCase);
+            if (relative.Success)
+            {
+                if (!int.TryParse(relative.Groups[2].Value, out int relHour))
+                    return default;
+                if (!int.TryParse(relative.Groups[3].Value, out int relMinute))
+                    return default;
+
+                DateTime baseDay = DateTime.UtcNow.Date;
+                if (relative.Groups[1].Value.Equals("Вчора", StringComparison.OrdinalIgnoreCase))
+                    baseDay = baseDay.AddDays(-1);
+
+                try
+                {
+                    return new DateTime(baseDay.Year, baseDay.Month, baseDay.Day, relHour, relMinute, 0, DateTimeKind.Utc);
+                }
+                catch
+                {
+                    return default;
+                }
+            }
+
             var m = Regex.Match(text, @"(\d{1,2})\s+([^\s]+)\s+(\d{4}),\s*(\d{1,2}):(\d{2})", RegexOptions.IgnoreCase);
             if (!m.Success)
                 return default;
@@ -190,9 +212,9 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
             return "sdr";
         }
 
-        public static List<TorrentDetails> ParseTorrentsFromCategoryPage(string html, string[] types, string host)
+        public static List<MazepaDetails> ParseTorrentsFromCategoryPage(string html, string[] types, string host)
         {
-            var list = new List<TorrentDetails>();
+            var list = new List<MazepaDetails>();
 
             var rows = Regex.Matches(html, @"<tr id=""tr-(\d+)"".*?>.*?</tr>", RegexOptions.Singleline);
             if (rows.Count == 0) return list;
@@ -205,9 +227,10 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
                 if (string.IsNullOrEmpty(tid)) continue;
 
                 string title = Regex.Match(block, @"class=""torTopic[^""]*""><b>([^<]+)</b>").Groups[1].Value;
+                string downloadId = Regex.Match(block, @"dl\.php\?id=(\d+)").Groups[1].Value;
                 string magnet = Regex.Match(block, @"href=""(magnet:\?[^""]+)""").Groups[1].Value;
 
-                if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(magnet))
+                if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(downloadId))
                     continue;
 
                 string sizeName = ParseSizeName(block);
@@ -228,7 +251,7 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
                 var titleTrim = title.Trim();
                 var (name, originalname, year) = ParseNamesAdvanced(titleTrim);
 
-                list.Add(new TorrentDetails()
+                list.Add(new MazepaDetails()
                 {
                     trackerName = TrackerName,
                     types = types,
@@ -237,6 +260,7 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
                     name = name,
                     originalname = originalname,
                     magnet = NormalizeMagnet(magnet),
+                    downloadId = downloadId,
                     sizeName = sizeName,
                     size = ParseSizeBytes(sizeName),
                     quality = ParseQuality(titleTrim),
