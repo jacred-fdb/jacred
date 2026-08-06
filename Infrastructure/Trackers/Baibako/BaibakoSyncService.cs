@@ -68,7 +68,11 @@ namespace JacRed.Infrastructure.Trackers.Baibako
 
         async Task<bool> TakeLogin()
         {
-            await loginSemaphore.WaitAsync();
+            if (!await loginSemaphore.WaitAsync(TimeSpan.FromSeconds(15)))
+            {
+                ParserLog.Write(TrackerName, "TakeLogin skipped: login semaphore timeout (15s)");
+                return false;
+            }
             try
             {
                 if (Cookie() != null)

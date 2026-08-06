@@ -135,7 +135,12 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             if (!string.IsNullOrWhiteSpace(CookieHeader()))
                 return true;
 
-            await _loginSemaphore.WaitAsync();
+            if (!await _loginSemaphore.WaitAsync(TimeSpan.FromSeconds(15)))
+            {
+                _lastLoginError = "login wait timeout";
+                ParserLog.Write(TrackerName, "TakeLogin skipped: login semaphore timeout (15s)");
+                return false;
+            }
             try
             {
                 if (!string.IsNullOrWhiteSpace(CookieHeader()))

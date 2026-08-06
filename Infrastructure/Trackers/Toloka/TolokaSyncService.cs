@@ -137,29 +137,25 @@ namespace JacRed.Infrastructure.Trackers.Toloka
             });
         }
 
-        public Task<string> UpdateTasksParseAsync()
+        public async Task<string> UpdateTasksParseAsync()
         {
-            return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
+            #region Авторизация
+            if (Cookie(_memoryCache) == null)
             {
-                #region Авторизация
-                if (Cookie(_memoryCache) == null)
+                string authKey = "toloka:TakeLogin()";
+                if (_memoryCache.TryGetValue(authKey, out _))
+                    return "TakeLogin == null";
+
+                if (await TakeLogin(_memoryCache) == false)
                 {
-                    string authKey = "toloka:TakeLogin()";
-                    if (_memoryCache.TryGetValue(authKey, out _))
-                    {
-                        IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
-                        return;
-                    }
-
-                    if (await TakeLogin(_memoryCache) == false)
-                    {
-                        _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(5));
-                        IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
-                        return;
-                    }
+                    _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(5));
+                    return "TakeLogin == null";
                 }
-                #endregion
+            }
+            #endregion
 
+            return TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
+            {
                 foreach (string cat in new List<string>()
                 {
                     // Українське озвучення
@@ -205,7 +201,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                 }
 
                 IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            }));
+            });
         }
 
         public Task<string> ParseAllTaskAsync()

@@ -187,6 +187,9 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 {
                     foreach (var val in task.Value.ToArray())
                     {
+                        if (DateTime.Today == val.updateTime)
+                            continue;
+
                         await Task.Delay(AppInit.conf.Rutracker.parseDelay, ct);
 
                         bool res = await parsePage(task.Key, val.page);

@@ -13,6 +13,7 @@ namespace JacRed.Models
 
         public int countread { get; set; }
 
-        public int openconnection { get; set; }
+        /// <summary>Open write refcount — mutate only via Interlocked.</summary>
+        public int openconnection;
     }
 }

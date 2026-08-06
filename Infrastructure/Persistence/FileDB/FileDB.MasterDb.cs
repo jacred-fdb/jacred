@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Utils;
 using JacRed.Infrastructure.Networking;
@@ -204,16 +205,28 @@ namespace JacRed.Infrastructure.Persistence
 
         public static FileDB OpenWrite(string key)
         {
-            if (openWriteTask.TryGetValue(key, out WriteTaskModel val))
+            while (true)
             {
-                val.openconnection += 1;
-                return val.db;
-            }
-            else
-            {
+                if (openWriteTask.TryGetValue(key, out WriteTaskModel existing))
+                {
+                    Interlocked.Increment(ref existing.openconnection);
+                    // Still the live entry?
+                    if (openWriteTask.TryGetValue(key, out WriteTaskModel again) && ReferenceEquals(again, existing))
+                        return existing.db;
+
+                    int left = Interlocked.Decrement(ref existing.openconnection);
+                    if (left < 0)
+                        Interlocked.Exchange(ref existing.openconnection, 0);
+                    continue;
+                }
+
                 var fdb = new FileDB(key);
-                openWriteTask.TryAdd(key, new WriteTaskModel() { db = fdb, openconnection = 1 });
-                return fdb;
+                var wtm = new WriteTaskModel() { db = fdb, openconnection = 1 };
+                if (openWriteTask.TryAdd(key, wtm))
+                    return fdb;
+
+                // Lost race — do not Dispose (same key would decrement the winner's refcount).
+                // Unused FileDB is GC'd; savechanges is false so no file write needed.
             }
         }
         #endregion

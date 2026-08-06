@@ -47,7 +47,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                         cancellationToken.ThrowIfCancellationRequested();
                         string pageUrl = $"{baseUrl}?cat={cat}&page={page}";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                        bool res = await MegapeerParser.ParsePageAsync(cat, page);
+                        bool res = await MegapeerParser.ParsePageAsync(cat, page, cancellationToken);
                         log += $"{cat} - {page} / {res}\n";
                     }
                     ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
@@ -73,7 +73,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string html = await MegapeerParser.GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}", cat);
+                    string html = await MegapeerParser.GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}", cat, ct);
 
                     if (html == null)
                         continue;
@@ -116,7 +116,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
 
                         ct.ThrowIfCancellationRequested();
 
-                        bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page);
+                        bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page, ct);
                         if (res)
                             val.updateTime = DateTime.Today;
                     }
@@ -141,7 +141,8 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
 
                         foreach (var val in pagesToParse)
                         {
-                            bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page);
+                            cancellationToken.ThrowIfCancellationRequested();
+                            bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page, cancellationToken);
                             if (res)
                             {
                                 val.updateTime = DateTime.Today;

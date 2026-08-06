@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Persistence;
+using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace JacRed.Controllers
 {
@@ -14,21 +17,30 @@ namespace JacRed.Controllers
 
         public string Save()
         {
+            if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi))
+                return "syncapi";
+
             if (Interlocked.CompareExchange(ref _saveDbWork, 1, 0) != 0)
                 return "work";
 
-            try
+            _ = Task.Run(() =>
             {
-                if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi))
-                    return "syncapi";
+                try
+                {
+                    FileDB.SaveChangesToFile();
+                    JacRedLog.Information(JacRedLogCategories.Fdb, "jsondb/save completed (background)");
+                }
+                catch (Exception ex)
+                {
+                    JacRedLog.Error(JacRedLogCategories.Fdb, $"jsondb/save error: {ex.Message}");
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _saveDbWork, 0);
+                }
+            });
 
-                FileDB.SaveChangesToFile();
-                return "ok";
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _saveDbWork, 0);
-            }
+            return "ok";
         }
     }
 }

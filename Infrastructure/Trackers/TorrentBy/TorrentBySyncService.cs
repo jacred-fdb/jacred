@@ -52,6 +52,10 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                     }
                     ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     ParserLog.Write(TrackerName, $"Error: {ex.Message}");
