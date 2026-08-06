@@ -21,6 +21,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static TorrentBySyncService()
@@ -33,6 +34,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
         {
             return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string log = "";
 
                 try
@@ -42,6 +44,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                     ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
                     foreach (string cat in TorrentByCategories.Ids)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         string pageUrl = $"{baseUrl}/{cat}/?page={page}";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
                         await TorrentByParser.ParsePageAsync(cat, page);
@@ -55,41 +58,45 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                 }
 
                 return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+            }, cancellationToken);
         }
 
-        public async Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)
+        public Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)
         {
-            foreach (string cat in TorrentByCategories.Ids)
+            return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy);
-                if (html == null)
-                    continue;
-
-                int.TryParse(System.Text.RegularExpressions.Regex.Match(html, "href=\"\\?page=([0-9]+)\">[0-9]+</a>([\t ]+)?</center></td>").Groups[1].Value, out int maxpages);
-
-                for (int page = 0; page <= maxpages; page++)
+                foreach (string cat in TorrentByCategories.Ids)
                 {
-                    try
+                    ct.ThrowIfCancellationRequested();
+
+                    string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy);
+                    if (html == null)
+                        continue;
+
+                    int.TryParse(System.Text.RegularExpressions.Regex.Match(html, "href=\"\\?page=([0-9]+)\">[0-9]+</a>([\t ]+)?</center></td>").Groups[1].Value, out int maxpages);
+
+                    for (int page = 0; page <= maxpages; page++)
                     {
-                        if (!taskParse.ContainsKey(cat))
-                            taskParse.Add(cat, new List<TaskParse>());
+                        try
+                        {
+                            if (!taskParse.ContainsKey(cat))
+                                taskParse.Add(cat, new List<TaskParse>());
 
-                        var val = taskParse[cat];
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
+                            var val = taskParse[cat];
+                            if (val.FirstOrDefault(i => i.page == page) == null)
+                                val.Add(new TaskParse(page));
+                        }
+                        catch { }
                     }
-                    catch { }
                 }
-            }
 
-            IO.File.WriteAllText("Data/temp/torrentby_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            return "ok";
+                IO.File.WriteAllText("Data/temp/torrentby_taskParse.json", JsonConvert.SerializeObject(taskParse));
+            }));
         }
 
-        public async Task<string> ParseAllTaskAsync(CancellationToken cancellationToken = default)
+        public Task<string> ParseAllTaskAsync(CancellationToken cancellationToken = default)
         {
-            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: false, async () =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
                 foreach (var task in taskParse.ToArray())
                 {
@@ -98,14 +105,14 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                         if (DateTime.Today == val.updateTime)
                             continue;
 
-                        await Task.Delay(AppInit.conf.TorrentBy.parseDelay, cancellationToken);
+                        await Task.Delay(AppInit.conf.TorrentBy.parseDelay, ct);
 
                         bool res = await TorrentByParser.ParsePageAsync(task.Key, val.page);
                         if (res)
                             val.updateTime = DateTime.Today;
                     }
                 }
-            }, cancellationToken);
+            }));
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5, CancellationToken cancellationToken = default)

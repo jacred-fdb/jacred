@@ -83,7 +83,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 }
 
                 return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+            }, cancellationToken);
         }
 
         public async Task<string> ParseFromDateAsync(string lastnewtor, int limit = 100, CancellationToken cancellationToken = default)
@@ -123,7 +123,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 }
 
                 return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+            }, cancellationToken);
         }
 
         async Task<BitruApiResponse> ApiRequestAsync(object jsonParams, CancellationToken cancellationToken)

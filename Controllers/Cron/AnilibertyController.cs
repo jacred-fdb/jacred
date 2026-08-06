@@ -22,6 +22,6 @@ namespace JacRed.Controllers.Cron
 
         [HttpGet]
         async public Task<string> Parse(int parseFrom = 0, int parseTo = 0) =>
-            await _syncService.ParseAsync(parseFrom, parseTo);
+            await _syncService.ParseAsync(parseFrom, parseTo, HttpContext.RequestAborted);
     }
 }

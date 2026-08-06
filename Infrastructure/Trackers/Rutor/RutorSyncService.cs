@@ -22,6 +22,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static RutorSyncService()
@@ -59,40 +60,44 @@ namespace JacRed.Infrastructure.Trackers.Rutor
             });
         }
 
-        public async Task<string> UpdateTasksParseAsync()
+        public Task<string> UpdateTasksParseAsync()
         {
-            foreach (string cat in RutorCategories.Ids)
+            return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/0/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy);
-                if (html == null)
-                    continue;
-
-                // Максимальное количиство страниц
-                int.TryParse(Regex.Match(html, "<a href=\"/browse/([0-9]+)/[0-9]+/[0-9]+/[0-9]+\"><b>[0-9]+&nbsp;-&nbsp;[0-9]+</b></a></p>").Groups[1].Value, out int maxpages);
-
-                // Загружаем список страниц в список задач
-                for (int page = 0; page <= maxpages; page++)
+                foreach (string cat in RutorCategories.Ids)
                 {
-                    try
+                    ct.ThrowIfCancellationRequested();
+
+                    string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/0/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy);
+                    if (html == null)
+                        continue;
+
+                    // Максимальное количиство страниц
+                    int.TryParse(Regex.Match(html, "<a href=\"/browse/([0-9]+)/[0-9]+/[0-9]+/[0-9]+\"><b>[0-9]+&nbsp;-&nbsp;[0-9]+</b></a></p>").Groups[1].Value, out int maxpages);
+
+                    // Загружаем список страниц в список задач
+                    for (int page = 0; page <= maxpages; page++)
                     {
-                        if (!taskParse.ContainsKey(cat))
-                            taskParse.Add(cat, new List<TaskParse>());
+                        try
+                        {
+                            if (!taskParse.ContainsKey(cat))
+                                taskParse.Add(cat, new List<TaskParse>());
 
-                        var val = taskParse[cat];
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
+                            var val = taskParse[cat];
+                            if (val.FirstOrDefault(i => i.page == page) == null)
+                                val.Add(new TaskParse(page));
+                        }
+                        catch { }
                     }
-                    catch { }
                 }
-            }
 
-            IO.File.WriteAllText("Data/temp/rutor_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            return "ok";
+                IO.File.WriteAllText("Data/temp/rutor_taskParse.json", JsonConvert.SerializeObject(taskParse));
+            }));
         }
 
-        public async Task<string> ParseAllTaskAsync()
+        public Task<string> ParseAllTaskAsync()
         {
-            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: false, async () =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
                 foreach (var task in taskParse.ToArray())
                 {
@@ -101,14 +106,14 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                         if (DateTime.Today == val.updateTime)
                             continue;
 
-                        await Task.Delay(AppInit.conf.Rutor.parseDelay);
+                        await Task.Delay(AppInit.conf.Rutor.parseDelay, ct);
 
                         bool res = await parsePage(task.Key, val.page);
                         if (res)
                             val.updateTime = DateTime.Today;
                     }
                 }
-            });
+            }));
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5)

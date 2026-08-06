@@ -20,9 +20,9 @@ namespace JacRed.Controllers.Cron
         }
 
         async public Task<string> Parse(int limit = 100) =>
-            await _syncService.ParseAsync(limit);
+            await _syncService.ParseAsync(limit, HttpContext.RequestAborted);
 
         async public Task<string> ParseFromDate(string lastnewtor, int limit = 100) =>
-            await _syncService.ParseFromDateAsync(lastnewtor, limit);
+            await _syncService.ParseFromDateAsync(lastnewtor, limit, HttpContext.RequestAborted);
     }
 }

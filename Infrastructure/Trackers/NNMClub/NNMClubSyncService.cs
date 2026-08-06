@@ -25,6 +25,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static NNMClubSyncService()
@@ -63,41 +64,45 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
             });
         }
 
-        public async Task<string> UpdateTasksParseAsync()
+        public Task<string> UpdateTasksParseAsync()
         {
             // After PageSize 20→25, regenerate taskParse via this endpoint so page indices match the portal.
-            foreach (string cat in NNMClubCategories.Ids)
+            return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}", encoding: Encoding.GetEncoding(1251), timeoutSeconds: 10, useproxy: AppInit.conf.NNMClub.useproxy);
-                if (html == null || !html.Contains("NNM-Club</title>"))
-                    continue;
-
-                // Максимальное количиство страниц
-                int.TryParse(Regex.Match(html, "<a href=\"[^\"]+\">([0-9]+)</a>[^<\n\r]+<a href=\"[^\"]+\">След.</a>").Groups[1].Value, out int maxpages);
-
-                // Загружаем список страниц в список задач
-                for (int page = 0; page <= maxpages; page++)
+                foreach (string cat in NNMClubCategories.Ids)
                 {
-                    try
+                    ct.ThrowIfCancellationRequested();
+
+                    string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}", encoding: Encoding.GetEncoding(1251), timeoutSeconds: 10, useproxy: AppInit.conf.NNMClub.useproxy);
+                    if (html == null || !html.Contains("NNM-Club</title>"))
+                        continue;
+
+                    // Максимальное количиство страниц
+                    int.TryParse(Regex.Match(html, "<a href=\"[^\"]+\">([0-9]+)</a>[^<\n\r]+<a href=\"[^\"]+\">След.</a>").Groups[1].Value, out int maxpages);
+
+                    // Загружаем список страниц в список задач
+                    for (int page = 0; page <= maxpages; page++)
                     {
-                        if (!taskParse.ContainsKey(cat))
-                            taskParse.Add(cat, new List<TaskParse>());
+                        try
+                        {
+                            if (!taskParse.ContainsKey(cat))
+                                taskParse.Add(cat, new List<TaskParse>());
 
-                        var val = taskParse[cat];
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
+                            var val = taskParse[cat];
+                            if (val.FirstOrDefault(i => i.page == page) == null)
+                                val.Add(new TaskParse(page));
+                        }
+                        catch { }
                     }
-                    catch { }
                 }
-            }
 
-            IO.File.WriteAllText("Data/temp/nnmclub_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            return "ok";
+                IO.File.WriteAllText("Data/temp/nnmclub_taskParse.json", JsonConvert.SerializeObject(taskParse));
+            }));
         }
 
-        public async Task<string> ParseAllTaskAsync()
+        public Task<string> ParseAllTaskAsync()
         {
-            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: false, async () =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
                 foreach (var task in taskParse.ToArray())
                 {
@@ -106,14 +111,14 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                         if (DateTime.Today == val.updateTime)
                             continue;
 
-                        await Task.Delay(AppInit.conf.NNMClub.parseDelay);
+                        await Task.Delay(AppInit.conf.NNMClub.parseDelay, ct);
 
                         bool res = await parsePage(task.Key, val.page);
                         if (res)
                             val.updateTime = DateTime.Today;
                     }
                 }
-            });
+            }));
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5)

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using JacRed.Infrastructure.Persistence;
+using System.Threading;
 
 namespace JacRed.Controllers
 {
@@ -9,22 +10,25 @@ namespace JacRed.Controllers
     {
         public DbController(IMemoryCache memoryCache) : base(memoryCache) { }
 
-        static bool _saveDbWork = false;
+        static int _saveDbWork;
 
         public string Save()
         {
-            if (_saveDbWork)
+            if (Interlocked.CompareExchange(ref _saveDbWork, 1, 0) != 0)
                 return "work";
 
-            if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi))
-                return "syncapi";
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(AppInit.conf.syncapi))
+                    return "syncapi";
 
-            _saveDbWork = true;
-
-            FileDB.SaveChangesToFile();
-
-            _saveDbWork = false;
-            return "ok";
+                FileDB.SaveChangesToFile();
+                return "ok";
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _saveDbWork, 0);
+            }
         }
     }
 }

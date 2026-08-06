@@ -159,6 +159,7 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
 
                 using (var client = new System.Net.Http.HttpClient(clientHandler))
                 {
+                    client.Timeout = TimeSpan.FromSeconds(10);
                     client.MaxResponseContentBufferSize = 2000000;
                     client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
                     client.DefaultRequestHeaders.Add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");

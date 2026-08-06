@@ -20,6 +20,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static readonly string[] Categories = { "80", "79", "6", "5", "55", "57", "76" };
@@ -29,8 +30,6 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
             if (IO.File.Exists("Data/temp/megapeer_taskParse.json"))
                 taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/megapeer_taskParse.json"));
         }
-
-        static bool IsDisabled() => TrackerSyncHelpers.IsTrackerDisabled(TrackerName);
 
         public async Task<string> ParseAsync(int page, CancellationToken cancellationToken = default)
         {
@@ -45,6 +44,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
                     foreach (string cat in Categories)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         string pageUrl = $"{baseUrl}?cat={cat}&page={page}";
                         ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
                         bool res = await MegapeerParser.ParsePageAsync(cat, page);
@@ -52,55 +52,60 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     }
                     ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     ParserLog.Write(TrackerName, $"Error: {ex.Message}");
                 }
 
                 return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+            }, cancellationToken);
         }
 
-        public async Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)
+        public Task<string> UpdateTasksParseAsync(CancellationToken cancellationToken = default)
         {
-            if (IsDisabled())
-                return "disabled";
-
-            foreach (string cat in Categories)
+            return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: true, async ct =>
             {
-                string html = await MegapeerParser.GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}", cat);
-
-                if (html == null)
-                    continue;
-
-                int.TryParse(System.Text.RegularExpressions.Regex.Match(html, ">Всего: ([0-9]+)").Groups[1].Value, out int maxpages);
-                maxpages = maxpages / 50;
-
-                if (maxpages > 10)
-                    maxpages = 10;
-
-                for (int page = 0; page <= maxpages; page++)
+                foreach (string cat in Categories)
                 {
-                    try
+                    ct.ThrowIfCancellationRequested();
+
+                    string html = await MegapeerParser.GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}", cat);
+
+                    if (html == null)
+                        continue;
+
+                    int.TryParse(System.Text.RegularExpressions.Regex.Match(html, ">Всего: ([0-9]+)").Groups[1].Value, out int maxpages);
+                    maxpages = maxpages / 50;
+
+                    if (maxpages > 10)
+                        maxpages = 10;
+
+                    for (int page = 0; page <= maxpages; page++)
                     {
-                        if (!taskParse.ContainsKey(cat))
-                            taskParse.Add(cat, new List<TaskParse>());
+                        try
+                        {
+                            if (!taskParse.ContainsKey(cat))
+                                taskParse.Add(cat, new List<TaskParse>());
 
-                        var val = taskParse[cat];
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
+                            var val = taskParse[cat];
+                            if (val.FirstOrDefault(i => i.page == page) == null)
+                                val.Add(new TaskParse(page));
+                        }
+                        catch { }
                     }
-                    catch { }
                 }
-            }
 
-            IO.File.WriteAllText("Data/temp/megapeer_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            return "ok";
+                IO.File.WriteAllText("Data/temp/megapeer_taskParse.json", JsonConvert.SerializeObject(taskParse));
+            }));
         }
 
-        public async Task<string> ParseAllTaskAsync(CancellationToken cancellationToken = default)
+        public Task<string> ParseAllTaskAsync(CancellationToken cancellationToken = default)
         {
-            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: true, async () =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: true, async ct =>
             {
                 foreach (var task in taskParse.ToArray())
                 {
@@ -109,12 +114,14 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                         if (DateTime.Today == val.updateTime)
                             continue;
 
+                        ct.ThrowIfCancellationRequested();
+
                         bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page);
                         if (res)
                             val.updateTime = DateTime.Today;
                     }
                 }
-            }, cancellationToken);
+            }));
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5, CancellationToken cancellationToken = default)

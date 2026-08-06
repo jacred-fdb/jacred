@@ -103,6 +103,7 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
                 };
 
                 using var client = new System.Net.Http.HttpClient(handler);
+                client.Timeout = TimeSpan.FromSeconds(10);
                 client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
 
                 var data = new Dictionary<string, string>

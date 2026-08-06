@@ -39,6 +39,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static KinozalSyncService()
@@ -274,47 +275,51 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             if (!await EnsureLoggedIn())
                 return string.IsNullOrWhiteSpace(_lastLoginError) ? "login failed" : $"login failed: {_lastLoginError}";
 
-            foreach (string cat in KinozalCategories.Ids)
+            return TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                for (int year = DateTime.Today.Year; year >= 1990; year--)
+                foreach (string cat in KinozalCategories.Ids)
                 {
-                    // Получаем html
-                    string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1");
-                    if (!IsValidBrowsePage(html))
-                        continue;
-
-                    // Максимальное количиство страниц
-                    int.TryParse(Regex.Match(html, ">([0-9]+)</a></li><li><a rel=\"next\"").Groups[1].Value, out int maxpages);
-
-                    // Загружаем список страниц в список задач
-                    for (int page = 0; page <= maxpages; page++)
+                    for (int year = DateTime.Today.Year; year >= 1990; year--)
                     {
-                        try
+                        ct.ThrowIfCancellationRequested();
+
+                        // Получаем html
+                        string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1");
+                        if (!IsValidBrowsePage(html))
+                            continue;
+
+                        // Максимальное количиство страниц
+                        int.TryParse(Regex.Match(html, ">([0-9]+)</a></li><li><a rel=\"next\"").Groups[1].Value, out int maxpages);
+
+                        // Загружаем список страниц в список задач
+                        for (int page = 0; page <= maxpages; page++)
                         {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new Dictionary<string, List<TaskParse>>());
+                            try
+                            {
+                                if (!taskParse.ContainsKey(cat))
+                                    taskParse.Add(cat, new Dictionary<string, List<TaskParse>>());
 
-                            string arg = $"&d={year}&t=1";
-                            var catVal = taskParse[cat];
-                            if (!catVal.ContainsKey(arg))
-                                catVal.Add(arg, new List<TaskParse>());
+                                string arg = $"&d={year}&t=1";
+                                var catVal = taskParse[cat];
+                                if (!catVal.ContainsKey(arg))
+                                    catVal.Add(arg, new List<TaskParse>());
 
-                            var val = catVal[arg];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
+                                var val = catVal[arg];
+                                if (val.FirstOrDefault(i => i.page == page) == null)
+                                    val.Add(new TaskParse(page));
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
-            }
 
-            IO.File.WriteAllText("Data/temp/kinozal_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            return "ok";
+                IO.File.WriteAllText("Data/temp/kinozal_taskParse.json", JsonConvert.SerializeObject(taskParse));
+            });
         }
 
-        public async Task<string> ParseAllTaskAsync()
+        public Task<string> ParseAllTaskAsync()
         {
-            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: false, async () =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
                 foreach (var cat in taskParse.ToArray())
                 {
@@ -325,7 +330,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             if (DateTime.Today == val.updateTime)
                                 continue;
 
-                            await Task.Delay(AppInit.conf.Kinozal.parseDelay);
+                            await Task.Delay(AppInit.conf.Kinozal.parseDelay, ct);
 
                             bool res = await parsePage(cat.Key, val.page, arg.Key);
                             if (res)
@@ -333,7 +338,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                         }
                     }
                 }
-            });
+            }));
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5)
