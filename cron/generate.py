@@ -6,6 +6,12 @@ import re
 import sys
 from pathlib import Path
 
+# Defaults when jobs.yaml omits max_time (seconds).
+DEFAULT_MAX_TIME_PARSE = 900
+DEFAULT_MAX_TIME_UPDATE = 1800
+DEFAULT_MAX_TIME_PARSE_ALL = 21600
+TIMEOUT_START_BUFFER_SEC = 60
+
 
 def parse_jobs_yaml(path: Path) -> tuple[str, list[dict]]:
     """Minimal YAML parser for jobs.yaml schema (no PyYAML)."""
@@ -46,6 +52,8 @@ def parse_jobs_yaml(path: Path) -> tuple[str, list[dict]]:
         key, val = m.group(1), m.group(2).strip().strip('"').strip("'")
         if key == "enabled":
             current[key] = val.lower() in ("true", "yes", "1")
+        elif key == "max_time":
+            current[key] = int(val)
         else:
             current[key] = val
 
@@ -55,6 +63,21 @@ def parse_jobs_yaml(path: Path) -> tuple[str, list[dict]]:
     if not base_url:
         raise ValueError("base_url is required in jobs.yaml")
     return base_url, jobs
+
+
+def default_max_time(path_suffix: str) -> int:
+    lower = path_suffix.lower()
+    if "parsealltask" in lower:
+        return DEFAULT_MAX_TIME_PARSE_ALL
+    if "updatetasksparse" in lower:
+        return DEFAULT_MAX_TIME_UPDATE
+    return DEFAULT_MAX_TIME_PARSE
+
+
+def resolve_max_time(job: dict) -> int:
+    if "max_time" in job:
+        return int(job["max_time"])
+    return default_max_time(str(job.get("path", "")))
 
 
 def expand_step_field(field: str, upper: int) -> str:
@@ -130,22 +153,23 @@ def unit_name(job_name: str) -> str:
     return f"jacred-job-{job_name}"
 
 
-def write_env(path: Path, job_name: str, job_url: str) -> None:
+def write_env(path: Path, job_name: str, job_url: str, max_time: int) -> None:
     path.write_text(
-        f"JOB_NAME={job_name}\nJOB_URL={job_url}\n",
+        f"JOB_NAME={job_name}\nJOB_URL={job_url}\nMAX_TIME={max_time}\n",
         encoding="utf-8",
     )
 
 
-def write_service(path: Path, unit: str, cron_dir: Path, job_name: str) -> None:
+def write_service(path: Path, unit: str, cron_dir: Path, job_name: str, max_time: int) -> None:
     run_job = cron_dir / "run-job.sh"
+    timeout_start = max_time + TIMEOUT_START_BUFFER_SEC
     content = f"""[Unit]
 Description=JacRed HTTP job {job_name}
 
 [Service]
 Type=oneshot
-# Long ParseAllTask / UpdateTasksParse hold curl until JacRed responds.
-TimeoutStartSec=infinity
+# Curl --max-time is {max_time}s; systemd kills the oneshot shortly after.
+TimeoutStartSec={timeout_start}
 ExecStart=/bin/bash {run_job} {job_name}
 """
     path.write_text(content, encoding="utf-8")
@@ -208,14 +232,17 @@ def generate(cron_dir: Path) -> int:
         on_calendar = cron_to_on_calendar(schedule)
         unit = unit_name(name)
         job_url = f"{base_url}/{path_suffix.lstrip('/')}"
+        max_time = resolve_max_time(job)
+        if max_time <= 0:
+            raise ValueError(f"job {name}: max_time must be > 0")
 
-        write_env(out_dir / f"{unit}.env", name, job_url)
-        write_service(out_dir / f"{unit}.service", unit, cron_dir.resolve(), name)
+        write_env(out_dir / f"{unit}.env", name, job_url, max_time)
+        write_service(out_dir / f"{unit}.service", unit, cron_dir.resolve(), name, max_time)
         write_timer(out_dir / f"{unit}.timer", unit, on_calendar)
 
         timer_units.append(unit)
         enabled_count += 1
-        print(f"  {unit}: {on_calendar} -> {path_suffix}")
+        print(f"  {unit}: {on_calendar} -> {path_suffix} (max_time={max_time}s)")
 
     write_target(out_dir / "jacred-jobs.target", timer_units)
     print(f"generated {enabled_count} jobs in {out_dir}")

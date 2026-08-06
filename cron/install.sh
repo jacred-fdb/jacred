@@ -35,6 +35,8 @@ fi
 log "staging units in ${MANAGED_DIR}"
 ${SUDO} mkdir -p "${MANAGED_DIR}"
 ${SUDO} cp "${GEN}/"*.service "${GEN}/"*.timer "${GEN}/"jacred-jobs.target "${MANAGED_DIR}/"
+# Env files (MAX_TIME) stay under cron/generated for run-job.sh; also stage for check-jobs.
+${SUDO} cp "${GEN}/"*.env "${MANAGED_DIR}/" 2>/dev/null || true
 
 log "linking units into ${SYSTEMD_DIR}"
 for stale in "${SYSTEMD_DIR}"/jacred-job-*.service "${SYSTEMD_DIR}"/jacred-job-*.timer "${SYSTEMD_DIR}"/jacred-jobs.target; do
@@ -52,4 +54,13 @@ log "enable jacred-jobs.target"
 ${SUDO} systemctl enable --now jacred-jobs.target
 
 log "done — list timers: systemctl list-timers 'jacred-job-*'"
-log "migrate off crontab: crontab -l | grep -vF '127.0.0.1:9117' | crontab -"
+
+# Warn if legacy crontab still curls JacRed (no flock → curl pile-up).
+if command -v crontab >/dev/null 2>&1; then
+  if crontab -l 2>/dev/null | grep -qF '127.0.0.1:9117'; then
+    log "WARN: host crontab still has 127.0.0.1:9117 entries — remove them to avoid duplicate curls:"
+    log "  crontab -l | grep -vF '127.0.0.1:9117' | crontab -"
+  else
+    log "crontab: no 127.0.0.1:9117 entries (ok)"
+  fi
+fi

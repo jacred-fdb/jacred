@@ -2,20 +2,21 @@
 
 Replaces host **crontab** with **systemd timers** — one timer per job, no long-running scheduler daemon.
 
-- Config: [`jobs.yaml`](jobs.yaml) (YAML, cron schedules + paths)
-- Generator: [`generate.py`](generate.py) → `generated/*.service` + `*.timer`
+- Config: [`jobs.yaml`](jobs.yaml) (YAML, cron schedules + paths + `max_time`)
+- Generator: [`generate.py`](generate.py) → `generated/*.service` + `*.timer` + `*.env`
 - Install: [`install.sh`](install.sh)
-- Runner: [`run-job.sh`](run-job.sh) (curl oneshot per job)
+- Runner: [`run-job.sh`](run-job.sh) (curl oneshot per job, with `--max-time`)
 
 ## Why systemd timers
 
 | crontab / bash loop | systemd timers |
 |---------------------|----------------|
-| Stuck `curl` processes pile up | Each job = separate oneshot |
+| Stuck `curl` processes pile up | Each job = separate oneshot + flock |
 | One daemon or many crontab lines | Native `systemctl list-timers` |
 | Hard to disable one tracker | `systemctl disable jacred-job-rutor-parse.timer` |
+| No request deadline | `max_time` → curl `--max-time` + finite `TimeoutStartSec` |
 
-Trackers run **in parallel** (independent timers). JacRed returns `ok` / `work` / `disabled` immediately when a tracker is busy (`TrackerParseLock` in app code).
+Trackers run **in parallel** (independent timers). JacRed returns `ok` / `work` / `disabled` quickly when a tracker is busy. Long jobs (`ParseAllTask`, `UpdateTasksParse`) start work in the background and return immediately; curl still has a hard deadline.
 
 ## Install
 
@@ -26,7 +27,7 @@ chmod +x /opt/jacred/cron/install.sh /opt/jacred/cron/run-job.sh
 sudo /opt/jacred/cron/install.sh
 ```
 
-This generates units into `/etc/systemd/jacred-cron/`, creates symlinks in `/etc/systemd/system/`, enables `jacred-jobs.target`, and disables legacy `jacred-scheduler.service` if present.
+This generates units into `/etc/systemd/jacred-cron/`, creates symlinks in `/etc/systemd/system/`, enables `jacred-jobs.target`, and disables legacy `jacred-scheduler.service` if present. It also warns if host crontab still curls `127.0.0.1:9117`.
 
 Use custom paths if needed:
 
@@ -35,6 +36,8 @@ sudo MANAGED_DIR=/etc/systemd/jacred-cron SYSTEMD_DIR=/etc/systemd/system /opt/j
 ```
 
 ### Migrate off crontab
+
+**Required** — leftover crontab entries have no flock and will pile up curls next to systemd:
 
 ```bash
 crontab -l | grep -vF '127.0.0.1:9117' | crontab -
@@ -53,9 +56,11 @@ jobs:
   - name: rutor-parse
     schedule: "*/15 * * * *"
     path: /cron/rutor/parse
+    max_time: 900
   - name: rutor-UpdateTasksParse
-    schedule: "* */4 * * *"
+    schedule: "5 */4 * * *"
     path: /cron/rutor/UpdateTasksParse
+    max_time: 1800
     enabled: false   # optional — skip this job
 ```
 
@@ -64,7 +69,10 @@ jobs:
 | `base_url` | JacRed HTTP base (change port/host here) |
 | `schedule` | Standard 5-field cron (same as `Data/crontab`) |
 | `path` | URL path relative to `base_url` |
+| `max_time` | Curl overall timeout seconds (also drives systemd `TimeoutStartSec`) |
 | `enabled` | `false` to disable a job |
+
+Defaults when `max_time` is omitted: `ParseAllTask` → 21600 (6h), `UpdateTasksParse` → 1800 (30m), everything else → 900 (15m).
 
 After changes:
 
@@ -98,9 +106,10 @@ sudo systemctl start jacred-job-rutor-parse.service
 
 | Body | Meaning |
 |------|---------|
-| `ok` | Job finished |
+| `ok` | Job finished (or long job started in background) |
 | `work` | Tracker already busy |
 | `disabled` | Tracker disabled in config |
+| `TIMEOUT …` | Curl hit `max_time` (oneshot fails; see journal) |
 
 ## Regenerate without full install
 
@@ -122,7 +131,7 @@ sudo systemctl restart jacred-jobs.target
 
 ## Check timers (recommended)
 
-This script prints a table for all `jacred-job-*.timer` units and highlights anything not `active/enabled`.
+This script prints a table for all `jacred-job-*.timer` units and highlights anything not `active/enabled`. Onesots still running past `MAX_TIME` are marked **STUCK**.
 
 ```bash
 /opt/jacred/cron/check-jobs.sh
@@ -130,13 +139,13 @@ This script prints a table for all `jacred-job-*.timer` units and highlights any
 
 ### Restart all timers / stop stuck jobs
 
-Stops running oneshot services (long `curl`s) and restarts every `jacred-job-*.timer`:
+Stops running oneshot services (timed-out or stuck `curl`s) and restarts every `jacred-job-*.timer`:
 
 ```bash
 sudo /opt/jacred/cron/restart-jobs.sh
 ```
 
-`WARN` / long-running jobs: a timer in `active/running` while the oneshot `curl` is still waiting for JacRed (`ParseAllTask`, `UpdateTasksParse`) is **normal**. Check the matching `.service` + journal if a job looks stuck for hours.
+With `max_time` + finite `TimeoutStartSec`, systemd/curl should clear hung oneshots without manual restarts. Use `restart-jobs.sh` if a unit is marked STUCK in `check-jobs`.
 
 ### Schedule notes (avoid over-firing)
 
@@ -155,10 +164,10 @@ MANAGED_DIR=/etc/systemd/jacred-cron /opt/jacred/cron/check-jobs.sh
 
 ```text
 cron/
-  jobs.yaml         # edit schedules here
-  generate.py       # cron → systemd OnCalendar
-  run-job.sh        # curl runner (oneshot)
-  install.sh        # generate + enable timers
+  jobs.yaml         # edit schedules + max_time here
+  generate.py       # cron → systemd OnCalendar + MAX_TIME env
+  run-job.sh        # curl runner (oneshot, --max-time)
+  install.sh        # generate + enable timers (+ crontab warn)
   restart-jobs.sh   # stop oneshots + restart all timers
   check-jobs.sh     # status table (wraps check-jobs.py)
   generated/        # output (gitignored; created on install)

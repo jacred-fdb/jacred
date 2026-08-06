@@ -1,7 +1,11 @@
 # JacRed HTTP job schedule (replaces Data/crontab)
 # schedule: standard 5-field cron (minute hour day month dow)
 # path: relative to base_url
+# max_time: curl --max-time seconds (overall request deadline)
 # enabled: false  # optional — skip this job
+#
+# Defaults when max_time omitted (by path suffix):
+#   ParseAllTask → 21600 (6h), UpdateTasksParse → 1800 (30m), else → 900 (15m)
 
 base_url: http://127.0.0.1:9117
 
@@ -10,120 +14,149 @@ jobs:
   - name: jsondb-save
     schedule: "*/5 * * * *"
     path: /jsondb/save
+    max_time: 900
 
   # Rutor
   - name: rutor-parse
     schedule: "*/15 * * * *"
     path: /cron/rutor/parse
+    max_time: 900
   # Once every 4h (NOT "* */4" — that fires every minute in those hours)
   - name: rutor-UpdateTasksParse
     schedule: "5 */4 * * *"
     path: /cron/rutor/UpdateTasksParse
+    max_time: 1800
   - name: rutor-ParseAllTask
     schedule: "30 * * * *"
     path: /cron/rutor/ParseAllTask
+    max_time: 21600
 
   # Rutracker
   - name: rutracker-parse
     schedule: "0 * * * *"
     path: /cron/rutracker/parse
+    max_time: 900
   - name: rutracker-UpdateTasksParse
     schedule: "20 * * * *"
     path: /cron/rutracker/UpdateTasksParse
+    max_time: 1800
   - name: rutracker-ParseAllTask
     schedule: "40 * * * *"
     path: /cron/rutracker/ParseAllTask
+    max_time: 21600
 
   # Kinozal
   - name: kinozal-parse
     schedule: "*/15 * * * *"
     path: /cron/kinozal/parse
+    max_time: 900
   - name: kinozal-UpdateTasksParse
     schedule: "5 */4 * * *"
     path: /cron/kinozal/UpdateTasksParse
+    max_time: 1800
   - name: kinozal-ParseAllTask
     schedule: "30 * * * *"
     path: /cron/kinozal/ParseAllTask
+    max_time: 21600
 
   # Nnmclub
   - name: nnmclub-parse
     schedule: "*/15 * * * *"
     path: /cron/nnmclub/parse
+    max_time: 900
   - name: nnmclub-UpdateTasksParse
     schedule: "5 */4 * * *"
     path: /cron/nnmclub/UpdateTasksParse
+    max_time: 1800
   - name: nnmclub-ParseAllTask
     schedule: "30 * * * *"
     path: /cron/nnmclub/ParseAllTask
+    max_time: 21600
 
   # Selezen
   - name: selezen-parse
     schedule: "*/15 * * * *"
     path: /cron/selezen/parse
+    max_time: 900
 
   # Megapeer
   - name: megapeer-parse
     schedule: "0 * * * *"
     path: /cron/megapeer/parse
+    max_time: 900
   - name: megapeer-UpdateTasksParse
     schedule: "5 */4 * * *"
     path: /cron/megapeer/UpdateTasksParse
+    max_time: 1800
   - name: megapeer-ParseAllTask
     schedule: "30 * * * *"
     path: /cron/megapeer/ParseAllTask
+    max_time: 21600
 
   # Torrentby
   - name: torrentby-parse
     schedule: "*/15 * * * *"
     path: /cron/torrentby/parse
+    max_time: 900
   - name: torrentby-UpdateTasksParse
     schedule: "5 */4 * * *"
     path: /cron/torrentby/UpdateTasksParse
+    max_time: 1800
   - name: torrentby-ParseAllTask
     schedule: "30 * * * *"
     path: /cron/torrentby/ParseAllTask
+    max_time: 21600
 
   # Toloka
   - name: toloka-parse
     schedule: "*/40 * * * *"
     path: /cron/toloka/parse
+    max_time: 900
 
   # Mazepa
   - name: mazepa-parse
     schedule: "*/40 * * * *"
     path: /cron/mazepa/parse
+    max_time: 900
 
   # Lostfilm
   - name: lostfilm-parse
     schedule: "*/15 * * * *"
     path: /cron/lostfilm/parse
+    max_time: 900
 
   # Bitru
   - name: bitru-parse
     schedule: "*/20 * * * *"
     path: /cron/bitru/parse
+    max_time: 900
 
   # Knaben
   - name: knaben-parse
     schedule: "*/20 * * * *"
     path: /cron/knaben/parse
+    max_time: 900
 
   # Animelayer
   - name: animelayer-parse
     schedule: "*/15 * * * *"
     path: /cron/animelayer/parse
+    max_time: 900
 
   # Anidub
   - name: anidub-parse
     schedule: "*/15 * * * *"
     path: /cron/anidub/parse
+    max_time: 900
 
   # Aniliberty
   - name: aniliberty-parse
     schedule: "*/15 * * * *"
     path: /cron/aniliberty/parse
+    max_time: 900
 
   # Baibako
   - name: baibako-parse
     schedule: "*/15 * * * *"
     path: /cron/baibako/parse
+    max_time: 900

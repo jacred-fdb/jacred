@@ -9,6 +9,7 @@ Reads all jacred-job-*.timer units from:
 Prints:
   - Target state
   - Table of Job/Active/EnabledState/Next/Last/OnCalendar
+  - STUCK oneshots that exceeded MAX_TIME
   - Summary counts
 """
 
@@ -21,11 +22,13 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 
 
 MANAGED_DIR = os.environ.get("MANAGED_DIR", "/etc/systemd/jacred-cron")
 JOBS_TARGET = os.environ.get("JOBS_TARGET", "jacred-jobs.target")
+CRON_DIR = Path(os.environ.get("CRON_DIR", Path(__file__).resolve().parent))
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -77,9 +80,63 @@ def us_to_local_human(us: str) -> str:
     sec = int(us) // 1_000_000
     try:
         dt = datetime.fromtimestamp(sec)
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
     except (OSError, OverflowError, ValueError):
         return str(sec)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def read_max_time(job: str) -> int | None:
+    """Read MAX_TIME from generated env (managed dir or local cron/generated)."""
+    candidates = [
+        Path(MANAGED_DIR) / f"jacred-job-{job}.env",
+        CRON_DIR / "generated" / f"jacred-job-{job}.env",
+    ]
+    # Env files live next to generated units in repo; managed dir may only have units.
+    for path in candidates:
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("MAX_TIME="):
+                try:
+                    return int(line.split("=", 1)[1].strip())
+                except ValueError:
+                    return None
+    return None
+
+
+def parse_active_enter_age_sec(service: str) -> float | None:
+    """Seconds since ActiveEnterTimestamp, or None if inactive/unknown."""
+    raw = systemctl_show(service, "ActiveEnterTimestamp")
+    if not raw or raw in ("n/a", "N/A", "0"):
+        # ActiveEnterTimestampMonotonic is usec since boot — less portable.
+        mono = systemctl_show(service, "ActiveEnterTimestampMonotonic")
+        if not mono or not re.fullmatch(r"\d+", mono) or mono == "0":
+            return None
+        # Cannot convert monotonic without boot time; skip.
+        return None
+    # e.g. "Thu 2026-08-06 12:00:00 UTC" or locale-dependent
+    for fmt in (
+        "%a %Y-%m-%d %H:%M:%S %Z",
+        "%Y-%m-%d %H:%M:%S %Z",
+        "%a %Y-%m-%d %H:%M:%S",
+    ):
+        try:
+            entered = datetime.strptime(raw, fmt)
+            if entered.tzinfo is None:
+                entered = entered.replace(tzinfo=datetime.now().astimezone().tzinfo)
+            now = datetime.now(timezone.utc).astimezone()
+            return max(0.0, (now - entered).total_seconds())
+        except ValueError:
+            continue
+    # Fallback: systemctl show ActiveEnterTimestampUSec (if available)
+    usec = systemctl_show(service, "ActiveEnterTimestampUSec")
+    if usec and re.fullmatch(r"\d+", usec) and usec != "0":
+        try:
+            entered = datetime.fromtimestamp(int(usec) / 1_000_000, tz=timezone.utc)
+            return max(0.0, (datetime.now(timezone.utc) - entered).total_seconds())
+        except (OSError, OverflowError, ValueError):
+            return None
+    return None
 
 
 @dataclass
@@ -92,9 +149,14 @@ class JobRow:
     on_calendar: str
     next_human: str
     last_human: str
+    service_stuck: bool = False
+    service_age_sec: float | None = None
+    max_time: int | None = None
 
     @property
     def health(self) -> str:
+        if self.service_stuck:
+            return "STUCK"
         # "enabled" is messy for symlinks: we rely on UnitFileState.
         enabled_ok = self.unit_file_state in ("enabled", "static", "linked", "indirect")
         if self.active_state != "active":
@@ -133,6 +195,7 @@ def main() -> int:
     rows: list[JobRow] = []
     for timer in timers:
         job = job_name_from_timer(timer)
+        service = timer[: -len(".timer")] + ".service" if timer.endswith(".timer") else timer
         active_state = systemctl_show(timer, "ActiveState") or "unknown"
         sub_state = systemctl_show(timer, "SubState") or ""
         unit_file_state = systemctl_show(timer, "UnitFileState") or "unknown"
@@ -153,6 +216,18 @@ def main() -> int:
             if m:
                 on_calendar = m.group(1).strip()
 
+        max_time = read_max_time(job)
+        svc_active = systemctl_show(service, "ActiveState") or ""
+        svc_sub = systemctl_show(service, "SubState") or ""
+        age = None
+        stuck = False
+        # OnesHot while running: activating/start or active/running
+        if svc_active in ("activating", "active") and svc_sub in ("start", "running"):
+            age = parse_active_enter_age_sec(service)
+            limit = max_time if max_time is not None else 900
+            if age is not None and age > limit:
+                stuck = True
+
         rows.append(
             JobRow(
                 job=job,
@@ -163,11 +238,14 @@ def main() -> int:
                 on_calendar=on_calendar,
                 next_human=us_to_local_human(next_us),
                 last_human=us_to_local_human(last_us),
+                service_stuck=stuck,
+                service_age_sec=age,
+                max_time=max_time,
             )
         )
 
     # Sort by health then next time.
-    order = {"BAD": 0, "WARN": 1, "OK": 2}
+    order = {"STUCK": 0, "BAD": 1, "WARN": 2, "OK": 3}
     rows.sort(key=lambda r: (order.get(r.health, 9), r.next_human != "--", r.job))
 
     # Column widths.
@@ -188,6 +266,7 @@ def main() -> int:
             "OK": color(h, "32"),
             "WARN": color(h, "33"),
             "BAD": color(h, "31"),
+            "STUCK": color(h, "31;1"),
         }.get(h, h)
 
     col_tstate_w = 18
@@ -236,12 +315,15 @@ def main() -> int:
     print(header_row)
     print(border)
 
-    counts = {"OK": 0, "WARN": 0, "BAD": 0}
+    counts = {"OK": 0, "WARN": 0, "BAD": 0, "STUCK": 0}
     warn_jobs: list[str] = []
+    stuck_jobs: list[JobRow] = []
     for r in rows:
-        counts[r.health] += 1
+        counts[r.health] = counts.get(r.health, 0) + 1
         if r.health == "WARN":
             warn_jobs.append(r.timer)
+        if r.health == "STUCK":
+            stuck_jobs.append(r)
         tstate = f"{r.active_state}/{r.sub_state}" if r.sub_state else r.active_state
         oncal = r.on_calendar if r.on_calendar else "--"
         if len(oncal) > oncal_w:
@@ -282,7 +364,20 @@ def main() -> int:
 
     print(border)
     print()
-    print(f"Summary: OK={counts['OK']} WARN={counts['WARN']} BAD={counts['BAD']}")
+    print(
+        f"Summary: OK={counts['OK']} WARN={counts['WARN']} BAD={counts['BAD']} STUCK={counts['STUCK']}"
+    )
+    if stuck_jobs:
+        print()
+        print("STUCK oneshots (running longer than MAX_TIME):")
+        for r in stuck_jobs:
+            svc = r.timer[: -len(".timer")] + ".service" if r.timer.endswith(".timer") else r.timer
+            age_s = int(r.service_age_sec) if r.service_age_sec is not None else "?"
+            mt = r.max_time if r.max_time is not None else "?"
+            print(f"  {svc}: age={age_s}s max_time={mt}s")
+            print(f"    systemctl status {svc}")
+            print(f"    journalctl -u {svc} -n 30 --no-pager")
+            print(f"    sudo systemctl stop {svc}")
     if warn_jobs:
         print()
         print("WARN jobs:")
@@ -291,11 +386,10 @@ def main() -> int:
             print(f"  systemctl status {t}")
             print(f"  systemctl status {svc}")
             print(f"  journalctl -u {svc} -n 30 --no-pager")
-    if counts["BAD"] > 0:
+    if counts["BAD"] > 0 or counts["STUCK"] > 0:
         return 2
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
