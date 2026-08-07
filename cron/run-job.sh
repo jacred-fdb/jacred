@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Run one JacRed HTTP job (invoked by systemd oneshot service).
+# Run one JacRed HTTP job (crontab or manual).
 # JacRed returns ok / work / disabled. Long jobs may start work in the
 # background and return immediately; curl still has an overall --max-time.
+# Overlap protection: flock on LOCK_DIR/<job>.lock.
 set -euo pipefail
 
 JOB_NAME="${1:?job name required}"

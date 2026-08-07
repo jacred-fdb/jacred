@@ -1,11 +1,10 @@
 # JacRed safe crontab — GENERATED from cron/jobs.yaml (do not edit by hand).
 # Regenerate: python3 /opt/jacred/cron/generate.py
-# Install:    crontab /opt/jacred/Data/crontab
-#             (or: crontab /opt/jacred/cron/generated/crontab)
+# Install:    sudo /opt/jacred/cron/install.sh
+#             (or: crontab /opt/jacred/Data/crontab)
 #
 # Uses run-job.sh: flock (no curl pile-up) + curl --max-time from generated .env.
-# Do NOT also enable systemd jacred-job-*.timer units (pick one scheduler).
-# First run generate.py so cron/generated/*.env exist.
+# First run generate.py / install.sh so cron/generated/*.env exist.
 # Override install path: JACRED_CRON_DIR=/path/to/cron python3 generate.py
 #
 SHELL=/bin/bash

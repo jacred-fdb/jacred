@@ -1,25 +1,14 @@
 #!/usr/bin/env bash
-# Generate systemd units from jobs.yaml and install/enable timers.
+# Generate job env + safe crontab, remove leftover systemd timers, install crontab.
 set -euo pipefail
 
 CRON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
-MANAGED_DIR="${MANAGED_DIR:-/etc/systemd/jacred-cron}"
+ROOT_DIR="$(cd "${CRON_DIR}/.." && pwd)"
+CRONTAB_FILE="${CRONTAB_FILE:-${ROOT_DIR}/Data/crontab}"
 
 log() {
   echo "[install] $*"
 }
-
-log "generating units from jobs.yaml"
-python3 "${CRON_DIR}/generate.py" --cron-dir "${CRON_DIR}"
-
-chmod +x "${CRON_DIR}/run-job.sh"
-
-GEN="${CRON_DIR}/generated"
-if ! compgen -G "${GEN}/jacred-job-*.timer" > /dev/null; then
-  log "ERROR: no timer units generated"
-  exit 1
-fi
 
 if [[ "$(id -u)" -ne 0 ]]; then
   SUDO="sudo"
@@ -27,51 +16,31 @@ else
   SUDO=""
 fi
 
-# Disable legacy loop scheduler if present
-if command -v systemctl >/dev/null 2>&1; then
-  ${SUDO} systemctl disable --now jacred-scheduler.service 2>/dev/null || true
+log "generating .env + crontab from jobs.yaml"
+python3 "${CRON_DIR}/generate.py" --cron-dir "${CRON_DIR}"
+
+chmod +x "${CRON_DIR}/run-job.sh" "${CRON_DIR}/uninstall.sh" "${CRON_DIR}/check-jobs.sh"
+
+GEN="${CRON_DIR}/generated"
+if ! compgen -G "${GEN}/jacred-job-*.env" > /dev/null; then
+  log "ERROR: no job env files generated"
+  exit 1
+fi
+if [[ ! -f "${CRONTAB_FILE}" ]]; then
+  log "ERROR: crontab file not found: ${CRONTAB_FILE}"
+  exit 1
 fi
 
-log "staging units in ${MANAGED_DIR}"
-${SUDO} mkdir -p "${MANAGED_DIR}"
-${SUDO} cp "${GEN}/"*.service "${GEN}/"*.timer "${GEN}/"jacred-jobs.target "${MANAGED_DIR}/"
-# Env files (MAX_TIME) stay under cron/generated for run-job.sh; also stage for check-jobs.
-${SUDO} cp "${GEN}/"*.env "${MANAGED_DIR}/" 2>/dev/null || true
-
-log "linking units into ${SYSTEMD_DIR}"
-for stale in "${SYSTEMD_DIR}"/jacred-job-*.service "${SYSTEMD_DIR}"/jacred-job-*.timer "${SYSTEMD_DIR}"/jacred-jobs.target; do
-  [[ -e "${stale}" || -L "${stale}" ]] && ${SUDO} rm -f "${stale}"
-done
-
-for unit in "${MANAGED_DIR}"/jacred-job-*.service "${MANAGED_DIR}"/jacred-job-*.timer "${MANAGED_DIR}"/jacred-jobs.target; do
-  ${SUDO} ln -sfn "${unit}" "${SYSTEMD_DIR}/$(basename "${unit}")"
-done
-
-log "daemon-reload"
-${SUDO} systemctl daemon-reload
-
-log "enable jacred-jobs.target"
-${SUDO} systemctl enable --now jacred-jobs.target
-
-log "done — list timers: systemctl list-timers 'jacred-job-*'"
-log "check: ${CRON_DIR}/check-jobs.sh"
-log "ack jobs (ParseAll/UpdateTasks/jsondb-save) should return in seconds; curl max_time=60s"
-
-# Warn if legacy crontab still curls JacRed (no flock → curl pile-up).
-if command -v systemctl >/dev/null 2>&1; then
-  # Smoke: list any activating oneshots older than a few seconds (informational).
-  activating="$(systemctl list-units --type=service --state=activating 'jacred-job-*' --no-legend 2>/dev/null | wc -l | tr -d ' ')"
-  if [[ "${activating}" != "0" ]]; then
-    log "note: ${activating} jacred-job service(s) currently activating (normal right after timer fire)"
-  fi
+# Always strip leftover systemd JacRed timers (crontab is the scheduler now).
+if [[ -x "${CRON_DIR}/uninstall.sh" ]]; then
+  log "removing leftover jacred-job systemd units (if any)"
+  "${CRON_DIR}/uninstall.sh" || log "WARN: uninstall reported leftovers (ok if none were installed)"
 fi
 
-# Warn if legacy crontab still curls JacRed (no flock → curl pile-up).
-if command -v crontab >/dev/null 2>&1; then
-  if crontab -l 2>/dev/null | grep -qF '127.0.0.1:9117'; then
-    log "WARN: host crontab still has 127.0.0.1:9117 entries — remove them to avoid duplicate curls:"
-    log "  crontab -l | grep -vF '127.0.0.1:9117' | crontab -"
-  else
-    log "crontab: no 127.0.0.1:9117 entries (ok)"
-  fi
-fi
+log "installing host crontab from ${CRONTAB_FILE}"
+crontab "${CRONTAB_FILE}"
+
+log "done"
+log "  crontab -l | head"
+log "  ${CRON_DIR}/check-jobs.sh"
+log "  manual run: ${CRON_DIR}/run-job.sh rutor-parse"

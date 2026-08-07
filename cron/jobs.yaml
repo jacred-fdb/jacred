@@ -1,7 +1,7 @@
 # JacRed HTTP job schedule (replaces Data/crontab)
 # schedule: standard 5-field cron (minute hour day month dow)
 # path: relative to base_url
-# max_time: curl --max-time seconds (overall HTTP request deadline)
+# max_time: curl --max-time seconds (HTTP request deadline for run-job.sh)
 # enabled: false  # optional — skip this job
 #
 # Defaults when max_time omitted (by path suffix):
@@ -10,6 +10,7 @@
 #
 # Note: curl max_time is NOT the crawl duration. Long jobs start in the background
 # and return ok immediately; in-app walls are 6h (ParseAll) / 30m (UpdateTasks).
+# Scheduler: host crontab + run-job.sh (see cron/README.md).
 
 base_url: http://127.0.0.1:9117
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for cron/generate.py max_time defaults (ack vs parse)."""
+"""Unit tests for cron/generate.py max_time defaults and crontab output."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ class GenerateMaxTimeTests(unittest.TestCase):
         job = {"path": "/cron/rutor/ParseAllTask", "max_time": 120}
         self.assertEqual(120, self.gen.resolve_max_time(job))
 
-    def test_generate_writes_ack_max_time(self):
+    def test_generate_writes_env_and_crontab(self):
         yaml = """
 base_url: http://127.0.0.1:9117
 jobs:
@@ -61,15 +61,15 @@ jobs:
             self.assertIn("MAX_TIME=60", env_ack)
             self.assertIn("MAX_TIME=900", env_parse)
 
-            svc = (cron_dir / "generated" / "jacred-job-rutor-ParseAllTask.service").read_text(encoding="utf-8")
-            self.assertIn("TimeoutStartSec=120", svc)  # 60 + 60 buffer
+            # No systemd units anymore.
+            self.assertEqual([], list((cron_dir / "generated").glob("*.service")))
+            self.assertEqual([], list((cron_dir / "generated").glob("*.timer")))
 
             crontab = (cron_dir / "generated" / "crontab").read_text(encoding="utf-8")
             self.assertIn("run-job.sh rutor-ParseAllTask", crontab)
             self.assertIn("run-job.sh rutor-parse", crontab)
             self.assertIn("30 * * * *", crontab)
             self.assertNotIn("curl -s", crontab)
-            self.assertIn("Do NOT also enable systemd", crontab)
             self.assertIn("/opt/jacred/cron/run-job.sh", crontab)
 
 
