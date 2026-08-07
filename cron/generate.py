@@ -2,6 +2,7 @@
 """Generate systemd service/timer units from cron/jobs.yaml (stdlib only)."""
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -202,6 +203,42 @@ WantedBy=multi-user.target
     path.write_text(content, encoding="utf-8")
 
 
+def write_crontab(path: Path, run_job: Path, jobs: list[dict]) -> int:
+    """Write host crontab lines that invoke run-job.sh (flock + --max-time)."""
+    lines = [
+        "# JacRed safe crontab — GENERATED from cron/jobs.yaml (do not edit by hand).",
+        "# Regenerate: python3 /opt/jacred/cron/generate.py",
+        "# Install:    crontab /opt/jacred/Data/crontab",
+        "#             (or: crontab /opt/jacred/cron/generated/crontab)",
+        "#",
+        "# Uses run-job.sh: flock (no curl pile-up) + curl --max-time from generated .env.",
+        "# Do NOT also enable systemd jacred-job-*.timer units (pick one scheduler).",
+        "# First run generate.py so cron/generated/*.env exist.",
+        "# Override install path: JACRED_CRON_DIR=/path/to/cron python3 generate.py",
+        "#",
+        "SHELL=/bin/bash",
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "",
+    ]
+    count = 0
+    for job in jobs:
+        name = job.get("name")
+        if not name or not job.get("enabled", True):
+            continue
+        schedule = job.get("schedule")
+        path_suffix = job.get("path")
+        if not schedule or not path_suffix:
+            continue
+        max_time = resolve_max_time(job)
+        lines.append(f"# {name} -> {path_suffix} (max_time={max_time}s)")
+        lines.append(f"{schedule}  {run_job} {name}")
+        lines.append("")
+        count += 1
+
+    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return count
+
+
 def generate(cron_dir: Path) -> int:
     yaml_path = cron_dir / "jobs.yaml"
     out_dir = cron_dir / "generated"
@@ -244,12 +281,25 @@ def generate(cron_dir: Path) -> int:
         print(f"  {unit}: {on_calendar} -> {path_suffix} (max_time={max_time}s)")
 
     write_target(out_dir / "jacred-jobs.target", timer_units)
+
+    # Crontab paths default to production layout; override with JACRED_CRON_DIR.
+    install_cron = Path(os.environ.get("JACRED_CRON_DIR", "/opt/jacred/cron")).resolve()
+    run_job = install_cron / "run-job.sh"
+    crontab_path = out_dir / "crontab"
+    write_crontab(crontab_path, run_job, jobs)
+    data_crontab = cron_dir.parent / "Data" / "crontab"
+    if data_crontab.parent.is_dir():
+        write_crontab(data_crontab, run_job, jobs)
+        print(f"wrote Data/crontab ({enabled_count} jobs) run_job={run_job}")
+    print(f"wrote {crontab_path} run_job={run_job}")
     print(f"generated {enabled_count} jobs in {out_dir}")
     return enabled_count
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate systemd units from jobs.yaml")
+    parser = argparse.ArgumentParser(
+        description="Generate systemd units + safe crontab from jobs.yaml"
+    )
     parser.add_argument(
         "--cron-dir",
         type=Path,

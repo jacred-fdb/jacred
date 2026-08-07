@@ -1,78 +1,99 @@
-# Save JSON DB
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/jsondb/save"
+# JacRed safe crontab — GENERATED from cron/jobs.yaml (do not edit by hand).
+# Regenerate: python3 /opt/jacred/cron/generate.py
+# Install:    crontab /opt/jacred/Data/crontab
+#             (or: crontab /opt/jacred/cron/generated/crontab)
+#
+# Uses run-job.sh: flock (no curl pile-up) + curl --max-time from generated .env.
+# Do NOT also enable systemd jacred-job-*.timer units (pick one scheduler).
+# First run generate.py so cron/generated/*.env exist.
+# Override install path: JACRED_CRON_DIR=/path/to/cron python3 generate.py
+#
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Rutor
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutor/ParseAllTask"
+# jsondb-save -> /jsondb/save (max_time=60s)
+*/5 * * * *  /opt/jacred/cron/run-job.sh jsondb-save
 
-# Rutracker
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/rutracker/ParseAllTask"
+# rutor-parse -> /cron/rutor/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh rutor-parse
 
-# Rutracker via Worker
-# 0 * * * *     curl -s "http://127.0.0.1:9117/cron/rutracker/parse"
-# 20 3 * * *    curl -s "http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse"
-# 40 3 * * 0    curl -s "http://127.0.0.1:9117/cron/rutracker/ParseAllTask"
+# rutor-UpdateTasksParse -> /cron/rutor/UpdateTasksParse (max_time=60s)
+5 */4 * * *  /opt/jacred/cron/run-job.sh rutor-UpdateTasksParse
 
-# Kinozal
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/kinozal/ParseAllTask"
+# rutor-ParseAllTask -> /cron/rutor/ParseAllTask (max_time=60s)
+30 * * * *  /opt/jacred/cron/run-job.sh rutor-ParseAllTask
 
-# Nnmclub
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/nnmclub/ParseAllTask"
+# rutracker-parse -> /cron/rutracker/parse (max_time=900s)
+0 * * * *  /opt/jacred/cron/run-job.sh rutracker-parse
 
-# Selezen
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/selezen/parse"
-# curl "http://127.0.0.1:9117/cron/selezen/parse?parseFrom=1&parseTo=5"
+# rutracker-UpdateTasksParse -> /cron/rutracker/UpdateTasksParse (max_time=60s)
+20 * * * *  /opt/jacred/cron/run-job.sh rutracker-UpdateTasksParse
 
-# Megapeer
-0   *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/parse"
-5   */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/UpdateTasksParse"
-30  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/megapeer/ParseAllTask"
+# rutracker-ParseAllTask -> /cron/rutracker/ParseAllTask (max_time=60s)
+40 * * * *  /opt/jacred/cron/run-job.sh rutracker-ParseAllTask
 
-# Torrentby
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/parse"
-*    */4 *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse"
-*/5  *   *   *   *    curl -s "http://127.0.0.1:9117/cron/torrentby/ParseAllTask"
+# kinozal-parse -> /cron/kinozal/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh kinozal-parse
 
-# Toloka
-*/40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/toloka/parse"
+# kinozal-UpdateTasksParse -> /cron/kinozal/UpdateTasksParse (max_time=60s)
+5 */4 * * *  /opt/jacred/cron/run-job.sh kinozal-UpdateTasksParse
 
-# Mazepa
-*/40 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/mazepa/parse"
+# kinozal-ParseAllTask -> /cron/kinozal/ParseAllTask (max_time=60s)
+30 * * * *  /opt/jacred/cron/run-job.sh kinozal-ParseAllTask
 
-# Lostfilm
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/lostfilm/parse"
-# curl "http://127.0.0.1:9117/cron/lostfilm/ParsePages?pageFrom=1&pageTo=10"
+# nnmclub-parse -> /cron/nnmclub/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh nnmclub-parse
 
-# Bitru: official API (5 req/sec), movie+serial+video
-*/20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/bitru/parse"
+# nnmclub-UpdateTasksParse -> /cron/nnmclub/UpdateTasksParse (max_time=60s)
+5 */4 * * *  /opt/jacred/cron/run-job.sh nnmclub-UpdateTasksParse
 
-# Knaben: API v1, TV + Movies
-*/20 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/knaben/parse"
-# pages=3 | query=Breaking+Bad | hours=24 | orderBy=seeders | categories=2001000,3001000
+# nnmclub-ParseAllTask -> /cron/nnmclub/ParseAllTask (max_time=60s)
+30 * * * *  /opt/jacred/cron/run-job.sh nnmclub-ParseAllTask
 
-# Animelayer
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/animelayer/parse"
-# curl "http://127.0.0.1:9117/cron/animelayer/parse?parseFrom=1&parseTo=5"
+# selezen-parse -> /cron/selezen/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh selezen-parse
 
-# Anidub
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/anidub/parse"
-# curl "http://127.0.0.1:9117/cron/anidub/parse?parseTo=5"
-# curl "http://127.0.0.1:9117/cron/anidub/parse?parseFrom=1&parseTo=5"
+# megapeer-parse -> /cron/megapeer/parse (max_time=900s)
+0 * * * *  /opt/jacred/cron/run-job.sh megapeer-parse
 
-# Aniliberty
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/aniliberty/parse"
-# curl "http://127.0.0.1:9117/cron/aniliberty/parse?parseTo=5"
-# curl "http://127.0.0.1:9117/cron/aniliberty/parse?parseFrom=1&parseTo=5"
-# https://aniliberty.top/api/v1/anime/torrents?limit=50&page=60
+# megapeer-UpdateTasksParse -> /cron/megapeer/UpdateTasksParse (max_time=60s)
+5 */4 * * *  /opt/jacred/cron/run-job.sh megapeer-UpdateTasksParse
 
-# Baibako
-*/15 *   *   *   *    curl -s "http://127.0.0.1:9117/cron/baibako/parse"
-# curl "http://127.0.0.1:9117/cron/baibako/parse?parseFrom=0&parseTo=10"
-# curl "http://127.0.0.1:9117/cron/baibako/parse?parseFrom=5"  # Parse single page 5
+# megapeer-ParseAllTask -> /cron/megapeer/ParseAllTask (max_time=60s)
+30 * * * *  /opt/jacred/cron/run-job.sh megapeer-ParseAllTask
+
+# torrentby-parse -> /cron/torrentby/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh torrentby-parse
+
+# torrentby-UpdateTasksParse -> /cron/torrentby/UpdateTasksParse (max_time=60s)
+5 */4 * * *  /opt/jacred/cron/run-job.sh torrentby-UpdateTasksParse
+
+# torrentby-ParseAllTask -> /cron/torrentby/ParseAllTask (max_time=60s)
+30 * * * *  /opt/jacred/cron/run-job.sh torrentby-ParseAllTask
+
+# toloka-parse -> /cron/toloka/parse (max_time=900s)
+*/40 * * * *  /opt/jacred/cron/run-job.sh toloka-parse
+
+# mazepa-parse -> /cron/mazepa/parse (max_time=900s)
+*/40 * * * *  /opt/jacred/cron/run-job.sh mazepa-parse
+
+# lostfilm-parse -> /cron/lostfilm/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh lostfilm-parse
+
+# bitru-parse -> /cron/bitru/parse (max_time=900s)
+*/20 * * * *  /opt/jacred/cron/run-job.sh bitru-parse
+
+# knaben-parse -> /cron/knaben/parse (max_time=900s)
+*/20 * * * *  /opt/jacred/cron/run-job.sh knaben-parse
+
+# animelayer-parse -> /cron/animelayer/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh animelayer-parse
+
+# anidub-parse -> /cron/anidub/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh anidub-parse
+
+# aniliberty-parse -> /cron/aniliberty/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh aniliberty-parse
+
+# baibako-parse -> /cron/baibako/parse (max_time=900s)
+*/15 * * * *  /opt/jacred/cron/run-job.sh baibako-parse

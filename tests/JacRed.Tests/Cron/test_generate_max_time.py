@@ -64,6 +64,14 @@ jobs:
             svc = (cron_dir / "generated" / "jacred-job-rutor-ParseAllTask.service").read_text(encoding="utf-8")
             self.assertIn("TimeoutStartSec=120", svc)  # 60 + 60 buffer
 
+            crontab = (cron_dir / "generated" / "crontab").read_text(encoding="utf-8")
+            self.assertIn("run-job.sh rutor-ParseAllTask", crontab)
+            self.assertIn("run-job.sh rutor-parse", crontab)
+            self.assertIn("30 * * * *", crontab)
+            self.assertNotIn("curl -s", crontab)
+            self.assertIn("Do NOT also enable systemd", crontab)
+            self.assertIn("/opt/jacred/cron/run-job.sh", crontab)
+
 
 if __name__ == "__main__":
     unittest.main()
