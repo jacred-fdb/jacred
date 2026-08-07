@@ -12,8 +12,8 @@ public class TrackerSyncHelpersBackgroundTests
     public async Task RunInBackground_ReturnsOkImmediately_AndSecondCallIsWork()
     {
         var flag = new TrackerWorkFlag();
-        var started = new ManualResetEventSlim(false);
-        var release = new ManualResetEventSlim(false);
+        using var started = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
 
         var first = TrackerSyncHelpers.RunInBackground(
             "test-tracker",
@@ -54,7 +54,7 @@ public class TrackerSyncHelpersBackgroundTests
     public async Task RunInBackground_WallClockCancel_StopsDelayLoop()
     {
         var flag = new TrackerWorkFlag();
-        var cancelled = new ManualResetEventSlim(false);
+        using var cancelled = new ManualResetEventSlim(false);
 
         var result = TrackerSyncHelpers.RunInBackground(
             "test-tracker-cancel",
@@ -84,7 +84,7 @@ public class TrackerSyncHelpersBackgroundTests
     public async Task RunParseAllTaskInBackground_UsesOkConstant()
     {
         var flag = new TrackerWorkFlag();
-        var gate = new ManualResetEventSlim(false);
+        using var gate = new ManualResetEventSlim(false);
 
         var result = TrackerSyncHelpers.RunParseAllTaskInBackground(
             "test-ok",

@@ -210,12 +210,12 @@ namespace JacRed.Infrastructure.Trackers
             };
             ActiveJobs[key] = info;
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
-            cts.CancelAfter(duration);
-            var token = cts.Token;
-
             _ = Task.Run(async () =>
             {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
+                cts.CancelAfter(duration);
+                var token = cts.Token;
+
                 try
                 {
                     JacRedLog.Information(JacRedLogCategories.Trackers,
@@ -238,7 +238,6 @@ namespace JacRed.Infrastructure.Trackers
                 {
                     ActiveJobs.TryRemove(key, out _);
                     workFlag.End();
-                    cts.Dispose();
                 }
             });
 
