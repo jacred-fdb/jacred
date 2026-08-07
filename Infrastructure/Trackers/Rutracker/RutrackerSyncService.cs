@@ -110,7 +110,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             return false;
         }
 
-        public async Task<string> ParseAsync(int page)
+        public async Task<string> ParseAsync(int page, string cat = null, int maxTopics = 0)
         {
             return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
@@ -120,13 +120,33 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 {
                     var sw = Stopwatch.StartNew();
                     string baseUrl = $"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php";
-                    ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                    foreach (string cat in RutrackerCategories.QuickParseIds)
+
+                    var catFilter = string.IsNullOrWhiteSpace(cat)
+                        ? null
+                        : new HashSet<string>(
+                            cat.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                            StringComparer.OrdinalIgnoreCase);
+
+                    string[] cats;
+                    if (catFilter == null)
                     {
-                        string pageUrl = page == 0 ? $"{baseUrl}?f={cat}" : $"{baseUrl}?f={cat}&start={page * 50}";
-                        ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                        bool result = await parsePage(cat, page);
-                        log += $"{cat} - {page} - {result}\n";
+                        cats = RutrackerCategories.QuickParseIds.ToArray();
+                    }
+                    else
+                    {
+                        cats = RutrackerCategories.QuickParseIds.Where(c => catFilter.Contains(c)).ToArray();
+                        // Smoke: allow any known forum id, not only QuickParse.
+                        if (cats.Length == 0)
+                            cats = RutrackerCategories.Ids.Where(c => catFilter.Contains(c)).ToArray();
+                    }
+
+                    ParserLog.Write(TrackerName, $"Starting parse page={page}, cats={cats.Length}, maxTopics={maxTopics}, base: {baseUrl}");
+                    foreach (string c in cats)
+                    {
+                        string pageUrl = page == 0 ? $"{baseUrl}?f={c}" : $"{baseUrl}?f={c}&start={page * 50}";
+                        ParserLog.Write(TrackerName, $"Category {c}: {pageUrl}");
+                        bool result = await parsePage(c, page, maxTopics: maxTopics);
+                        log += $"{c} - {page} - {result}\n";
                     }
                     ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
@@ -258,7 +278,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             });
         }
 
-        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
+        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default, int maxTopics = 0)
         {
             #region Авторизация
             //if (Cookie == null)
@@ -273,14 +293,23 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 return false;
 
             var torrents = RutrackerParser.ParseTorrentsFromPage(html, cat);
+            if (maxTopics > 0 && torrents.Count > maxTopics)
+                torrents = torrents.Take(maxTopics).ToList();
 
+            int topicsDone = 0;
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
+                if (maxTopics > 0 && topicsDone >= maxTopics)
+                    return true;
+
                 if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
                     return true;
 
                 var fullNews = await HttpClient.Get(AppInit.conf.Rutracker.rqHost(t.url), useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: cancellationToken);
-                return RutrackerParser.ApplyTopicPageDetails(t, fullNews);
+                bool ok = RutrackerParser.ApplyTopicPageDetails(t, fullNews);
+                if (ok)
+                    topicsDone++;
+                return ok;
             });
 
             return torrents.Count > 0;

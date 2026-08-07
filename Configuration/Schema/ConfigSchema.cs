@@ -125,6 +125,15 @@ namespace JacRed.Configuration.Schema
                         Field("proxy.list", "stringList", "Proxy list", "ip:port или socks5://…"),
                         Field("globalproxy", "json", "Global proxy", "JSON-массив ProxySettings")
                     }),
+                    Group("flaresolverr", "FlareSolverr", "Cloudflare bypass через безголовый браузер (Rutracker)", new[]
+                    {
+                        Field("flaresolverr.enable", "bool", "Включить", "Ходить на CF-хосты через браузер"),
+                        Field("flaresolverr.url", "string", "URL", "http://127.0.0.1:8191/v1 или http://flaresolverr:8191/v1"),
+                        Field("flaresolverr.maxTimeoutMs", "int", "Таймаут (мс)", "Первая страница ~80 с", min: 1000),
+                        Field("flaresolverr.sessionIdleMinutes", "int", "Idle сессии (мин)", "Закрыть Chromium после простоя", min: 0),
+                        Field("flaresolverr.guardedHours", "int", "Guarded hours", "Сколько помнить CF на хосте", min: 1),
+                        Field("flaresolverr.recheckMinutes", "int", "Recheck (мин)", "Как часто пробовать обычный GET", min: 1)
+                    }),
                     TrackerGroups()
                 }
             };

@@ -513,9 +513,10 @@ Anifilm, AniLibria, HDRezka.
 1. Настроить **`init.yaml`** или **`init.conf`** (примеры в **`Data/example.yaml`**, **`Data/example.conf`**).
    - Убедитесь, что для нужных трекеров указаны правильные `host`, `login` (если требуется) или `cookie`.
    - Настройте прокси, если требуется доступ к .onion доменам.
+   - **Rutracker / Cloudflare:** включите блок **`flaresolverr`** (см. примеры конфига). Cookie `cf_clearance` нельзя переиспользовать в обычном HttpClient — запросы идут через persistent-сессию FlareSolverr. В Docker Compose URL: `http://flaresolverr:8191/v1`; при запуске на хосте: `http://127.0.0.1:8191/v1`. Альтернатива без FlareSolverr — Worker **`Rutracker.alias`**. Подробности: [`Infrastructure/Trackers/Rutracker/README.md`](Infrastructure/Trackers/Rutracker/README.md).
 
 2. Выберите режим работы:
-   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`**. Активируйте: `crontab /opt/jacred/Data/crontab`
+   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`** (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`). Активируйте: `crontab /opt/jacred/Data/crontab`
    - **Синхронизация:** Укажите **`syncapi`** в конфиге, чтобы подтягивать базу с удалённого сервера. Включите `opensync: true` для участия в синхронизации.
    - **Docker:** в образе нет cron — расписание выносится на хост, отдельный контейнер или оркестратор; см. раздел **«Docker → Самостоятельный парсинг и расписание (cron) в Docker»**.
 
@@ -946,13 +947,13 @@ volumes:
   - ./data:/app/Data
 ```
 
-Готовые примеры: **`docker/docker-compose.yml`** (bind mounts), **`docker-compose.example.yml`** (named volumes).
+Готовый пример: **`docker-compose.example.yml`** (JacRed + FlareSolverr, named volumes).
 
 **Полезно:**
 
-- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` или каталоге `./config` (при bind mount). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера.
-- **Порты:** веб-интерфейс и API доступны на порту **9117** (при необходимости измените маппинг `ports` и `listenport` в конфиге).
-- **Память:** при большой базе или активном парсинге увеличьте лимит `memory` в `deploy.resources.limits` (рекомендуется минимум 2GB).
+- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` или каталоге `./config` (при bind mount). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера. Для Rutracker в compose задайте `flaresolverr.url: http://flaresolverr:8191/v1`.
+- **Порты:** веб-интерфейс и API доступны на порту **9117** (при необходимости измените маппинг `ports` и `listenport` в конфиге). Порт FlareSolverr **8191** в примере не публикуется наружу — только внутренняя сеть Compose.
+- **Память:** JacRed + FlareSolverr (~1 GiB) — ориентир **≥4 GiB** на сервис JacRed в примере compose; при большой базе увеличьте лимит.
 - **Тома:**
   - `jacred-config` — хранит конфигурацию (`init.yaml` или `init.conf`)
   - `jacred-data` — хранит базу данных (`fdb/`), логи (`log/`), временные файлы (`temp/`) и треки (`tracks/`)
@@ -970,7 +971,7 @@ volumes:
 2. **Отдельный контейнер с cron** — маленький образ (например `curl` + `cron`), в том же Docker Compose, который по расписанию дергает сервис JacRed по **внутреннему** имени и порту (например `http://jacred:9117/...`). Убедитесь, что с точки зрения JacRed IP источника остаётся в приватном диапазоне (типично так и есть в user-defined bridge-сети).
 3. **Kubernetes CronJob**, **systemd timer** на хосте — по сути то же, что п.1: периодический HTTP-запрос к JacRed.
 
-**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh` и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
+**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh`, `cloudflare-warmup` перед `rutracker-parse`, и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
 
 - при использовании `run-job.sh` убедитесь, что скрипт доступен по пути из crontab (в релизе — `/opt/jacred/Data/run-job.sh`); либо замените строки на прямой `curl`;
 - замените хост/порт в URL на ваши (`127.0.0.1:9117` или имя сервиса в Compose);
@@ -1000,6 +1001,7 @@ volumes:
 - Убедитесь, что `syncapi` указан корректно (если используется синхронизация)
 - Проверьте логи парсеров: `tail -f Data/log/{tracker}.log`
 - Убедитесь, что трекер доступен и учётные данные верны
+- **Rutracker / Cloudflare:** проверьте, что FlareSolverr доступен (`curl http://127.0.0.1:8191/` или `http://flaresolverr:8191/` в compose), в конфиге `flaresolverr.enable: true` и верный `url`, и что срабатывает warmup: `curl http://127.0.0.1:9117/cron/cloudflare/Warmup` (первый ответ может занять до ~180 с). Smoke: `./scripts/cron_rutracker_smoke.sh`
 
 ### API не отвечает
 
@@ -1021,6 +1023,7 @@ volumes:
 - Уменьшите `maxreadfile` в конфиге
 - Настройте ротацию логов через `logFdbRetentionDays`, `logFdbMaxSizeMb`, `logFdbMaxFiles`
 - Для Docker: увеличьте лимит памяти в `deploy.resources.limits.memory`
+- FlareSolverr держит ~600–700 МБ на сессию Chromium; при простое сессия закрывается через `flaresolverr.sessionIdleMinutes` (по умолчанию 30)
 
 ---
 

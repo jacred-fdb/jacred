@@ -137,6 +137,25 @@ namespace JacRed.Infrastructure.Networking
             if (proxies.Count == 0)
                 proxies.Add(null);
 
+            string requestHost = null;
+            try { requestHost = new Uri(url).Host; } catch (UriFormatException) { }
+
+            // Хост уже за Cloudflare — не тратим обычный GET на заведомый 403.
+            // Если браузер тоже не отдал страницу, не делаем второй FetchAsync
+            // через challenge-ветку ниже (таймаут до 180 с).
+            if (CloudflareClearance.IsGuarded(requestHost))
+            {
+                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                if (!string.IsNullOrWhiteSpace(viaBrowser))
+                    return (viaBrowser, OkResponse(url));
+
+                return (null, new HttpResponseMessage()
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    RequestMessage = new HttpRequestMessage()
+                });
+            }
+
             foreach (var px in proxies)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -168,8 +187,41 @@ namespace JacRed.Infrastructure.Networking
 
                         using (HttpResponseMessage response = await client.SendAsync(req, cancellationToken))
                         {
+                            if (response.StatusCode == HttpStatusCode.OK)
+                                CloudflareClearance.Unguard(requestHost);
+
                             if (response.StatusCode != HttpStatusCode.OK)
+                            {
+                                // cf-mitigated или разметка «Just a moment…» → браузер.
+                                // Таймаут браузера свой; token вызывающего сюда не идёт.
+                                bool challenge = CloudflareClearance.IsChallenge(response);
+
+                                if (!challenge
+                                    && (response.StatusCode == HttpStatusCode.Forbidden
+                                        || response.StatusCode == HttpStatusCode.ServiceUnavailable))
+                                {
+                                    try
+                                    {
+                                        challenge = CloudflareClearance.IsChallengeBody(
+                                            await response.Content.ReadAsStringAsync(cancellationToken));
+                                    }
+                                    catch
+                                    {
+                                        // Тело не прочиталось — не помечаем хост guarded.
+                                    }
+                                }
+
+                                if (challenge)
+                                {
+                                    CloudflareClearance.MarkGuarded(requestHost);
+
+                                    string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                                    if (!string.IsNullOrWhiteSpace(viaBrowser))
+                                        return (viaBrowser, OkResponse(url));
+                                }
+
                                 continue;
+                            }
 
                             using (HttpContent content = response.Content)
                             {
@@ -208,6 +260,15 @@ namespace JacRed.Infrastructure.Networking
                 StatusCode = HttpStatusCode.InternalServerError,
                 RequestMessage = new HttpRequestMessage()
             });
+        }
+
+        /// <summary>Ответ-заглушка для страниц, добытых браузером: вызывающие смотрят на код.</summary>
+        static HttpResponseMessage OkResponse(string url)
+        {
+            var request = new HttpRequestMessage();
+            try { request.RequestUri = new Uri(url); } catch (UriFormatException) { }
+
+            return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request };
         }
         #endregion
 

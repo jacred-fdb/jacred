@@ -151,6 +151,9 @@ namespace JacRed.Configuration
         // TODO: fix parser
         public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");
 
+        /// <summary>Cloudflare bypass via FlareSolverr (persistent browser session).</summary>
+        public FlareSolverrSettings flaresolverr = new FlareSolverrSettings();
+
         public ProxySettings proxy = new ProxySettings();
 
         public SearchSettings search = new SearchSettings();

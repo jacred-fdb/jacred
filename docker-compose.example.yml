@@ -13,6 +13,8 @@ services:
     environment:
       - TZ=Europe/London
       - UMASK=0027
+    depends_on:
+      - flaresolverr
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "--max-time", "10", "http://127.0.0.1:9117/health"]
       interval: 30s
@@ -24,6 +26,26 @@ services:
         limits:
           memory: 4096M
           cpus: "4"
+
+  # Cloudflare bypass for Rutracker (~1 GiB RAM). Reachable as flaresolverr:8191
+  # on the compose network. Do not publish 8191 externally in production.
+  # Local host-run JacRed (outside compose): map ports below and use
+  # flaresolverr.url: http://127.0.0.1:8191/v1 in init.yaml.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    # Uncomment for host-side debug of FlareSolverr:
+    # ports:
+    #   - "8191:8191"
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/London
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "2"
 
 volumes:
   jacred-config:

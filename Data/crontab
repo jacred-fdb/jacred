@@ -24,6 +24,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # runs daily at 04:30, 16:30
 30 4,16 * * *  /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
 
+# cloudflare-warmup -> /cron/cloudflare/Warmup (max_time=180s)
+# runs every hour at :55 — warm FlareSolverr session before rutracker-parse at :00
+55 * * * *  /opt/jacred/Data/run-job.sh cloudflare-warmup http://127.0.0.1:9117/cron/cloudflare/Warmup 180
+
 # rutracker-parse -> /cron/rutracker/parse (max_time=900s)
 # runs every hour at :00 (e.g. 00:00, 01:00, 02:00, …)
 0 * * * *  /opt/jacred/Data/run-job.sh rutracker-parse http://127.0.0.1:9117/cron/rutracker/parse 900
