@@ -43,6 +43,7 @@ namespace JacRed.Infrastructure.Security
 
             // Search — apikey when configured
             new("/api/v1.0/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
+            new("/api/v1.0/trackers", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
             new("/api/v1.0/qualitys", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
             new("/api/v2.0/indexers/all/results", JacRedAccessPolicy.ApiKeyWhenConfigured, "JackettController"),
             new("/torznab/api", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorznabController"),

@@ -108,6 +108,7 @@ namespace JacRed
 
             builder.Services.AddScoped<IJackettSearchService, JackettSearchService>();
             builder.Services.AddScoped<ITorrentQueryService, TorrentQueryService>();
+            builder.Services.AddSingleton<ITrackerCatalogService, TrackerCatalogService>();
             builder.Services.AddScoped<IDevMaintenanceService, DevMaintenanceService>();
             builder.Services.AddScoped<IDevDiagnosticsService, DevDiagnosticsService>();
             builder.Services.AddScoped<IDevMigrationService, DevMigrationService>();

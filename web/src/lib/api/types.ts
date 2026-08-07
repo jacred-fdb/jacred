@@ -109,6 +109,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1.0/trackers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List available tracker names */
+        get: operations["trackerNames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1.0/qualitys": {
         parameters: {
             query?: never;
@@ -1084,6 +1101,7 @@ export interface operations {
                 exact?: boolean;
                 type?: string;
                 sort?: "sid" | "pir" | "size" | "create" | "update";
+                /** @description Tracker name filter; accepts a comma-separated list (for example, kinozal,rutracker) */
                 tracker?: string;
                 voice?: string;
                 videotype?: string;
@@ -1104,6 +1122,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TorrentListItem"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    trackerNames: {
+        parameters: {
+            query?: {
+                /** @description API key (alternative — X-Api-Key header or Bearer) */
+                apikey?: components["parameters"]["ApiKeyQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available tracker names */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
             401: components["responses"]["Unauthorized"];

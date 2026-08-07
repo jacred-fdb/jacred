@@ -228,6 +228,7 @@ paths:
             type: string
             enum: [sid, pir, size, create, update]
         - name: tracker
+          description: Tracker name filter; accepts a comma-separated list (for example, kinozal,rutracker)
           in: query
           schema:
             type: string
@@ -260,6 +261,25 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TorrentListItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1.0/trackers:
+    get:
+      tags: [Search]
+      summary: List available tracker names
+      operationId: trackerNames
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+      responses:
+        '200':
+          description: Available tracker names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
 
