@@ -80,6 +80,7 @@
 | `/dev/*` | DevMaintenanceController, DevDiagnosticsController, DevMigrationController, DevTracksController |
 | `/jsondb/*` | DbController |
 | `/cron/{tracker}/*` | Controllers/Cron/* (17 трекеров) |
+| `/cron/maintenance/Check`, `/Status` | Controllers/Cron/MaintenanceController (FDB integrity) |
 
 ### ApiKeyWhenConfigured
 

@@ -767,6 +767,34 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 - **`GET /cron/{tracker}/parseMagnet`** — парсинг магнет-ссылок (для поддерживающих трекеров).
 - Дополнительные параметры: `parseFrom`, `parseTo`, `parseFromDate` (зависит от трекера).
 
+### Обслуживание FDB (`/cron/maintenance`)
+
+Единый проход по FileDB (ключи бакетов + shard-файлы) на битые/устаревшие/несогласованные данные. Фоновый job (как `ParseAllTask`): `Check` сразу возвращает `ok` / `work`, результат — в `Status` и `Data/temp/maintenance-last.json`.
+
+| Эндпоинт | Описание |
+| --------- | --------- |
+| **`/cron/maintenance/Check`** | Старт проверки. Параметры: `?mode=report\|safe\|full` (по умолчанию `report`), `?sampleSize=20`, `?excludeNumericXx=true`. |
+| **`/cron/maintenance/Status`** | Текущий прогресс и последний отчёт. |
+
+**Режимы `mode`:**
+
+| Mode | Поведение |
+| ---- | --------- |
+| `report` | Только чтение: null Value, пустые name/originalname/trackerName/`_sn`/`_so`, ключи `X:X`, несовпадение ключа бакета, dict-key ≠ `url`, отсутствующие/пустые shard, orphan-файлы под `Data/fdb`, пустые magnet/types. |
+| `safe` | Отчёт + удаление null, заполнение `_sn`/`_so` (с миграцией бакета при необходимости), удаление пустых бакетов, пересборка fastdb. |
+| `full` | `safe` + миграция неверных бакетов, синхронизация dict-key с `url`, удаление masterDb-ключей без файла на диске, удаление orphan shard-файлов, удаление записей с пустыми magnet **и** types. |
+
+Трекер-специфичные миграции (Knaben, Bitru, Aniliberty, Animelayer) остаются на `/dev/*`.
+
+Примеры:
+
+```bash
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Check'
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Check?mode=safe'
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Check?mode=full&sampleSize=50'
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Status'
+```
+
 **Доступ:** политика **DevAdmin** (`/cron/*`). Подробные таблицы LAN / tunnel / ключи — в разделе **[Безопасность и доступ к API](#безопасность-и-доступ-к-api)**.
 
 HTTP-вызовы `/cron/*` логируются с префиксом `cron:` (уровень зависит от `logging.cronSkipFastMs`).

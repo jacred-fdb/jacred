@@ -1,6 +1,7 @@
 using JacRed.Application.Dev;
 using JacRed.Application.Dev.Migrations;
 using JacRed.Application.Index;
+using JacRed.Application.Maintenance;
 using JacRed.Application.Search;
 using JacRed.Configuration;
 using JacRed.Controllers;
@@ -118,6 +119,7 @@ namespace JacRed
             builder.Services.AddScoped<RemoveDuplicateAnilibertyMigration>();
             builder.Services.AddScoped<FixAnimelayerDuplicatesMigration>();
             builder.Services.AddScoped<ITracksAdminService, TracksAdminService>();
+            builder.Services.AddSingleton<IFdbMaintenanceService, FdbMaintenanceService>();
 
             builder.Services.AddHostedService<FastDbRefreshWorker>();
             builder.Services.AddHostedService<SyncWorker>();

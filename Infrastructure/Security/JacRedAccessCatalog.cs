@@ -40,6 +40,8 @@ namespace JacRed.Infrastructure.Security
             new("/dev/TracksStats", JacRedAccessPolicy.DevAdmin, "DevTracksController"),
             new("/dev/FixKnabenNames", JacRedAccessPolicy.DevAdmin, "DevMigrationController"),
             new("/jsondb/save", JacRedAccessPolicy.DevAdmin, "DbController"),
+            new("/cron/maintenance/Check", JacRedAccessPolicy.DevAdmin, "MaintenanceController", "FDB integrity report|safe|full"),
+            new("/cron/maintenance/Status", JacRedAccessPolicy.DevAdmin, "MaintenanceController"),
 
             // Search — apikey when configured
             new("/api/v1.0/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
