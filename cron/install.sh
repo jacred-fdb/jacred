@@ -54,6 +54,17 @@ log "enable jacred-jobs.target"
 ${SUDO} systemctl enable --now jacred-jobs.target
 
 log "done — list timers: systemctl list-timers 'jacred-job-*'"
+log "check: ${CRON_DIR}/check-jobs.sh"
+log "ack jobs (ParseAll/UpdateTasks/jsondb-save) should return in seconds; curl max_time=60s"
+
+# Warn if legacy crontab still curls JacRed (no flock → curl pile-up).
+if command -v systemctl >/dev/null 2>&1; then
+  # Smoke: list any activating oneshots older than a few seconds (informational).
+  activating="$(systemctl list-units --type=service --state=activating 'jacred-job-*' --no-legend 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "${activating}" != "0" ]]; then
+    log "note: ${activating} jacred-job service(s) currently activating (normal right after timer fire)"
+  fi
+fi
 
 # Warn if legacy crontab still curls JacRed (no flock → curl pile-up).
 if command -v crontab >/dev/null 2>&1; then

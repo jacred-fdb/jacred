@@ -138,6 +138,9 @@ namespace JacRed
 
             var app = builder.Build();
 
+            TrackerSyncHelpers.ConfigureApplicationStopping(
+                app.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
+
             JacRedLog.Configure(app.Services.GetRequiredService<ILoggerFactory>());
             JacRedLogSettings.Apply(AppInit.conf);
 

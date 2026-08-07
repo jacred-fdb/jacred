@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -17,6 +18,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
     public class RutorSyncService
     {
         const string TrackerName = "rutor";
+        const string TaskParsePath = "Data/temp/rutor_taskParse.json";
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
@@ -27,8 +29,17 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
         static RutorSyncService()
         {
-            if (IO.File.Exists("Data/temp/rutor_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/rutor_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try
+            {
+                IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse));
+            }
+            catch { }
         }
 
         public async Task<string> ParseAsync(int page)
@@ -68,7 +79,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/0/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy);
+                    string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/0/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy, cancellationToken: ct);
                     if (html == null)
                         continue;
 
@@ -91,7 +102,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                     }
                 }
 
-                IO.File.WriteAllText("Data/temp/rutor_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             }));
         }
 
@@ -99,19 +110,30 @@ namespace JacRed.Infrastructure.Trackers.Rutor
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
-                    {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
+                    foreach (var item in pending)
+                    {
+                        ct.ThrowIfCancellationRequested();
                         await Task.Delay(AppInit.conf.Rutor.parseDelay, ct);
 
-                        bool res = await parsePage(task.Key, val.page);
+                        bool res = await parsePage(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }
@@ -155,9 +177,9 @@ namespace JacRed.Infrastructure.Trackers.Rutor
             });
         }
 
-        async Task<bool> parsePage(string cat, int page)
+        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/{page}/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy);
+            string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/{page}/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy, cancellationToken: cancellationToken);
             if (html == null)
                 return false;
 

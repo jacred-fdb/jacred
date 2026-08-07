@@ -16,6 +16,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
     public class TorrentBySyncService
     {
         const string TrackerName = "torrentby";
+        const string TaskParsePath = "Data/temp/torrentby_taskParse.json";
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
@@ -26,8 +27,14 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
         static TorrentBySyncService()
         {
-            if (IO.File.Exists("Data/temp/torrentby_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/torrentby_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public async Task<string> ParseAsync(int page, CancellationToken cancellationToken = default)
@@ -73,7 +80,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy);
+                    string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy, cancellationToken: ct);
                     if (html == null)
                         continue;
 
@@ -94,7 +101,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                     }
                 }
 
-                IO.File.WriteAllText("Data/temp/torrentby_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             }));
         }
 
@@ -102,19 +109,30 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
-                    {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
+                    foreach (var item in pending)
+                    {
+                        ct.ThrowIfCancellationRequested();
                         await Task.Delay(AppInit.conf.TorrentBy.parseDelay, ct);
 
-                        bool res = await TorrentByParser.ParsePageAsync(task.Key, val.page);
+                        bool res = await TorrentByParser.ParsePageAsync(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }

@@ -55,7 +55,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     int delayMs = GetNextParseDelayMs();
                     await Task.Delay(delayMs, cancellationToken);
 
-                    var (content, response) = await HttpClient.BaseGetAsync(url, encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: headers);
+                    var (content, response) = await HttpClient.BaseGetAsync(url, encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: headers, cancellationToken: cancellationToken);
 
                     if (!string.IsNullOrEmpty(content) && content.Contains(BrowsePageValidMarker))
                         return content;

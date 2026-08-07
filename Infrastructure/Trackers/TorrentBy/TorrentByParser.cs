@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using JacRed.Infrastructure.Persistence;
@@ -16,9 +17,9 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
     {
         const string TrackerName = "torrentby";
 
-        public static async Task<bool> ParsePageAsync(string cat, int page)
+        public static async Task<bool> ParsePageAsync(string cat, int page, CancellationToken cancellationToken = default)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/?page={page}", useproxy: AppInit.conf.TorrentBy.useproxy);
+            string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/?page={page}", useproxy: AppInit.conf.TorrentBy.useproxy, cancellationToken: cancellationToken);
             if (html == null)
                 return false;
 

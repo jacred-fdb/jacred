@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 # Defaults when jobs.yaml omits max_time (seconds).
+# Ack jobs return immediately (work runs in-app); curl only needs a short deadline.
 DEFAULT_MAX_TIME_PARSE = 900
-DEFAULT_MAX_TIME_UPDATE = 1800
-DEFAULT_MAX_TIME_PARSE_ALL = 21600
+DEFAULT_MAX_TIME_ACK = 60
 TIMEOUT_START_BUFFER_SEC = 60
 
 
@@ -67,10 +67,9 @@ def parse_jobs_yaml(path: Path) -> tuple[str, list[dict]]:
 
 def default_max_time(path_suffix: str) -> int:
     lower = path_suffix.lower()
-    if "parsealltask" in lower:
-        return DEFAULT_MAX_TIME_PARSE_ALL
-    if "updatetasksparse" in lower:
-        return DEFAULT_MAX_TIME_UPDATE
+    # Background-ack endpoints: HTTP returns ok/work/disabled immediately.
+    if "parsealltask" in lower or "updatetasksparse" in lower or "jsondb/save" in lower or lower.endswith("/save"):
+        return DEFAULT_MAX_TIME_ACK
     return DEFAULT_MAX_TIME_PARSE
 
 

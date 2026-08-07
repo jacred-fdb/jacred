@@ -60,7 +60,7 @@ jobs:
   - name: rutor-UpdateTasksParse
     schedule: "5 */4 * * *"
     path: /cron/rutor/UpdateTasksParse
-    max_time: 1800
+    max_time: 60
     enabled: false   # optional — skip this job
 ```
 
@@ -69,10 +69,12 @@ jobs:
 | `base_url` | JacRed HTTP base (change port/host here) |
 | `schedule` | Standard 5-field cron (same as `Data/crontab`) |
 | `path` | URL path relative to `base_url` |
-| `max_time` | Curl overall timeout seconds (also drives systemd `TimeoutStartSec`) |
+| `max_time` | Curl overall timeout seconds (also drives systemd `TimeoutStartSec`). For ack jobs this is only the HTTP response deadline — not the crawl duration. |
 | `enabled` | `false` to disable a job |
 
-Defaults when `max_time` is omitted: `ParseAllTask` → 21600 (6h), `UpdateTasksParse` → 1800 (30m), everything else → 900 (15m).
+Defaults when `max_time` is omitted: ack jobs (`ParseAllTask`, `UpdateTasksParse`, `jsondb/save`) → **60s**; everything else → 900 (15m).
+
+Long crawls still run in-process with wall-clock limits (ParseAll ≈ 6h, UpdateTasks ≈ 30m). Curl `max_time` must stay short so a hung ack is detected quickly.
 
 After changes:
 
@@ -135,7 +137,11 @@ This script prints a table for all `jacred-job-*.timer` units and highlights any
 
 ```bash
 /opt/jacred/cron/check-jobs.sh
+# Stop oneshots that exceeded MAX_TIME:
+/opt/jacred/cron/check-jobs.sh --fix-stuck
 ```
+
+After install, ack oneshots (`ParseAllTask`, `UpdateTasksParse`, `jsondb/save`) should finish in a few seconds. If a service stays activating past `max_time` (default 60s), it is marked **STUCK**.
 
 ### Restart all timers / stop stuck jobs
 
@@ -145,14 +151,14 @@ Stops running oneshot services (timed-out or stuck `curl`s) and restarts every `
 sudo /opt/jacred/cron/restart-jobs.sh
 ```
 
-With `max_time` + finite `TimeoutStartSec`, systemd/curl should clear hung oneshots without manual restarts. Use `restart-jobs.sh` if a unit is marked STUCK in `check-jobs`.
+With `max_time` + finite `TimeoutStartSec`, systemd/curl should clear hung oneshots without manual restarts. Use `restart-jobs.sh` or `check-jobs.sh --fix-stuck` if a unit is marked STUCK.
 
 ### Schedule notes (avoid over-firing)
 
 | Pattern | Meaning | Prefer |
 |---------|---------|--------|
 | `* */4 * * *` | **every minute** in hours 0/4/8/12/16/20 | `5 */4 * * *` (once per window) |
-| `*/5` ParseAllTask | every 5 min while a multi-hour crawl holds HTTP | hourly `30 * * * *` |
+| `*/5` ParseAllTask | every 5 min while crawl holds HTTP (legacy sync) | hourly `30 * * * *` (ack is fast; schedule for crawl cadence) |
 
 If you keep systemd units in a different managed folder:
 

@@ -25,6 +25,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
     public class KinozalSyncService
     {
         const string TrackerName = "kinozal";
+        const string TaskParsePath = "Data/temp/kinozal_taskParse.json";
 
         readonly IMemoryCache _memoryCache;
 
@@ -44,8 +45,14 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         static KinozalSyncService()
         {
-            if (IO.File.Exists("Data/temp/kinozal_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, List<TaskParse>>>>(IO.File.ReadAllText("Data/temp/kinozal_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, List<TaskParse>>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public KinozalSyncService(IMemoryCache memoryCache)
@@ -236,14 +243,15 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             return await TakeLogin();
         }
 
-        async Task<string> GetBrowseHtml(string browseUrl)
+        async Task<string> GetBrowseHtml(string browseUrl, CancellationToken cancellationToken = default)
         {
             return await HttpClient.Get(
                 browseUrl,
                 encoding: PageEncoding,
                 cookie: CookieHeader(),
                 referer: $"{AppInit.conf.Kinozal.host}/",
-                useproxy: AppInit.conf.Kinozal.useproxy);
+                useproxy: AppInit.conf.Kinozal.useproxy,
+                cancellationToken: cancellationToken);
         }
 
         public async Task<string> ParseAsync(int page)
@@ -289,7 +297,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                         ct.ThrowIfCancellationRequested();
 
                         // Получаем html
-                        string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1");
+                        string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", ct);
                         if (!IsValidBrowsePage(html))
                             continue;
 
@@ -318,7 +326,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     }
                 }
 
-                IO.File.WriteAllText("Data/temp/kinozal_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             });
         }
 
@@ -326,22 +334,32 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var cat in taskParse.ToArray())
+                try
                 {
-                    foreach (var arg in cat.Value.ToArray())
+                    var pending = taskParse.ToArray()
+                        .SelectMany(cat => cat.Value.ToArray()
+                            .SelectMany(arg => arg.Value.Where(v => DateTime.Today != v.updateTime)
+                                .Select(v => (cat: cat.Key, arg: arg.Key, val: v))))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
+
+                    foreach (var item in pending)
                     {
-                        foreach (var val in arg.Value.ToArray())
-                        {
-                            if (DateTime.Today == val.updateTime)
-                                continue;
+                        ct.ThrowIfCancellationRequested();
+                        await Task.Delay(AppInit.conf.Kinozal.parseDelay, ct);
 
-                            await Task.Delay(AppInit.conf.Kinozal.parseDelay, ct);
+                        bool res = await parsePage(item.cat, item.val.page, item.arg, ct);
+                        if (res)
+                            item.val.updateTime = DateTime.Today;
 
-                            bool res = await parsePage(cat.Key, val.page, arg.Key);
-                            if (res)
-                                val.updateTime = DateTime.Today;
-                        }
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }
@@ -388,20 +406,20 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             });
         }
 
-        async Task<bool> parsePage(string cat, int page, string arg = null)
+        async Task<bool> parsePage(string cat, int page, string arg = null, CancellationToken cancellationToken = default)
         {
             if (!await EnsureLoggedIn())
                 return false;
 
             string browseUrl = $"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&page={page}" + arg;
-            string html = await GetBrowseHtml(browseUrl);
+            string html = await GetBrowseHtml(browseUrl, cancellationToken);
             if (!IsValidBrowsePage(html) || !html.Contains(">Выход</a>"))
             {
                 _cookie = null;
                 if (!await TakeLogin())
                     return false;
 
-                html = await GetBrowseHtml(browseUrl);
+                html = await GetBrowseHtml(browseUrl, cancellationToken);
                 if (!IsValidBrowsePage(html))
                     return false;
             }
@@ -414,7 +432,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     return true;
 
                 string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
-                string srv_details = await HttpClient.Post($"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2", $"id={id}&action=2", CookieHeader(), useproxy: AppInit.conf.Kinozal.useproxy);
+                string srv_details = await HttpClient.Post($"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2", $"id={id}&action=2", CookieHeader(), useproxy: AppInit.conf.Kinozal.useproxy, cancellationToken: cancellationToken);
                 if (srv_details != null)
                 {
                     string torrentHash = new Regex("<ul><li>Инфо хеш:\\s*([A-Fa-f0-9]{40})</li>").Match(srv_details).Groups[1].Value;

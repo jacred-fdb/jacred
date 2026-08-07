@@ -6,6 +6,9 @@
 
 using JacRed.Infrastructure.Logging;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -59,6 +62,18 @@ namespace JacRed.Infrastructure.Trackers
         public void Exit() => _semaphore.Release();
     }
 
+    /// <summary>Snapshot of an in-process background cron job.</summary>
+    public sealed class TrackerBackgroundJobInfo
+    {
+        public string Key { get; init; }
+        public string Tracker { get; init; }
+        public string JobLabel { get; init; }
+        public DateTime StartedAtUtc { get; init; }
+        public long ProgressCurrent;
+        public long ProgressTotal;
+        public string ProgressDetail;
+    }
+
     public static class TrackerSyncHelpers
     {
         public const string DisabledResult = "disabled";
@@ -70,6 +85,53 @@ namespace JacRed.Infrastructure.Trackers
 
         /// <summary>Default wall-clock limit for background UpdateTasksParse jobs.</summary>
         public static readonly TimeSpan DefaultUpdateTasksMaxDuration = TimeSpan.FromMinutes(30);
+
+        const int ProgressLogEvery = 25;
+
+        static readonly ConcurrentDictionary<string, TrackerBackgroundJobInfo> ActiveJobs =
+            new ConcurrentDictionary<string, TrackerBackgroundJobInfo>(StringComparer.OrdinalIgnoreCase);
+
+        static CancellationToken _applicationStopping = CancellationToken.None;
+
+        /// <summary>Link background wall clocks to host shutdown (call once from Program).</summary>
+        public static void ConfigureApplicationStopping(CancellationToken applicationStopping)
+            => _applicationStopping = applicationStopping;
+
+        public static IReadOnlyList<TrackerBackgroundJobInfo> GetActiveJobs()
+            => ActiveJobs.Values
+                .OrderBy(j => j.Tracker, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(j => j.JobLabel, StringComparer.OrdinalIgnoreCase)
+                .Select(j => new TrackerBackgroundJobInfo
+                {
+                    Key = j.Key,
+                    Tracker = j.Tracker,
+                    JobLabel = j.JobLabel,
+                    StartedAtUtc = j.StartedAtUtc,
+                    ProgressCurrent = Interlocked.Read(ref j.ProgressCurrent),
+                    ProgressTotal = Interlocked.Read(ref j.ProgressTotal),
+                    ProgressDetail = j.ProgressDetail
+                })
+                .ToList();
+
+        public static void ReportProgress(string trackerName, string jobLabel, long current, long total, string detail = null)
+        {
+            var key = JobKey(trackerName, jobLabel);
+            if (!ActiveJobs.TryGetValue(key, out var info))
+                return;
+
+            Interlocked.Exchange(ref info.ProgressCurrent, current);
+            Interlocked.Exchange(ref info.ProgressTotal, total);
+            if (detail != null)
+                info.ProgressDetail = detail;
+
+            if (current == 0 || current == total || current % ProgressLogEvery == 0)
+            {
+                JacRedLog.Information(JacRedLogCategories.Trackers,
+                    $"{trackerName}: {jobLabel} progress={current}/{total}{(string.IsNullOrEmpty(detail) ? "" : $" ({detail})")}");
+            }
+        }
+
+        static string JobKey(string trackerName, string jobLabel) => $"{trackerName}:{jobLabel}";
 
         public static bool IsTrackerDisabled(string trackerName)
         {
@@ -115,6 +177,7 @@ namespace JacRed.Infrastructure.Trackers
         /// <summary>
         /// Starts work on a background task and returns immediately with ok/work/disabled.
         /// Releases <paramref name="workFlag"/> when the background work finishes.
+        /// Linked to application shutdown and an optional wall-clock limit.
         /// </summary>
         public static string RunInBackground(
             string trackerName,
@@ -137,7 +200,18 @@ namespace JacRed.Infrastructure.Trackers
             }
 
             var duration = maxDuration ?? DefaultParseAllMaxDuration;
-            var cts = new CancellationTokenSource(duration);
+            var key = JobKey(trackerName, jobLabel);
+            var info = new TrackerBackgroundJobInfo
+            {
+                Key = key,
+                Tracker = trackerName,
+                JobLabel = jobLabel,
+                StartedAtUtc = DateTime.UtcNow
+            };
+            ActiveJobs[key] = info;
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
+            cts.CancelAfter(duration);
             var token = cts.Token;
 
             _ = Task.Run(async () =>
@@ -153,7 +227,7 @@ namespace JacRed.Infrastructure.Trackers
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
                     JacRedLog.Warning(JacRedLogCategories.Trackers,
-                        $"{trackerName}: {jobLabel} cancelled (wall-clock limit or abort)");
+                        $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown)");
                 }
                 catch (Exception ex)
                 {
@@ -162,6 +236,7 @@ namespace JacRed.Infrastructure.Trackers
                 }
                 finally
                 {
+                    ActiveJobs.TryRemove(key, out _);
                     workFlag.End();
                     cts.Dispose();
                 }

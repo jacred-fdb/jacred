@@ -31,7 +31,7 @@
 | `/jsondb`, `/jsondb/` | DevAdmin | Администрирование FileDB |
 | `/api/v1.0/config` | ConfigApi | API настроек (секреты в ответе) |
 | `/`, `/stats`, `/settings` | Public | Vue SPA shell (`index.html`) |
-| `/health`, `/version`, `/lastupdatedb` | Public | Health-пробы |
+| `/health`, `/health/background-jobs`, `/version`, `/lastupdatedb` | Public | Health-пробы + in-process cron job status |
 | `/api/v1.0/conf` | Public | Проверка apikey (Jackett) |
 | `/sync/` | Public | Middleware пропускает; `opensync` в SyncController |
 | `/swagger`, `/openapi.yaml` | Public | Документация API |
@@ -52,6 +52,7 @@
 | `GET /settings` | HomeController | SPA route → `index.html` |
 | `GET /opensearch.xml` | HomeController | — |
 | `GET /health` | HealthController | — |
+| `GET /health/background-jobs` | HealthController | In-process ParseAll/UpdateTasks |
 | `GET /version` | HealthController | — |
 | `GET /lastupdatedb` | HealthController | — |
 | `GET /api/v1.0/conf` | HealthController | Подсказка о валидности apikey |

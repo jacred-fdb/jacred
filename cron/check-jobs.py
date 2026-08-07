@@ -15,6 +15,7 @@ Prints:
 
 from __future__ import annotations
 
+import argparse
 import glob
 import os
 import re
@@ -105,16 +106,23 @@ def read_max_time(job: str) -> int | None:
 
 
 def parse_active_enter_age_sec(service: str) -> float | None:
-    """Seconds since ActiveEnterTimestamp, or None if inactive/unknown."""
+    """Seconds since ActiveEnterTimestamp, or None if inactive/unknown.
+
+    Prefers ActiveEnterTimestampUSec (locale-independent) over string timestamps.
+    """
+    usec = systemctl_show(service, "ActiveEnterTimestampUSec")
+    if usec and re.fullmatch(r"\d+", usec) and usec != "0":
+        try:
+            entered = datetime.fromtimestamp(int(usec) / 1_000_000, tz=timezone.utc)
+            return max(0.0, (datetime.now(timezone.utc) - entered).total_seconds())
+        except (OSError, OverflowError, ValueError):
+            pass
+
     raw = systemctl_show(service, "ActiveEnterTimestamp")
     if not raw or raw in ("n/a", "N/A", "0"):
-        # ActiveEnterTimestampMonotonic is usec since boot — less portable.
-        mono = systemctl_show(service, "ActiveEnterTimestampMonotonic")
-        if not mono or not re.fullmatch(r"\d+", mono) or mono == "0":
-            return None
-        # Cannot convert monotonic without boot time; skip.
         return None
-    # e.g. "Thu 2026-08-06 12:00:00 UTC" or locale-dependent
+
+    # Fallback for older systemd without USec property (locale-dependent).
     for fmt in (
         "%a %Y-%m-%d %H:%M:%S %Z",
         "%Y-%m-%d %H:%M:%S %Z",
@@ -128,15 +136,27 @@ def parse_active_enter_age_sec(service: str) -> float | None:
             return max(0.0, (now - entered).total_seconds())
         except ValueError:
             continue
-    # Fallback: systemctl show ActiveEnterTimestampUSec (if available)
-    usec = systemctl_show(service, "ActiveEnterTimestampUSec")
-    if usec and re.fullmatch(r"\d+", usec) and usec != "0":
-        try:
-            entered = datetime.fromtimestamp(int(usec) / 1_000_000, tz=timezone.utc)
-            return max(0.0, (datetime.now(timezone.utc) - entered).total_seconds())
-        except (OSError, OverflowError, ValueError):
-            return None
     return None
+
+
+def service_name_from_timer(timer: str) -> str:
+    return timer[: -len(".timer")] + ".service" if timer.endswith(".timer") else timer
+
+
+def stop_stuck_services(stuck: list[JobRow]) -> int:
+    """Stop STUCK oneshot services. Returns number stopped (best-effort)."""
+    stopped = 0
+    for r in stuck:
+        svc = service_name_from_timer(r.timer)
+        print(f"Stopping STUCK {svc} ...")
+        p = run(["systemctl", "stop", svc])
+        if p.returncode == 0:
+            stopped += 1
+            print(f"  stopped {svc}")
+        else:
+            err = (p.stderr or p.stdout or "").strip()
+            print(f"  failed to stop {svc}: {err or f'rc={p.returncode}'}", file=sys.stderr)
+    return stopped
 
 
 @dataclass
@@ -179,7 +199,15 @@ def job_name_from_timer(timer: str) -> str:
     return timer[: -len(".timer")] if timer.endswith(".timer") else timer
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check JacRed systemd cron timers")
+    parser.add_argument(
+        "--fix-stuck",
+        action="store_true",
+        help="systemctl stop oneshots marked STUCK (running longer than MAX_TIME)",
+    )
+    args = parser.parse_args(argv)
+
     require_systemctl()
 
     timers = list_timer_units()
@@ -195,7 +223,7 @@ def main() -> int:
     rows: list[JobRow] = []
     for timer in timers:
         job = job_name_from_timer(timer)
-        service = timer[: -len(".timer")] + ".service" if timer.endswith(".timer") else timer
+        service = service_name_from_timer(timer)
         active_state = systemctl_show(timer, "ActiveState") or "unknown"
         sub_state = systemctl_show(timer, "SubState") or ""
         unit_file_state = systemctl_show(timer, "UnitFileState") or "unknown"
@@ -371,18 +399,22 @@ def main() -> int:
         print()
         print("STUCK oneshots (running longer than MAX_TIME):")
         for r in stuck_jobs:
-            svc = r.timer[: -len(".timer")] + ".service" if r.timer.endswith(".timer") else r.timer
+            svc = service_name_from_timer(r.timer)
             age_s = int(r.service_age_sec) if r.service_age_sec is not None else "?"
             mt = r.max_time if r.max_time is not None else "?"
             print(f"  {svc}: age={age_s}s max_time={mt}s")
             print(f"    systemctl status {svc}")
             print(f"    journalctl -u {svc} -n 30 --no-pager")
             print(f"    sudo systemctl stop {svc}")
+        if args.fix_stuck:
+            print()
+            stop_stuck_services(stuck_jobs)
+            print("Re-run without --fix-stuck to verify, or use restart-jobs.sh")
     if warn_jobs:
         print()
         print("WARN jobs:")
         for t in warn_jobs:
-            svc = t[:-6] + ".service" if t.endswith(".timer") else t
+            svc = service_name_from_timer(t)
             print(f"  systemctl status {t}")
             print(f"  systemctl status {svc}")
             print(f"  journalctl -u {svc} -n 30 --no-pager")

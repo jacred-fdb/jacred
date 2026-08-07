@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -19,6 +20,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
     public class RutrackerSyncService
     {
         const string TrackerName = "rutracker";
+        const string TaskParsePath = "Data/temp/rutracker_taskParse.json";
 
         readonly IMemoryCache _memoryCache;
 
@@ -33,8 +35,14 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
         static RutrackerSyncService()
         {
-            if (IO.File.Exists("Data/temp/rutracker_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/rutracker_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public RutrackerSyncService(IMemoryCache memoryCache)
@@ -142,7 +150,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                     try
                     {
                         // Получаем html
-                        string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={cat}", useproxy: AppInit.conf.Rutracker.useproxy);
+                        string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={cat}", useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: ct);
                         if (html == null)
                             continue;
 
@@ -175,7 +183,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                     catch { }
                 }
 
-                IO.File.WriteAllText("Data/temp/rutracker_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             }));
         }
 
@@ -183,19 +191,30 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
-                    {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
+                    foreach (var item in pending)
+                    {
+                        ct.ThrowIfCancellationRequested();
                         await Task.Delay(AppInit.conf.Rutracker.parseDelay, ct);
 
-                        bool res = await parsePage(task.Key, val.page);
+                        bool res = await parsePage(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }
@@ -239,7 +258,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             });
         }
 
-        async Task<bool> parsePage(string cat, int page)
+        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
         {
             #region Авторизация
             //if (Cookie == null)
@@ -249,7 +268,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             //}
             #endregion
 
-            string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={cat}{(page == 0 ? "" : $"&start={page * 50}")}", /*cookie: Cookie, */useproxy: AppInit.conf.Rutracker.useproxy);
+            string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={cat}{(page == 0 ? "" : $"&start={page * 50}")}", /*cookie: Cookie, */useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: cancellationToken);
             if (html == null /*|| !html.Contains("id=\"logged-in-username\"")*/)
                 return false;
 
@@ -260,7 +279,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
                     return true;
 
-                var fullNews = await HttpClient.Get(AppInit.conf.Rutracker.rqHost(t.url), useproxy: AppInit.conf.Rutracker.useproxy);
+                var fullNews = await HttpClient.Get(AppInit.conf.Rutracker.rqHost(t.url), useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: cancellationToken);
                 return RutrackerParser.ApplyTopicPageDetails(t, fullNews);
             });
 

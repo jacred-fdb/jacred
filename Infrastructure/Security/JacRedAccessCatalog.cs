@@ -16,6 +16,7 @@ namespace JacRed.Infrastructure.Security
             new("/settings", JacRedAccessPolicy.Public, "HomeController", "SPA route → index.html"),
             new("/opensearch.xml", JacRedAccessPolicy.Public, "HomeController"),
             new("/health", JacRedAccessPolicy.Public, "HealthController"),
+            new("/health/background-jobs", JacRedAccessPolicy.Public, "HealthController", "In-process ParseAll/UpdateTasks"),
             new("/version", JacRedAccessPolicy.Public, "HealthController"),
             new("/lastupdatedb", JacRedAccessPolicy.Public, "HealthController"),
             new("/api/v1.0/conf", JacRedAccessPolicy.Public, "HealthController", "Jackett apikey probe"),

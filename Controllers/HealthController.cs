@@ -1,5 +1,7 @@
 using JacRed.Infrastructure.Security;
+using JacRed.Infrastructure.Trackers;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using JacRed.Infrastructure.Persistence;
@@ -15,6 +17,24 @@ namespace JacRed.Controllers
             {
                 ["status"] = "OK"
             });
+        }
+
+        /// <summary>In-process background ParseAll / UpdateTasks jobs (local ops).</summary>
+        [Route("health/background-jobs")]
+        public IActionResult BackgroundJobs()
+        {
+            var jobs = TrackerSyncHelpers.GetActiveJobs().Select(j => new
+            {
+                j.Key,
+                j.Tracker,
+                j.JobLabel,
+                startedAtUtc = j.StartedAtUtc.ToString("o"),
+                ageSec = Math.Max(0, (int)(DateTime.UtcNow - j.StartedAtUtc).TotalSeconds),
+                progressCurrent = j.ProgressCurrent,
+                progressTotal = j.ProgressTotal,
+                j.ProgressDetail
+            });
+            return Json(new { jobs });
         }
 
         [Route("version")]

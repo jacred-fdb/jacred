@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JacRed.Infrastructure.Networking
@@ -98,18 +99,18 @@ namespace JacRed.Infrastructure.Networking
 
 
         #region Get
-        async public static ValueTask<string> Get(string url, Encoding encoding = default, string cookie = null, string referer = null, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, long MaxResponseContentBufferSize = 0, bool useproxy = false, WebProxy proxy = null, int httpversion = 1)
+        async public static ValueTask<string> Get(string url, Encoding encoding = default, string cookie = null, string referer = null, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, long MaxResponseContentBufferSize = 0, bool useproxy = false, WebProxy proxy = null, int httpversion = 1, CancellationToken cancellationToken = default)
         {
-            return (await BaseGetAsync(url, encoding, cookie: cookie, referer: referer, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, MaxResponseContentBufferSize: MaxResponseContentBufferSize, useproxy: useproxy, proxy: proxy, httpversion: httpversion)).content;
+            return (await BaseGetAsync(url, encoding, cookie: cookie, referer: referer, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, MaxResponseContentBufferSize: MaxResponseContentBufferSize, useproxy: useproxy, proxy: proxy, httpversion: httpversion, cancellationToken: cancellationToken)).content;
         }
         #endregion
 
         #region Get<T>
-        async public static ValueTask<T> Get<T>(string url, Encoding encoding = default, string cookie = null, string referer = null, long MaxResponseContentBufferSize = 0, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool IgnoreDeserializeObject = false, bool useproxy = false, WebProxy proxy = null)
+        async public static ValueTask<T> Get<T>(string url, Encoding encoding = default, string cookie = null, string referer = null, long MaxResponseContentBufferSize = 0, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool IgnoreDeserializeObject = false, bool useproxy = false, WebProxy proxy = null, CancellationToken cancellationToken = default)
         {
             try
             {
-                string html = (await BaseGetAsync(url, encoding, cookie: cookie, referer: referer, MaxResponseContentBufferSize: MaxResponseContentBufferSize, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, proxy: proxy)).content;
+                string html = (await BaseGetAsync(url, encoding, cookie: cookie, referer: referer, MaxResponseContentBufferSize: MaxResponseContentBufferSize, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, proxy: proxy, cancellationToken: cancellationToken)).content;
                 if (html == null)
                     return default;
 
@@ -117,6 +118,10 @@ namespace JacRed.Infrastructure.Networking
                     return JsonConvert.DeserializeObject<T>(html, new JsonSerializerSettings { Error = (se, ev) => { ev.ErrorContext.Handled = true; } });
 
                 return JsonConvert.DeserializeObject<T>(html);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -126,7 +131,7 @@ namespace JacRed.Infrastructure.Networking
         #endregion
 
         #region BaseGetAsync
-        async public static ValueTask<(string content, HttpResponseMessage response)> BaseGetAsync(string url, Encoding encoding = default, string cookie = null, string referer = null, int timeoutSeconds = 15, long MaxResponseContentBufferSize = 0, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null, int httpversion = 1)
+        async public static ValueTask<(string content, HttpResponseMessage response)> BaseGetAsync(string url, Encoding encoding = default, string cookie = null, string referer = null, int timeoutSeconds = 15, long MaxResponseContentBufferSize = 0, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null, int httpversion = 1, CancellationToken cancellationToken = default)
         {
             var proxies = ResolveProxies(url, useproxy, proxy);
             if (proxies.Count == 0)
@@ -134,6 +139,7 @@ namespace JacRed.Infrastructure.Networking
 
             foreach (var px in proxies)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     using (var handler = CreateHandler(px, DecompressionMethods.GZip | DecompressionMethods.Deflate))
@@ -160,7 +166,7 @@ namespace JacRed.Infrastructure.Networking
                             Version = new Version(httpversion, 0)
                         };
 
-                        using (HttpResponseMessage response = await client.SendAsync(req))
+                        using (HttpResponseMessage response = await client.SendAsync(req, cancellationToken))
                         {
                             if (response.StatusCode != HttpStatusCode.OK)
                                 continue;
@@ -169,7 +175,7 @@ namespace JacRed.Infrastructure.Networking
                             {
                                 if (encoding != default)
                                 {
-                                    string res = encoding.GetString(await content.ReadAsByteArrayAsync());
+                                    string res = encoding.GetString(await content.ReadAsByteArrayAsync(cancellationToken));
                                     if (string.IsNullOrWhiteSpace(res))
                                         continue;
 
@@ -177,7 +183,7 @@ namespace JacRed.Infrastructure.Networking
                                 }
                                 else
                                 {
-                                    string res = await content.ReadAsStringAsync();
+                                    string res = await content.ReadAsStringAsync(cancellationToken);
                                     if (string.IsNullOrWhiteSpace(res))
                                         continue;
 
@@ -186,6 +192,10 @@ namespace JacRed.Infrastructure.Networking
                             }
                         }
                     }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch
                 {
@@ -203,12 +213,12 @@ namespace JacRed.Infrastructure.Networking
 
 
         #region Post
-        public static ValueTask<string> Post(string url, string data, string cookie = null, int MaxResponseContentBufferSize = 0, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null)
+        public static ValueTask<string> Post(string url, string data, string cookie = null, int MaxResponseContentBufferSize = 0, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null, CancellationToken cancellationToken = default)
         {
-            return Post(url, new StringContent(data, Encoding.UTF8, "application/x-www-form-urlencoded"), cookie: cookie, MaxResponseContentBufferSize: MaxResponseContentBufferSize, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, proxy: proxy);
+            return Post(url, new StringContent(data, Encoding.UTF8, "application/x-www-form-urlencoded"), cookie: cookie, MaxResponseContentBufferSize: MaxResponseContentBufferSize, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, proxy: proxy, cancellationToken: cancellationToken);
         }
 
-        async public static ValueTask<string> Post(string url, HttpContent data, Encoding encoding = default, string cookie = null, int MaxResponseContentBufferSize = 0, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null)
+        async public static ValueTask<string> Post(string url, HttpContent data, Encoding encoding = default, string cookie = null, int MaxResponseContentBufferSize = 0, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null, CancellationToken cancellationToken = default)
         {
             var proxies = ResolveProxies(url, useproxy, proxy);
             if (proxies.Count == 0)
@@ -216,6 +226,7 @@ namespace JacRed.Infrastructure.Networking
 
             foreach (var px in proxies)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     using (var handler = CreateHandler(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate))
@@ -234,7 +245,7 @@ namespace JacRed.Infrastructure.Networking
                                 client.DefaultRequestHeaders.Add(item.name, item.val);
                         }
 
-                        using (HttpResponseMessage response = await client.PostAsync(url, data))
+                        using (HttpResponseMessage response = await client.PostAsync(url, data, cancellationToken))
                         {
                             if (response.StatusCode != HttpStatusCode.OK)
                                 continue;
@@ -243,7 +254,7 @@ namespace JacRed.Infrastructure.Networking
                             {
                                 if (encoding != default)
                                 {
-                                    string res = encoding.GetString(await content.ReadAsByteArrayAsync());
+                                    string res = encoding.GetString(await content.ReadAsByteArrayAsync(cancellationToken));
                                     if (string.IsNullOrWhiteSpace(res))
                                         continue;
 
@@ -251,7 +262,7 @@ namespace JacRed.Infrastructure.Networking
                                 }
                                 else
                                 {
-                                    string res = await content.ReadAsStringAsync();
+                                    string res = await content.ReadAsStringAsync(cancellationToken);
                                     if (string.IsNullOrWhiteSpace(res))
                                         continue;
 
@@ -260,6 +271,10 @@ namespace JacRed.Infrastructure.Networking
                             }
                         }
                     }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch
                 {
@@ -272,16 +287,16 @@ namespace JacRed.Infrastructure.Networking
         #endregion
 
         #region Post<T>
-        async public static ValueTask<T> Post<T>(string url, string data, string cookie = null, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, Encoding encoding = default, WebProxy proxy = null, bool IgnoreDeserializeObject = false)
+        async public static ValueTask<T> Post<T>(string url, string data, string cookie = null, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, Encoding encoding = default, WebProxy proxy = null, bool IgnoreDeserializeObject = false, CancellationToken cancellationToken = default)
         {
-            return await Post<T>(url, new StringContent(data, Encoding.UTF8, "application/x-www-form-urlencoded"), cookie: cookie, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, encoding: encoding, proxy: proxy, IgnoreDeserializeObject: IgnoreDeserializeObject);
+            return await Post<T>(url, new StringContent(data, Encoding.UTF8, "application/x-www-form-urlencoded"), cookie: cookie, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, encoding: encoding, proxy: proxy, IgnoreDeserializeObject: IgnoreDeserializeObject, cancellationToken: cancellationToken);
         }
 
-        async public static ValueTask<T> Post<T>(string url, HttpContent data, string cookie = null, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, Encoding encoding = default, WebProxy proxy = null, bool IgnoreDeserializeObject = false)
+        async public static ValueTask<T> Post<T>(string url, HttpContent data, string cookie = null, int timeoutSeconds = 15, List<(string name, string val)> addHeaders = null, bool useproxy = false, Encoding encoding = default, WebProxy proxy = null, bool IgnoreDeserializeObject = false, CancellationToken cancellationToken = default)
         {
             try
             {
-                string json = await Post(url, data, cookie: cookie, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, encoding: encoding, proxy: proxy);
+                string json = await Post(url, data, cookie: cookie, timeoutSeconds: timeoutSeconds, addHeaders: addHeaders, useproxy: useproxy, encoding: encoding, proxy: proxy, cancellationToken: cancellationToken);
                 if (json == null)
                     return default;
 
@@ -289,6 +304,10 @@ namespace JacRed.Infrastructure.Networking
                     return JsonConvert.DeserializeObject<T>(json, new JsonSerializerSettings { Error = (se, ev) => { ev.ErrorContext.Handled = true; } });
 
                 return JsonConvert.DeserializeObject<T>(json);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -299,7 +318,7 @@ namespace JacRed.Infrastructure.Networking
 
 
         #region Download
-        async public static ValueTask<byte[]> Download(string url, string cookie = null, string referer = null, int timeoutSeconds = 30, long MaxResponseContentBufferSize = 0, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null)
+        async public static ValueTask<byte[]> Download(string url, string cookie = null, string referer = null, int timeoutSeconds = 30, long MaxResponseContentBufferSize = 0, List<(string name, string val)> addHeaders = null, bool useproxy = false, WebProxy proxy = null, CancellationToken cancellationToken = default)
         {
             var proxies = ResolveProxies(url, useproxy, proxy);
             if (proxies.Count == 0)
@@ -307,6 +326,7 @@ namespace JacRed.Infrastructure.Networking
 
             foreach (var px in proxies)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     var handler = CreateHandler(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate);
@@ -331,14 +351,14 @@ namespace JacRed.Infrastructure.Networking
                                 client.DefaultRequestHeaders.Add(item.name, item.val);
                         }
 
-                        using (HttpResponseMessage response = await client.GetAsync(url))
+                        using (HttpResponseMessage response = await client.GetAsync(url, cancellationToken))
                         {
                             if (response.StatusCode != HttpStatusCode.OK)
                                 continue;
 
                             using (HttpContent content = response.Content)
                             {
-                                byte[] res = await content.ReadAsByteArrayAsync();
+                                byte[] res = await content.ReadAsByteArrayAsync(cancellationToken);
                                 if (res.Length == 0)
                                     continue;
 
@@ -346,6 +366,10 @@ namespace JacRed.Infrastructure.Networking
                             }
                         }
                     }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch
                 {

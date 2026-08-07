@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -19,6 +20,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
     public class TolokaSyncService
     {
         const string TrackerName = "toloka";
+        const string TaskParsePath = "Data/temp/toloka_taskParse.json";
 
         readonly IMemoryCache _memoryCache;
 
@@ -31,8 +33,14 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
         static TolokaSyncService()
         {
-            if (IO.File.Exists("Data/temp/toloka_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/toloka_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public TolokaSyncService(IMemoryCache memoryCache)
@@ -177,7 +185,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                     ct.ThrowIfCancellationRequested();
 
                     // Получаем html
-                    string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}", timeoutSeconds: 10, cookie: Cookie(_memoryCache));
+                    string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}", timeoutSeconds: 10, cookie: Cookie(_memoryCache), cancellationToken: ct);
                     if (html == null)
                         continue;
 
@@ -200,7 +208,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                     }
                 }
 
-                IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             });
         }
 
@@ -208,19 +216,30 @@ namespace JacRed.Infrastructure.Trackers.Toloka
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
-                    {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
+                    foreach (var item in pending)
+                    {
+                        ct.ThrowIfCancellationRequested();
                         await Task.Delay(AppInit.conf.Toloka.parseDelay, ct);
 
-                        bool res = await parsePage(task.Key, val.page);
+                        bool res = await parsePage(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }
@@ -264,7 +283,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
             });
         }
 
-        async Task<bool> parsePage(string cat, int page)
+        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
         {
             #region Авторизация
             if (Cookie(_memoryCache) == null)
@@ -281,7 +300,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
             }
             #endregion
 
-            string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}{(page == 0 ? "" : $"-{page * 45}")}?sort=8", cookie: Cookie(_memoryCache)/*, useproxy: true, proxy: tParse.webProxy()*/);
+            string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}{(page == 0 ? "" : $"-{page * 45}")}?sort=8", cookie: Cookie(_memoryCache), cancellationToken: cancellationToken/*, useproxy: true, proxy: tParse.webProxy()*/);
             if (html == null || !html.Contains("<html lang=\"uk\""))
                 return false;
 
@@ -292,7 +311,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                 if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
                     return true;
 
-                byte[] torrent = await HttpClient.Download($"{AppInit.conf.Toloka.host}/download.php?id={t.downloadId}", cookie: Cookie(_memoryCache), referer: AppInit.conf.Toloka.host);
+                byte[] torrent = await HttpClient.Download($"{AppInit.conf.Toloka.host}/download.php?id={t.downloadId}", cookie: Cookie(_memoryCache), referer: AppInit.conf.Toloka.host, cancellationToken: cancellationToken);
                 string magnet = BencodeTo.Magnet(torrent);
                 if (magnet != null)
                 {

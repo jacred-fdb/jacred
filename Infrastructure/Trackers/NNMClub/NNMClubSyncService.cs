@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -17,6 +18,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
     public class NNMClubSyncService
     {
         const string TrackerName = "nnmclub";
+        const string TaskParsePath = "Data/temp/nnmclub_taskParse.json";
 
         /// <summary>Portal page size; URL uses start={page * PageSize}.</summary>
         public const int PageSize = 25;
@@ -30,8 +32,14 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
         static NNMClubSyncService()
         {
-            if (IO.File.Exists("Data/temp/nnmclub_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/nnmclub_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public async Task<string> ParseAsync(int page)
@@ -73,7 +81,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}", encoding: Encoding.GetEncoding(1251), timeoutSeconds: 10, useproxy: AppInit.conf.NNMClub.useproxy);
+                    string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}", encoding: Encoding.GetEncoding(1251), timeoutSeconds: 10, useproxy: AppInit.conf.NNMClub.useproxy, cancellationToken: ct);
                     if (html == null || !html.Contains("NNM-Club</title>"))
                         continue;
 
@@ -96,7 +104,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                     }
                 }
 
-                IO.File.WriteAllText("Data/temp/nnmclub_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             }));
         }
 
@@ -104,19 +112,30 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
-                    {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
+                    foreach (var item in pending)
+                    {
+                        ct.ThrowIfCancellationRequested();
                         await Task.Delay(AppInit.conf.NNMClub.parseDelay, ct);
 
-                        bool res = await parsePage(task.Key, val.page);
+                        bool res = await parsePage(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }
@@ -160,9 +179,9 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
             });
         }
 
-        async Task<bool> parsePage(string cat, int page)
+        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
         {
-            string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}&start={page * PageSize}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.NNMClub.useproxy);
+            string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}&start={page * PageSize}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.NNMClub.useproxy, cancellationToken: cancellationToken);
             if (html == null || !html.Contains("NNM-Club</title>"))
                 return false;
 

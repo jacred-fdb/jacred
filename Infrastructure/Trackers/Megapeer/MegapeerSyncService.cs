@@ -15,6 +15,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
     public class MegapeerSyncService
     {
         const string TrackerName = "megapeer";
+        const string TaskParsePath = "Data/temp/megapeer_taskParse.json";
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
@@ -27,8 +28,14 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
 
         static MegapeerSyncService()
         {
-            if (IO.File.Exists("Data/temp/megapeer_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/megapeer_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public async Task<string> ParseAsync(int page, CancellationToken cancellationToken = default)
@@ -99,7 +106,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     }
                 }
 
-                IO.File.WriteAllText("Data/temp/megapeer_taskParse.json", JsonConvert.SerializeObject(taskParse));
+                PersistTaskParse();
             }));
         }
 
@@ -107,19 +114,29 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: true, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
-                    {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
+                    foreach (var item in pending)
+                    {
                         ct.ThrowIfCancellationRequested();
 
-                        bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page, ct);
+                        bool res = await MegapeerParser.ParsePageAsync(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+                }
+                finally
+                {
+                    PersistTaskParse();
                 }
             }));
         }
