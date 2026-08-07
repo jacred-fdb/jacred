@@ -47,9 +47,9 @@ Limited smoke (after app + FlareSolverr are up):
 | -------- | ----------- | -------------- |
 | `Warmup` | `/cron/cloudflare/Warmup` | FlareSolverr session warm (default forum `f=2090`) |
 | `Parse` | `ParseAsync` | First page (`page=0` by default) of each **QuickParse** forum (~**65**); optional `cat`, `maxTopics` for smoke |
-| `UpdateTasksParse` | `UpdateTasksParseAsync` | Hits **all ~211** forums to learn page counts → `Data/temp/rutracker_taskParse.json` (**no lock**) |
+| `UpdateTasksParse` | `UpdateTasksParseAsync` | Hits forums to learn page counts → `Data/temp/rutracker_taskParse.json`; optional `cat` (smoke: one forum, not all ~211) |
 | `ParseLatest` | `ParseLatestAsync` | First *N* pages of **every** cat in `taskParse` (heavy once the map is full) |
-| `ParseAllTask` | `ParseAllTaskAsync` | Full backlog of every page in `taskParse` (multi-hour) |
+| `ParseAllTask` | `ParseAllTaskAsync` | Full backlog of every page in `taskParse` (multi-hour); optional `cat`, `maxPages` for smoke |
 
 ### Request unit (`parsePage`)
 

@@ -20,14 +20,14 @@ namespace JacRed.Controllers.Cron
             return await _syncService.ParseAsync(page, cat, maxTopics);
         }
 
-        async public Task<string> UpdateTasksParse()
+        async public Task<string> UpdateTasksParse(string cat = null)
         {
-            return await _syncService.UpdateTasksParseAsync();
+            return await _syncService.UpdateTasksParseAsync(cat);
         }
 
-        async public Task<string> ParseAllTask()
+        async public Task<string> ParseAllTask(string cat = null, int maxPages = 0)
         {
-            return await _syncService.ParseAllTaskAsync();
+            return await _syncService.ParseAllTaskAsync(cat, maxPages);
         }
 
         async public Task<string> ParseLatest(int pages = 5)

@@ -159,43 +159,43 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             });
         }
 
-        public Task<string> UpdateTasksParseAsync()
+        public Task<string> UpdateTasksParseAsync(string cat = null)
         {
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                foreach (string cat in RutrackerCategories.Ids)
+                var cats = ResolveCatFilter(cat) ?? RutrackerCategories.Ids.ToArray();
+                ParserLog.Write(TrackerName, $"UpdateTasksParse start cats={cats.Length}");
+
+                foreach (string c in cats)
                 {
                     ct.ThrowIfCancellationRequested();
 
                     try
                     {
-                        // Получаем html
-                        string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={cat}", useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: ct);
+                        string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={c}", useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: ct);
                         if (html == null)
                             continue;
 
-                        // Максимальное количиство страниц
                         int.TryParse(Regex.Match(html, "Страница <b>1</b> из <b>([0-9]+)</b>").Groups[1].Value, out int maxpages);
 
                         if (maxpages > 0)
                         {
-                            // Загружаем список страниц в список задач
                             for (int page = 0; page <= maxpages; page++)
                             {
-                                if (!taskParse.ContainsKey(cat))
-                                    taskParse.Add(cat, new List<TaskParse>());
+                                if (!taskParse.ContainsKey(c))
+                                    taskParse.Add(c, new List<TaskParse>());
 
-                                var val = taskParse[cat];
+                                var val = taskParse[c];
                                 if (val.FirstOrDefault(i => i.page == page) == null)
                                     val.Add(new TaskParse(page));
                             }
                         }
                         else
                         {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
+                            if (!taskParse.ContainsKey(c))
+                                taskParse.Add(c, new List<TaskParse>());
 
-                            var val = taskParse[cat];
+                            var val = taskParse[c];
                             if (val.FirstOrDefault(i => i.page == 1) == null)
                                 val.Add(new TaskParse(1));
                         }
@@ -204,20 +204,28 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 }
 
                 PersistTaskParse();
+                ParserLog.Write(TrackerName, $"UpdateTasksParse done cats={cats.Length}");
             }));
         }
 
-        public Task<string> ParseAllTaskAsync()
+        public Task<string> ParseAllTaskAsync(string cat = null, int maxPages = 0)
         {
             return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
                 try
                 {
+                    var catFilter = ResolveCatFilter(cat);
                     var pending = taskParse.ToArray()
+                        .Where(t => catFilter == null || catFilter.Contains(t.Key))
                         .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
                         .ToArray();
+
+                    if (maxPages > 0 && pending.Length > maxPages)
+                        pending = pending.Take(maxPages).ToArray();
+
                     int done = 0;
                     TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
+                    ParserLog.Write(TrackerName, $"ParseAllTask start pending={pending.Length} maxPages={maxPages}");
 
                     foreach (var item in pending)
                     {
@@ -231,12 +239,27 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
+
+                    ParserLog.Write(TrackerName, $"ParseAllTask done {done}/{pending.Length}");
                 }
                 finally
                 {
                     PersistTaskParse();
                 }
             }));
+        }
+
+        static string[] ResolveCatFilter(string cat)
+        {
+            if (string.IsNullOrWhiteSpace(cat))
+                return null;
+
+            var filter = new HashSet<string>(
+                cat.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                StringComparer.OrdinalIgnoreCase);
+
+            var cats = RutrackerCategories.Ids.Where(c => filter.Contains(c)).ToArray();
+            return cats.Length > 0 ? cats : null;
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5)
