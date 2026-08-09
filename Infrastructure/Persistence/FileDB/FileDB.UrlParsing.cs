@@ -65,9 +65,44 @@ namespace JacRed.Infrastructure.Persistence
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // Anibelka: .../viewtopic.php?t=1849
+            if (string.Equals(trackerName, "anibelka", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"viewtopic\.php\?t=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
+            // Korsars: .../viewtopic.php?t=12345
+            if (string.Equals(trackerName, "korsars", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"viewtopic\.php\?t=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
             // Lostfilm: host-independent path + #quality (qualities stay distinct).
             if (string.Equals(trackerName, "lostfilm", StringComparison.OrdinalIgnoreCase))
                 return JacRed.Infrastructure.Trackers.Lostfilm.LostfilmParser.StableUrlId(url);
+
+            // Anistar: .../slug.html?e=3&id=1001 (torrent block id)
+            if (string.Equals(trackerName, "anistar", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"[?&]id=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
+            // Leproduction: .../slug.html?q=1080&id=12345
+            if (string.Equals(trackerName, "leproduction", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"[?&]id=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
+            // Viruseproject: .../post#q=1080&id=13548
+            if (string.Equals(trackerName, "viruseproject", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"[#?&]id=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
 
             return 0;
         }

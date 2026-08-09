@@ -150,6 +150,45 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # runs every hour at :08,:23,:38,:53 (e.g. 00:08, 00:23, 00:38, …)
 8,23,38,53 * * * *  /opt/jacred/Data/run-job.sh baibako-parse http://127.0.0.1:9117/cron/baibako/parse 900
 
+# anistar-parse -> /cron/anistar/parse?limit_page=3 (max_time=900s)
+40 6 * * *  /opt/jacred/Data/run-job.sh anistar-parse "http://127.0.0.1:9117/cron/anistar/parse?limit_page=3" 900
+
+# leproduction-parse -> /cron/leproduction/parse?limit_page=3 (max_time=900s)
+45 6 * * *  /opt/jacred/Data/run-job.sh leproduction-parse "http://127.0.0.1:9117/cron/leproduction/parse?limit_page=3" 900
+
+# viruseproject-parse -> /cron/viruseproject/parse?limit_page=3 (max_time=900s)
+50 6 * * *  /opt/jacred/Data/run-job.sh viruseproject-parse "http://127.0.0.1:9117/cron/viruseproject/parse?limit_page=3" 900
+
+# anifilm-parse -> /cron/anifilm/parse (max_time=1800s)
+55 6 * * *  /opt/jacred/Data/run-job.sh anifilm-parse http://127.0.0.1:9117/cron/anifilm/parse 1800
+
+# anibelka-UpdateTasksParse -> /cron/anibelka/UpdateTasksParse (max_time=60s)
+25 2 * * *  /opt/jacred/Data/run-job.sh anibelka-UpdateTasksParse http://127.0.0.1:9117/cron/anibelka/UpdateTasksParse 60
+
+# anibelka-ParseAllTask -> /cron/anibelka/ParseAllTask (max_time=60s)
+50 4,16 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseAllTask http://127.0.0.1:9117/cron/anibelka/ParseAllTask 60
+
+# anibelka-ParseLatest -> /cron/anibelka/ParseLatest (max_time=900s)
+10 7 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseLatest http://127.0.0.1:9117/cron/anibelka/ParseLatest 900
+
+# korsars-UpdateTasksParse -> /cron/korsars/UpdateTasksParse (max_time=60s)
+30 2 * * *  /opt/jacred/Data/run-job.sh korsars-UpdateTasksParse http://127.0.0.1:9117/cron/korsars/UpdateTasksParse 60
+
+# korsars-ParseAllTask -> /cron/korsars/ParseAllTask (max_time=60s)
+52 4,16 * * *  /opt/jacred/Data/run-job.sh korsars-ParseAllTask http://127.0.0.1:9117/cron/korsars/ParseAllTask 60
+
+# korsars-ParseLatest -> /cron/korsars/ParseLatest (max_time=900s)
+15 7 * * *  /opt/jacred/Data/run-job.sh korsars-ParseLatest http://127.0.0.1:9117/cron/korsars/ParseLatest 900
+
+# ultradox-UpdateTasksParse -> /cron/ultradox/UpdateTasksParse (max_time=60s)
+35 2 * * *  /opt/jacred/Data/run-job.sh ultradox-UpdateTasksParse http://127.0.0.1:9117/cron/ultradox/UpdateTasksParse 60
+
+# ultradox-ParseAllTask -> /cron/ultradox/ParseAllTask (max_time=60s)
+55 4,16 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseAllTask http://127.0.0.1:9117/cron/ultradox/ParseAllTask 60
+
+# ultradox-ParseLatest -> /cron/ultradox/ParseLatest (max_time=900s)
+20 7 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseLatest http://127.0.0.1:9117/cron/ultradox/ParseLatest 900
+
 # maintenance-check -> /cron/maintenance/Check?mode=report (max_time=60s)
 # runs Sun at 05:00 (e.g. next Sun 05:00)
 0 5 * * 0  /opt/jacred/Data/run-job.sh maintenance-check http://127.0.0.1:9117/cron/maintenance/Check?mode=report 60

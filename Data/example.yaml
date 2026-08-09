@@ -34,22 +34,29 @@ logFdbMaxFiles: 0
 logParsers: true
 syncapi: https://sync.jacred.stream
 synctrackers:
-  - rutracker
-  - rutor
-  - kinozal
-  - nnmclub
-  - megapeer
-  - bitru
-  - toloka
-  - mazepa
-  - lostfilm
-  - baibako
-  - torrentby
-  - selezen
-  - animelayer
+  - anibelka
   - anidub
+  - anifilm
   - aniliberty
+  - animelayer
+  - anistar
+  - baibako
+  - bitru
+  - kinozal
   - knaben
+  - korsars
+  - leproduction
+  - lostfilm
+  - mazepa
+  - megapeer
+  - nnmclub
+  - rutor
+  - rutracker
+  - selezen
+  - toloka
+  - torrentby
+  - ultradox
+  - viruseproject
 # Retired trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers: []
 syncsport: true
@@ -217,12 +224,72 @@ Anidub:
   parseDelay: 7000
   log: true
 
+Anistar:
+  host: https://anistar.org
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+
+Anibelka:
+  host: https://anibelka.com
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
 Aniliberty:
   host: https://aniliberty.top
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
   log: true
+
+Anifilm:
+  host: https://anifilm.pro
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: "" # Статический cookie (CF/session); иначе login ниже
+  login:
+    u: ""
+    p: ""
+
+Leproduction:
+  host: https://www.le-production.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Viruseproject:
+  host: https://viruseproject.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+# Referer must look like google/yandex search (own origin → 503).
+Ultradox:
+  host: https://ultradox.onl
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Korsars:
+  host: https://korsars.pro
+  alias: "" # optional mirror; FDB urls stay on host, requests use rqHost
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: "" # optional static bb_data; otherwise login below
+  login:
+    u: ""
+    p: ""
 
 Knaben:
   host: https://api.knaben.org

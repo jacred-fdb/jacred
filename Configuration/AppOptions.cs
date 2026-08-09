@@ -144,7 +144,21 @@ namespace JacRed.Configuration
 
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
+        public TrackerSettings Anistar = new TrackerSettings("https://anistar.org");
+
+        public TrackerSettings Anibelka = new TrackerSettings("https://anibelka.com");
+
         public TrackerSettings Aniliberty = new TrackerSettings("https://aniliberty.top");
+
+        public TrackerSettings Anifilm = new TrackerSettings("https://anifilm.pro");
+
+        public TrackerSettings Leproduction = new TrackerSettings("https://www.le-production.tv");
+
+        public TrackerSettings Viruseproject = new TrackerSettings("https://viruseproject.tv");
+
+        public TrackerSettings Korsars = new TrackerSettings("https://korsars.pro");
+
+        public TrackerSettings Ultradox = new TrackerSettings("https://ultradox.onl");
 
         public TrackerSettings Knaben = new TrackerSettings("https://api.knaben.org");
 

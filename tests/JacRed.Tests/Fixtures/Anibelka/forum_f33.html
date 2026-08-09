@@ -1,0 +1,2934 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="ru" xml:lang="ru">
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<meta http-equiv="content-language" content="ru" />
+<meta http-equiv="content-style-type" content="text/css" />
+<meta http-equiv="imagetoolbar" content="no" />
+<meta name="resource-type" content="document" />
+<meta name="distribution" content="global" />
+
+<meta name="keywords" content="аниме,скачать аниме,с озвучкой,сериалы,на русском,бесплатно,Белк,Белка,торрент,без рекламы" />
+<meta name="description" content="скачать аниме с русской озвучкой из раздела Аниме с озвучкой" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<link rel="icon" href="./favicon.ico" type="image/x-icon" />
+<!-- <link rel="icon" href="./favicon.svg" type="image/svg+xml"> -->
+
+
+<link rel="canonical" href="https://anibelka.com/viewforum.php?f=33" />
+
+<title>Аниме с озвучкой</title>
+
+<link rel="stylesheet" href="./styles/belk-torrent/theme/stylesheet.css" type="text/css" />
+<link rel="stylesheet" href="./tracker/cssjs.php?type=css" type="text/css" />
+<link rel="stylesheet" href="./styles/belk-torrent/theme/menu.css" type="text/css" />
+<link rel="stylesheet" href="./styles/belk-torrent/theme/menu1.css" type="text/css" />
+<link rel="stylesheet" href="./styles/belk-torrent/theme/stylesheet2.css" type="text/css" />
+<link rel="stylesheet" href="./styles/belk-torrent/theme/290124.css" type="text/css" />
+
+<style>
+#pm-popup{position:fixed;top:50%;left:50%;margin-left:-200px;margin-top:-100px;width:400px;height:200px;z-index:5000;text-align:center;background-image:url('./styles/belk-torrent/theme/images/letter.jpg');}
+#main-block{width: 100%;}
+</style>
+<script src="./tracker/addons/js/jquery.min.js" type="text/javascript"></script>
+<script src="./tracker/addons/js/jquery-migrate.min.js" type="text/javascript"></script>
+<script type="text/JavaScript">
+// &lt;![CDATA[
+function getElement(iElementId)
+{
+   if (document.all)
+   {
+      return document.all[iElementId];
+   }
+   if (document.getElementById)
+   {
+      return document.getElementById(iElementId);
+   }
+}
+
+function toggleElement(oElement)
+{
+   if (oElement.style.display == "none")
+   {
+      oElement.style.display = "";
+   }
+   else
+   {
+      oElement.style.display = "none";
+   }
+}
+// ]]&gt;
+</script>
+<script type="text/javascript">
+// <![CDATA[
+	jQuery.noConflict();
+	//Spoiler image width
+	//var spoilerMaxW = Math.round(screen.width - (screen.width / 1.5));
+	var spoilerMaxW = 200;
+	var hidePostImg = false;
+	var hideSigImg = false;
+	var openInNewWindow = 'Открыть в новом окне, в полном размере';
+	var bannedImageHosts = 'Изображения с данного хостинга запрещены!';
+	var hiddenText = 'Скрытый текст';
+	var spoilerClose = 'Закрыть';
+	var banned_image_hosts = /imagebanana|hidebehind/i;//banned image hosts
+	var open_type = 0;
+	var prettyphoto_style = 'pp_default';
+
+	var stepcarousel_loader = '<img src="./tracker/addons/images/preloader.gif" style="vertical-align: middle" /> Пожалуйста подождите, торренты загружаются ..';
+// ]]>
+</script>
+<script src="./tracker/cssjs.php?type=js" type="text/javascript"></script>
+
+
+
+<script type="text/javascript">
+// <![CDATA[
+		jQuery(document).ready(
+			function($)
+			{
+
+			$('a.linksclick').on('click', function(){
+				var link=$(this).attr('href');
+				$.ajax({
+					type : 'GET',
+					dataType: "json",
+					url : './link.php',
+					data : link,
+					success:function(response){
+						if(response.success == 1)
+						{
+							return true;
+						}
+						else
+						{
+							return false;
+						}
+					},
+					error : function(jqXHR, textStatus, errorThrown){
+						return false;
+					}
+				});
+			});
+
+				
+			}
+		);
+// ]]>
+</script>
+<script type="text/javascript">
+// <![CDATA[
+
+function popup(url, width, height, name)
+{
+	if (!name)
+	{
+		name = '_popup';
+	}
+
+	window.open(url.replace(/&amp;/g, '&'), name, 'height=' + height + ',resizable=yes,scrollbars=yes,width=' + width);
+	return false;
+}
+
+function jumpto()
+{
+	var page = prompt('Введите номер страницы, на которую хотите перейти:', '1');
+	var per_page = '15';
+	var base_url = './viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb';
+
+	if (page !== null && !isNaN(page) && page == Math.floor(page) && page > 0)
+	{
+		if (base_url.indexOf('?') == -1)
+		{
+			document.location.href = base_url + '?start=' + ((page - 1) * per_page);
+		}
+		else
+		{
+			document.location.href = base_url.replace(/&amp;/g, '&') + '&start=' + ((page - 1) * per_page);
+		}
+	}
+}
+
+/**
+* Find a member
+*/
+function find_username(url)
+{
+	popup(url, 760, 570, '_usersearch');
+	return false;
+}
+
+/**
+* Mark/unmark checklist
+* id = ID of parent container, name = name prefix, state = state [true/false]
+*/
+function marklist(id, name, state)
+{
+	var parent = document.getElementById(id);
+	if (!parent)
+	{
+		eval('parent = document.' + id);
+	}
+
+	if (!parent)
+	{
+		return;
+	}
+
+	var rb = parent.getElementsByTagName('input');
+
+	for (var r = 0; r < rb.length; r++)
+	{
+		if (rb[r].name.substr(0, name.length) == name)
+		{
+			rb[r].checked = state;
+		}
+	}
+}
+
+
+
+// ]]>
+</script>
+
+<script type="text/javascript" src="./styles/belk-torrent/template/blocki.js"></script>
+<script type="text/javascript" src="./styles/belk-torrent/template/jquery.1.3.2.min.js"></script>
+
+<script type="text/javascript" src="./scroll/scrolltopcontrol.js"></script>
+<script type="text/javascript">
+
+	function countAdClick(id)
+	{
+	   loadXMLDoc('./ads/click.php?a=' + id);
+	}
+
+	function countAdView(id)
+	{
+	   loadXMLDoc('./ads/view.php?a=' + id);
+	}
+
+	function loadXMLDoc(url) {
+	   req = false;
+	   if(window.XMLHttpRequest) {
+	      try {
+	         req = new XMLHttpRequest();
+	      } catch(e) {
+	         req = false;
+	      }
+	   } else if(window.ActiveXObject) {
+	      try {
+	         req = new ActiveXObject("Msxml2.XMLHTTP");
+	      } catch(e) {
+	         try {
+	            req = new ActiveXObject("Microsoft.XMLHTTP");
+	         } catch(e) {
+	            req = false;
+	         }
+	      }
+	   }
+	   if(req) {
+	      req.open("GET", url, true);
+	      req.send(null);
+	   }
+	}
+</script>
+<!--[if lt IE 9]>
+   <script src="./assets/js/jquery-ie8.js"></script>
+<![endif]-->
+<!--[if gte IE 9]><!-->
+   <script src="./assets/js/jquery.js"></script>
+<!--<![endif]-->
+
+<!-- ON HIGHSLIDE -->
+   <script type="text/javascript" src="./highslide/highslide-full.js"></script>
+   <link rel="stylesheet" type="text/css" href="./highslide/highslide.css" />
+   <script type="text/javascript">
+      hs.graphicsDir = './highslide/graphics/';
+      hs.align = 'center';
+      hs.transitions = ['expand', 'crossfade'];
+      hs.fadeInOut = true;
+      hs.dimmingOpacity = 0.8;
+      hs.outlineType = 'rounded-white';
+      hs.captionEval = 'this.thumb.title';
+      // This value needs to be set to false, to solve the issue with the highly increasing view counts.
+      hs.continuePreloading = false;
+
+      // Add the slideshow providing the controlbar and the thumbstrip
+      hs.addSlideshow({
+         interval: 5000,
+         repeat: false,
+         useControls: true,
+         fixedControls: 'fit',
+         overlayOptions: {
+            opacity: .75,
+            position: 'top center',
+            hideOnMouseOut: true
+         }
+      });
+   </script>
+<!-- OFF HIGHSLIDE -->
+<style>
+
+.name{font-size:150%;line-height:normal;color:#0000FF}
+.no_name{color:#BFBFFF;}
+.no_d_name{color:#FF8000;}
+.d22{display:none;}
+.new_top{margin-right:400px;}
+.s4{color:#1E90FF;}
+.s5{color:#FF6347;}
+.forum_main{margin:0 20px;}
+.mypage_main{margin:0 20px;}
+.gf{background-color:#1E90FF;}
+.gf4{background-color:#8470FF;}
+.gf2{background-color:#228B22;}
+.th2{background-color:#1E90FF;color:white;text-shadow:#fff 0 0 0;border:1px solid white;}
+.th3{background-color:#228B22;color:white;text-shadow:#fff 0 0 0;border:1px solid white;}
+.th4{background-color:#8470FF;color:white;text-shadow:#fff 0 0 0;border:1px solid white;text-align:center;font-size:1.2em;}
+.th44{background-color:#8470FF;color:white;text-shadow:#fff 0 0 0;text-align:center;font-size:1.2em;padding:11px 9px;}
+a.th44{color:white;}
+.row1f{background-color:white;padding:7px 5px;}
+.row1f2{background-color:white;padding:7px 5px;}
+.row2f{background-color:white;padding:7px 5px;}
+.row2f2{background-color:white;padding:7px 5px;}
+.row5f{background-color:white;padding:7px 5px;}
+.row6f{background-color:white;padding:7px 5px;}
+.menu_bl{background:#B5B5B5;background:-webkit-gradient(linear, left top, left bottom, from(#DCE1E5), to(#B5B5B5));background:-moz-linear-gradient(-90deg, #DCE1E5, #B5B5B5);filter:progid:DXImageTransform.Microsoft.Gradient(GradientType=0, StartColorStr='#DCE1E5', EndColorStr='#B5B5B5');}
+.ia{background:#F0F3F4;}
+.ra{padding:10px 0;text-align:left;width:800px;left:0;right:0;margin:auto;}
+.img_ra{width:800px;padding:1px;border:1px solid white;}
+#cookie_note {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    bottom: 15px;
+    left: 50%;
+    max-width: 90%;
+    transform: translateX(-50%);
+    padding: 20px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 2px 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+#cookie_note p {
+    margin: 0;
+    font-size: 0.7rem;
+    text-align: left;
+    color: black;
+}
+
+#cookie_note .btn-sm {
+    display: block;
+    margin: 0 auto;
+}
+
+.cookie_accept {
+    width: 20%;
+}
+
+#cookie_note.show {
+    display: flex;
+}
+</style>
+<script type="text/JavaScript">
+    // Установка cookie с возможностью указания срока
+    function setCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+            let date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+
+    // Получение значения cookie по имени
+    function getCookie(name) {
+        let matches = document.cookie.match(new RegExp(
+            "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+        ));
+        return matches ? decodeURIComponent(matches[1]) : undefined;
+    }
+
+    // Основная функция проверки наличия cookie
+    function checkCookies() {
+        const cookieNote = document.getElementById('cookie_note');
+        const cookieBtnAccept = cookieNote?.querySelector('.cookie_accept');
+
+        // Проверка наличия cookie
+        if (!getCookie('cookies_policy') && cookieNote && cookieBtnAccept) {
+            cookieNote.classList.add('show');
+
+            // Обработчик клика на кнопку согласия
+            cookieBtnAccept.addEventListener('click', function () {
+                setCookie('cookies_policy', 'true', 90); // Срок хранения 3 месяца (90 дней)
+                cookieNote.classList.remove('show');
+            });
+        }
+    }
+
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', checkCookies);
+</script>
+</head>
+<body class="ltr" >
+<a name="top"></a>
+<div id="cookie_note">
+    <p>Продолжая пользоваться сайтом, вы соглашаетесь на обработку файлов cookie и других пользовательских данных в соответствии с <a href="https://anibelka.com/ucp.php?mode=privacy" target="_blank">политикой конфиденциальности</a>. Заблокировать использование cookies сайтом можно в настройках браузера.</p>
+    <button class="button cookie_accept btn btn-primary btn-sm">Понятно</button>
+</div>
+
+<div id="wrapheader">
+	 <div id="logodesc" >
+		<table width="100%" cellspacing="0">
+		<tr>
+			<td>
+<a href="./?sid=f2e108ed20f6e76f25ae18a5393d8dfb" tooltip="Главная" flow="down" id="logo"><img src="./styles/belk-torrent/imageset/ppkbb3cker-logo-new.png" width="100" height="80" alt="" title="" /></a>
+                        </td>
+
+                        <td width="100%" align="center">
+                              <div style="position:relative;">
+                              <h1>Аниме от Белки</h1><h2>Торрент-трекер с аниме и больше ни с чем. Добро пожаловать</h2><br /><h2 style="color:red"><!--<a href="https://anibelka.com/viewtopic.php?t=1218">с 26 ноября 2024 года гости скачивать не могут</a></br />-->
+                              
+                              </div>
+                        </td>
+			<td>
+
+
+
+<img src="./images/fon_5.png" alt="Вот так и живём..." title="Вот так и живём..." class="img_wt" style="margin-right:100px;" />
+
+
+<! --- вставка жильцов --->
+
+                        </td>
+		</tr>
+		</table>
+        </div>
+</div>
+<div id="block10" style="display:none;">
+<div class="questen12">
+<div style="text-align:center"><a href="#" onclick="openbox('block10'); return false" class="clozerb">X</a></div>
+  <table width="100%">
+    <tr>
+      <td><img src="./styles/belk-torrent/imageset/ppkbb3cker-logo-new.png" width="100" height="100" alt="logo" /></td>
+      <td width="100%" align="center" valign="middle"><span class="questen13">Ответы Белки на часто<br /> поднимаемые вопросы на сайте</span></td>
+    </tr>
+  </table>
+<span class="questen14">
+&bull;&nbsp; На трекере размещаются только файлы аниме без встроенной рекламы.
+<br /><br />
+&bull;&nbsp; Содаёт новые темы только администрация сайта.
+<br /><br />
+&bull;&nbsp; Темы разбиты по категориям:
+отдельные фильмы, "уни" с субтитрами и озвучкой и отдельно с субтитрами, либо с озвучкой.
+категорию указывает тэг [uni] ([sub] [rus] [mv]) перед названием аниме. 
+подробнее об этом <a href="./viewtopic.php?f=43&t=16">здесь</a>.
+<br /><br />
+&bull;&nbsp; Скачивать с трекера не сложно.
+подробнее о скачивании  <a href="./viewtopic.php?f=43&t=1218">здесь</a>.
+<br /><br />
+&bull;&nbsp; Логотип белки в левом верхнем углу сайта - это переход между каталогом и порталом.
+<br /><br />
+&bull;&nbsp; Проблемы при регистрации и пути решения: <a href="./viewtopic.php?f=43&t=1371">здесь</a>.
+</span>
+<!--
+<br /><br />
+<div style="text-align:center;margin-top:50px;"><a href="#" onclick="openbox('block10'); return false" class="clozera2">x- закрыть -x</a></div>
+-->
+</div>
+</div><div id="block20" style="display:none;">
+<div class="questen22">
+<div style="text-align:center;"><a href="#" onclick="openbox('block20'); return false" class="clozerb">X</a></div>
+  <table width="100%">
+    <tr>
+      <td><img src="./styles/belk-torrent/imageset/ppkbb3cker-logo-new.png" width="100" height="100" alt="logo" /></td>
+      <td width="100%" align="center" valign="middle"><span class="questen23">Личный раздел пользователя<br /> информация, регистрация</span></td>
+    </tr>
+  </table>
+<span class="questen24">
+<u>Если вы уже зарегистрированы на сайте</u>:<br /><br />
+&bull;&nbsp; <a href="./ucp.php?sid=f2e108ed20f6e76f25ae18a5393d8dfb">Вход в личный раздел</a>
+<br /><br />
+<u>Если вы хотите зарегистрироваться на сайте</u>:<br /><br />
+&bull;&nbsp; <a href="./ucp.php?mode=register&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Регистрация</a>
+<br /><br />
+
+<br /><br />
+&bull;&nbsp;
+Раздал: <a class="my_tt seed" title="" href="#"><strong></strong></a> (<a class="my_tt" title="Раздал на своих торрентах" href="#"></a>)
+<br /><br />
+&bull;&nbsp;
+Скачал: <a class="my_tt leech" title="Скачал в действительности: " href="#"><strong></strong></a>
+<br /><br />
+</span>
+<div style="font-size:1.2em;padding:10px;">Для информации:<br />
+&bull;&nbsp; если у вас проблемы с регистрацией на сайте - почитайте про пути решения проблемы: <a href="https://anibelka.com/viewtopic.php?f=43&t=1371">читать дальше...</a>
+</div>
+<div style="text-align:center;margin-top:100px;"><a href="#" onclick="openbox('block20'); return false" class="clozera2">x- закрыть -x</a></div>
+<br /><br />
+</div>
+</div><div id="block30" style="display:none;">
+<div class="questen13">
+  <table width="100%">
+    <tr>
+      <td><img src="./styles/belk-torrent/imageset/ppkbb3cker-logo-new.png" width="100" height="100" alt="logo" /></td>
+      <td width="100%" align="center" valign="middle"><span class="questen13">Ответы Белки на часто<br /> поднимаемые вопросы на сайте</span></td>
+    </tr>
+		<tr class="row1">
+			<td class="genmed">
+				&nbsp;<strong>Трекер:</strong> Раздал: <a class="my_tt seed" title="" href="#"><strong></strong></a> (<a class="my_tt" title="Раздал на своих торрентах" href="#"></a>) / Скачал: <a class="my_tt leech" title="Скачал в действительности: " href="#"><strong></strong></a> - Ратио: <a class="my_tt" title="Ратио в действительности: " href="#"><strong></strong></a>
+					
+			</td>
+			<td class="genmed" align="right">
+				
+			</td>
+		</tr>
+			<tr>
+			<td colspan="2">
+			<ul id="main-menu" class="sm sm-">
+			
+			<li><a href="">{ SEARCH_ALL_TORRENT }</a>
+			<ul>
+				<li><a href="">{ SEARCH_NEW_TORRENT }</a></li>
+				<li><a href="">{ SEARCH_ACTIVE_TORRENT }</a></li>
+				<li><a href="">{ SEARCH_UNANSWERED_TORRENT }</a></li>
+				<li><a href="">{ SEARCH_SELF_TORRENT }</a></li>
+				</ul>
+				</li>
+			<li><a href="">{ SEARCH_ALL_COMMENT }</a>
+			<ul>
+				<li><a href="">{ SEARCH_NEW_COMMENT }</a></li>
+				<li><a href="">{ SEARCH_SELF_COMMENT }</a></li>
+			</ul>
+			</li>
+			<li class="sm_right sm_end"><a href="" title="Переключение вида отображения панели"><img src="./images/tracker/smartmenus.png" alt="" /></a></li>
+			
+			<li class="sm_right"><a>Ратио: <span class="my_tt" title="Ратио в действительности: "><strong></strong></span></a>
+			<ul>
+				<li><a>Раздал: <span class="my_tt seed"><strong></strong></span> (<span class="my_tt" title="Раздал на своих торрентах"></span>)</a><li>
+				<li><a>Скачал: <span class="my_tt leech" title="Скачал в действительности: "><strong></strong></span></a><li>
+				
+			</ul>
+			</li>
+			
+
+			</ul>
+			</td>
+		</tr>	
+  </table>
+<span class="questen14">&bull;&nbsp; 
+            <ul>
+			
+			</ul>
+</span>
+<br /><br />
+<div style="text-align:center"><a href="#" onclick="openbox('block30'); return false" _class="clozera">- Закрыть -</a></div>
+</div>
+</div>
+
+<!-------------------- меню стандартное ---------------------------->
+
+
+
+<div style="padding: 0 1px 0 0;margin: 5px 0">
+
+		<ul class="menu">
+                        
+			<li><a href="#">О сайте</a>
+				<ul>
+					<li><a href="#" onclick="openbox('block10'); return false">Вопросы</a></li>
+                                        <li><a href="https://anibelka.com/rules/">Правила сайта</a></li>
+                                        <li><a href="./tracker/siterate/show_rating.php?item_id=1" target="_blank">Оценить сайт</a></li>
+					
+                                        <li><a href="./search.php?search_id=top_rated_topics"><!--Просмотр топ-рейтинг тем-->Рейтинг тем</a></li>
+					<li><a href="./rss/rss_anibelka.html" target="_blank">Новинки трекера</a></li>
+                                        <li><a href="./catalog/catalog2.html" target="_blank">Каталог трекера</a></li>
+                                        <li><a href="./recent.php" target="_blank">Последние новости (100)</a></li>
+                                        <li><a href="https://belk.info/tracker/index.php" target="_blank">Визитка сайта</a></li>
+				</ul>
+			</li>
+<li><a href="./portal.php">Портал</a></li>
+                        <li><a href="./menu_belk.php">Меню</a></li>
+			<li><a href="#">Скачать аниме</a>
+				<ul>
+					<li><a href="./viewforum.php?f=32">Универсальные</a></li>
+					<li><a href="./viewforum.php?f=33">С озвучкой</a></li>
+					<li><a href="./viewforum.php?f=34">С субтитрами</a></li>
+					<li><a href="./viewforum.php?f=36">Полнометражки</a></li>
+					<li><a href="./viewforum.php?f=37">PSP</a></li>
+				</ul>
+			</li>
+			<li><a href="#">Скачать "к аниме"</a>
+				<ul>
+					<li><a href="./viewforum.php?f=7">Аудио</a></li>
+					<li><a href="./viewforum.php?f=8">Манга</a></li>
+					<li><a href="./viewforum.php?f=21">Изображения</a></li>
+					<li><a href="./viewforum.php?f=9">Японский язык</a></li>
+				</ul>
+			</li>
+		                        <li><a href="#">Дополнительно</a>
+				<ul>
+			                <li><a href="./viewforum.php?f=40">Онлайн</a></li>
+			                <li><a href="./viewforum.php?f=41">Галерея</a></li>
+                                        <li><a href="./viewforum.php?f=42">Фанфики</a></li>
+                                        <li><a href="./viewforum.php?f=17">Информация</a></li>
+                                        <li><a href="./dm_eds/index.php">Каталог файлов</a></li>
+				</ul>
+			</li>
+                        <li><a href="./viewforum.php?f=43">Технический раздел</a>
+				<ul>
+					<li><a href="./viewtopic.php?f=43&t=1596">Добавить аниме</a></li>
+					<li><a href="./viewtopic.php?f=43&t=1595">Отзывы, Предложения</a></li>
+                                        <li><a href="./viewtopic.php?t=1218">О скачивании торрентов</a></li>
+                                        <li><a href="./images_galery/studio/studio_japan_v1.html">Студии по производству аниме</a></li>
+				</ul>
+                        </li>
+                        <li style="float:right"><a href="./viewtopic.php?t=2303" title="Сообщить о проблеме"><span style="color:red">!NB</span></a></li>
+                        <li style="float:right;"><a href="./viewforum.php?f=50">Форум</a>
+                            <ul>
+                                             <li><a href="./viewforum.php?f=80">Личные страницы</a></li>
+                            </ul>
+                        </li>
+                        
+                        <li style="float:right"><a href="#" onclick="openbox('block20'); return false">Войти на сайт</a></li>
+				
+		</ul>
+
+</div>
+
+
+<!-------------------- меню стандартное ---------------------------->
+
+
+<br /><br />
+<!------------ поиск трекера ---------------------->
+
+				<form action="./search.php?sid=f2e108ed20f6e76f25ae18a5393d8dfb" method="post" id="search">
+<table width="100%">
+    <tr> 
+                                     <td width="10%" valign="middle">
+                                        
+						<div class="menu" style="float:left;">
+							<ul>
+								<li>
+									<a href="#">Опции<span class="menu_arrow"></span></a>
+									<ul>
+										<li><a href="#"><input title="Темы" type="checkbox" name="sr" id="show_results2" value="topics" checked="checked" /> Результаты в виде тем</a></li>
+										<li><a href="#"><input title="Название" type="checkbox" name="sf" value="titleonly" checked="checked" /> Только по названию темы</a></li>
+										
+									</ul>
+								</li>
+							</ul>
+						</div>
+                                       
+                                     </td>
+                                     <td width="80%" valign="middle">
+					<input name="keywords" id="keywords" type="text" class="search_header_v1" maxlength="128" _title="Ключевые слова" _value="Поиск…" onclick="if(this.value=='Поиск…')this.value='';" onblur="if(this.value=='')this.value='Поиск…';" />&nbsp;<input class="search_header_v2" value="Поиск" type="submit" />
+				     </td>
+                                     <td width="10%" valign="middle">
+                                        
+						<div style="float:right;">
+							<select name="tracker_search"><option value="tracker">на трекере</option><option value="torrent" selected="selected">в торрентах</option><option value="comment">в комментариях</option><option value="forum">на форуме</option><option value="all">везде</option></select>
+						</div>
+					
+                                      </td>
+   </tr>
+</table>
+					<input type="hidden" name="sid" value="f2e108ed20f6e76f25ae18a5393d8dfb" />
+
+				</form>
+<br />
+<table width="100%"><tr>
+<td width="12%">&nbsp;</td>
+<td width="25%" align="left" valign="top"><a href="https://anibelka.com/catalog/catalog2.html">поиск по каталогу</a></td>
+<td width="25%" align="center" valign="top"><a href="https://anibelka.com/search.php">расширенный поиск и поиск Яндекса</a></td>
+<td width="25%" align="right" valign="top"><a href="https://anibelka.com/viewtopic.php?f=43&t=1261">запрещённые темы (нет)</a></td>
+<td width="12%">&nbsp;</td>
+</tr></table>
+<br />
+<!------------ поиск трекера ---------------------->
+
+
+<div id="maincetre">
+<br />
+
+	<div id="pageheader">
+		<h2><a class="titles" href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Аниме с озвучкой</a></h2>
+
+		
+	</div>
+
+	<br clear="all" /><br />
+
+
+<div id="pagecontent">
+
+
+		<table width="100%" cellspacing="1">
+		<tr>
+			
+				<td align="left" valign="middle" width="100%"><a href="#" onclick="jumpto(); return false;" title="Перейти на страницу…">&laquo;На страницу&raquo;</a>  </td>
+			
+				<td class="nav" valign="middle" nowrap="nowrap" align="right">&nbsp;Страница <strong>1</strong> из <strong>41</strong><br /></td>
+				<td class="gensmall" nowrap="nowrap" align="right">&nbsp;[ Тем: 604 ]&nbsp;</td>
+				<td class="gensmall" width="100%" align="right" nowrap="nowrap"><span id="pagination">
+    
+	     <strong>1</strong><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=15">2</a><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=30">3</a><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=45">4</a><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=60">5</a><span class="page-dots"> ... </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=600">41</a>
+	
+</span></td>
+			
+		</tr>
+		</table>
+	
+		<table _class="tablebg" width="100%" cellspacing="1">
+		<tr>
+			<td colspan="9">
+				<table width="100%" cellspacing="0">
+				<tr class="gensmall">
+					<td valign="middle">&nbsp;</td>
+					<td align="right" valign="middle">&nbsp;</td>
+				</tr>
+				</table>
+			</td>
+		</tr>
+
+		<tr>
+			
+				<th colspan="3">&nbsp;Темы&nbsp;</th>
+			
+			<th>&nbsp;Автор&nbsp;</th>
+                        <th>&nbsp;Торрент&nbsp;</th>
+                        <th>&nbsp;Доступность&nbsp;</th>
+			<th>&nbsp;Скачали&nbsp;</th>
+			<th>&nbsp;Просмотры&nbsp;</th>
+			<th>&nbsp;Последнее&nbsp;</th>
+		</tr>
+
+		
+			<tr>
+			    <td class="row3" colspan="9"><b class="gensmall">Прилепленные темы</b></td>
+			</tr>
+			
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/sticky_read.png" width="19" height="19" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/book_icon.png" width="32" height="32" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					 <a *title="Добавлено: 07 дек 2025, 15:38" href="./viewtopic.php?t=2453&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">Большие аниме с озвучкой</a><br /><span class="seoDesc">список &quot;больших аниме&quot;. в смысле не &quot;по весу&quot;, а по содержанию. по количеству частей в аниме. от 10 частей и выше.
+ссылка на место на сайте, описание, что есть из списка, чего нет и обновления в темах.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"></p>
+                                                                           </td>
+                                <td class="row1" width="50" align="center"></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">15520</span><br /><span title="Ответы" style="cursor: help">0</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">07 дек 2025, 15:38</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=2453&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p4965"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+			    <td class="row3" colspan="9"><b class="gensmall">Темы</b></td>
+			</tr>
+			
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=5109&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/rpg.png" width="28" height="28" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7316&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 09 апр 2023, 08:28" href="./viewtopic.php?t=1849&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Фермерская жизнь в ином мире / Isekai Nonbiri Nouka [2TV][2023-2026, повседневность, фэнтези]</a><br /><span class="seoDesc">Умерев в одном мире Матио Хираку перерождается в другом, пожелав спокойной жизни и способности к фермерству.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>5</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>4.75&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>8</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">7045</span><br /><span title="Ответы" style="cursor: help">1</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">23 июл 2026, 08:57</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=1849&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5666"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=4257&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="425" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/mistika.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7315&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 10 мар 2022, 17:02" href="./viewtopic.php?t=1550&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Туалетный мальчик Ханако / Ханако после школы / Jibaku Shounen Hanako-kun / Houkago Shounen Hanako-kun [5TV][2020-2025, комедия]</a><br /><span class="seoDesc">Cогласно школьным легендам, в третьей кабинке женского туалета на третьем этаже старого здания школы живет призрачная девочка Ханако-сан...</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>3</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>7.86&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>0</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">13409</span><br /><span title="Ответы" style="cursor: help">4</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">23 июл 2026, 08:48</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=1550&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5665"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=411&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/real.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7314&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 19 май 2016, 09:41" href="./viewtopic.php?t=201&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Канал А / Первый канал / A Channel: The Animation [TV+OVA][2011-2012, комедия, повседневность, школа]</a><br /><span class="seoDesc">В средней школе Рун и Тору были почти неразлучны, но разница в один класс привела к тому, что, с поступлением Рун в старшую школу, они практически расстались на целый год. Веселая и непосредственная Рун не скучала, а целеустремленная малышка Тору, сжав зу</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>3</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>2.59&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>1</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">5058</span><br /><span title="Ответы" style="cursor: help">3</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">23 июл 2026, 08:40</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=201&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5664"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=7312&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="504" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/fantastik.png" width="32" height="32" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7313&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 22 июл 2026, 08:34" href="./viewtopic.php?t=2642&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Доминион / Dominion [3OVA][1988-2006, боевик, комедия, фантастика]</a><br /><span class="seoDesc">Новобранец Леона Одзаки стала членом экипажа полицейского танка-малютки &quot;Бонапарт&quot;. Леоне и её напарнику Алу придётся вести бескомпромиссную войну с высокотехнологичным терроризмом</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>2</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>3.09&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>5</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">448</span><br /><span title="Ответы" style="cursor: help">0</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">22 июл 2026, 08:34</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=2642&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5662"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=4901&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="424" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/real.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=4902&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 30 дек 2022, 16:29" href="./viewtopic.php?t=1776&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Тио: Дорога в школу / Chio-chan no Tsuugakuro / Chio's School Road [2018, комедия]</a><br /><span class="seoDesc">Это история о том, как девушка-тихоня ходит в школу. Вся суть в том, что какую бы дорогу она ни выбрала, на её пути всегда встречаются различные преграды, мешающие прийти в школу вовремя. Каждое утро для девушки наполнено необычными приключениями и нелепы</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>2</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>2.29&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>4</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">4469</span><br /><span title="Ответы" style="cursor: help">1</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">14 июл 2026, 22:03</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=5733&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">zendaya</a>
+						<a href="./viewtopic.php?t=1776&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5629"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=3300&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="367" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/fantastik.png" width="32" height="32" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=6937&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 09 июн 2016, 13:44" href="./viewtopic.php?t=260&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Темнее черного / Darker than Black [2TV+Sp][2007-2009, приключения, фантастика, мистика, драма]</a><br /><span class="seoDesc">Десять лет назад мир изменился: некоторые люди заключили «Контракт» с неведомой силой и обрели особые способности – вместе с необходимостью платить по этому контракту. Кроме того, появились медиумы – послушные «куклы» без памяти и личности. В Токио образо</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>2</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>8.82&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>32</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">8899</span><br /><span title="Ответы" style="cursor: help">2</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">12 июл 2026, 18:54</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=7546&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Jilt201</a>
+						<a href="./viewtopic.php?t=260&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5624"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=2139&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/magia.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=5472&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 12 июн 2018, 10:23" href="./viewtopic.php?t=950&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Чудотворные рыцари / Yoroiden Samurai Troopers / Ronin Warriors [TV+OVA][1988-1993, приключения, боевик, мистика]</a><br /><span class="seoDesc">Демон Араго вновь собирается завоевать мир людей.  в этот раз защищать его придется пятерым молодым самураям, наделенным чудотворными доспехами.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>3</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>9.34&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>6</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">7960</span><br /><span title="Ответы" style="cursor: help">5</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">07 июл 2026, 00:26</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=950&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5613"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=7127&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="420" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/mistika.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7279&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 27 апр 2026, 18:23" href="./viewtopic.php?t=2552&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Повелитель тайн / Guimi Zhi Zhu [2ONA][2025-2026, боевик, фэнтези, мистика]</a><br /><span class="seoDesc">Мир вступил в новую эру: дымящиеся трубы, ревущие машины, броненосцы и дирижабли прокладывают путь прогрессу. Но за завесой пара и железа прячется нечто иное — потустороннее, древнее, шепчущее в тени о тайнах, которые человечество предпочло бы забыть.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>1</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>3.7&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>6</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">4225</span><br /><span title="Ответы" style="cursor: help">2</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">02 июл 2026, 17:22</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=2552&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5609"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=7277&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="226" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/fantastik.png" width="32" height="32" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					<span _class='rating_icons' _title='Рейтинг: 5.000/5, Общее количество голосов за оценку: 1'> <img src="./styles/belk-torrent/imageset/icon_topic_rating.gif" alt="" title="" /> <img src="./styles/belk-torrent/imageset/icon_topic_rating.gif" alt="" title="" /> <img src="./styles/belk-torrent/imageset/icon_topic_rating.gif" alt="" title="" /> <img src="./styles/belk-torrent/imageset/icon_topic_rating.gif" alt="" title="" /> <img src="./styles/belk-torrent/imageset/icon_topic_rating.gif" alt="" title="" /></span>&nbsp;&nbsp;Рейтинг: 5.000/5, Общее количество голосов за оценку: 1<br />
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7278&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 01 июл 2026, 17:04" href="./viewtopic.php?t=2611&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Две милые горничные / Two Lovely Maid / Docchi mo Maid [2003, приключения, комедия, фантастика, этти]</a><br /><span class="seoDesc">Жизнь двенадцатилетней Изуми переворачивается с ног на голову, когда к ней прибывают две очаровательные, но весьма раскрепощённые горничные с далёкой планеты.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>3</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>81.16&nbsp;МБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>4</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">1598</span><br /><span title="Ответы" style="cursor: help">0</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">01 июл 2026, 17:04</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=2611&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5604"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=435&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/real.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=3223&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 19 май 2016, 19:07" href="./viewtopic.php?t=213&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Крепкий поцелуй: Крутые и сладкие / Tsuyokiss Cool &amp; Sweet [2006, комедия, романтика, школа]</a><br /><span class="seoDesc">Коноэ Сунао - школьница, которая большую часть времени проводит в компании своей младшей сестры Хоноки, ибо родители у девочек - крайне деловые люди.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>4</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>2.31&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>21</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">6221</span><br /><span title="Ответы" style="cursor: help">2</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">01 июл 2026, 14:28</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=5733&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">zendaya</a>
+						<a href="./viewtopic.php?t=213&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5603"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=1930&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="469" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/real.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7273&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 01 янв 2018, 11:36" href="./viewtopic.php?t=888&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Добро пожаловать в класс превосходства / Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e [4TV][2017-2026, романтика, комедия, школа]</a><br /><span class="seoDesc">в Японии решили обучать политиков, причём с детства. Для этого государство построило престижную старшую школу Кодо Икусэй. В ней учатся дети, которые в будущем встанут за руль управления этой страной.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>2</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>8.81&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>6</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">10915</span><br /><span title="Ответы" style="cursor: help">3</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">29 июн 2026, 17:59</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=888&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5597"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=3371&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="427" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/fantastik.png" width="32" height="32" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7272&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 22 июн 2016, 18:44" href="./viewtopic.php?t=304&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] LBX – Битвы маленьких гигантов / Little Battlers eXperience / Danball Senki / Danbooru Senki [3TV+Movie][2011-2021, приключения, меха, сёнэн]</a><br /><span class="seoDesc">Действие происходит в 2050 году. Теперь новейшие технологии распространены в каждом уголке мира и являются ведущем фактором в развитии человечества.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>2</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>27.09&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>4</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">25455</span><br /><span title="Ответы" style="cursor: help">2</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">28 июн 2026, 08:17</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=304&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5591"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=7270&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="429" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/fantastik.png" width="32" height="32" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7271&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 27 июн 2026, 08:50" href="./viewtopic.php?t=2606&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Террорист / Terror Man [2026, фантастика, сверхъестественное]</a><br /><span class="seoDesc">Чону Мин видит надвигающиеся катастрофы и ради спасения людей идёт на отчаянные меры - устраивает ложные теракты, чтобы успеть эвакуировать опасные районы. За спасённые жизни он платит собственной репутацией, становясь для всех разыскиваемым преступником.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>2</b></span>|<span class="my_tt leech" title="Личеров"><b>0</b></span></p>
+                                                                           <b>1.55&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>100</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>8</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">1089</span><br /><span title="Ответы" style="cursor: help">0</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">27 июн 2026, 08:50</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=2606&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5590"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+			<tr>
+				<td class="row1" width="25" align="center">
+                                        <img src="./styles/belk-torrent/imageset/topic_read.png" width="19" height="16" alt="Нет непрочитанных сообщений" title="Нет непрочитанных сообщений" />
+<style>
+#picTxt {cursor: default;}
+#picTxt span {display:none;}
+#picTxt:hover span {display:block;position:absolute;margin-left:100px;margin-top:-200px;}
+</style>
+                                <div id="picTxt" style="color:#32CD32;font-size:1.3em;width:20px">#<span style="border:1px solid white;-webkit-box-shadow:3px 4px 5px rgba(0,0,0,0.5);-moz-box-shadow:3px 4px 5px rgba(0,0,0,0.5);box-shadow:3px 4px 5px rgba(0,0,0,0.5);"><img class="tt_poster" alt="" src="./download/file.php?id=7268&amp;t=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" width="300" height="420" /></span></div>
+                                </td>
+				
+<style>
+.tooltiped{position:relative;width:32px}
+.tooltiped .tooltipes{position:fixed;left:200px;top:10px;visibility:hidden;opacity:0;transition:ease 1s;}
+.tooltiped:hover .tooltipes{visibility:visible;opacity:1;z-index:100;background:white;}
+.tooltiped .tooltipes .tooltip-content{max-width:400px;padding:0.5em;box-shadow:2px 2px 5px rgba(0, 0, 0, 0.3);border:1px solid #c1c1c1;}
+.tooltiped .tooltipes .tooltip-content,
+.tooltiped .tooltipes .tooltip-content a{font-size:1.0em;}
+</style>
+					<td class="row1" width="25" align="center">
+	
+	<div class="tooltiped">
+	<img src="./images/icons/misc/magia.png" width="30" height="30" alt="" title="" />
+	<div class="tooltipes">
+<div class="tooltip-content">
+<table>
+    <tr>
+       <td align="center" valign="top" colspan="2">жанр аниме</td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/nota.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">музыкальное,<br />группы,айдолы</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/fantastik.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">фантастика,<br />будущее</div></td>
+	</tr>
+	    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+     <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/real.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">повседневность,<br />приключения</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+    <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/magia.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">волшебство,<br />магия, фэнтези</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/rpg.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">попаданцы,<br />RPG, исекай</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/love.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">романтика,<br />любовь, этти</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/mistika.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">мистика, ужасы,<br />сверъествественное</div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+	</tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/war.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">боевик, военное<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+   <tr>
+       <td valign="top"><img src="https://anibelka.com/images/icons/misc/history.png" width="30" height="30" /></td>
+       <td valign="middle"><div class="text">история<br /></div></td>
+	</tr>
+    <tr>
+       <td align="center" valign="top" colspan="2"><hr></td>
+    </tr>
+</table>
+    </div>
+   </div>
+</div>
+	
+	                </td>
+
+		
+				<td class="row1">
+					
+<table width="100%"><tr><td width="100%">
+
+					
+						<a href="./download/file.php?id=7269&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Скачать торрент"><!--<img src="./images/tracker/filesave.png" alt="Скачать торрент" />--></a>
+					<!--<b>Проверен</b>--> <b style="color:#7B68EE;cursor: help" title="отзывы включены">&bull;</b>  <a *title="Добавлено: 26 июн 2026, 11:22" href="./viewtopic.php?t=2605&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" class="topictitle">[rus] Трон, отмеченный богом / Shen Yin Wangzuo / Throne of Sea [3ONA][2022-2026, приключения, фэнтези]</a><br /><span class="seoDesc">Эта история о мире, в котором однажды появились демоны и боги-демоны, из-за которых всё человечество оказалось на грани гибели. В один момент 6 храмов объединились ради спасения мира людей, и началась великая война.</span>
+
+</td><td valign="top" align="right"></td>
+</tr></table>
+
+				</td>
+				<td class="row1" width="130" align="center"><p class="topicauthor"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a></p></td>
+                                <td class="row1" width="50" align="center">
+                                                                           <p class="topicdetails"><span class="my_tt seed" title="Сидеров"><b>3</b></span>|<span class="my_tt leech" title="Личеров"><b>4</b></span></p>
+                                                                           <b>53.53&nbsp;ГБ</b></td>
+                                <td class="row1" width="50" align="center"><b>75</b>%</td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span class="my_tt complet" title="Скачали"><b>9</b></span></p></td>
+				<td class="row1" width="50" align="center"><p class="topicdetails"><span title="Просмотры" style="cursor: help">1445</span><br /><span title="Ответы" style="cursor: help">0</span></p></td>
+				<td class="row1" width="140" align="center">
+					<p class="topicdetails" style="white-space: nowrap;">26 июн 2026, 11:22</p>
+					<p class="topicdetails"><a href="./memberlist.php?mode=viewprofile&amp;u=48&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">Belk</a>
+						<a href="./viewtopic.php?t=2605&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb#p5589"><img src="./styles/belk-torrent/imageset/icon_topic_latest.gif" width="18" height="9" alt="Перейти к последнему сообщению" title="Перейти к последнему сообщению" /></a>
+					</p>
+				</td>
+			</tr>
+
+		
+  		<tr align="center">
+			
+				<td class="cat" colspan="9">
+			
+					<form method="post" action="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb"><span class="gensmall">Показать темы за:</span>&nbsp;<select name="st" id="st"><option value="0" selected="selected">Все темы</option><option value="1">1 день</option><option value="7">7 дней</option><option value="14">2 недели</option><option value="30">1 месяц</option><option value="90">3 месяца</option><option value="180">6 месяцев</option><option value="365">1 год</option></select>&nbsp;<span class="gensmall">Поле сортировки</span> <select name="sk" id="sk"><option value="a">Автор</option><option value="t" selected="selected">Время размещения</option><option value="r">Ответы</option><option value="s">Заголовок</option><option value="v">Просмотры</option><option value="sz">Размер</option><option value="ts">Сидеров</option><option value="tl">Личеров</option><option value="tc">Скачали</option><option value="th">Доступность</option><option value="tf">Статус</option></select> <select name="sd" id="sd"><option value="a">по возрастанию</option><option value="d" selected="selected">по убыванию</option></select>&nbsp;<input type="submit" name="sort" value="Перейти" /></form>
+				</td>
+		</tr>
+ 		
+  		</table>
+  	
+		<table width="100%" cellspacing="1">
+		<tr>
+			
+				<td align="left" valign="middle" width="100"><a style="width:100px;display:block;" href="./posting.php?mode=post&amp;f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">[ Новая тема ]</a></td>
+			
+                                <td align="left" valign="middle" width="100%"><table width="100%" cellspacing="1" cellpadding="0">
+	<tr>
+		<td>
+<p class="breadcrumbs">
+<style>
+ul.breadcrumbs2{margin:0;_padding:4px;}
+ul.breadcrumbs2 li{display:inline;_margin-right:5px;}
+</style>
+<ul class="breadcrumbs2" itemscope itemtype="http://schema.org/BreadcrumbList">
+
+       <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+              <a itemprop="item" href="./?sid=f2e108ed20f6e76f25ae18a5393d8dfb">
+                     <span itemprop="name">Информация</span>
+              </a> &#187; 
+              <meta itemprop="position" content="1" />
+       </li>
+	   
+       <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+             <a itemprop="item" href="./index.php?sid=f2e108ed20f6e76f25ae18a5393d8dfb" >
+                    <span itemprop="name">Каталог</span>
+             </a>
+             <meta itemprop="position" content="2" />
+       </li>
+	
+       <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+             &#187; <a itemprop="item" href="./viewforum.php?f=1&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">
+                     <span itemprop="name">Трекер</span>
+             </a>
+             <meta itemprop="position" content="3" />
+       </li>
+	
+       <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+             &#187; <a itemprop="item" href="./viewforum.php?f=31&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">
+                     <span itemprop="name">Аниме архив</span>
+             </a>
+             <meta itemprop="position" content="3" />
+       </li>
+	
+       <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+             &#187; <a itemprop="item" href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb">
+                     <span itemprop="name">Аниме с озвучкой</span>
+             </a>
+             <meta itemprop="position" content="3" />
+       </li>
+
+</ul>
+</p>
+		</td>
+	</tr>
+	</table></td>
+			
+				<td class="nav" valign="middle" nowrap="nowrap" align="right">&nbsp;Страница <strong>1</strong> из <strong>41</strong><br /></td>
+				<td class="gensmall" nowrap="nowrap" align="right">&nbsp;[ Тем: 604 ]&nbsp;</td>
+				<td class="gensmall" width="100%" align="right" nowrap="nowrap"><span id="pagination">
+    
+	     <strong>1</strong><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=15">2</a><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=30">3</a><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=45">4</a><span class="page-sep">, </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=60">5</a><span class="page-dots"> ... </span><a href="./viewforum.php?f=33&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb&amp;start=600">41</a>
+	
+</span></td>
+			
+		</tr>
+		</table>
+	
+
+		<br clear="all" />
+</div>
+
+
+	<br clear="all" />
+
+	<table class="tablebg" width="100%" cellspacing="1">
+	<tr>
+		<td class="cat"><h4>Кто сейчас на сайте</h4></td>
+	</tr>
+	<tr>
+		<td class="row1"><p class="gensmall">Сейчас этот форум просматривают: нет зарегистрированных пользователей</p></td>
+	</tr>
+	</table>
+
+
+<br clear="all" />
+
+<table width="100%" cellspacing="0">
+<tr>
+	<td><form method="get" name="search" action="./search.php?sid=f2e108ed20f6e76f25ae18a5393d8dfb"><span class="gensmall">Найти:</span> <input class="post" type="text" name="keywords" size="20" /><input type="hidden" name="fid[0]" value="33" />
+<input type="hidden" name="sid" value="f2e108ed20f6e76f25ae18a5393d8dfb" />
+</form></td>
+	<td align="right">
+	<form method="post" name="jumpbox" action="./viewforum.php?sid=f2e108ed20f6e76f25ae18a5393d8dfb" onsubmit="if(document.jumpbox.f.value == -1){return false;}">
+
+	<table cellspacing="0" cellpadding="0" border="0">
+	<tr>
+		<td nowrap="nowrap"><span class="gensmall">Перейти:</span>&nbsp;<select name="f" onchange="if(this.options[this.selectedIndex].value != -1){ document.forms['jumpbox'].submit() }">
+
+		
+			<option value="-1">Выберите форум</option>
+		<option value="-1">------------------</option>
+			<option value="1">Трекер</option>
+		
+			<option value="31">&nbsp; &nbsp;Аниме архив</option>
+		
+			<option value="32">&nbsp; &nbsp;&nbsp; &nbsp;Аниме универсальные</option>
+		
+			<option value="33" selected="selected">&nbsp; &nbsp;&nbsp; &nbsp;Аниме с озвучкой</option>
+		
+			<option value="34">&nbsp; &nbsp;&nbsp; &nbsp;Аниме с субтитрами</option>
+		
+			<option value="36">&nbsp; &nbsp;&nbsp; &nbsp;Полнометражки</option>
+		
+			<option value="37">&nbsp; &nbsp;&nbsp; &nbsp;Аниме для PSP</option>
+		
+			<option value="39">&nbsp; &nbsp;&nbsp; &nbsp;Сэмплы</option>
+		
+			<option value="7">&nbsp; &nbsp;Аудио</option>
+		
+			<option value="8">&nbsp; &nbsp;Манга</option>
+		
+			<option value="21">&nbsp; &nbsp;Изображения аниме</option>
+		
+			<option value="9">&nbsp; &nbsp;Япония</option>
+		
+			<option value="17">&nbsp; &nbsp;Информация</option>
+		
+			<option value="40">&nbsp; &nbsp;Аниме онлайн</option>
+		
+			<option value="41">&nbsp; &nbsp;Галерея Японии</option>
+		
+			<option value="42">&nbsp; &nbsp;Фанфики по аниме</option>
+		
+			<option value="43">&nbsp; &nbsp;Отзывы, просьбы, предложения, техника</option>
+		
+			<option value="52">&nbsp; &nbsp;Альтернативные части</option>
+		
+			<option value="81">&nbsp; &nbsp;Архив (для сохранения)</option>
+		
+			<option value="49">Форум</option>
+		
+			<option value="50">&nbsp; &nbsp;Аниме. Форум. Обсуждение</option>
+		
+			<option value="51">&nbsp; &nbsp;Темы. Обсуждения</option>
+		
+			<option value="80">&nbsp; &nbsp;Личные страницы</option>
+		
+
+		</select>&nbsp;</td>
+	</tr>
+	</table>
+
+	</form>
+</td>
+</tr>
+</table>
+
+
+</div>
+
+
+
+<div id="wrapfooter">
+
+<table width="100%">
+  <tr>
+     <td width="30%" align="left">
+
+<div id="wrapfooter_left">
+<!-- Yandex.Metrika informer -->
+<a href="https://metrika.yandex.ru/stat/?id=91535292&amp;from=informer" target="_blank" rel="nofollow">
+    <img src="https://informer.yandex.ru/informer/91535292/3_1_FFFFFFFF_EFEFEFFF_0_pageviews"
+         style="width:88px; height:31px; border:0;"
+         alt="Яндекс.Метрика"
+         title="Яндекс.Метрика: данные за сегодня (просмотры, визиты и уникальные посетители)"
+        class="ym-advanced-informer" data-cid="91535292" data-lang="ru"/>
+</a>
+<!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js', 'ym');
+
+    ym(91535292, 'init', {clickmap:true, referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/91535292" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+
+</div> 
+       
+     </td>
+     <td width="5%">
+
+<!--<a href="./index.php?mobile_style=off&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" _title="Полная версия" tooltip="Полная версия" flow="up"><img src="./styles/belk-torrent/theme/images/mobile_on.png" alt="Полная версия" class="footer2" /></a>-->
+
+     </td>
+     <td width="30%" align="center">
+
+<div id="wrapfooter_center">
+
+        <a href="./pravo.php" class="footer3"><span class="gensmall"># Для Правообладателей #</span></a>
+	<span class="copyright">Создано на основе <a href="https://www.phpbb.com/">phpBB</a>&reg; Forum Software &copy; phpBB Group
+	<br /><a href="https://www.ppkbb3cker.ru/">ppkBB3cker</a> v.2 &copy; 2008-2015 @ <a href="https://protoneutron.narod.ru/">PPK</a> | Icon Theme by Everaldo.com Design Studio
+	<br /><a href='http://www.phpbbguru.net/'>Русская поддержка phpBB</a></span><br />	
+
+      	
+
+</div>
+
+     </td>
+     <td width="5%">
+
+<!--<a href="./index.php?mobile_style=on&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" _title="Мобильный вид" tooltip="Мобильный вид" flow="up"><img src="./styles/belk-torrent/theme/images/mobile_off.png" alt="Мобильный вид" class="footer4" /></a>-->
+
+     </td>
+     <td width="30%" align="right">
+
+<div id="wrapfooter_right">
+
+<div style="float:right;">
+<a href="./ucp.php?mode=delete_cookies&amp;sid=f2e108ed20f6e76f25ae18a5393d8dfb" title="Удалить cookies сайта"><img src="./styles/belk-torrent/theme/images/del_cookies_fot.png" width="" height="" style="margin-right:20px" /></a>
+<a href="./map-belk/map.html" title="карта сайта"><img src="./styles/belk-torrent/theme/images/map_fot.png" width="" height="" style="margin-right:20px" /></a>
+
+<a href="./viewtopic.php?t=2341" title="ограничения трекера"><img src="./styles/belk-torrent/theme/images/close_torrent.png" width="" height="" style="margin-right:20px" /></a>
+<a href="./rules/" title="правила сайта"><img src="./styles/belk-torrent/theme/images/rules_2.gif" width="" height="" style="margin-right:20px;margin-bottom:2px;" /></a>
+</div>
+
+</div>
+
+     </td>
+  </tr>
+</table>
+
+</div>
+
+
+
+</body>
+</html>
