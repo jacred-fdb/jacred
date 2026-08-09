@@ -354,6 +354,8 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                 }
                 else
                 {
+                    cookie = AppInit.conf.Animelayer.cookie.Trim();
+                    _memoryCache.Set(CookieCacheKey, cookie, DateTime.Now.AddDays(1));
                     ParserLog.Write(TrackerName, "Using static cookie from config", new Dictionary<string, object>());
                 }
             }
