@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JacRed API
-  version: 1.1.0
+  version: 1.1.1
   description: |
     Torrent aggregator API: Jackett-compatible search, native torrent search, Torznab XML,
     statistics, sync protocol, and configuration management.
@@ -59,7 +59,7 @@ servers:
 
 tags:
   - name: System
-    description: Health, version, API key check
+    description: Health (including background jobs), version, API key check
   - name: Search
     description: Jackett-compatible and native torrent search
   - name: Torznab
@@ -87,6 +87,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+
+  /health/background-jobs:
+    get:
+      tags: [System]
+      summary: In-process background ParseAll / UpdateTasks jobs
+      description: |
+        Local ops status for active tracker sync jobs started via `/cron/{slug}/…`.
+        Public (no apikey). Empty `jobs` array when nothing is running.
+      operationId: healthBackgroundJobs
+      security: []
+      responses:
+        '200':
+          description: Active background jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundJobsResponse'
 
   /version:
     get:
@@ -322,26 +339,45 @@ paths:
     get:
       tags: [Torznab]
       summary: Torznab API (caps, search)
-      description: Native Torznab XML when torznab.enable is true.
+      description: |
+        Native Torznab XML when torznab.enable is true.
+        Supported search params match caps (`q`, `imdbid`, `tvdbid`, `season`, `ep`) plus JacRed card fields.
       operationId: torznabRoot
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: t
-          in: query
-          schema:
-            type: string
-            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
-        - name: q
-          in: query
-          schema:
-            type: string
-        - name: cat
-          in: query
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TorznabT'
+        - $ref: '#/components/parameters/TorznabQ'
+        - $ref: '#/components/parameters/TorznabCat'
+        - $ref: '#/components/parameters/TorznabImdbId'
+        - $ref: '#/components/parameters/TorznabTvdbId'
+        - $ref: '#/components/parameters/TorznabRid'
+        - $ref: '#/components/parameters/TorznabSeason'
+        - $ref: '#/components/parameters/TorznabEp'
+        - $ref: '#/components/parameters/TorznabEpisode'
+        - $ref: '#/components/parameters/TorznabTitle'
+        - $ref: '#/components/parameters/TorznabTitleOriginal'
+        - $ref: '#/components/parameters/TorznabLimit'
+        - $ref: '#/components/parameters/TorznabOffset'
+        - $ref: '#/components/parameters/TorznabConfigured'
       responses:
         '200':
           description: Torznab XML
+          content:
+            application/xml:
+              schema:
+                type: string
+        '404':
+          description: Torznab disabled
+    head:
+      tags: [Torznab]
+      summary: Torznab HEAD probe
+      description: Returns empty Torznab XML body (same content-type as GET).
+      operationId: torznabRootHead
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyQuery'
+      responses:
+        '200':
+          description: Empty XML OK
           content:
             application/xml:
               schema:
@@ -353,6 +389,7 @@ paths:
     get:
       tags: [Torznab]
       summary: Torznab API (indexer path)
+      description: Same handler as `/torznab/api` (Jackett-style indexer URL).
       operationId: torznabIndexer
       parameters:
         - name: indexer
@@ -362,10 +399,20 @@ paths:
             type: string
             example: all
         - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: t
-          in: query
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TorznabT'
+        - $ref: '#/components/parameters/TorznabQ'
+        - $ref: '#/components/parameters/TorznabCat'
+        - $ref: '#/components/parameters/TorznabImdbId'
+        - $ref: '#/components/parameters/TorznabTvdbId'
+        - $ref: '#/components/parameters/TorznabRid'
+        - $ref: '#/components/parameters/TorznabSeason'
+        - $ref: '#/components/parameters/TorznabEp'
+        - $ref: '#/components/parameters/TorznabEpisode'
+        - $ref: '#/components/parameters/TorznabTitle'
+        - $ref: '#/components/parameters/TorznabTitleOriginal'
+        - $ref: '#/components/parameters/TorznabLimit'
+        - $ref: '#/components/parameters/TorznabOffset'
+        - $ref: '#/components/parameters/TorznabConfigured'
       responses:
         '200':
           description: Torznab XML
@@ -373,6 +420,8 @@ paths:
             application/xml:
               schema:
                 type: string
+        '404':
+          description: Torznab disabled
 
   /api/v2.0/indexers:
     get:
@@ -461,19 +510,20 @@ paths:
             type: string
             example: "1"
         - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: t
-          in: query
-          schema:
-            type: string
-            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
-        - name: q
-          in: query
-          schema:
-            type: string
-        - name: cat
-          in: query
-          schema:
-            type: string
+        - $ref: '#/components/parameters/TorznabT'
+        - $ref: '#/components/parameters/TorznabQ'
+        - $ref: '#/components/parameters/TorznabCat'
+        - $ref: '#/components/parameters/TorznabImdbId'
+        - $ref: '#/components/parameters/TorznabTvdbId'
+        - $ref: '#/components/parameters/TorznabRid'
+        - $ref: '#/components/parameters/TorznabSeason'
+        - $ref: '#/components/parameters/TorznabEp'
+        - $ref: '#/components/parameters/TorznabEpisode'
+        - $ref: '#/components/parameters/TorznabTitle'
+        - $ref: '#/components/parameters/TorznabTitleOriginal'
+        - $ref: '#/components/parameters/TorznabLimit'
+        - $ref: '#/components/parameters/TorznabOffset'
+        - $ref: '#/components/parameters/TorznabConfigured'
       responses:
         '200':
           description: Torznab XML
@@ -508,6 +558,11 @@ paths:
           schema:
             type: string
           description: URL-encoded search string (supports Prowlarr brace tokens)
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Alias for `query` when `query` is empty
         - name: type
           in: query
           schema:
@@ -525,14 +580,15 @@ paths:
           schema:
             type: integer
           description: Repeat for each category (e.g. categories=2000&categories=5000)
-        - name: limit
+        - $ref: '#/components/parameters/TorznabTitle'
+        - $ref: '#/components/parameters/TorznabTitleOriginal'
+        - name: year
           in: query
           schema:
             type: integer
-        - name: offset
-          in: query
-          schema:
-            type: integer
+          description: Release year override (Lampa / card search)
+        - $ref: '#/components/parameters/TorznabLimit'
+        - $ref: '#/components/parameters/TorznabOffset'
       responses:
         '200':
           description: Search results
@@ -1042,6 +1098,94 @@ components:
       schema:
         type: string
       description: API key (alternative — X-Api-Key header or Bearer)
+    TorznabT:
+      name: t
+      in: query
+      schema:
+        type: string
+        enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
+      description: Torznab function (`caps`, `indexers`, or search type)
+    TorznabQ:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: Free-text search query
+    TorznabCat:
+      name: cat
+      in: query
+      schema:
+        type: string
+      description: Comma-separated Torznab category ids
+    TorznabImdbId:
+      name: imdbid
+      in: query
+      schema:
+        type: string
+      description: IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted
+    TorznabTvdbId:
+      name: tvdbid
+      in: query
+      schema:
+        type: string
+      description: TheTVDB id (tv-search)
+    TorznabRid:
+      name: rid
+      in: query
+      schema:
+        type: string
+      description: Alias for `tvdbid`
+    TorznabSeason:
+      name: season
+      in: query
+      schema:
+        type: integer
+      description: Season number (tv-search filter)
+    TorznabEp:
+      name: ep
+      in: query
+      schema:
+        type: integer
+      description: Episode number (tv-search filter)
+    TorznabEpisode:
+      name: episode
+      in: query
+      schema:
+        type: integer
+      description: Alias for `ep`
+    TorznabTitle:
+      name: title
+      in: query
+      schema:
+        type: string
+      description: Localized title (JacRed / Lampa card search)
+    TorznabTitleOriginal:
+      name: title_original
+      in: query
+      schema:
+        type: string
+      description: Original title (JacRed / Lampa card search)
+    TorznabLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+      description: Max results after filters
+    TorznabOffset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+      description: Result offset for pagination
+    TorznabConfigured:
+      name: configured
+      in: query
+      schema:
+        type: string
+      description: |
+        Used with `t=indexers`. Omit, empty, or `true` returns the JacRed indexer list XML;
+        `false` returns an empty `<indexers>` document.
+      example: "true"
 
   responses:
     Unauthorized:
@@ -1087,6 +1231,43 @@ components:
         status:
           type: string
           example: OK
+
+    BackgroundJobsResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BackgroundJob'
+      required: [jobs]
+
+    BackgroundJob:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Internal job key
+        tracker:
+          type: string
+          description: Tracker slug
+        jobLabel:
+          type: string
+          description: Human-readable job label (e.g. ParseAll, UpdateTasks)
+        startedAtUtc:
+          type: string
+          format: date-time
+        ageSec:
+          type: integer
+          description: Seconds since startedAtUtc
+        progressCurrent:
+          type: integer
+          nullable: true
+        progressTotal:
+          type: integer
+          nullable: true
+        progressDetail:
+          type: string
+          nullable: true
 
     VersionResponse:
       type: object
