@@ -562,7 +562,7 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 | `/dev/`, `/cron/`, `/jsondb` | DevAdmin | — |
 | `/api/v1.0/config` | ConfigApi | — |
 | `/`, `/stats`, `/settings` | Public | Vue SPA (`index.html`) |
-| `/health`, `/version`, `/lastupdatedb`, `/api/v1.0/conf` | Public | — |
+| `/health`, `/health/background-jobs`, `/version`, `/lastupdatedb`, `/api/v1.0/conf` | Public | — |
 | `/sync/*` | Public | `opensync` для данных sync |
 | `/swagger`, `/openapi.yaml`, статика `/assets/` … | Public | `web: true` для UI |
 | **Всё остальное** | ApiKeyWhenConfigured | `openstats` для `/stats/*` JSON |
@@ -580,7 +580,7 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 
 Если в конфиге задан `apikey`, следующие пути **не требуют** его на уровне middleware:
 
-`/`, `/stats`, `/settings`, `/health`, `/version`, `/lastupdatedb`, `/openapi.yaml`, `/swagger`, `/api/v1.0/conf`, `/sync/*`
+`/`, `/stats`, `/settings`, `/health`, `/health/background-jobs`, `/version`, `/lastupdatedb`, `/openapi.yaml`, `/swagger`, `/api/v1.0/conf`, `/sync/*`
 
 **Не входят:** `/cron/*`, `/dev/*`, `/jsondb/*`, `/api/v1.0/config/*`, поиск, Torznab, `/stats/torrents` и др.
 
@@ -631,7 +631,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 
 При настроенном `apikey` пути `/swagger`, `/swagger/*` и `/openapi.yaml` доступны без ключа (как `/health`). Схемы авторизации в UI: `apikey` (query), `X-Api-Key`, `Authorization: Bearer`, `X-Dev-Key` (для Config API).
 
-В спецификацию входят публичные эндпоинты (`/api/*`, `/torznab/*`, `/stats/*`, `/sync/*`, `/health`, …). Пути `/cron/*`, `/dev/*`, `/jsondb/*` в OpenAPI **не описаны** (политика DevAdmin).
+В спецификацию входят публичные эндпоинты (`/api/*`, `/torznab/*`, `/stats/*`, `/sync/*`, `/health`, `/health/background-jobs`, …). Пути `/cron/*`, `/dev/*`, `/jsondb/*` в OpenAPI **не описаны** (политика DevAdmin).
 
 Проверка соответствия маршрутов политикам: [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
@@ -642,6 +642,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 - **`GET /settings`** — настройки SPA (Config API: LAN или `X-Dev-Key`).
 - **Веб-UI:** Vue 3 SPA в [`web/`](web/) (Vite + Tailwind + shadcn-vue); `make web` / `./scripts/build-web-ui.sh` собирает publish-папку `wwwroot/` (в git не хранится).
 - **`GET /health`** — проверка работы. Ответ JSON: `{"status":"OK"}`.
+- **`GET /health/background-jobs`** — активные in-process ParseAll / UpdateTasks (cron). Ответ JSON: `{"jobs":[…]}` (пустой массив, если ничего не запущено).
 - **`GET /version`** — версия приложения. Ответ JSON: `{"version":"1.0.0"}`.
 - **`GET /lastupdatedb`** — дата/время последнего обновления БД (UTC). Ответ JSON: `{"lastupdatedb":"dd.MM.yyyy HH:mm"}`.
 
