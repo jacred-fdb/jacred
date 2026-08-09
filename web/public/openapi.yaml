@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JacRed API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Torrent aggregator API: Jackett-compatible search, native torrent search, Torznab XML,
     statistics, sync protocol, and configuration management.
@@ -11,6 +11,16 @@ info:
     **Runtime OpenAPI JSON:** `/swagger/v1/swagger.json` (converted from this YAML file)
 
     **Static spec (this file):** `/openapi.yaml` (source: `web/public/openapi.yaml`, published to `wwwroot/openapi.yaml`)
+
+    ## Supported tracker slugs (v1.1)
+
+    Parsers / cron (`/cron/{slug}/…`, DevAdmin):
+    `anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`,
+    `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`,
+    `megapeer`, `nnmclub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`,
+    `ultradox`, `viruseproject`.
+
+    Web UI icons: `/img/ico/{slug}.ico` (fallback `/img/ico/default.ico`).
 
     ## Authentication
 
@@ -28,8 +38,8 @@ info:
     **Sync** (`/sync/*`): middleware пропускает без ключей; данные sync требуют `opensync: true` в конфиге.
 
     **Dev/cron/jsondb:** `/dev/*`, `/cron/*`, `/jsondb/*` require DevAdmin (`X-Dev-Key` / `?devkey=`).
-    Those operational actions are **not** enumerated in this public spec; see the Controllers and
-    [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
+    Those operational actions are **not** enumerated path-by-path in this public spec; see Controllers,
+    [`Data/crontab`](Data/crontab), and [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
     Полная матрица: [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
@@ -179,12 +189,12 @@ paths:
           schema:
             type: array
             items:
-              type: string
-          description: Jackett-style filter by internal tracker id (e.g. kinozal, rutracker)
+              $ref: '#/components/schemas/TrackerSlug'
+          description: Jackett-style filter by internal tracker id
         - name: tracker
           in: query
           schema:
-            type: string
+            $ref: '#/components/schemas/TrackerSlug'
           description: Single-tracker alias for Tracker[]
       responses:
         '200':
@@ -230,7 +240,7 @@ paths:
         - name: tracker
           in: query
           schema:
-            type: string
+            $ref: '#/components/schemas/TrackerSlug'
         - name: voice
           in: query
           schema:
@@ -1042,6 +1052,35 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
+    TrackerSlug:
+      type: string
+      description: Internal tracker id (FileDB / cron / synctrackers)
+      enum:
+        - anibelka
+        - anidub
+        - anifilm
+        - aniliberty
+        - animelayer
+        - anistar
+        - baibako
+        - bitru
+        - kinozal
+        - knaben
+        - korsars
+        - leproduction
+        - lostfilm
+        - mazepa
+        - megapeer
+        - nnmclub
+        - rutor
+        - rutracker
+        - selezen
+        - toloka
+        - torrentby
+        - ultradox
+        - viruseproject
+      example: korsars
+
     HealthResponse:
       type: object
       properties:
@@ -1494,7 +1533,7 @@ components:
       type: object
       properties:
         tracker:
-          type: string
+          $ref: '#/components/schemas/TrackerSlug'
         title:
           type: string
         size:
@@ -1553,7 +1592,7 @@ components:
       required: [trackerName]
       properties:
         trackerName:
-          type: string
+          $ref: '#/components/schemas/TrackerSlug'
         lastnewtor:
           type: string
           nullable: true

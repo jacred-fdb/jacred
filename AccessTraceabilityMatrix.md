@@ -2,7 +2,7 @@
 
 **Источник истины (код):** `Infrastructure/Security/JacRedEndpointRegistry.cs`  
 **Проверка:** `JacRedAccessCatalog.VerifyRegistry()` — выполняется при старте (несовпадения пишутся в лог)  
-**Последняя проверка:** 2026-07-23 — SPA cutover: shells → `index.html`; статика `/assets/`, PWA `manifest.webmanifest` / Workbox
+**Последняя проверка:** 2026-08-09 — порт 7 трекеров из jacred-go (`anistar`, `leproduction`, `viruseproject`, `anifilm`, `anibelka`, `korsars`, `ultradox`); иконки `/img/ico/{slug}.ico`; OpenAPI 1.1 `TrackerSlug`
 **README (оператор):** [Безопасность и доступ](README.md#безопасность-и-доступ-к-api) · [Логирование](README.md#консольное-логирование-logging)
 
 ---
@@ -79,7 +79,7 @@
 |-----------------|------------|
 | `/dev/*` | DevMaintenanceController, DevDiagnosticsController, DevMigrationController, DevTracksController |
 | `/jsondb/*` | DbController |
-| `/cron/{tracker}/*` | Controllers/Cron/* (17 трекеров) |
+| `/cron/{tracker}/*` | Controllers/Cron/* (23 трекера) |
 | `/cron/maintenance/Check`, `/Status` | Controllers/Cron/MaintenanceController (FDB integrity) |
 
 ### ApiKeyWhenConfigured
