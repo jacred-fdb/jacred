@@ -29,5 +29,7 @@ namespace JacRed.Controllers.Dev
         public JsonResult RemoveDuplicateAniliberty() => Json(_migrationService.RemoveDuplicateAniliberty());
 
         public JsonResult FixAnimelayerDuplicates() => Json(_migrationService.FixAnimelayerDuplicates());
+
+        public JsonResult FixKinozalDomainDuplicates() => Json(_migrationService.FixKinozalDomainDuplicates());
     }
 }

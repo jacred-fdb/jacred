@@ -10,5 +10,6 @@ namespace JacRed.Application.Dev
         object MigrateAnilibertyUrls();
         object RemoveDuplicateAniliberty();
         object FixAnimelayerDuplicates();
+        object FixKinozalDomainDuplicates();
     }
 }

@@ -121,6 +121,7 @@ namespace JacRed
             builder.Services.AddScoped<FixAnilibertyUrlsMigration>();
             builder.Services.AddScoped<RemoveDuplicateAnilibertyMigration>();
             builder.Services.AddScoped<FixAnimelayerDuplicatesMigration>();
+            builder.Services.AddScoped<FixKinozalDomainDuplicatesMigration>();
             builder.Services.AddScoped<ITracksAdminService, TracksAdminService>();
             builder.Services.AddSingleton<IFdbMaintenanceService, FdbMaintenanceService>();
 
