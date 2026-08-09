@@ -124,6 +124,11 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # runs every hour at :12,:32,:52 (e.g. 00:12, 00:32, 00:52)
 12,32,52 * * * *  /opt/jacred/Data/run-job.sh knaben-parse http://127.0.0.1:9117/cron/knaben/parse 900
 
+# knaben-backfill -> /cron/knaben/backfill (max_time=900s)
+# leaf TV/Movies subcategories, asc→desc within Knaben 10k window; state: Data/temp/knaben_backfill.json
+# runs hourly at :42 (staggered from parse)
+42 * * * *  /opt/jacred/Data/run-job.sh knaben-backfill "http://127.0.0.1:9117/cron/knaben/backfill?pages=10" 900
+
 # animelayer-parse -> /cron/animelayer/parse (max_time=900s)
 # runs every hour at :02,:17,:32,:47 (e.g. 00:02, 00:17, 00:32, …)
 2,17,32,47 * * * *  /opt/jacred/Data/run-job.sh animelayer-parse http://127.0.0.1:9117/cron/animelayer/parse 900

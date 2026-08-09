@@ -768,6 +768,25 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 - **`GET /cron/{tracker}/parseMagnet`** — парсинг магнет-ссылок (для поддерживающих трекеров).
 - Дополнительные параметры: `parseFrom`, `parseTo`, `parseFromDate` (зависит от трекера).
 
+#### Knaben
+
+- **`GET /cron/knaben/parse`** — свежие раздачи (по умолчанию `from=0`, `size=300`, `pages=1`, `orderBy=date`, `orderDirection=desc`, все TV+Movies категории). Параметры: `from`, `size` (≤300), `pages` (≤10), `query`, `hours`, `orderBy` (`date`|`seeders`|`peers`), `orderDirection` (`desc`|`asc`), `categories` (через запятую). Окно Knaben API: `from + size ≤ 10000`.
+- **`GET /cron/knaben/backfill`** — заполнение архива по листовым подкатегориям `2001000`–`2008000` и `3001000`–`3008000`: сначала `asc` (старые), при достижении 10 000 — встречный `desc` (новые). Состояние: **`Data/temp/knaben_backfill.json`**. Параметры: `pages` (≤10), `size` (≤300), `reset=true` — начать заново. Категории ≤10 000 — `complete` за один проход; ≤20 000 — за два; больше 20 000 — `partial` (середина недоступна из‑за лимита API).
+- **`GET /cron/knaben/backfillStatus`** — краткий статус checkpoint без запуска.
+
+Пример crontab (см. также [`Data/crontab`](Data/crontab)):
+
+```text
+*/20 * * * * curl -s "http://127.0.0.1:9117/cron/knaben/parse"
+0 * * * * curl -s "http://127.0.0.1:9117/cron/knaben/backfill?pages=10"
+```
+
+Ручной старт архива с `asc`:
+
+```text
+curl -s "http://127.0.0.1:9117/cron/knaben/parse?from=0&size=300&pages=10&orderBy=date&orderDirection=asc&categories=2001000"
+```
+
 ### Обслуживание FDB (`/cron/maintenance` и CLI `maintain`)
 
 Единый проход по FileDB (ключи бакетов + shard-файлы) на битые/устаревшие/несогласованные данные.
