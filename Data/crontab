@@ -116,9 +116,14 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # runs every hour at :11,:26,:41,:56 (e.g. 00:11, 00:26, 00:41, …)
 11,26,41,56 * * * *  /opt/jacred/Data/run-job.sh lostfilm-parse http://127.0.0.1:9117/cron/lostfilm/parse 900
 
-# bitru-parse -> /cron/bitru/parse (max_time=900s)
+# bitru-parse -> /cron/bitru/parse (max_time=900s) — newest page only
 # runs every hour at :10,:30,:50 (e.g. 00:10, 00:30, 00:50)
 10,30,50 * * * *  /opt/jacred/Data/run-job.sh bitru-parse http://127.0.0.1:9117/cron/bitru/parse 900
+
+# bitru-backfill -> /cron/bitru/backfill?pages=20 (max_time=900s) — older archive via after_date cursor
+# default/clamp 1..50; pages=20 ≈ up to 2000 torrents/hour. Use ?pages=50 for faster archive fill.
+# runs every hour at :40 (e.g. 00:40, 01:40, …); avoids overlap with parse :10,:30,:50
+40 * * * *  /opt/jacred/Data/run-job.sh bitru-backfill "http://127.0.0.1:9117/cron/bitru/backfill?pages=20" 900
 
 # knaben-parse -> /cron/knaben/parse (max_time=900s)
 # runs every hour at :12,:32,:52 (e.g. 00:12, 00:32, 00:52)
