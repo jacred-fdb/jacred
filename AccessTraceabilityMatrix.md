@@ -2,7 +2,7 @@
 
 **Источник истины (код):** `Infrastructure/Security/JacRedEndpointRegistry.cs`  
 **Проверка:** `JacRedAccessCatalog.VerifyRegistry()` — выполняется при старте (несовпадения пишутся в лог)  
-**Последняя проверка:** 2026-08-09 — порт 7 трекеров из jacred-go (`anistar`, `leproduction`, `viruseproject`, `anifilm`, `anibelka`, `korsars`, `ultradox`); иконки `/img/ico/{slug}.ico`; OpenAPI 1.1 `TrackerSlug`
+**Последняя проверка:** 2026-08-09 — порт 7 трекеров (`anistar`, `leproduction`, `viruseproject`, `anifilm`, `anibelka`, `korsars`, `ultradox`); иконки `/img/ico/{slug}.ico`; OpenAPI 1.1 `TrackerSlug`
 **README (оператор):** [Безопасность и доступ](README.md#безопасность-и-доступ-к-api) · [Логирование](README.md#консольное-логирование-logging)
 
 ---
@@ -10,7 +10,7 @@
 ## Определения политик
 
 | Политика | Правило middleware | Ключи |
-|----------|-------------------|-------|
+| ---------- | ------------------- | ------- |
 | **Public** | Всегда разрешено | — |
 | **ConfigApi** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
 | **DevAdmin** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
@@ -25,7 +25,7 @@
 ## Префикс пути → политика (реестр)
 
 | Префикс / шаблон пути | Политика | Примечания |
-|----------------------|----------|------------|
+| ---------------------- | ---------- | ------------ |
 | `/dev/` | DevAdmin | Обслуживание и диагностика |
 | `/cron/` | DevAdmin | Запуск синхронизации трекеров |
 | `/jsondb`, `/jsondb/` | DevAdmin | Администрирование FileDB |
@@ -46,7 +46,7 @@
 ### Public
 
 | Маршрут | Контроллер | Вторичная проверка |
-|---------|------------|-------------------|
+| --------- | ------------ | ------------------- |
 | `GET /` | HomeController | Vue SPA |
 | `GET /stats` | HomeController | SPA route → `index.html` (JSON на `/stats/*` не публичный) |
 | `GET /settings` | HomeController | SPA route → `index.html` |
@@ -64,7 +64,7 @@
 ### ConfigApi
 
 | Маршрут | Контроллер |
-|---------|------------|
+| --------- | ------------ |
 | `GET/POST /api/v1.0/config` | ConfigController |
 | `GET /api/v1.0/config/schema` | ConfigController |
 | `POST /api/v1.0/config/validate` | ConfigController |
@@ -76,7 +76,7 @@
 ### DevAdmin
 
 | Шаблон маршрута | Контроллер |
-|-----------------|------------|
+| ----------------- | ------------ |
 | `/dev/*` | DevMaintenanceController, DevDiagnosticsController, DevMigrationController, DevTracksController |
 | `/jsondb/*` | DbController |
 | `/cron/{tracker}/*` | Controllers/Cron/* (23 трекера) |
@@ -85,7 +85,7 @@
 ### ApiKeyWhenConfigured
 
 | Маршрут | Контроллер | Вторичная проверка |
-|---------|------------|-------------------|
+| --------- | ------------ | ------------------- |
 | `GET /api/v1.0/torrents` | TorrentsController | — |
 | `GET /api/v1.0/qualitys` | TorrentsController | — |
 | `GET /api/v2.0/indexers/{status}/results` | JackettController | — |
@@ -105,7 +105,7 @@
 ## Доступ по контексту клиента
 
 | Политика | Loopback / LAN | Same-host proxy (без devkey) | Удалённый / туннель |
-|----------|----------------|------------------------------|---------------------|
+| ---------- | ---------------- | ------------------------------ | --------------------- |
 | Public | ✓ | ✓ | ✓ |
 | ConfigApi | ✓ | ✗ | нужен devkey |
 | DevAdmin | ✓ | ✗ | нужен devkey (если задан в конфиге) |
