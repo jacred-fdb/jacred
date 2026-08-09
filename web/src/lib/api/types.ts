@@ -21,6 +21,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/background-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * In-process background ParseAll / UpdateTasks jobs
+         * @description Local ops status for active tracker sync jobs started via `/cron/{slug}/…`.
+         *     Public (no apikey). Empty `jobs` array when nothing is running.
+         */
+        get: operations["healthBackgroundJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/version": {
         parameters: {
             query?: never;
@@ -136,13 +157,18 @@ export interface paths {
         /**
          * Torznab API (caps, search)
          * @description Native Torznab XML when torznab.enable is true.
+         *     Supported search params match caps (`q`, `imdbid`, `tvdbid`, `season`, `ep`) plus JacRed card fields.
          */
         get: operations["torznabRoot"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
-        head?: never;
+        /**
+         * Torznab HEAD probe
+         * @description Returns empty Torznab XML body (same content-type as GET).
+         */
+        head: operations["torznabRootHead"];
         patch?: never;
         trace?: never;
     };
@@ -153,7 +179,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Torznab API (indexer path) */
+        /**
+         * Torznab API (indexer path)
+         * @description Same handler as `/torznab/api` (Jackett-style indexer URL).
+         */
         get: operations["torznabIndexer"];
         put?: never;
         post?: never;
@@ -642,9 +671,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Internal tracker id (FileDB / cron / synctrackers)
+         * @example korsars
+         * @enum {string}
+         */
+        TrackerSlug: "anibelka" | "anidub" | "anifilm" | "aniliberty" | "animelayer" | "anistar" | "baibako" | "bitru" | "kinozal" | "knaben" | "korsars" | "leproduction" | "lostfilm" | "mazepa" | "megapeer" | "nnmclub" | "rutor" | "rutracker" | "selezen" | "toloka" | "torrentby" | "ultradox" | "viruseproject";
         HealthResponse: {
             /** @example OK */
             status?: string;
+        };
+        BackgroundJobsResponse: {
+            jobs: components["schemas"]["BackgroundJob"][];
+        };
+        BackgroundJob: {
+            /** @description Internal job key */
+            key?: string;
+            /** @description Tracker slug */
+            tracker?: string;
+            /** @description Human-readable job label (e.g. ParseAll, UpdateTasks) */
+            jobLabel?: string;
+            /** Format: date-time */
+            startedAtUtc?: string;
+            /** @description Seconds since startedAtUtc */
+            ageSec?: number;
+            progressCurrent?: number | null;
+            progressTotal?: number | null;
+            progressDetail?: string | null;
         };
         VersionResponse: {
             version?: string;
@@ -883,7 +936,7 @@ export interface components {
             updateTime?: string;
         };
         TorrentListItem: {
-            tracker?: string;
+            tracker?: components["schemas"]["TrackerSlug"];
             title?: string;
             /** Format: int64 */
             size?: number;
@@ -909,7 +962,7 @@ export interface components {
             skip?: number;
         };
         TrackerStat: {
-            trackerName: string;
+            trackerName: components["schemas"]["TrackerSlug"];
             lastnewtor?: string | null;
             newtor?: number | null;
             update?: number | null;
@@ -940,6 +993,38 @@ export interface components {
     parameters: {
         /** @description API key (alternative — X-Api-Key header or Bearer) */
         ApiKeyQuery: string;
+        /** @description Torznab function (`caps`, `indexers`, or search type) */
+        TorznabT: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
+        /** @description Free-text search query */
+        TorznabQ: string;
+        /** @description Comma-separated Torznab category ids */
+        TorznabCat: string;
+        /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+        TorznabImdbId: string;
+        /** @description TheTVDB id (tv-search) */
+        TorznabTvdbId: string;
+        /** @description Alias for `tvdbid` */
+        TorznabRid: string;
+        /** @description Season number (tv-search filter) */
+        TorznabSeason: number;
+        /** @description Episode number (tv-search filter) */
+        TorznabEp: number;
+        /** @description Alias for `ep` */
+        TorznabEpisode: number;
+        /** @description Localized title (JacRed / Lampa card search) */
+        TorznabTitle: string;
+        /** @description Original title (JacRed / Lampa card search) */
+        TorznabTitleOriginal: string;
+        /** @description Max results after filters */
+        TorznabLimit: number;
+        /** @description Result offset for pagination */
+        TorznabOffset: number;
+        /**
+         * @description Used with `t=indexers`. Omit, empty, or `true` returns the JacRed indexer list XML;
+         *     `false` returns an empty `<indexers>` document.
+         * @example true
+         */
+        TorznabConfigured: string;
     };
     requestBodies: never;
     headers: never;
@@ -963,6 +1048,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    healthBackgroundJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active background jobs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackgroundJobsResponse"];
                 };
             };
         };
@@ -1048,10 +1153,10 @@ export interface operations {
                 is_serial?: number;
                 /** @description Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime) */
                 "Category[]"?: string[];
-                /** @description Jackett-style filter by internal tracker id (e.g. kinozal, rutracker) */
-                "Tracker[]"?: string[];
+                /** @description Jackett-style filter by internal tracker id */
+                "Tracker[]"?: components["schemas"]["TrackerSlug"][];
                 /** @description Single-tracker alias for Tracker[] */
-                tracker?: string;
+                tracker?: components["schemas"]["TrackerSlug"];
             };
             header?: never;
             path: {
@@ -1084,7 +1189,7 @@ export interface operations {
                 exact?: boolean;
                 type?: string;
                 sort?: "sid" | "pir" | "size" | "create" | "update";
-                tracker?: string;
+                tracker?: components["schemas"]["TrackerSlug"];
                 voice?: string;
                 videotype?: string;
                 relased?: number;
@@ -1150,9 +1255,38 @@ export interface operations {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                t?: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
-                q?: string;
-                cat?: string;
+                /** @description Torznab function (`caps`, `indexers`, or search type) */
+                t?: components["parameters"]["TorznabT"];
+                /** @description Free-text search query */
+                q?: components["parameters"]["TorznabQ"];
+                /** @description Comma-separated Torznab category ids */
+                cat?: components["parameters"]["TorznabCat"];
+                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                imdbid?: components["parameters"]["TorznabImdbId"];
+                /** @description TheTVDB id (tv-search) */
+                tvdbid?: components["parameters"]["TorznabTvdbId"];
+                /** @description Alias for `tvdbid` */
+                rid?: components["parameters"]["TorznabRid"];
+                /** @description Season number (tv-search filter) */
+                season?: components["parameters"]["TorznabSeason"];
+                /** @description Episode number (tv-search filter) */
+                ep?: components["parameters"]["TorznabEp"];
+                /** @description Alias for `ep` */
+                episode?: components["parameters"]["TorznabEpisode"];
+                /** @description Localized title (JacRed / Lampa card search) */
+                title?: components["parameters"]["TorznabTitle"];
+                /** @description Original title (JacRed / Lampa card search) */
+                title_original?: components["parameters"]["TorznabTitleOriginal"];
+                /** @description Max results after filters */
+                limit?: components["parameters"]["TorznabLimit"];
+                /** @description Result offset for pagination */
+                offset?: components["parameters"]["TorznabOffset"];
+                /**
+                 * @description Used with `t=indexers`. Omit, empty, or `true` returns the JacRed indexer list XML;
+                 *     `false` returns an empty `<indexers>` document.
+                 * @example true
+                 */
+                configured?: components["parameters"]["TorznabConfigured"];
             };
             header?: never;
             path?: never;
@@ -1178,12 +1312,73 @@ export interface operations {
             };
         };
     };
+    torznabRootHead: {
+        parameters: {
+            query?: {
+                /** @description API key (alternative — X-Api-Key header or Bearer) */
+                apikey?: components["parameters"]["ApiKeyQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Empty XML OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            /** @description Torznab disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     torznabIndexer: {
         parameters: {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                t?: string;
+                /** @description Torznab function (`caps`, `indexers`, or search type) */
+                t?: components["parameters"]["TorznabT"];
+                /** @description Free-text search query */
+                q?: components["parameters"]["TorznabQ"];
+                /** @description Comma-separated Torznab category ids */
+                cat?: components["parameters"]["TorznabCat"];
+                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                imdbid?: components["parameters"]["TorznabImdbId"];
+                /** @description TheTVDB id (tv-search) */
+                tvdbid?: components["parameters"]["TorznabTvdbId"];
+                /** @description Alias for `tvdbid` */
+                rid?: components["parameters"]["TorznabRid"];
+                /** @description Season number (tv-search filter) */
+                season?: components["parameters"]["TorznabSeason"];
+                /** @description Episode number (tv-search filter) */
+                ep?: components["parameters"]["TorznabEp"];
+                /** @description Alias for `ep` */
+                episode?: components["parameters"]["TorznabEpisode"];
+                /** @description Localized title (JacRed / Lampa card search) */
+                title?: components["parameters"]["TorznabTitle"];
+                /** @description Original title (JacRed / Lampa card search) */
+                title_original?: components["parameters"]["TorznabTitleOriginal"];
+                /** @description Max results after filters */
+                limit?: components["parameters"]["TorznabLimit"];
+                /** @description Result offset for pagination */
+                offset?: components["parameters"]["TorznabOffset"];
+                /**
+                 * @description Used with `t=indexers`. Omit, empty, or `true` returns the JacRed indexer list XML;
+                 *     `false` returns an empty `<indexers>` document.
+                 * @example true
+                 */
+                configured?: components["parameters"]["TorznabConfigured"];
             };
             header?: never;
             path: {
@@ -1201,6 +1396,13 @@ export interface operations {
                 content: {
                     "application/xml": string;
                 };
+            };
+            /** @description Torznab disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -1297,9 +1499,38 @@ export interface operations {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                t?: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
-                q?: string;
-                cat?: string;
+                /** @description Torznab function (`caps`, `indexers`, or search type) */
+                t?: components["parameters"]["TorznabT"];
+                /** @description Free-text search query */
+                q?: components["parameters"]["TorznabQ"];
+                /** @description Comma-separated Torznab category ids */
+                cat?: components["parameters"]["TorznabCat"];
+                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                imdbid?: components["parameters"]["TorznabImdbId"];
+                /** @description TheTVDB id (tv-search) */
+                tvdbid?: components["parameters"]["TorznabTvdbId"];
+                /** @description Alias for `tvdbid` */
+                rid?: components["parameters"]["TorznabRid"];
+                /** @description Season number (tv-search filter) */
+                season?: components["parameters"]["TorznabSeason"];
+                /** @description Episode number (tv-search filter) */
+                ep?: components["parameters"]["TorznabEp"];
+                /** @description Alias for `ep` */
+                episode?: components["parameters"]["TorznabEpisode"];
+                /** @description Localized title (JacRed / Lampa card search) */
+                title?: components["parameters"]["TorznabTitle"];
+                /** @description Original title (JacRed / Lampa card search) */
+                title_original?: components["parameters"]["TorznabTitleOriginal"];
+                /** @description Max results after filters */
+                limit?: components["parameters"]["TorznabLimit"];
+                /** @description Result offset for pagination */
+                offset?: components["parameters"]["TorznabOffset"];
+                /**
+                 * @description Used with `t=indexers`. Omit, empty, or `true` returns the JacRed indexer list XML;
+                 *     `false` returns an empty `<indexers>` document.
+                 * @example true
+                 */
+                configured?: components["parameters"]["TorznabConfigured"];
             };
             header?: never;
             path: {
@@ -1334,6 +1565,8 @@ export interface operations {
                 apikey?: components["parameters"]["ApiKeyQuery"];
                 /** @description URL-encoded search string (supports Prowlarr brace tokens) */
                 query?: string;
+                /** @description Alias for `query` when `query` is empty */
+                q?: string;
                 type?: "search" | "tvsearch" | "movie" | "music" | "book";
                 /**
                  * @description Comma-separated or repeated; `1` or `-2` (torrents) select JacRed; omit = all; `-1` = usenet (empty)
@@ -1342,8 +1575,16 @@ export interface operations {
                 indexerIds?: string;
                 /** @description Repeat for each category (e.g. categories=2000&categories=5000) */
                 categories?: number;
-                limit?: number;
-                offset?: number;
+                /** @description Localized title (JacRed / Lampa card search) */
+                title?: components["parameters"]["TorznabTitle"];
+                /** @description Original title (JacRed / Lampa card search) */
+                title_original?: components["parameters"]["TorznabTitleOriginal"];
+                /** @description Release year override (Lampa / card search) */
+                year?: number;
+                /** @description Max results after filters */
+                limit?: components["parameters"]["TorznabLimit"];
+                /** @description Result offset for pagination */
+                offset?: components["parameters"]["TorznabOffset"];
             };
             header?: {
                 "X-Api-Key"?: string;
