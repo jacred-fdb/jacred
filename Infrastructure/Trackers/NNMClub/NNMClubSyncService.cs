@@ -75,6 +75,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
         public Task<string> UpdateTasksParseAsync()
         {
             // After PageSize 20→25, regenerate taskParse via this endpoint so page indices match the portal.
+            // Cap at MaxPortalPages: NNMClub redirects older portal offsets to FAQ t=1626984.
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
                 foreach (string cat in NNMClubCategories.Ids)
@@ -87,21 +88,30 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
 
                     // Максимальное количиство страниц
                     int.TryParse(Regex.Match(html, "<a href=\"[^\"]+\">([0-9]+)</a>[^<\n\r]+<a href=\"[^\"]+\">След.</a>").Groups[1].Value, out int maxpages);
+                    int taskCount = NNMClubPortalPagination.ClampTaskPageCount(maxpages);
 
-                    // Загружаем список страниц в список задач
-                    for (int page = 0; page <= maxpages; page++)
+                    if (!taskParse.ContainsKey(cat))
+                        taskParse.Add(cat, new List<TaskParse>());
+
+                    var val = taskParse[cat];
+                    int added = 0;
+
+                    // Загружаем список страниц в список задач (0 .. taskCount-1, capped at MaxPortalPages)
+                    for (int page = 0; page < taskCount; page++)
                     {
                         try
                         {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
-
-                            var val = taskParse[cat];
                             if (val.FirstOrDefault(i => i.page == page) == null)
+                            {
                                 val.Add(new TaskParse(page));
+                                added++;
+                            }
                         }
                         catch { }
                     }
+
+                    int pruned = NNMClubPortalPagination.PruneTasksBeyondPortalLimit(val);
+                    ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: pagerMax={maxpages}, taskCount={taskCount}, added={added}, pruned={pruned}, total={val.Count}");
                 }
 
                 PersistTaskParse();
@@ -125,8 +135,8 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                         ct.ThrowIfCancellationRequested();
                         await Task.Delay(AppInit.conf.NNMClub.parseDelay, ct);
 
-                        bool res = await parsePage(item.cat, item.val.page, ct);
-                        if (res)
+                        var status = await parsePage(item.cat, item.val.page, ct);
+                        if (NNMClubPortalPagination.ShouldSettleTask(status))
                             item.val.updateTime = DateTime.Today;
 
                         done++;
@@ -159,8 +169,8 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                         {
                             await Task.Delay(AppInit.conf.NNMClub.parseDelay);
 
-                            bool res = await parsePage(task.Key, val.page);
-                            if (res)
+                            var status = await parsePage(task.Key, val.page);
+                            if (NNMClubPortalPagination.ShouldSettleTask(status))
                             {
                                 val.updateTime = DateTime.Today;
                                 log.AppendLine($"{task.Key} - {val.page}");
@@ -179,16 +189,22 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
             });
         }
 
-        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
+        async Task<NNMClubPortalPagination.PageParseStatus> parsePage(string cat, int page, CancellationToken cancellationToken = default)
         {
             string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}&start={page * PageSize}", encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.NNMClub.useproxy, cancellationToken: cancellationToken);
             if (html == null || !html.Contains("NNM-Club</title>"))
-                return false;
+                return NNMClubPortalPagination.PageParseStatus.TransientError;
+
+            if (NNMClubPortalPagination.IsPortalLimitFaq(html))
+            {
+                ParserLog.Write(TrackerName, $"{cat}/{page} portal limit FAQ");
+                return NNMClubPortalPagination.PageParseStatus.PortalLimitFaq;
+            }
 
             var torrents = NNMClubParser.ParseTorrentsFromPage(html, cat);
-
             FileDB.AddOrUpdate(torrents);
-            return torrents.Count > 0;
+
+            return NNMClubPortalPagination.ClassifyPage(html, torrents.Count);
         }
     }
 }
