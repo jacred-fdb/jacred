@@ -9,13 +9,13 @@ using Xunit.Abstractions;
 namespace JacRed.Tests.Leproduction;
 
 /// <summary>
-/// Regression tests against captured le-production.tv HTML.
+/// Regression tests against captured le-production.online HTML.
 /// Refresh: python3 scripts/dry_run_leproduction_parser.py --refresh-fixtures
 /// </summary>
 public class LeproductionParserFixtureTests
 {
     readonly ITestOutputHelper _output;
-    const string Host = "https://www.le-production.tv";
+    const string Host = "https://www.le-production.online";
 
     public LeproductionParserFixtureTests(ITestOutputHelper output)
     {
@@ -66,8 +66,8 @@ public class LeproductionParserFixtureTests
     public void ParseDetailHtml_Fixture_YieldsTypedTorrents()
     {
         string html = FixtureLoader.Read("Leproduction/detail_sample.html");
-        string postUrl = $"{Host}/film/sample-movie-2024.html";
-        List<TorrentDetails> torrents = LeproductionParser.ParseDetailHtml(html, postUrl, new[] { "movie" });
+        string postUrl = $"{Host}/anime/1579-van-pis.html";
+        List<TorrentDetails> torrents = LeproductionParser.ParseDetailHtml(html, postUrl, new[] { "anime" });
 
         _output.WriteLine($"parsed={torrents.Count}");
         foreach (var t in torrents)
@@ -78,7 +78,7 @@ public class LeproductionParserFixtureTests
         Assert.All(torrents, t =>
         {
             Assert.Equal("leproduction", t.trackerName);
-            Assert.Equal(new[] { "movie" }, t.types);
+            Assert.Equal(new[] { "anime" }, t.types);
             Assert.False(string.IsNullOrWhiteSpace(t.name));
             Assert.False(string.IsNullOrWhiteSpace(t.title));
             Assert.False(string.IsNullOrWhiteSpace(t.url));
@@ -92,9 +92,11 @@ public class LeproductionParserFixtureTests
         });
 
         TorrentDetails first = torrents.First();
-        Assert.Contains("Тестовый", first.name, StringComparison.Ordinal);
-        Assert.Equal(2024, first.relased);
-        Assert.NotNull(LeproductionParser.ExtractTorrentId(first.url));
+        Assert.Contains("Ван Пис", first.name, StringComparison.Ordinal);
+        Assert.Equal("One Piece", first.originalname);
+        Assert.Equal(2026, first.relased);
+        Assert.Equal("8274", LeproductionParser.ExtractTorrentId(first.url));
+        Assert.Contains("10.2", first.sizeName, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

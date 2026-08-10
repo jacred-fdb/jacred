@@ -16,7 +16,7 @@ namespace JacRed.Controllers.Cron
         }
 
         /// <summary>
-        /// Parses torrent releases from le-production.tv category pages.
+        /// Parses torrent releases from le-production.online category pages.
         /// </summary>
         /// <param name="limit_page">Max pages per category. If 0 or less, detects last page from pagination.</param>
         /// <returns>

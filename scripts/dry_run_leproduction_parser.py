@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dry-run le-production.tv category + detail HTML vs JacRed field shape.
+Dry-run le-production.online category + detail HTML vs JacRed field shape.
 
   python3 scripts/dry_run_leproduction_parser.py
   python3 scripts/dry_run_leproduction_parser.py --refresh-fixtures
@@ -157,8 +157,8 @@ def write_synthetic(fixture_dir: Path) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Dry-run le-production.tv HTML vs JacRed")
-    p.add_argument("--host", default=os.environ.get("LEPRODUCTION_HOST", "https://www.le-production.tv"))
+    p = argparse.ArgumentParser(description="Dry-run le-production.online HTML vs JacRed")
+    p.add_argument("--host", default=os.environ.get("LEPRODUCTION_HOST", "https://www.le-production.online"))
     p.add_argument("--refresh-fixtures", action="store_true")
     p.add_argument("--fixture-dir", default=str(DEFAULT_FIXTURE_DIR))
     p.add_argument("--json-out", default="")

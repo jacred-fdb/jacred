@@ -1,7 +1,840 @@
 <!DOCTYPE html>
-<html><body>
-<a class="short-img" href="/film/sample-movie-2024.html"><img alt="poster"/></a>
-<h3><a href="/film/sample-movie-2024.html">Sample Movie</a></h3>
-<a class="short-img" href="/film/other-title-2023.html"><img alt="poster"/></a>
-<h3><a href="/film/other-title-2023.html">Other Title</a></h3>
-</body></html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<title>Дорама &raquo; LE-Production.TV - Официальный сайт</title>
+<meta name="description" content="LE-Production.TV - профессиональное озвучивание аниме, мультсериалов, сериалов, фильмов и дорам.">
+<meta name="keywords" content="аниме, озвучка, LE-Production, озвучание, русская озвучка, мультсериал, мультсериалы, фильмы, сериалы, дорамы, онлайн, скачать, loster01, Emeri, Shoker, Dinas, Azaniki, Kippei, Zefirka, Primary_Alex, Primary Alex, зефирка, ле-продашкн, ли-продакшн,18 плюс, AMV, le-production, Emeri, Fairy Tail, Gintama, Kekkai, LE-Production, loster01, news, OST, SAO, Sensen, АМВ, аниме, аниме игры, аниме онлайн, Аполло, аркада, аудиокнига, боевик, боевые искусства, вампиры, вестерн, видео, видео обзор, визуальная новела, Тимиркан Сиюхов, Маргарита Щелкунова, вокалоид, все об аниме, вынос мозга, гарем, демоны, детектив, для взрослых, для девушек, для детей, додзинси, драма, еда, игра, игры, история, киберпанк, комедия, контент от 18 лет, лицензия, лог горизонт, лоли, манга, Мастера меча онлайн, махо-сёдзё, меха, мистика, музыка, музыкальное, музыкальное видео, новинки, новости, новости аниме, обзоры, ова, онгоинг, ОСТ, отомэ, панцу, пародия, повседневность, приключения, приколы, программы, психология, рок, ролевая игра, романтика, русская озвучка, озвучка, сёдзё, сёдзё-ай, сёдзе, сёнен, сёнэн, сёнэн-ай, самурайский боевик, симулятор, сказка, слэшер, спорт, сукубы, США, сэйнэн, текстовые обзоры, триллер, ужасы, укр мова, файтинг, фантастика, Фейри Таил, фентези, фильмы, фэнтези, Хвост Фей, школа, экшен, эльфы, эротика, этти, юмор, Япония, Наруто, Naruto, Блич, Bleach, Сейлор мун, Сейлормун, критстал, матроска, воительница, Bishoujo, Senshi, Sailor, Moon, Crystal, SailorMoon, озвучание, озвучивание">
+<meta name="generator" content="DataLife Engine (http://dle-news.ru)">
+<link rel="search" type="application/opensearchdescription+xml" href="https://www.le-production.online/index.php?do=opensearch" title="LE-Production.TV - Официальный сайт">
+<link rel="canonical" href="https://www.le-production.online/dorama/">
+<link rel="alternate" type="application/rss+xml" title="Дорама &raquo; LE-Production.TV - Официальный сайт" href="https://www.le-production.online/dorama/rss.xml">
+<link href="/engine/editor/css/default.css?v=61f90" rel="stylesheet" type="text/css">
+<script src="/engine/classes/js/jquery.js?v=61f90"></script>
+<script src="/engine/classes/js/jqueryui.js?v=61f90" defer></script>
+<script src="/engine/classes/js/dle_js.js?v=61f90" defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="stylesheet" type="text/css" href="/templates/LE-Production/style/wap.css"/>
+  <link href="/templates/LE-Production/style/styles.css?v={cache-id}" type="text/css" rel="stylesheet" />
+
+  <link href="/templates/LE-Production/style/engine.css" type="text/css" rel="stylesheet" />
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  <script src="/templates/LE-Production/js/libs.js"></script>
+  <script src="/templates/LE-Production/js/owl.carousel.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="/templates/LE-Production/tracker/style/torrent.css" />
+<script type="text/javascript" src="/templates/LE-Production/tracker/js/functions.js"></script>
+
+  <script src="/engine/classes/min/index.php?charset=windows-utf8&amp;f=/templates/LE-Production/js/vendor/modernizr.custom.min.js,/templates/LE-Production/js/vendor/jquery.cslider.min.js,/templates/LE-Production/js/vendor/jquery.cookie.js,/templates/LE-Production/js/vendor/tooltip.js,/templates/LE-Production/js/vendor/jquery.formstyler.min.js,/templates/LE-Production/js/vendor/jquery.sticky-kit.min.js,/templates/LE-Production/js/vendor/jquery.autoresize.min.js,/templates/LE-Production/js/main.js&amp;365"></script>
+	<script>
+    $(function() {
+        function setupPlayerControls(playerId, selectId) {
+            const $selectFilm = $('#' + selectId);
+            const $iframe = $('#' + playerId);
+
+            $('#buttonPrev').click(function() {
+                const $val = $selectFilm.find('option:selected').prev();
+                if ($val.length) {  // Проверяем, есть ли предыдущий элемент
+                    $iframe.attr('src', $val.val());
+                    $selectFilm.val($val.val());
+                }
+                return false;
+            });
+
+            $('#buttonNext').click(function() {
+                const $val = $selectFilm.find('option:selected').next();
+                if ($val.length) {  // Проверяем, есть ли следующий элемент
+                    $iframe.attr('src', $val.val());
+                    $selectFilm.val($val.val());
+                }
+                return false;
+            });
+        }
+
+        // Инициализация контролов для всех плееров
+        setupPlayerControls('omfg1', 'selectFilm1');
+        setupPlayerControls('omfg2', 'selectFilm2');
+        setupPlayerControls('omfg3', 'selectFilm3');
+    });
+	</script>
+ <link href='https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700&subset=latin,cyrillic' rel='stylesheet' type='text/css'>
+    <meta name="turbo-verification" content="33e75ff09dd601bbe69f351039152189">
+</head>
+<body>
+<script>
+<!--
+var dle_root       = '/';
+var dle_admin      = '';
+var dle_login_hash = '41edbc66850b6f9bafa6cd097cf02de796d2ccdf';
+var dle_group      = 5;
+var dle_skin       = 'LE-Production';
+var dle_wysiwyg    = '1';
+var quick_wysiwyg  = '0';
+var dle_min_search = '4';
+var dle_act_lang   = ["Да", "Нет", "Ввод", "Отмена", "Сохранить", "Удалить", "Загрузка. Пожалуйста, подождите..."];
+var menu_short     = 'Быстрое редактирование';
+var menu_full      = 'Полное редактирование';
+var menu_profile   = 'Просмотр профиля';
+var menu_send      = 'Отправить сообщение';
+var menu_uedit     = 'Админцентр';
+var dle_info       = 'Информация';
+var dle_confirm    = 'Подтверждение';
+var dle_prompt     = 'Ввод информации';
+var dle_req_field  = 'Заполните все необходимые поля';
+var dle_del_agree  = 'Вы действительно хотите удалить? Данное действие невозможно будет отменить';
+var dle_spam_agree = 'Вы действительно хотите отметить пользователя как спамера? Это приведёт к удалению всех его комментариев';
+var dle_c_title    = 'Отправка жалобы';
+var dle_complaint  = 'Укажите текст Вашей жалобы для администрации:';
+var dle_mail       = 'Ваш e-mail:';
+var dle_big_text   = 'Выделен слишком большой участок текста.';
+var dle_orfo_title = 'Укажите комментарий для администрации к найденной ошибке на странице:';
+var dle_p_send     = 'Отправить';
+var dle_p_send_ok  = 'Уведомление успешно отправлено';
+var dle_save_ok    = 'Изменения успешно сохранены. Обновить страницу?';
+var dle_reply_title= 'Ответ на комментарий';
+var dle_tree_comm  = '0';
+var dle_del_news   = 'Удалить статью';
+var dle_sub_agree  = 'Вы действительно хотите подписаться на комментарии к данной публикации?';
+var dle_captcha_type  = '0';
+var DLEPlayerLang     = {prev: 'Предыдущий',next: 'Следующий',play: 'Воспроизвести',pause: 'Пауза',mute: 'Выключить звук', unmute: 'Включить звук', settings: 'Настройки', enterFullscreen: 'На полный экран', exitFullscreen: 'Выключить полноэкранный режим', speed: 'Скорость', normal: 'Обычная', quality: 'Качество', pip: 'Режим PiP'};
+var allow_dle_delete_news   = false;
+var dle_search_delay   = false;
+var dle_search_value   = '';
+jQuery(function($){
+FastSearch();
+});
+//-->
+</script>
+<div class="all-wrap">
+    <div class="wrap">
+        <header class="header clearfix">
+            <a href="/" class="logo"></a>
+            <span class="show-login">Вход на сайт</span>
+            <ul class="head-menu">
+  				<li><a href="#onas">О нас</a></li>
+				<li><a href="https://le-production.tv/index.php?do=static&page=nabor">Набор</a></li>
+				<li><a href="/rules.html">Правила</a></li>
+				<li><a href="https://le-production.tv/index.php?do=feedback">Обратная связь</a></li>
+            </ul>
+        </header>
+
+        <div class="navi-wrap">
+		
+		<div class="slider-news">
+		<div class="container">
+	<div class="slider-wrap">
+		<div id="da-slider" class="da-slider">
+            <div class="da-slide">
+	<a href="/index.php?newsid=1525" title="Цугаи загробного мира"><h3>Цугаи загробного мира</h3></a>
+	<p><a href="/index.php?newsid=1525" title="Цугаи загробного мира" style="text-decoration:none; color:#fff;">Брат и сестра, разлученные в детстве и не знавшие, что они брат и сестра, пытаются воссоединиться, вернуть себе право первородства и спасти&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-04/1775330599_1.jpg" alt="Цугаи загробного мира /  / Yomi no Tsugai" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1579" title="Ван Пис"><h3>Ван Пис</h3></a>
+	<p><a href="/index.php?newsid=1579" title="Ван Пис" style="text-decoration:none; color:#fff;">Гол Д. Роджер — король пиратов, добившийся богатства, славы и власти — спрятал где-то на просторах этого мира загадочное сокровище, которое&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-06/1780911945_1.jpg" alt="Ван Пис /  / One Piece" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=270" title="Люпен III: Тайна Мамо (фильм&hellip;"><h3>Люпен III: Тайна Мамо (фильм&hellip;</h3></a>
+	<p><a href="/index.php?newsid=270" title="Люпен III: Тайна Мамо (фильм&hellip;" style="text-decoration:none; color:#fff;">Знаменитый аферист, Арсен Люпен Третий был казнён... Но оказывается что он до сих пор жив, и даже сам Люпен не знает как это получилось. Во&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785764608_oblojka-kopija.jpg" alt="Люпен III: Тайна Мамо (фильм&hellip; / Lupin III: The Secret of Mamo / Lupin III: Lupin Vs the Clone / ルパン三世　ルパンＶＳ複製人間（クローン）（ビデオ題）" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1580" title="Военная хроника маленькой&hellip;"><h3>Военная хроника маленькой&hellip;</h3></a>
+	<p><a href="/index.php?newsid=1580" title="Военная хроника маленькой&hellip;" style="text-decoration:none; color:#fff;">Осень 1926 года. Таня фон Дегуршафф получает новое назначение и становится командиром недавно сформированной боевой группы «Саламандра». На&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-07/1783585805_koldunja-v-pogonah-2-sezon-oblozhka-kopija.jpg" alt="Военная хроника маленькой&hellip; / Saga of Tanya the Evil II / Youjo Senki II" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1581" title="Необъятный океан 3"><h3>Необъятный океан 3</h3></a>
+	<p><a href="/index.php?newsid=1581" title="Необъятный океан 3" style="text-decoration:none; color:#fff;">Студенческая жизнь Иори Китахары продолжается в привычном ритме: занятия, дайвинг и безумные вечеринки клуба Peek a Boo, участники которого&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-07/1783874978_grand_blue_season_3-oblozhka-kopija.jpg" alt="Необъятный океан 3 / Grand Blue Season 3 / " />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1588" title="Звёздные войны: Видения.&hellip;"><h3>Звёздные войны: Видения.&hellip;</h3></a>
+	<p><a href="/index.php?newsid=1588" title="Звёздные войны: Видения.&hellip;" style="text-decoration:none; color:#fff;">Кара — дочь знаменитого кузнеца световых мечей, который стал последней надеждой для тех, кто все еще верит, что в мире можно восстановить&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785946581_1.jpg" alt="Звёздные войны: Видения.&hellip; /  / Star Wars: Visions Presents - The Ninth Jedi" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1587" title="Стерлинг-Поинт"><h3>Стерлинг-Поинт</h3></a>
+	<p><a href="/index.php?newsid=1587" title="Стерлинг-Поинт" style="text-decoration:none; color:#fff;">Энни Джейкобсон и её брат-близнец, выросшие в Нью-Йорке с отцом-одиночкой, узнают, что их отчуждённый дедушка оставил им в наследство&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785943452_1.jpg" alt="Стерлинг-Поинт /  / Sterling Point" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1591" title="Уличные коты"><h3>Уличные коты</h3></a>
+	<p><a href="/index.php?newsid=1591" title="Уличные коты" style="text-decoration:none; color:#fff;">В центре сюжета — группа бродячих котов, которые выживают на улицах Великобритании. Оказавшись на улице, они быстро находят общий язык,&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1786107294_1.jpg" alt="Уличные коты /  / Alley Cats" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1589" title="Моя жизнь с мальчиками Уолтер&hellip;"><h3>Моя жизнь с мальчиками Уолтер&hellip;</h3></a>
+	<p><a href="/index.php?newsid=1589" title="Моя жизнь с мальчиками Уолтер&hellip;" style="text-decoration:none; color:#fff;">Нью-йоркская школьница Джеки лишается обоих родителей и переезжает в Колорадо к своим опекунам, которые воспитывают десятерых сыновей.&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1786019196_1.jpg" alt="Моя жизнь с мальчиками Уолтер&hellip; /  / My Life with the Walter Boys" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1583" title="Футурама 14 сезон"><h3>Футурама 14 сезон</h3></a>
+	<p><a href="/index.php?newsid=1583" title="Футурама 14 сезон" style="text-decoration:none; color:#fff;">По нелепой случайности Фрай попадает в будущее — в 3000 год, где его ждут верные друзья в лице безумного робота Бендера и одноглазой Лилы.</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785782948_1.jpg" alt="Футурама 14 сезон /  / Futurama" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1582" title="Спецназ: Львица 3 сезон"><h3>Спецназ: Львица 3 сезон</h3></a>
+	<p><a href="/index.php?newsid=1582" title="Спецназ: Львица 3 сезон" style="text-decoration:none; color:#fff;">Спецотряду женщин-военных необходимо предотвратить теракт на территории США.</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785764627_1.jpg" alt="Спецназ: Львица 3 сезон /  / Lioness" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1586" title="1670 3 сезон"><h3>1670 3 сезон</h3></a>
+	<p><a href="/index.php?newsid=1586" title="1670 3 сезон" style="text-decoration:none; color:#fff;">1670 год. Иоанн Павел Адамчевский — глава шляхетной семьи, владелец «меньшей половины» деревни Адамчихи. По его мнению, Речь Посполитая —&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785934643_1.jpg" alt="1670 3 сезон /  / " />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1585" title="Тед Лассо 4 сезон"><h3>Тед Лассо 4 сезон</h3></a>
+	<p><a href="/index.php?newsid=1585" title="Тед Лассо 4 сезон" style="text-decoration:none; color:#fff;">Тренер сборной колледжа Канзаса по американскому футболу Тед Лассо — неисправимый оптимист, всеобщий любимец и звезда YouTube. Новая&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785930013_1.jpg" alt="Тед Лассо 4 сезон /  / Ted Lasso" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1584" title="Библиотекари: Следующая глава&hellip;"><h3>Библиотекари: Следующая глава&hellip;</h3></a>
+	<p><a href="/index.php?newsid=1584" title="Библиотекари: Следующая глава&hellip;" style="text-decoration:none; color:#fff;">Библиотекарь‑путешественник из XIX века попадает в современный мир. Пытаясь вернуться домой, он пробуждает магию, которая распространяется&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1785854146_1.jpg" alt="Библиотекари: Следующая глава&hellip; /  / The Librarians: The Next Chapter" />
+	</div>
+</div>
+
+
+<div class="da-slide">
+	<a href="/index.php?newsid=1590" title="Осколки"><h3>Осколки</h3></a>
+	<p><a href="/index.php?newsid=1590" title="Осколки" style="text-decoration:none; color:#fff;">Лос-Анджелес, 1981 год. 17-летний старшеклассник Эллис и его компания друзей учатся в престижной частной школе. Жизнь подростков&hellip;</a></p>
+	<div class="da-img"><img src="/uploads/posts/2026-08/1786035065_1.jpg" alt="Осколки /  / The Shards" />
+	</div>
+</div>
+
+
+
+		</div>
+		<nav class="da-arrows">
+			<span class="da-arrows-prev"></span>
+			<span class="da-arrows-next"></span>
+		</nav>
+	</div>
+</div> 
+		</div>
+            <div class="navi-items clearfix">
+                <span class="show-genres">Выбор категории</span>
+                <div class="search-wrap clearfix">
+                    <span>или</span>
+                    <form id="quicksearch" method="post">
+                        <input type="hidden" name="do" value="search" />
+                        <input type="hidden" name="subaction" value="search" />
+                        <div class="search-box clearfix">
+                            <span>ВОСПОЛЬЗОВАТЬСЯ ПОИСКОМ</span>
+                            <input id="story" name="story" placeholder="Введите слово для поиска..." type="text" />
+                            <button type="submit" title="ИСКАТЬ">ИСКАТЬ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+			<div class="janre-menu">
+			            <ul class="main-menu clearfix">		
+			    <li><a href="anime/ongoing_anime" title="Ongoing / Новинки">Ongoing / Новинки аниме</a></li>
+				<li><a href="anime/ongoing_dorama" title="Ongoing / Новинки">Ongoing / Новинки дорамы</a></li>
+				<li><a href="anime/ongoing_serial" title="Ongoing / Новинки">Ongoing / Новинки сериалы</a></li>
+				<li><a href="anime/ongoing_cartoon" title="Ongoing / Новинки">Ongoing / Новинки мультсер.</a></li>
+					<li><a href="https://le-production.tv/xfsearch/полнометражка" title="">Полнометражки</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Короткометражка/" title="">Короткометражки</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Сёдзё/" title="">Сёдзё</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Махо-Сёдзё/" title="">Махо-Сёдзё</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Сёдзё-ай/" title="">Сёдзё-ай</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Сёнэн/" title="">Сёнэн</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Сёнэн-ай/" title="">Сёнэн-ай</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Мистика/" title="">Мистика</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Фантастика/" title="">Фантастика</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Фэнтези/" title="">Фэнтези</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Ужасы/" title="">Ужасы</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Триллер/" title="">Триллер</a></li>
+                    <li><a href="https://le-production.tv/xfsearch/Этти/" title="">Этти</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Романтика/" title="">Романтика</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Приключения/" title="">Приключения</a></li>
+					<li><a href="https://le-production.tv/xfsearch/История/" title="">История</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Повседневность/" title="">Повседневность</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Комедия/" title="">Комедия</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Драма/" title="">Драма</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Меха/" title="">Меха</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Боевик/" title="">Боевик</a></li>
+					<li><a href="https://le-production.tv/xfsearch/Спокон/" title="">Спокон</a></li>
+                    <li><a href="https://le-production.tv/xfsearch/Вампиры/" title="">Вампиры</a></li>
+                    <li><a href="https://le-production.tv/xfsearch/Киберпанк/" title="">Киберпанк</a></li>
+                    <li><a href="https://le-production.tv/xfsearch/Музыкальный/" title="">Музыкальный</a></li>
+                    <li><a href="https://le-production.tv/xfsearch/Детектив/" title="">Детектив</a></li>
+                    <li><a href="https://le-production.tv/xfsearch/OVA/" title="">OVA</a></li>
+                    <li><a href="https://le-production.tv/anime" title="">Все</a></li>
+        		</ul>
+            </ul>
+			</div>
+        </div>
+		<!-- end navi-wrap -->
+        <ul class="top-menu clearfix">
+			    <li><a href="/anime">Аниме</a></li>
+				<li><a href="/dorama">Дорамы</a></li>
+				<li><a href="/film">Кино</a></li>
+                <li><a href="/serial">Сериалы</a></li>
+            	<li><a href="/fulcartoon">Мультфильмы</a></li>
+			    <li><a href="/cartoon">Мультсериалы</a></li> 
+            	<li><a href="/manga">Манга</a></li> 
+            	<li><a href="/comics">Комиксы</a></li> 
+            	<li><a href="https://le-production.tv/index.php?do=static&page=zakaz">Заказать</a></li>
+                <li class="last"><a href="https://le-production.tv/index.php?do=static&page=reklama">Реклама</a></li></ul>
+
+        <div class="content-wrap clearfix right-decor">
+		
+            <div class="left-wrap">
+                
+				
+				<h2 class="cat-title">Дорамы</h2>
+				
+				
+                
+                
+				
+				
+				
+				
+								
+                <div class="shorts-wrap clearfix"><div id='dle-content'><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1592-chebol-protiv-detektiva-2-sezon.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-08/1786138938_obl.jpg" alt="Чеболь против детектива 2 сезон /  / Flex x Cop" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1592-chebol-protiv-detektiva-2-sezon.html">Чеболь против детектива 2 сезон / Flex x Cop [1-2 из 14]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1506-selskaja-zhizn-v-nniri.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1774561737_obl.jpg" alt="Сельская жизнь в Ëннири /  / Cabbage Your Life" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1506-selskaja-zhizn-v-nniri.html">Сельская жизнь в Ëннири / Cabbage Your Life [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1572-tajnyj-audit.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1777220852_photo_2026-04-26_19-09-39.jpg" alt="Тайный аудит /  / Filing for Love" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1572-tajnyj-audit.html">Тайный аудит / Filing for Love [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1553-absoljutnaja-velichina-ljubvi.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1776460155_obl.jpg" alt="Абсолютная величина любви /  / Absolute Value of Romance" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1553-absoljutnaja-velichina-ljubvi.html">Абсолютная величина любви / Absolute Value of Romance [1-16 из 16]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1565-segodnja-snova-vse-rasprodano.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1776926198_obl.jpg" alt="Сегодня снова всё распродано /  / Sold Out on You" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1565-segodnja-snova-vse-rasprodano.html">Сегодня снова всё распродано / Sold Out on You [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1560-pugalo.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1776756193_obl.jpg" alt="Пугало /  / The Scarecrow" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1560-pugalo.html">Пугало / The Scarecrow [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1556-my-vse-zdes-staraemsja.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1776580485_obl.jpg" alt="Мы все здесь стараемся /  / We Are All Trying Here" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1556-my-vse-zdes-staraemsja.html">Мы все здесь стараемся / We Are All Trying Here [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1538-zhena-princa-xxi-veka.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1775894704_obl.jpg" alt="Жена принца XXI века /  / Perfect Crown" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1538-zhena-princa-xxi-veka.html">Жена принца XXI века / Perfect Crown [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1554-drugaja-storona.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1776461483_obl.jpg" alt="Другая сторона /  / Reverse" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1554-drugaja-storona.html">Другая сторона / Reverse [1-8 из 8]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1485-doktor-sin.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1773610231_obl.jpg" alt="Доктор Син /  / Doctor Sin" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1485-doktor-sin.html">Доктор Син / Doctor Sin [1-16 из 16]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1481-advokat-prizrakov.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1773469591_obl.jpg" alt="Адвокат призраков /  / Phantom Lawyer" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1481-advokat-prizrakov.html">Адвокат призраков / Phantom Lawyer [1-16 из 16]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/18.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1573-prjamikom-v-ad.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1777319418_obl.jpg" alt="Прямиком в ад /  / Straight to Hell" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1573-prjamikom-v-ad.html">Прямиком в ад / Straight to Hell [1-9 из 9]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/18.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1569-zagadaj-svoju-smert.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1777042387_obl.jpg" alt="Загадай свою смерть /  / If Wishes Could Kill" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1569-zagadaj-svoju-smert.html">Загадай свою смерть / If Wishes Could Kill [1-8 из 8]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1484-kak-stat-arendodatelem-v-juzhnoj-koree.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1773594856_obl.jpg" alt="Как стать арендодателем в Южной Корее /  / Mad Concrete Dreams" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1484-kak-stat-arendodatelem-v-juzhnoj-koree.html">Как стать арендодателем в Южной Корее / Mad Concrete Dreams [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1486-kulminacija.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1773703740_obl.jpg" alt="Кульминация /  / Climax" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1486-kulminacija.html">Кульминация / Climax [1-10 из 10]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/18.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1521-bozhij-agent.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1775227884_obl.jpg" alt="Божий агент /  / Agent from Above" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1521-bozhij-agent.html">Божий агент / Agent from Above [1-8 из 8]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1459-poceluj-sireny.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1772484025_obl.jpg" alt="Поцелуй сирены /  / Sirens Kiss" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1459-poceluj-sireny.html">Поцелуй сирены / Sirens Kiss [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1453-jeffektivnye-vstrechi-odinokih-muzhchin-i-zhenschin.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1772385180_obl.jpg" alt="Эффективные встречи одиноких мужчин и женщин /  / The Practical Guide To Love" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1453-jeffektivnye-vstrechi-odinokih-muzhchin-i-zhenschin.html">Эффективные встречи одиноких мужчин и женщин / The Practical Guide To Love [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1437-tvoe-luchshee-vremja.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-02/1771651124_obl.jpg" alt="Твоё лучшее время /  / In Your Radiant Season" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1437-tvoe-luchshee-vremja.html">Твоё лучшее время / In Your Radiant Season [1-12 из 12]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/18.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1522-ohotnichi-psy-2-sezon.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1775229977_obl.jpg" alt="Охотничьи псы 2 сезон /  / Bloodhounds" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1522-ohotnichi-psy-2-sezon.html">Охотничьи псы 2 сезон / Bloodhounds [1-7 из 7]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1469-sijanie.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1772830974_obl.jpg" alt="Сияние /  / Still Shining" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1469-sijanie.html">Сияние / Still Shining [1-10 из 10]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/18.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1517-grehi-kudze.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-04/1775137915_obl.jpg" alt="Грехи Кудзе /  / Sins of Kujo" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1517-grehi-kudze.html">Грехи Кудзе / Sins of Kujo [1-10 из 10]</a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a>                       / <a href="https://www.le-production.online/film/">Фильмы</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/18.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1509-krasnaja-linija.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1774947538_obl.jpg" alt="Красная линия /  / The Red Line" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1509-krasnaja-linija.html">Красная линия / The Red Line </a></h3>
+	</div>    
+</div><div class="short-item">
+    	<div class="short-info2">
+			<div class="short-cat"><a href="https://www.le-production.online/dorama/">Дорама</a></div>
+		</div>
+        <img src="/templates/LE-Production/images/16.png"  class="poster-age"/>    
+    <a class="short-img" href="https://www.le-production.online/dorama/1456-fobija-ljubvi.html" data-label="смотреть">
+        <img src="/uploads/posts/2026-03/1772472312_obl.jpg" alt="Фобия любви /  / Love Phobia" />
+	</a> 
+	<div class="short-info">
+	    <h3><a href="https://www.le-production.online/dorama/1456-fobija-ljubvi.html">Фобия любви / Love Phobia [1-8 из 8]</a></h3>
+	</div>    
+</div><div class="clr"></div>
+<div class="bottom-nav">
+	<span class="pprev"><span>Назад</span></span>
+	<span class="navigation"><span>1</span> <a href="https://www.le-production.online/dorama/page/2/">2</a> <a href="https://www.le-production.online/dorama/page/3/">3</a> <a href="https://www.le-production.online/dorama/page/4/">4</a> <a href="https://www.le-production.online/dorama/page/5/">5</a> <a href="https://www.le-production.online/dorama/page/6/">6</a> <a href="https://www.le-production.online/dorama/page/7/">7</a> <a href="https://www.le-production.online/dorama/page/8/">8</a> <a href="https://www.le-production.online/dorama/page/9/">9</a> </span>
+	<span class="pnext"><a href="https://www.le-production.online/dorama/page/2/">Дальше</a></span>
+</div></div></div>
+              
+            </div>
+			<!-- end left-wrap -->
+
+            <aside class="right-wrap">			
+
+			    <div class="side-box">
+                    <div class="cat-title">Не знаешь что посмотреть?</div>
+                    <a class="top-item clearfix" href="https://www.le-production.online/film/1154-orudija.html">
+<div class="top-img"><img src="https://le-production.online/uploads/posts/2025-09/1757485188_obl.jpg" alt="Орудия" /></div>
+<div class="top-text">
+<div class="top-title">Орудия</div>
+<div class="top-info">Фильмы</div>
+</div>
+</a><a class="top-item clearfix" href="https://www.le-production.online/anime/288-lyupen-iii-legenda-o-zolote-vavilona-film-tretiy.html">
+<div class="top-img"><img src="https://le-production.online/uploads/posts/2017-12/1512464430_jrocybbzndc.jpg" alt="Люпен III: Легенда о золоте Вавилона (фильм третий)" /></div>
+<div class="top-text">
+<div class="top-title">Люпен III: Легенда о золоте Вавилона (фильм третий)</div>
+<div class="top-info">Аниме</div>
+</div>
+</a><a class="top-item clearfix" href="https://www.le-production.online/dorama/1186-nakazanie.html">
+<div class="top-img"><img src="/uploads/posts/2025-09/1759178018_obl.jpg" alt="Наказание" /></div>
+<div class="top-text">
+<div class="top-title">Наказание</div>
+<div class="top-info">Дорама</div>
+</div>
+</a><a class="top-item clearfix" href="https://www.le-production.online/film/1540-posledstvija.html">
+<div class="top-img"><img src="/uploads/posts/2026-04/1775911024_obl.jpg" alt="Последствия" /></div>
+<div class="top-text">
+<div class="top-title">Последствия</div>
+<div class="top-info">Фильмы</div>
+</div>
+</a><a class="top-item clearfix" href="https://www.le-production.online/serial/1563-kriminalnoe-proshloe-2-sezon.html">
+<div class="top-img"><img src="/uploads/posts/2026-04/1776869271_obl.jpg" alt="Криминальное прошлое 2 сезон" /></div>
+<div class="top-text">
+<div class="top-title">Криминальное прошлое 2 сезон</div>
+<div class="top-info">Сериалы</div>
+</div>
+</a>
+                </div>              
+      
+                 <div class="side-box vote-box">
+                    <div class="cat-title">Помоги проекту</div>
+                    <p style="text-align:center; color: #f60; font-size:15px; font-weight:bold;">Поддержите наш проект :3</p>
+<br>
+<p style="text-align:center; font-size:14px; font-weight:bold;">Вебмани: </p>
+<br>
+<div style="margin-left:20px; font-size:14px;">
+<p>Z399311559839 - дол.</p>
+<p>E342402440049 - евро</p>
+<p>U324273894196 - грн.</p>
+<br>  
+<p style="text-align:center; font-size:14px; font-weight:bold;">Банковские карты: </p>
+<br>
+<p>5469300960597737 - Сбер 1</p>
+<p>5228600519828570 - Сбер 2</p>
+<p>4377723777261458 - Тинькофф</p>
+<br>
+<p style="text-align:center; font-size:14px; font-weight:bold;">Boosty: </p>
+<br>
+<p>https://boosty.to/le_production</p>
+</div>
+<br>
+<img src="/templates/LE-Production/images/help.png" height="180px" align="center" />
+
+
+                </div>
+                
+                <div class="side-box vote-box">
+                    <div class="cat-title">Голосуем</div>
+                    
+                </div>
+
+            </aside>
+			<!-- end right-wrap -->
+
+        </div>
+		<!-- end content-wrap -->
+        
+<!-- подключение правообладателей -->
+		<div class="desc-wrap">
+<div class="desc-text">
+<section class="main-desc clearfix">
+    <h1><span>Для правообладателей</span></h1> 
+<p>Ресурс LE-Production.TV является общедоступным ресурсом и осуществляет свою деятельность с соблюдением действующего законодательства РФ. 
+</p><p>Администрация ресурса не осуществляет контроль и не может отвечать за размещаемую пользователями на портале LE-Production.TV информацию. Вместе с тем, Администрация ресурса отрицательно относится к нарушению авторских прав в рамках данного ресурса. Поэтому, если Вы являетесь правообладателем исключительных имущественных прав, включая:
+<ul style="list-style-type: disc;margin:0 0 10px 40px;">
+<li>исключительное право на воспроизведение;</li>
+<li>исключительное право на распространение;</li>
+<li>исключительное право на публичный показ;</li>
+<li>исключительное право на доведение до всеобщего сведения;</li>
+</ul>    
+<p>и Ваши права тем или иным образом были нарушены с использованием данного ресурса, Мы просим незамедлительно сообщать в службу рассмотрения жалоб письмом (в электронном виде).
+</p><p>Ваше сообщение в обязательном порядке будет рассмотрено. Вам поступит сообщение о результатах проведенных действий, относительно предполагаемого нарушения исключительных прав. Жалоба будет рассмотрена в срок, не превышающий 5 (пяти) рабочих дней. Согласно действующим нормам законодательства РФ администрация готова рассмотреть спорные вопросы в рамках досудебного (претензионного или иного) порядка урегулирования.
+</p>
+<p><a href="https://le-production.tv/index.php?do=static&page=inform_rules" style="color:#f60; font-weight:bold;">Подробней об оформлении заявки в службу рассмотрения жалоб читайте тут</a></p>
+   </section>
+    </div></div>
+<!-- подключение правообладателей -->
+                <div class="actors-wrap clearfix">
+            <h2 class="cat-title actors-title">Наши Партнеры</h2>  
+			
+        </div>
+        
+
+        <div class="tr-news-wrap clearfix">
+            <div class="trailers-wrap">
+                <h2 class="cat-title">Наша группа</h2>
+<script type="text/javascript" src="//vk.com/js/api/openapi.js?116"></script>
+
+<!-- VK Widget -->
+<div id="vk_groups" ></div>
+<script type="text/javascript">
+VK.Widgets.Group("vk_groups", {mode: 0, width: "300", height: "200", color1: 'FFFFFF', color2: '7AA654', color3: '97ce68'}, 49842926);
+</script>
+            </div>
+            <a name="onas"></a>
+                <div class="desc-wrap">
+<div class="desc-text">
+<section class="main-desc2 clearfix">
+		<h1><span>LE-Production</span></h1>
+<span style="text-align:justify;"><p>LE-Production.TV довольно молодая и амбициозная команда!</p>
+    <p>Наш уютный ресурс мягко ознакомит вас с миром западной и восточной мультипликации, а так же различными сериалами и фильмами. На нашем сайте вы сможете не только скачивать и смотреть онлайн, но так же заказывать озвучку аниме, мультсериалов, тв-сериалов и фильмов абсолютно на любой вкус. 
+    </p><p>Наша команда очень серьёзно подходит к делу, а потому у нас только качественная озвучка, ответственные люди и профессиональное оборудование. Выбирая LE-Production.TV, Вы выбираете качество и приятную атмосферу.
+    <p>Заходите на LE-Production.TV. Здесь всегда рады вас видеть!</p>
+    </span>    
+</section>
+</div>
+</div>               
+			
+        </div>
+		<!-- end tr-news-wrap -->
+		
+		
+
+        <ul class="foot-menu clearfix">
+            <li><a href="#onas">О нас</a></li>
+				<li><a href="https://le-production.tv/index.php?do=static&page=nabor">Набор</a></li>
+				<li><a href="/rules">Правила</a></li>
+			    <li><a href="/anime">Аниме</a></li>
+				<li><a href="/dorama">Дорамы</a></li>
+				<li><a href="/film">Фильмы</a></li>
+                <li><a href="/serial">Сериалы</a></li>
+            	<li><a href="/fulcartoon">Мультфильмы</a></li>
+			    <li class="last"><a href="/cartoon">Мультсериалы</a></li> 
+        </ul>
+
+        <footer class="foot">
+            <p>Copyright © 2015 <a href="https://le-production.tv" style="color:#f60;">LE-Production.tv</a>  |  Все права защищены</p>
+            <p>Адаптация шаблона - <a href="#" style="color:#f60;">Alfa Design Studio</a></p>
+            <ul class="counts">
+                <li>
+                    <!-- Yandex.Metrika informer -->
+<a href="https://metrika.yandex.ru/stat/?id=48522791&amp;from=informer"
+target="_blank" rel="nofollow"><img src="https://informer.yandex.ru/informer/48522791/3_0_FFFFFFFF_FFFFFFFF_0_pageviews"
+style="width:88px; height:31px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры, визиты и уникальные посетители)" class="ym-advanced-informer" data-cid="48522791" data-lang="ru" /></a>
+<!-- /Yandex.Metrika informer -->
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript" >
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function() {
+            try {
+                w.yaCounter48522791 = new Ya.Metrika2({
+                    id:48522791,
+                    clickmap:true,
+                    trackLinks:true,
+                    accurateTrackBounce:true,
+                    webvisor:true
+                });
+            } catch(e) { }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+            s = d.createElement("script"),
+            f = function () { n.parentNode.insertBefore(s, n); };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = "https://mc.yandex.ru/metrika/tag.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else { f(); }
+    })(document, window, "yandex_metrika_callbacks2");
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/48522791" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+                </li>
+                <li>
+                    <!-- СЮДА КОД СЧЕТЧИКА -->
+                </li>
+            </ul>
+         
+        </footer>
+
+    </div>
+</div>
+<!-- end all-wrap -->
+<div class="overlay">
+
+
+<div id="loginbox" class="not-logged">
+<div class="login-title">Авторизация</div>
+<div class="login-form">
+<form method="post">
+<ul>
+	<li><label for="login_name">Логин:</label>
+	<input class="log-input" type="text" name="login_name" id="login_name" /></li>
+	<li><label for="login_password">Пароль:</label> <a href="https://www.le-production.online/index.php?do=lostpassword">Забыли пароль?</a>
+	<input class="log-input" type="password" name="login_password" id="login_password" /></li>
+</ul>
+<div class="log-check clearfix"><input type="checkbox" name="login_not_save" id="login_not_save" value="1"/>
+	<label for="login_not_save">&nbsp;Чужой компьютер</label> 
+	<button onclick="submit();" type="submit" title="Вход" class="borderbot">Войти на сайт</button>
+		<input name="login" type="hidden" id="login" value="submit" />
+</div>
+</form>
+</div>
+	<div class="sociallogin clearfix">
+	
+	
+	
+	
+	
+	
+	</div>
+	
+<a href="https://www.le-production.online/index.php?do=register" class="log-register">Регистрация</a>	
+</div>
+
+</div>
+</body>
+</html>
+<!-- DataLife Engine Copyright SoftNews Media Group (http://dle-news.ru) -->

@@ -152,7 +152,7 @@ namespace JacRed.Configuration
 
         public TrackerSettings Anifilm = new TrackerSettings("https://anifilm.pro");
 
-        public TrackerSettings Leproduction = new TrackerSettings("https://www.le-production.tv");
+        public TrackerSettings Leproduction = new TrackerSettings("https://www.le-production.online");
 
         public TrackerSettings Viruseproject = new TrackerSettings("https://viruseproject.tv");
 

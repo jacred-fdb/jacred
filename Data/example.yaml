@@ -258,7 +258,7 @@ Anifilm:
     p: ""
 
 Leproduction:
-  host: https://www.le-production.tv
+  host: https://www.le-production.online
   useproxy: false
   reqMinute: 8
   parseDelay: 7000

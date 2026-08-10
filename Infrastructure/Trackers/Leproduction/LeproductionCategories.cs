@@ -9,7 +9,7 @@ namespace JacRed.Infrastructure.Trackers.Leproduction
     }
 
     /// <summary>
-    /// Single source of truth for le-production.tv category slugs and JacRed types.
+    /// Single source of truth for le-production.online category slugs and JacRed types.
     /// Keep dry_run_leproduction_parser.py CATEGORIES in sync.
     /// </summary>
     static class LeproductionCategories
