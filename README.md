@@ -138,7 +138,7 @@ sudo -u myservice ./jacred.sh --remove
 | `listenip` | IP для прослушивания (`any` — все интерфейсы) | `any` |
 | `listenport` | Порт HTTP | `9117` |
 | `apikey` | Ключ для поиска, Torznab, `/stats/*` JSON и прочих путей вне [белого списка](#безопасность-и-доступ-к-api). Передаётся: `?apikey=...`, `X-Api-Key`, `Authorization: Bearer`. Пусто — проверка отключена | — |
-| `devkey` | Ключ для `/dev/`, `/cron/`, `/jsondb/*`, `/api/v1.0/config/*` из интернета или через туннель. **LAN-клиент** или **`devkey`** (`X-Dev-Key`, `?devkey=`). Same-host proxy **без** devkey **не открывает** admin/config | — |
+| `devkey` | Ключ для `/dev/`, `/cron/`, `/jsondb/*`, `/api/v1.0/config/*` из интернета или через туннель. **LAN-клиент** или **`devkey`** (`X-Dev-Key`, `?devkey=`). Reverse proxy (loopback или Docker + XFF) **без** devkey **не открывает** admin/config | — |
 | `mergeduplicates` | Объединять дубликаты в выдаче | `true` |
 | `mergenumduplicates` | Объединять дубликаты по номеру (серии и т.п.) | `true` |
 | `openstats` | Открыть доступ к `/stats/*` | `true` |
@@ -540,7 +540,7 @@ Anifilm, AniLibria, HDRezka.
 
 JacRed использует единый слой доступа: **`UseJacRedSecurity()`** (`SecurityHeadersMiddleware` + `JacRedAuthorizationMiddleware`). Политика определяется **только** по префиксу пути в `JacRedEndpointRegistry` — без атрибутов на контроллерах.
 
-**Сеть:** **Peer IP** — прямое TCP-подключение к Kestrel. **Client IP** из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (cloudflared/nginx на том же хосте); иначе Client IP = peer. См. `ClientNetworkContext`.
+**Сеть:** **Peer IP** — прямое TCP-подключение к Kestrel. **Client IP** из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (cloudflared/nginx на том же хосте); иначе Client IP = peer. Если peer — private (loopback **или** RFC1918, напр. Traefik/nginx/Caddy в Docker `172.x`) **и** есть proxy identity headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Forwarded`, `CF-*`, …), запрос **не** считается LAN-клиентом — нужен `devkey`. Прямой LAN/localhost **без** этих заголовков — по-прежнему без ключа. См. `ClientNetworkContext` / `JacRedAccessEvaluator`.
 
 ### Политики
 
@@ -553,7 +553,7 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 
 **Коды отказа:** `OPTIONS` → 204; ключ настроен, но не передан → **401**; иначе → **403**.
 
-> **ConfigApi = DevAdmin** по сети: same-host reverse proxy **сам по себе не заменяет** `devkey`. Нужен LAN-клиент (RFC1918 / loopback по Client IP) или заголовок/`?devkey=`.
+> **ConfigApi = DevAdmin** по сети: reverse proxy (same-host loopback **или** Docker/LAN peer с `X-Forwarded-*` / `X-Real-IP`) **сам по себе не заменяет** `devkey`. Нужен прямой LAN-клиент (RFC1918 / loopback **без** proxy identity headers) или заголовок/`?devkey=`.
 
 ### Префиксы путей → политика
 
@@ -569,8 +569,8 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 
 ### Доступ по контексту клиента
 
-| Политика | Loopback / LAN (Client IP) | Same-host proxy без devkey | Интернет / удалённый прокси |
-| -------- | -------------------------- | -------------------------- | --------------------------- |
+| Политика | Loopback / LAN без proxy headers | Reverse proxy (loopback или Docker `172.x` + XFF) без devkey | Интернет / удалённый прокси |
+| -------- | -------------------------------- | ------------------------------------------------------------ | --------------------------- |
 | Public | ✓ | ✓ | ✓ |
 | ConfigApi | ✓ | ✗ | `devkey` |
 | DevAdmin | ✓ | ✗ | `devkey` (если задан в конфиге) |
@@ -605,6 +605,7 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 | `GET /api/v2.0/indexers/.../results` | ApiKeyWhenConfigured | — |
 | `GET /torznab/api` | ApiKeyWhenConfigured | — |
 | `GET /api/v1.0/torrents` | ApiKeyWhenConfigured | — |
+| `GET /api/v1.0/trackers` | ApiKeyWhenConfigured | — |
 | `GET /stats/torrents`, `/stats/tracks`, `/stats/meta` | ApiKeyWhenConfigured | `openstats` |
 | `GET /sync/fdb/torrents` | Public | `opensync` |
 | `GET/POST /api/v1.0/config/*` | ConfigApi | — |
@@ -673,14 +674,15 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
   - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный JSON API JacRed, не Torznab и не Jackett).
-  - Параметры: `query` (поисковый запрос), `tracker` (трекер), `category` (категория), `quality` (качество).
+  - Параметры: `query` (поисковый запрос), `tracker` (трекер или список трекеров через запятую), `category` (категория), `quality` (качество).
+- **`GET /api/v1.0/trackers`** — список доступных имён трекеров (из `synctrackers`, иначе known slugs; записи из `disable_trackers` исключаются). Пустой `synctrackers: []` возвращает `[]` (скан БД не выполняется).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.
 
 ### Управление конфигурацией (Config API)
 
 REST API и страница **`/settings`** для редактирования **`init.yaml`** / **`init.conf`**.
 
-**Доступ:** политика **ConfigApi** — LAN-клиент **или** `devkey`. Same-host reverse proxy без devkey **недостаточен**. При заданном `apikey` — также ключ API для путей вне белого списка.
+**Доступ:** политика **ConfigApi** — LAN-клиент **или** `devkey`. Reverse proxy (loopback или Docker + XFF) без devkey **недостаточен**. При заданном `apikey` — также ключ API для путей вне белого списка.
 
 | Метод | Путь | Описание |
 |-------|------|----------|

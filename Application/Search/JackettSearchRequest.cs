@@ -13,5 +13,7 @@ namespace JacRed.Application.Search
         public string TitleOriginal { get; set; }
         public int Year { get; set; }
         public int IsSerial { get; set; } = -1;
+        /// <summary>Route <c>{status}</c> / indexer id from Jackett-style paths (e.g. "all", "rutracker").</summary>
+        public string IndexerPath { get; set; }
     }
 }

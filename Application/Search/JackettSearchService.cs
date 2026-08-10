@@ -37,6 +37,7 @@ namespace JacRed.Application.Search
                 return new List<Result>();
 
             var req = IndexerSearchHelper.BuildRequest(q, request.ApiKey, rqnum, query, title, title_original, year, is_serial);
+            TrackerNameMatching.ApplyIndexerPathFilter(req, request.IndexerPath);
             var results = await IndexerSearchEngine.SearchCombinedAsync(req, cache, this);
             return IndexerSearchHelper.ApplyPostFilters(results, q, req);
         }

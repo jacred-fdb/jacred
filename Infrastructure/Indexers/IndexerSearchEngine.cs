@@ -221,24 +221,8 @@ namespace JacRed.Infrastructure.Indexers
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
         }
 
-        static bool MatchesTrackerFilter(string trackerName, List<string> trackers)
-        {
-            if (trackers == null || trackers.Count == 0)
-                return true;
-            if (string.IsNullOrWhiteSpace(trackerName))
-                return false;
-
-            foreach (var part in trackerName.Split(','))
-            {
-                foreach (var allowed in trackers)
-                {
-                    if (part.Trim().Equals(allowed, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                }
-            }
-
-            return false;
-        }
+        static bool MatchesTrackerFilter(string trackerName, List<string> trackers) =>
+            TrackerNameMatching.Matches(trackerName, trackers);
 
         static async Task<(string search, string altname)> ResolveImdbSearchAsync(string search, string altname, IMemoryCache cache)
         {

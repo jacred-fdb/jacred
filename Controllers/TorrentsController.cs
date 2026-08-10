@@ -8,10 +8,19 @@ namespace JacRed.Controllers
     public class TorrentsController : BaseController
     {
         readonly ITorrentQueryService _torrentQueryService;
+        readonly ITrackerCatalogService _trackerCatalogService;
 
-        public TorrentsController(IMemoryCache memoryCache, ITorrentQueryService torrentQueryService) : base(memoryCache)
+        public TorrentsController(IMemoryCache memoryCache, ITorrentQueryService torrentQueryService, ITrackerCatalogService trackerCatalogService) : base(memoryCache)
         {
             _torrentQueryService = torrentQueryService;
+            _trackerCatalogService = trackerCatalogService;
+        }
+
+        [HttpGet]
+        [Route("/api/v1.0/trackers")]
+        public async Task<JsonResult> Trackers()
+        {
+            return Json(await _trackerCatalogService.GetTrackerNamesAsync());
         }
 
         #region Torrents

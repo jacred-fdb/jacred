@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Infrastructure.Networking;
@@ -153,7 +154,11 @@ namespace JacRed.Application.Search
             #endregion
 
             if (!string.IsNullOrWhiteSpace(tracker))
-                query = query.Where(i => i.trackerName == tracker);
+            {
+                var allowed = TrackerNameMatching.ToAllowSet(TrackerNameMatching.ParseList(tracker));
+                if (allowed.Count > 0)
+                    query = query.Where(i => TrackerNameMatching.Matches(i.trackerName, allowed));
+            }
 
             if (relased > 0)
                 query = query.Where(i => i.relased == relased);
