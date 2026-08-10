@@ -18,7 +18,7 @@
 
 **Коды отказа:** OPTIONS → 204; ключ задан, но не передан → 401; иначе → 403.
 
-**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`). Private peer (loopback или RFC1918, напр. Traefik в Docker) **плюс** proxy identity headers **не** считается LAN — нужен `devkey` (см. `JacRedAccessEvaluator.IsTrustedLanClient`).
+**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`). Private peer (loopback или RFC1918, напр. Traefik/nginx/Caddy в Docker) **плюс** proxy identity headers (`X-Forwarded-*`, `X-Real-IP`, `Forwarded`, `CF-*`) **не** считается LAN — нужен `devkey`. Прямой LAN без этих заголовков — без ключа (см. `JacRedAccessEvaluator.IsTrustedLanClient`).
 
 ---
 

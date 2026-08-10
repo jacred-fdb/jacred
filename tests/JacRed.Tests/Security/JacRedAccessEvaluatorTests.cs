@@ -194,6 +194,57 @@ public class JacRedAccessEvaluatorTests
         });
     }
 
+    [Fact]
+    public void Docker_proxy_peer_with_X_Forwarded_Host_requires_devkey()
+    {
+        WithDevKey(null, () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(
+                peerIp: IPAddress.Parse("172.18.0.2"),
+                headers: ("X-Forwarded-Host", "jacred.example.com"));
+
+            var result = evaluator.EvaluatePath(ConfigPath, ctx);
+
+            Assert.False(result.IsAllowed);
+            Assert.Equal(403, result.DenyStatusCode);
+        });
+    }
+
+    [Fact]
+    public void Docker_proxy_peer_with_Forwarded_header_requires_devkey()
+    {
+        WithDevKey(null, () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(
+                peerIp: IPAddress.Parse("172.18.0.2"),
+                headers: ("Forwarded", "for=203.0.113.50;proto=https"));
+
+            var result = evaluator.EvaluatePath(ConfigPath, ctx);
+
+            Assert.False(result.IsAllowed);
+            Assert.Equal(403, result.DenyStatusCode);
+        });
+    }
+
+    [Fact]
+    public void Docker_proxy_peer_with_X_Forwarded_Proto_requires_devkey()
+    {
+        WithDevKey(null, () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(
+                peerIp: IPAddress.Parse("172.18.0.2"),
+                headers: ("X-Forwarded-Proto", "http"));
+
+            var result = evaluator.EvaluatePath(ConfigPath, ctx);
+
+            Assert.False(result.IsAllowed);
+            Assert.Equal(403, result.DenyStatusCode);
+        });
+    }
+
     static JacRedAccessEvaluator CreateEvaluator()
         => new(new JacRedApiKeyValidator(), new JacRedDevKeyValidator());
 
