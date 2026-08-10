@@ -131,6 +131,69 @@ public class JacRedAccessEvaluatorTests
         });
     }
 
+    [Fact]
+    public void Docker_proxy_peer_with_XFF_requires_devkey()
+    {
+        WithDevKey(null, () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(
+                peerIp: IPAddress.Parse("172.18.0.2"),
+                headers: ("X-Forwarded-For", "203.0.113.50"));
+
+            var result = evaluator.EvaluatePath(ConfigPath, ctx);
+
+            Assert.False(result.IsAllowed);
+            Assert.Equal(403, result.DenyStatusCode);
+        });
+    }
+
+    [Fact]
+    public void Docker_proxy_peer_with_X_Real_IP_requires_devkey()
+    {
+        WithDevKey(null, () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(
+                peerIp: IPAddress.Parse("172.18.0.2"),
+                headers: ("X-Real-IP", "203.0.113.50"));
+
+            var result = evaluator.EvaluatePath(ConfigPath, ctx);
+
+            Assert.False(result.IsAllowed);
+            Assert.Equal(403, result.DenyStatusCode);
+        });
+    }
+
+    [Fact]
+    public void Docker_proxy_peer_with_XFF_and_valid_devkey_allows()
+    {
+        WithDevKey("secret-dev-key", () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(
+                peerIp: IPAddress.Parse("172.18.0.2"),
+                ("X-Forwarded-For", "203.0.113.50"),
+                ("X-Dev-Key", "secret-dev-key"));
+
+            Assert.True(evaluator.EvaluatePath(ConfigPath, ctx).IsAllowed);
+            Assert.True(evaluator.EvaluatePath(DevPath, ctx).IsAllowed);
+        });
+    }
+
+    [Fact]
+    public void Docker_bridge_peer_without_proxy_headers_is_allowed()
+    {
+        WithDevKey(null, () =>
+        {
+            var evaluator = CreateEvaluator();
+            var ctx = CreateContext(peerIp: IPAddress.Parse("172.18.0.2"));
+
+            Assert.True(evaluator.EvaluatePath(ConfigPath, ctx).IsAllowed);
+            Assert.True(evaluator.EvaluatePath(DevPath, ctx).IsAllowed);
+        });
+    }
+
     static JacRedAccessEvaluator CreateEvaluator()
         => new(new JacRedApiKeyValidator(), new JacRedDevKeyValidator());
 

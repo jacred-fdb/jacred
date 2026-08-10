@@ -12,13 +12,13 @@
 | Политика | Правило middleware | Ключи |
 |----------|-------------------|-------|
 | **Public** | Всегда разрешено | — |
-| **ConfigApi** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
-| **DevAdmin** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
+| **ConfigApi** | LAN-клиент **или** валидный devkey (одного reverse proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
+| **DevAdmin** | LAN-клиент **или** валидный devkey (одного reverse proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
 | **ApiKeyWhenConfigured** | Если `apikey` в конфиге не задан — открыто; иначе нужен валидный ключ | `?apikey=`, `X-Api-Key`, `Bearer` |
 
 **Коды отказа:** OPTIONS → 204; ключ задан, но не передан → 401; иначе → 403.
 
-**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`).
+**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`). Private peer (loopback или RFC1918, напр. Traefik в Docker) **плюс** proxy identity headers **не** считается LAN — нужен `devkey` (см. `JacRedAccessEvaluator.IsTrustedLanClient`).
 
 ---
 
@@ -104,8 +104,8 @@
 
 ## Доступ по контексту клиента
 
-| Политика | Loopback / LAN | Same-host proxy (без devkey) | Удалённый / туннель |
-|----------|----------------|------------------------------|---------------------|
+| Политика | Loopback / LAN без proxy headers | Reverse proxy (loopback или Docker + XFF) без devkey | Удалённый / туннель |
+|----------|----------------------------------|------------------------------------------------------|---------------------|
 | Public | ✓ | ✓ | ✓ |
 | ConfigApi | ✓ | ✗ | нужен devkey |
 | DevAdmin | ✓ | ✗ | нужен devkey (если задан в конфиге) |
