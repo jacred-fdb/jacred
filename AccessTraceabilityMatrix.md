@@ -87,6 +87,7 @@
 | Маршрут | Контроллер | Вторичная проверка |
 |---------|------------|-------------------|
 | `GET /api/v1.0/torrents` | TorrentsController | — |
+| `GET /api/v1.0/trackers` | TorrentsController | — |
 | `GET /api/v1.0/qualitys` | TorrentsController | — |
 | `GET /api/v2.0/indexers/{status}/results` | JackettController | — |
 | `GET /torznab/api` | TorznabController | — |

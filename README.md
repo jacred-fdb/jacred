@@ -605,6 +605,7 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 | `GET /api/v2.0/indexers/.../results` | ApiKeyWhenConfigured | — |
 | `GET /torznab/api` | ApiKeyWhenConfigured | — |
 | `GET /api/v1.0/torrents` | ApiKeyWhenConfigured | — |
+| `GET /api/v1.0/trackers` | ApiKeyWhenConfigured | — |
 | `GET /stats/torrents`, `/stats/tracks`, `/stats/meta` | ApiKeyWhenConfigured | `openstats` |
 | `GET /sync/fdb/torrents` | Public | `opensync` |
 | `GET/POST /api/v1.0/config/*` | ConfigApi | — |
@@ -673,6 +674,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный JSON API JacRed, не Torznab и не Jackett).
   - Параметры: `query` (поисковый запрос), `tracker` (трекер или список трекеров через запятую), `category` (категория), `quality` (качество).
+- **`GET /api/v1.0/trackers`** — список доступных имён трекеров (из `synctrackers`, иначе known slugs; записи из `disable_trackers` исключаются). Пустой `synctrackers: []` возвращает `[]` (скан БД не выполняется).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.
 
 ### Управление конфигурацией (Config API)

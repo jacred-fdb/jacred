@@ -135,11 +135,17 @@ paths:
     get:
       tags: [Search]
       summary: Jackett-compatible search
+      description: |
+        Lampa and other Jackett JSON clients. Path `{status}` is normally `all` (aggregate).
+        When `{status}` is a tracker id from `GET /api/v1.0/trackers` (for example `rutracker`),
+        results are filtered to that tracker (case-insensitive; matches any part of a merged trackerName).
       operationId: jackettSearch
       parameters:
         - name: status
           in: path
           required: true
+          description: |
+            `all` for aggregate search, or a tracker id (e.g. `kinozal`, `rutracker`) to scope results.
           schema:
             type: string
             example: all
@@ -180,12 +186,14 @@ paths:
             type: array
             items:
               type: string
-          description: Jackett-style filter by internal tracker id (e.g. kinozal, rutracker)
+          description: |
+            Jackett-style filter by internal tracker id (e.g. kinozal, rutracker).
+            Case-insensitive; matches any comma-separated part of stored trackerName.
         - name: tracker
           in: query
           schema:
             type: string
-          description: Single-tracker alias for Tracker[]
+          description: Single-tracker or comma-separated alias for Tracker[]
       responses:
         '200':
           description: Search results
@@ -228,7 +236,9 @@ paths:
             type: string
             enum: [sid, pir, size, create, update]
         - name: tracker
-          description: Tracker name filter; accepts a comma-separated list (for example, kinozal,rutracker)
+          description: |
+            Tracker name filter; accepts a comma-separated list (for example, `kinozal,rutracker`).
+            Case-insensitive; matches any comma-separated part of stored trackerName (merged duplicates).
           in: query
           schema:
             type: string
@@ -268,18 +278,23 @@ paths:
     get:
       tags: [Search]
       summary: List available tracker names
+      description: |
+        Returns tracker ids for discovery and filters.
+        Source: `synctrackers` when set (including empty `[]` → empty list); otherwise known built-in slugs.
+        Entries in `disable_trackers` are excluded. Sorted case-insensitively.
       operationId: trackerNames
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
       responses:
         '200':
-          description: Available tracker names
+          description: Available tracker names (e.g. rutracker, kinozal)
           content:
             application/json:
               schema:
                 type: array
                 items:
                   type: string
+                example: [kinozal, rutracker, rutor]
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -332,7 +347,9 @@ paths:
     get:
       tags: [Torznab]
       summary: Torznab API (caps, search)
-      description: Native Torznab XML when torznab.enable is true.
+      description: |
+        Native Torznab XML when `torznab.enable` is true.
+        `t=indexers` returns aggregate `all` plus one indexer entry per `GET /api/v1.0/trackers` name.
       operationId: torznabRoot
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
@@ -349,6 +366,11 @@ paths:
           in: query
           schema:
             type: string
+        - name: Tracker
+          in: query
+          schema:
+            type: string
+          description: Optional tracker filter (comma-separated); same semantics as Jackett Tracker[]
       responses:
         '200':
           description: Torznab XML
@@ -363,11 +385,17 @@ paths:
     get:
       tags: [Torznab]
       summary: Torznab API (indexer path)
+      description: |
+        Jackett-compatible Torznab alias. Path `{indexer}` is normally `all`.
+        When `{indexer}` is a tracker id (not `all`), search results are filtered to that tracker.
+        `t=indexers` lists `all` plus per-tracker indexers from the tracker catalog.
       operationId: torznabIndexer
       parameters:
         - name: indexer
           in: path
           required: true
+          description: |
+            `all` for aggregate search, or a tracker id (e.g. `rutracker`) to scope results.
           schema:
             type: string
             example: all
@@ -376,6 +404,16 @@ paths:
           in: query
           schema:
             type: string
+            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: Tracker
+          in: query
+          schema:
+            type: string
+          description: Optional tracker filter (comma-separated); combined with path `{indexer}` when not `all`
       responses:
         '200':
           description: Torznab XML
@@ -387,19 +425,23 @@ paths:
   /api/v2.0/indexers:
     get:
       tags: [Torznab]
-      summary: List configured indexers (Jackett/Prowlarr)
+      summary: List configured indexers (Jackett)
+      description: |
+        Jackett-style indexer discovery. Always includes aggregate `id=all`, then one entry per
+        `GET /api/v1.0/trackers` name (same set as Torznab `t=indexers`).
+        Prowlarr clients should use `/api/v1/indexer` (single aggregate `id=1`).
       operationId: indexersList
       parameters:
         - $ref: '#/components/parameters/ApiKeyQuery'
       responses:
         '200':
-          description: Indexer list
+          description: Indexer list (`all` + per-tracker)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
+                  $ref: '#/components/schemas/JackettIndexer'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -462,11 +504,13 @@ paths:
       description: |
         Prowlarr-compatible Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`).
         Same handler as `/torznab/api` and Jackett alias paths.
+        Path `{indexer}` is typically numeric (`1` = aggregate JacRed); numeric ids do not apply a tracker filter.
       operationId: prowlarrNewznab
       parameters:
         - name: indexer
           in: path
           required: true
+          description: Prowlarr indexer id (use `1` for JacRed aggregate)
           schema:
             type: string
             example: "1"
@@ -1104,6 +1148,32 @@ components:
           type: string
           enum: [unknown, usenet, torrent]
           example: torrent
+
+    JackettIndexer:
+      type: object
+      description: |
+        Jackett-style indexer discovery item from `GET /api/v2.0/indexers`.
+        `id=all` is the aggregate; other ids are tracker slugs from the tracker catalog.
+      properties:
+        id:
+          type: string
+          description: "'all' or a tracker id (e.g. rutracker)"
+          example: all
+        name:
+          type: string
+          example: JacRed (all trackers)
+        description:
+          type: string
+        type:
+          type: string
+          example: public
+        configured:
+          type: boolean
+        link:
+          type: string
+          format: uri
+          example: https://github.com/jacred-fdb/jacred
+      required: [id, name, configured]
 
     ProwlarrIndexerDetail:
       type: object

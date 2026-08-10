@@ -82,7 +82,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Jackett-compatible search */
+        /**
+         * Jackett-compatible search
+         * @description Lampa and other Jackett JSON clients. Path `{status}` is normally `all` (aggregate).
+         *     When `{status}` is a tracker id from `GET /api/v1.0/trackers` (for example `rutracker`),
+         *     results are filtered to that tracker (case-insensitive; matches any part of a merged trackerName).
+         */
         get: operations["jackettSearch"];
         put?: never;
         post?: never;
@@ -116,7 +121,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List available tracker names */
+        /**
+         * List available tracker names
+         * @description Returns tracker ids for discovery and filters.
+         *     Source: `synctrackers` when set (including empty `[]` → empty list); otherwise known built-in slugs.
+         *     Entries in `disable_trackers` are excluded. Sorted case-insensitively.
+         */
         get: operations["trackerNames"];
         put?: never;
         post?: never;
@@ -152,7 +162,8 @@ export interface paths {
         };
         /**
          * Torznab API (caps, search)
-         * @description Native Torznab XML when torznab.enable is true.
+         * @description Native Torznab XML when `torznab.enable` is true.
+         *     `t=indexers` returns aggregate `all` plus one indexer entry per `GET /api/v1.0/trackers` name.
          */
         get: operations["torznabRoot"];
         put?: never;
@@ -170,7 +181,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Torznab API (indexer path) */
+        /**
+         * Torznab API (indexer path)
+         * @description Jackett-compatible Torznab alias. Path `{indexer}` is normally `all`.
+         *     When `{indexer}` is a tracker id (not `all`), search results are filtered to that tracker.
+         *     `t=indexers` lists `all` plus per-tracker indexers from the tracker catalog.
+         */
         get: operations["torznabIndexer"];
         put?: never;
         post?: never;
@@ -187,7 +203,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List configured indexers (Jackett/Prowlarr) */
+        /**
+         * List configured indexers (Jackett)
+         * @description Jackett-style indexer discovery. Always includes aggregate `id=all`, then one entry per
+         *     `GET /api/v1.0/trackers` name (same set as Torznab `t=indexers`).
+         *     Prowlarr clients should use `/api/v1/indexer` (single aggregate `id=1`).
+         */
         get: operations["indexersList"];
         put?: never;
         post?: never;
@@ -250,6 +271,7 @@ export interface paths {
          * Prowlarr Torznab proxy
          * @description Prowlarr-compatible Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`).
          *     Same handler as `/torznab/api` and Jackett alias paths.
+         *     Path `{indexer}` is typically numeric (`1` = aggregate JacRed); numeric ids do not apply a tracker filter.
          */
         get: operations["prowlarrNewznab"];
         put?: never;
@@ -686,6 +708,28 @@ export interface components {
              */
             protocol?: "unknown" | "usenet" | "torrent";
         };
+        /**
+         * @description Jackett-style indexer discovery item from `GET /api/v2.0/indexers`.
+         *     `id=all` is the aggregate; other ids are tracker slugs from the tracker catalog.
+         */
+        JackettIndexer: {
+            /**
+             * @description 'all' or a tracker id (e.g. rutracker)
+             * @example all
+             */
+            id: string;
+            /** @example JacRed (all trackers) */
+            name: string;
+            description?: string;
+            /** @example public */
+            type?: string;
+            configured: boolean;
+            /**
+             * Format: uri
+             * @example https://github.com/jacred-fdb/jacred
+             */
+            link?: string;
+        };
         /** @description Prowlarr /api/v1/indexer/{id} detail response */
         ProwlarrIndexerDetail: {
             /** @example 1 */
@@ -1065,13 +1109,17 @@ export interface operations {
                 is_serial?: number;
                 /** @description Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime) */
                 "Category[]"?: string[];
-                /** @description Jackett-style filter by internal tracker id (e.g. kinozal, rutracker) */
+                /**
+                 * @description Jackett-style filter by internal tracker id (e.g. kinozal, rutracker).
+                 *     Case-insensitive; matches any comma-separated part of stored trackerName.
+                 */
                 "Tracker[]"?: string[];
-                /** @description Single-tracker alias for Tracker[] */
+                /** @description Single-tracker or comma-separated alias for Tracker[] */
                 tracker?: string;
             };
             header?: never;
             path: {
+                /** @description `all` for aggregate search, or a tracker id (e.g. `kinozal`, `rutracker`) to scope results. */
                 status: string;
             };
             cookie?: never;
@@ -1101,7 +1149,10 @@ export interface operations {
                 exact?: boolean;
                 type?: string;
                 sort?: "sid" | "pir" | "size" | "create" | "update";
-                /** @description Tracker name filter; accepts a comma-separated list (for example, kinozal,rutracker) */
+                /**
+                 * @description Tracker name filter; accepts a comma-separated list (for example, `kinozal,rutracker`).
+                 *     Case-insensitive; matches any comma-separated part of stored trackerName (merged duplicates).
+                 */
                 tracker?: string;
                 voice?: string;
                 videotype?: string;
@@ -1139,7 +1190,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Available tracker names */
+            /** @description Available tracker names (e.g. rutracker, kinozal) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1195,6 +1246,8 @@ export interface operations {
                 t?: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
                 q?: string;
                 cat?: string;
+                /** @description Optional tracker filter (comma-separated); same semantics as Jackett Tracker[] */
+                Tracker?: string;
             };
             header?: never;
             path?: never;
@@ -1225,10 +1278,14 @@ export interface operations {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                t?: string;
+                t?: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
+                q?: string;
+                /** @description Optional tracker filter (comma-separated); combined with path `{indexer}` when not `all` */
+                Tracker?: string;
             };
             header?: never;
             path: {
+                /** @description `all` for aggregate search, or a tracker id (e.g. `rutracker`) to scope results. */
                 indexer: string;
             };
             cookie?: never;
@@ -1258,13 +1315,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Indexer list */
+            /** @description Indexer list (`all` + per-tracker) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": components["schemas"]["JackettIndexer"][];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1345,6 +1402,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Prowlarr indexer id (use `1` for JacRed aggregate) */
                 indexer: string;
             };
             cookie?: never;

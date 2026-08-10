@@ -53,20 +53,8 @@ namespace JacRed.Infrastructure.Indexers
             if (trackers == null || trackers.Count == 0)
                 return items;
 
-            var allowed = new HashSet<string>(trackers, StringComparer.OrdinalIgnoreCase);
-            return items.Where(t =>
-            {
-                if (string.IsNullOrWhiteSpace(t.Tracker))
-                    return false;
-
-                foreach (var part in t.Tracker.Split(','))
-                {
-                    if (allowed.Contains(part.Trim()))
-                        return true;
-                }
-
-                return false;
-            }).ToList();
+            var allowed = TrackerNameMatching.ToAllowSet(trackers);
+            return items.Where(t => TrackerNameMatching.Matches(t.Tracker, allowed)).ToList();
         }
 
         public static List<Result> Paginate(List<Result> items, int? limit, int? offset)

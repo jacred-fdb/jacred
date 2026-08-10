@@ -18,7 +18,7 @@ namespace JacRed.Controllers
 
         #region Jackett
         [Route("/api/v2.0/indexers/{status}/results")]
-        async public Task<ActionResult> Jackett(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial = -1)
+        async public Task<ActionResult> Jackett(string status, string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial = -1)
         {
             var request = new JackettSearchRequest
             {
@@ -30,7 +30,8 @@ namespace JacRed.Controllers
                 Title = title,
                 TitleOriginal = title_original,
                 Year = year,
-                IsSerial = is_serial
+                IsSerial = is_serial,
+                IndexerPath = status
             };
 
             var results = await _searchService.SearchAsync(request, memoryCache);

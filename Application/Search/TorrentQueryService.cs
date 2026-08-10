@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Infrastructure.Networking;
@@ -154,14 +155,9 @@ namespace JacRed.Application.Search
 
             if (!string.IsNullOrWhiteSpace(tracker))
             {
-                var trackers = tracker
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(i => i.Trim())
-                    .Where(i => !string.IsNullOrWhiteSpace(i))
-                    .ToHashSet(StringComparer.Ordinal);
-
-                if (trackers.Count > 0)
-                    query = query.Where(i => trackers.Contains(i.trackerName));
+                var allowed = TrackerNameMatching.ToAllowSet(TrackerNameMatching.ParseList(tracker));
+                if (allowed.Count > 0)
+                    query = query.Where(i => TrackerNameMatching.Matches(i.trackerName, allowed));
             }
 
             if (relased > 0)
