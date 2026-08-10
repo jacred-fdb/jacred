@@ -12,7 +12,7 @@ namespace JacRed.Infrastructure.Persistence
         #region Cron
         static bool TryEvictCacheEntry(string key)
         {
-            if (!openWriteTask.TryGetValue(key, out WriteTaskModel wtm) || wtm.openconnection > 0)
+            if (!openWriteTask.TryGetValue(key, out WriteTaskModel wtm) || Volatile.Read(ref wtm.openconnection) > 0)
                 return false;
 
             if (!openWriteTask.TryRemove(key, out wtm))
@@ -20,6 +20,24 @@ namespace JacRed.Infrastructure.Persistence
 
             try { wtm.db.SaveChangesIfNeeded(); } catch { }
             return true;
+        }
+
+        static void WarnStuckOpenConnections()
+        {
+            try
+            {
+                var stuck = openWriteTask.ToArray()
+                    .Where(i => Volatile.Read(ref i.Value.openconnection) > 0
+                                && DateTime.Now > i.Value.create.AddMinutes(30))
+                    .Take(5)
+                    .ToArray();
+                foreach (var item in stuck)
+                {
+                    JacRedLog.Warning(JacRedLogCategories.Fdb,
+                        $"stuck openconnection={Volatile.Read(ref item.Value.openconnection)} key={item.Key} ageMin={(DateTime.Now - item.Value.create).TotalMinutes:F0}");
+                }
+            }
+            catch { }
         }
 
         async public static Task Cron(CancellationToken cancellationToken = default)
@@ -33,6 +51,8 @@ namespace JacRed.Infrastructure.Persistence
 
                 try
                 {
+                    WarnStuckOpenConnections();
+
                     int evicted = openWriteTask.ToArray()
                         .Where(i => DateTime.UtcNow > i.Value.lastread.AddHours(AppInit.conf.evercache.validHour))
                         .Count(i => TryEvictCacheEntry(i.Key));

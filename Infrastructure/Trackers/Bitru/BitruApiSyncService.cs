@@ -24,6 +24,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
         static readonly string ApiUrl;
         static readonly string HostUrl;
         static readonly string LastNewTorPath = "Data/temp/bitru_lastnewtor.txt";
+        static readonly string BackfillCursorPath = "Data/temp/bitru_backfill_cursor.txt";
         const string LegacyLastNewTorPath = "Data/temp/bitruapi_lastnewtor.txt";
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
@@ -54,6 +55,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             }
         }
 
+        /// <summary>Newest page only — used by regular cron.</summary>
         public async Task<string> ParseAsync(int limit = 100, CancellationToken cancellationToken = default)
         {
             return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
@@ -63,13 +65,20 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 try
                 {
                     var sw = Stopwatch.StartNew();
-                    ParserLog.Write(TrackerName, $"Parse start, limit={limit}, api={ApiUrl}");
+                    int lim = BitruApiPagination.ClampLimit(limit);
+                    ParserLog.Write(TrackerName, $"Parse start, limit={lim}, maxPages=1, api={ApiUrl}");
 
-                    var torrents = await FetchTorrentsFromApi(limit: Math.Min(100, limit), afterDateUnix: null, cancellationToken);
-                    if (torrents != null && torrents.Count > 0)
+                    var fetch = await FetchTorrentsFromApi(
+                        limit: lim,
+                        olderThanUnix: null,
+                        maxPages: 1,
+                        persistBackfillCursor: false,
+                        cancellationToken);
+
+                    if (fetch.Torrents.Count > 0)
                     {
-                        await SaveTorrentsAndMagnets(torrents, cancellationToken);
-                        log = $"saved {torrents.Count}";
+                        await SaveTorrentsAndMagnets(fetch.Torrents, cancellationToken);
+                        log = $"saved {fetch.Torrents.Count}";
                     }
                     else
                         log = "no items";
@@ -83,16 +92,18 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 }
 
                 return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+            }, cancellationToken);
         }
 
-        public async Task<string> ParseFromDateAsync(string lastnewtor, int limit = 100, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Walk older archive pages. Live API: after_date means older-than (docs label is inverted).
+        /// Progress is stored in Data/temp/bitru_backfill_cursor.txt as unix seconds.
+        /// </summary>
+        public async Task<string> BackfillAsync(int pages = 20, int limit = 100, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(lastnewtor))
-                return "bad lastnewtor (use dd.MM.yyyy)";
-
-            if (!DateTime.TryParseExact(lastnewtor.Trim(), "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fromDate))
-                return "bad date format (use dd.MM.yyyy)";
+            int maxPages = BitruApiPagination.ClampPages(pages);
+            int lim = BitruApiPagination.ClampLimit(limit);
+            long? startCursor = ReadBackfillCursor();
 
             return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
@@ -101,18 +112,76 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 try
                 {
                     var sw = Stopwatch.StartNew();
-                    long unixFrom = BitruApiParser.UnixFromDate(fromDate);
+                    ParserLog.Write(TrackerName,
+                        $"Backfill start, pages={maxPages}, limit={lim}, cursor={(startCursor.HasValue ? startCursor.Value.ToString(CultureInfo.InvariantCulture) : "none")}, api={ApiUrl}");
 
-                    ParserLog.Write(TrackerName, $"ParseFromDate lastnewtor={lastnewtor} (unix={unixFrom}), limit={limit}");
+                    var fetch = await FetchTorrentsFromApi(
+                        limit: lim,
+                        olderThanUnix: startCursor,
+                        maxPages: maxPages,
+                        persistBackfillCursor: true,
+                        cancellationToken);
 
-                    var torrents = await FetchTorrentsFromApi(limit: Math.Min(100, limit), afterDateUnix: unixFrom, cancellationToken);
-                    if (torrents != null && torrents.Count > 0)
+                    if (fetch.Torrents.Count > 0)
                     {
-                        await SaveTorrentsAndMagnets(torrents, cancellationToken);
-                        log = $"saved {torrents.Count}";
+                        await SaveTorrentsAndMagnets(fetch.Torrents, cancellationToken);
+                        log = $"saved {fetch.Torrents.Count}, pages={fetch.PagesFetched}, cursor={fetch.LastCursor?.ToString(CultureInfo.InvariantCulture) ?? "none"}";
                     }
                     else
-                        log = "no items";
+                        log = $"no items, pages={fetch.PagesFetched}, cursor={fetch.LastCursor?.ToString(CultureInfo.InvariantCulture) ?? startCursor?.ToString(CultureInfo.InvariantCulture) ?? "none"}";
+
+                    ParserLog.Write(TrackerName, $"Backfill completed in {sw.Elapsed.TotalSeconds:F1}s, {log}");
+                }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                    log = $"error: {ex.Message}";
+                }
+
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Fetch torrents older than the given calendar day (live after_date = older-than).
+        /// Writes backfill cursor so Backfill can continue.
+        /// </summary>
+        public async Task<string> ParseFromDateAsync(string lastnewtor, int limit = 100, int pages = 20, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(lastnewtor))
+                return "bad lastnewtor (use dd.MM.yyyy)";
+
+            if (!DateTime.TryParseExact(lastnewtor.Trim(), "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fromDate))
+                return "bad date format (use dd.MM.yyyy)";
+
+            int maxPages = BitruApiPagination.ClampPages(pages);
+            int lim = BitruApiPagination.ClampLimit(limit);
+            long unixFrom = BitruApiParser.UnixFromDate(fromDate);
+
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
+            {
+                string log = "";
+
+                try
+                {
+                    var sw = Stopwatch.StartNew();
+                    ParserLog.Write(TrackerName,
+                        $"ParseFromDate lastnewtor={lastnewtor} (olderThan unix={unixFrom}), pages={maxPages}, limit={lim}");
+
+                    var fetch = await FetchTorrentsFromApi(
+                        limit: lim,
+                        olderThanUnix: unixFrom,
+                        maxPages: maxPages,
+                        persistBackfillCursor: true,
+                        cancellationToken);
+
+                    if (fetch.Torrents.Count > 0)
+                    {
+                        await SaveTorrentsAndMagnets(fetch.Torrents, cancellationToken);
+                        log = $"saved {fetch.Torrents.Count}, pages={fetch.PagesFetched}, cursor={fetch.LastCursor?.ToString(CultureInfo.InvariantCulture) ?? "none"}";
+                    }
+                    else
+                        log = $"no items, pages={fetch.PagesFetched}";
 
                     ParserLog.Write(TrackerName, $"ParseFromDate completed in {sw.Elapsed.TotalSeconds:F1}s, {log}");
                 }
@@ -123,7 +192,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                 }
 
                 return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+            }, cancellationToken);
         }
 
         async Task<BitruApiResponse> ApiRequestAsync(object jsonParams, CancellationToken cancellationToken)
@@ -138,18 +207,23 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             return JsonConvert.DeserializeObject<BitruApiResponse>(response);
         }
 
-        async Task<List<TorrentDetails>> FetchTorrentsFromApi(int limit, long? afterDateUnix, CancellationToken cancellationToken)
+        async Task<FetchResult> FetchTorrentsFromApi(
+            int limit,
+            long? olderThanUnix,
+            int maxPages,
+            bool persistBackfillCursor,
+            CancellationToken cancellationToken)
         {
             var all = new List<TorrentDetails>();
-            var currentParams = new Dictionary<string, object>
-            {
-                { "limit", limit },
-                { "category", BitruCategories.RequestCategories }
-            };
-            if (afterDateUnix.HasValue)
-                currentParams["after_date"] = afterDateUnix.Value.ToString();
+            int pagesFetched = 0;
+            long? lastCursor = olderThanUnix;
+            long? requestCursor = olderThanUnix;
+            HashSet<long> previousIds = null;
 
-            for (int page = 0; page < 50; page++)
+            maxPages = BitruApiPagination.ClampPages(maxPages);
+            var currentParams = BitruApiPagination.BuildRequestParams(limit, requestCursor);
+
+            for (int page = 0; page < maxPages; page++)
             {
                 await Task.Delay(ApiDelayMs, cancellationToken);
 
@@ -161,35 +235,69 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                     break;
                 }
 
-                all.AddRange(BitruApiParser.ParseTorrentsFromResponse(resp, HostUrl));
-
                 if (resp.Result.Items.Count == 0)
                     break;
 
-                object nextDate = resp.Result.BeforeDate;
-                if (nextDate == null)
-                    break;
+                var pageTorrents = BitruApiParser.ParseTorrentsFromResponse(resp, HostUrl);
+                var pageIds = BitruApiPagination.CollectTorrentIds(pageTorrents.Select(t => t.url));
 
-                long beforeUnix = 0;
-                if (nextDate is long l)
-                    beforeUnix = l;
-                else if (nextDate is int i)
-                    beforeUnix = i;
-                else if (nextDate is string s && long.TryParse(s, out long parsed))
-                    beforeUnix = parsed;
-
-                if (beforeUnix == 0)
-                    break;
-
-                currentParams = new Dictionary<string, object>
+                if (BitruApiPagination.IsDuplicatePage(previousIds, pageIds))
                 {
-                    { "limit", limit },
-                    { "category", BitruCategories.RequestCategories },
-                    { "before_date", beforeUnix.ToString() }
-                };
+                    ParserLog.Write(TrackerName, $"Stop: page {page + 1} fully overlaps previous page");
+                    break;
+                }
+
+                all.AddRange(pageTorrents);
+                pagesFetched++;
+                previousIds = pageIds;
+
+                if (!BitruApiPagination.TryGetNextOlderPageCursor(resp.Result, requestCursor, out long nextCursor))
+                    break;
+
+                lastCursor = nextCursor;
+                if (persistBackfillCursor)
+                    WriteBackfillCursor(nextCursor);
+
+                if (page + 1 >= maxPages)
+                    break;
+
+                requestCursor = nextCursor;
+                currentParams = BitruApiPagination.BuildRequestParams(limit, nextCursor);
             }
 
-            return all;
+            return new FetchResult(all, lastCursor, pagesFetched);
+        }
+
+        long? ReadBackfillCursor()
+        {
+            try
+            {
+                if (!IO.File.Exists(BackfillCursorPath))
+                    return null;
+                string text = IO.File.ReadAllText(BackfillCursorPath).Trim();
+                if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long unix) && unix > 0)
+                    return unix;
+            }
+            catch (Exception ex)
+            {
+                ParserLog.Write(TrackerName, $"Read backfill cursor failed: {ex.Message}");
+            }
+            return null;
+        }
+
+        void WriteBackfillCursor(long unix)
+        {
+            try
+            {
+                string dir = IO.Path.GetDirectoryName(BackfillCursorPath);
+                if (!string.IsNullOrEmpty(dir))
+                    IO.Directory.CreateDirectory(dir);
+                IO.File.WriteAllText(BackfillCursorPath, unix.ToString(CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex)
+            {
+                ParserLog.Write(TrackerName, $"Write backfill cursor failed: {ex.Message}");
+            }
         }
 
         async Task SaveTorrentsAndMagnets(List<TorrentDetails> torrents, CancellationToken cancellationToken)
@@ -229,6 +337,20 @@ namespace JacRed.Infrastructure.Trackers.Bitru
                     IO.File.WriteAllText(LastNewTorPath, lastTor.createTime.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture));
             }
             catch { }
+        }
+
+        readonly struct FetchResult
+        {
+            public FetchResult(List<TorrentDetails> torrents, long? lastCursor, int pagesFetched)
+            {
+                Torrents = torrents ?? new List<TorrentDetails>();
+                LastCursor = lastCursor;
+                PagesFetched = pagesFetched;
+            }
+
+            public List<TorrentDetails> Torrents { get; }
+            public long? LastCursor { get; }
+            public int PagesFetched { get; }
         }
     }
 }

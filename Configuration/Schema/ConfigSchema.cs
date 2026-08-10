@@ -125,6 +125,17 @@ namespace JacRed.Configuration.Schema
                         Field("proxy.list", "stringList", "Proxy list", "ip:port или socks5://…"),
                         Field("globalproxy", "json", "Global proxy", "JSON-массив ProxySettings")
                     }),
+                    Group("flaresolverr", "FlareSolverr", "Cloudflare bypass через безголовый браузер (Rutracker)", new[]
+                    {
+                        Field("flaresolverr.enable", "bool", "Включить", "Ходить на CF-хосты через браузер"),
+                        Field("flaresolverr.url", "string", "URL", "http://127.0.0.1:8191/v1 или http://flaresolverr:8191/v1"),
+                        Field("flaresolverr.maxTimeoutMs", "int", "Таймаут (мс)", "Первая страница / challenge+retry (~5 мин)", min: 1000),
+                        Field("flaresolverr.sessionIdleMinutes", "int", "Idle сессии (мин)", "Закрыть Chromium после простоя (дефолт 120; keep-alive cron чаще)", min: 0),
+                        Field("flaresolverr.browserTimeoutRetries", "int", "Retry на timeout", "Same-session retry до recycle (дефолт 1)", min: 0),
+                        Field("flaresolverr.recycleAfterTimeouts", "int", "Recycle после N timeout", "Destroy сессии после N подряд browser timeout (дефолт 3)", min: 1),
+                        Field("flaresolverr.guardedHours", "int", "Guarded hours", "Сколько помнить CF на хосте", min: 1),
+                        Field("flaresolverr.recheckMinutes", "int", "Recheck (мин)", "Как часто пробовать обычный GET", min: 1)
+                    }),
                     TrackerGroups()
                 }
             };
@@ -143,6 +154,7 @@ namespace JacRed.Configuration.Schema
                     Field("alias", "string", "Alias URL", "Onion/worker URL"),
                     Field("useproxy", "bool", "Use proxy", null),
                     Field("reqMinute", "int", "Запросов/мин", "-1 — отключить", min: -1),
+                    Field("topicFetchAttempts", "int", "Попыток topic GET", "Rutracker: ретраи magnet/details за прогон (дефолт 5)", min: 1),
                     Field("log", "bool", "Лог парсера", "Data/log/{tracker}.log, default: true"),
                     Field("cookie", "password", "Cookie", "Статический cookie", sensitive: true),
                     Field("login.u", "password", "Login", null, sensitive: true),

@@ -27,9 +27,14 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
             return ParseDelayCycleMs[Math.Abs(i % ParseDelayCycleMs.Length)];
         }
 
-        public static async Task<string> GetMegapeerBrowsePage(string url, string cat)
+        public static async Task<string> GetMegapeerBrowsePage(string url, string cat, CancellationToken cancellationToken = default)
         {
-            await _browseLock.WaitAsync();
+            // Browse holds the lock through multi-minute delay cycles — skip if busy.
+            if (!await _browseLock.WaitAsync(0, cancellationToken))
+            {
+                ParserLog.Write("megapeer", "GetMegapeerBrowsePage skipped: browse already in progress");
+                return null;
+            }
             try
             {
                 var headers = new List<(string name, string val)>()
@@ -46,10 +51,11 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                 const int maxRetries = 3;
                 for (int attempt = 1; attempt <= maxRetries; attempt++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     int delayMs = GetNextParseDelayMs();
-                    await Task.Delay(delayMs);
+                    await Task.Delay(delayMs, cancellationToken);
 
-                    var (content, response) = await HttpClient.BaseGetAsync(url, encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: headers);
+                    var (content, response) = await HttpClient.BaseGetAsync(url, encoding: Encoding.GetEncoding(1251), useproxy: AppInit.conf.Megapeer.useproxy, addHeaders: headers, cancellationToken: cancellationToken);
 
                     if (!string.IsNullOrEmpty(content) && content.Contains(BrowsePageValidMarker))
                         return content;
@@ -57,7 +63,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     var status = response?.StatusCode;
                     if (attempt < maxRetries)
                     {
-                        ParserLog.Write("megapeer", $"Rate limit or invalid page (status={(int)(status ?? 0)}), retry {attempt}/{maxRetries} after next cycle delay (15/30/45s)");
+                        ParserLog.Write("megapeer", $"Rate limit or invalid page (status={(int)(status ?? 0)}), retry {attempt}/{maxRetries} after next cycle delay (30/60/90s)");
                         continue;
                     }
                     return null;
@@ -70,9 +76,9 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
             }
         }
 
-        public static async Task<bool> ParsePageAsync(string cat, int page)
+        public static async Task<bool> ParsePageAsync(string cat, int page, CancellationToken cancellationToken = default)
         {
-            string html = await GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}&page={page}", cat);
+            string html = await GetMegapeerBrowsePage($"{AppInit.conf.Megapeer.rqHost()}/browse.php?cat={cat}&page={page}", cat, cancellationToken);
 
             if (html == null || !html.Contains(BrowsePageValidMarker))
                 return false;

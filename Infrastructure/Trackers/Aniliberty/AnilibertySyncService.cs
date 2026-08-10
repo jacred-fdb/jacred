@@ -109,7 +109,7 @@ namespace JacRed.Infrastructure.Trackers.Aniliberty
                 }
 
                 return "ok";
-            });
+            }, cancellationToken);
         }
 
         async Task<(int parsed, int added, int updated, int skipped, int failed, int lastPage)> ParsePageAsync(int page, CancellationToken cancellationToken)

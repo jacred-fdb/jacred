@@ -12,13 +12,13 @@
 | Политика | Правило middleware | Ключи |
 |----------|-------------------|-------|
 | **Public** | Всегда разрешено | — |
-| **ConfigApi** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
-| **DevAdmin** | LAN-клиент **или** валидный devkey (одного same-host proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
+| **ConfigApi** | LAN-клиент **или** валидный devkey (одного reverse proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
+| **DevAdmin** | LAN-клиент **или** валидный devkey (одного reverse proxy **недостаточно**) | `X-Dev-Key`, `?devkey=` |
 | **ApiKeyWhenConfigured** | Если `apikey` в конфиге не задан — открыто; иначе нужен валидный ключ | `?apikey=`, `X-Api-Key`, `Bearer` |
 
 **Коды отказа:** OPTIONS → 204; ключ задан, но не передан → 401; иначе → 403.
 
-**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`).
+**Сетевой контекст:** Peer IP — прямое TCP-подключение к Kestrel. Client IP из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (same-host proxy); иначе Client IP = peer (см. `ClientNetworkContext`). Private peer (loopback или RFC1918, напр. Traefik/nginx/Caddy в Docker) **плюс** proxy identity headers (`X-Forwarded-*`, `X-Real-IP`, `Forwarded`, `CF-*`) **не** считается LAN — нужен `devkey`. Прямой LAN без этих заголовков — без ключа (см. `JacRedAccessEvaluator.IsTrustedLanClient`).
 
 ---
 
@@ -31,7 +31,7 @@
 | `/jsondb`, `/jsondb/` | DevAdmin | Администрирование FileDB |
 | `/api/v1.0/config` | ConfigApi | API настроек (секреты в ответе) |
 | `/`, `/stats`, `/settings` | Public | Vue SPA shell (`index.html`) |
-| `/health`, `/version`, `/lastupdatedb` | Public | Health-пробы |
+| `/health`, `/health/background-jobs`, `/version`, `/lastupdatedb` | Public | Health-пробы + in-process cron job status |
 | `/api/v1.0/conf` | Public | Проверка apikey (Jackett) |
 | `/sync/` | Public | Middleware пропускает; `opensync` в SyncController |
 | `/swagger`, `/openapi.yaml` | Public | Документация API |
@@ -52,6 +52,7 @@
 | `GET /settings` | HomeController | SPA route → `index.html` |
 | `GET /opensearch.xml` | HomeController | — |
 | `GET /health` | HealthController | — |
+| `GET /health/background-jobs` | HealthController | In-process ParseAll/UpdateTasks |
 | `GET /version` | HealthController | — |
 | `GET /lastupdatedb` | HealthController | — |
 | `GET /api/v1.0/conf` | HealthController | Подсказка о валидности apikey |
@@ -79,6 +80,7 @@
 | `/dev/*` | DevMaintenanceController, DevDiagnosticsController, DevMigrationController, DevTracksController |
 | `/jsondb/*` | DbController |
 | `/cron/{tracker}/*` | Controllers/Cron/* (17 трекеров) |
+| `/cron/maintenance/Check`, `/Status` | Controllers/Cron/MaintenanceController (FDB integrity) |
 
 ### ApiKeyWhenConfigured
 
@@ -102,8 +104,8 @@
 
 ## Доступ по контексту клиента
 
-| Политика | Loopback / LAN | Same-host proxy (без devkey) | Удалённый / туннель |
-|----------|----------------|------------------------------|---------------------|
+| Политика | Loopback / LAN без proxy headers | Reverse proxy (loopback или Docker + XFF) без devkey | Удалённый / туннель |
+|----------|----------------------------------|------------------------------------------------------|---------------------|
 | Public | ✓ | ✓ | ✓ |
 | ConfigApi | ✓ | ✗ | нужен devkey |
 | DevAdmin | ✓ | ✗ | нужен devkey (если задан в конфиге) |

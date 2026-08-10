@@ -68,15 +68,17 @@ namespace JacRed.Infrastructure.Security
         }
 
         /// <summary>
-        /// LAN / direct localhost. Same-host reverse proxy (cloudflared on 127.0.0.1) alone is not enough.
+        /// LAN / direct localhost. Reverse proxy (loopback or Docker/LAN peer) alone is not enough.
         /// </summary>
         static bool IsTrustedLanClient(IClientNetworkContext network, HttpContext httpContext)
         {
             if (!network.IsDirectLocalClient)
                 return false;
 
-            // cloudflared/nginx on loopback: peer is 127.0.0.1; without real client IP the request looks local.
-            if (network.IsSameHostReverseProxy && ClientNetworkContext.HasProxyClientIdentityHeaders(httpContext))
+            // Reverse proxy on loopback OR Docker/LAN (e.g. Traefik peer 172.x): ClientIp stays the
+            // proxy private IP and looks like LAN. Proxy identity headers mean the real client is
+            // behind the proxy — require DEV key. Do not trust header values for granting LAN access.
+            if (network.IsViaLocalPeer && ClientNetworkContext.HasProxyClientIdentityHeaders(httpContext))
                 return false;
 
             return true;

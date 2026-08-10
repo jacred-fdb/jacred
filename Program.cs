@@ -1,6 +1,7 @@
 using JacRed.Application.Dev;
 using JacRed.Application.Dev.Migrations;
 using JacRed.Application.Index;
+using JacRed.Application.Maintenance;
 using JacRed.Application.Search;
 using JacRed.Configuration;
 using JacRed.Controllers;
@@ -33,6 +34,9 @@ namespace JacRed
     {
         public static void Main(string[] args)
         {
+            if (args.Length > 0 && string.Equals(args[0], "maintain", StringComparison.OrdinalIgnoreCase))
+                Environment.Exit(MaintainCli.Run(args));
+
             Console.WriteLine("═══════════════════════════════════════════════════════════");
             Console.WriteLine("  JacRed - Torrent Aggregator & File Database");
             Console.WriteLine("═══════════════════════════════════════════════════════════");
@@ -118,7 +122,9 @@ namespace JacRed
             builder.Services.AddScoped<FixAnilibertyUrlsMigration>();
             builder.Services.AddScoped<RemoveDuplicateAnilibertyMigration>();
             builder.Services.AddScoped<FixAnimelayerDuplicatesMigration>();
+            builder.Services.AddScoped<FixKinozalDomainDuplicatesMigration>();
             builder.Services.AddScoped<ITracksAdminService, TracksAdminService>();
+            builder.Services.AddSingleton<IFdbMaintenanceService, FdbMaintenanceService>();
 
             builder.Services.AddHostedService<FastDbRefreshWorker>();
             builder.Services.AddHostedService<SyncWorker>();
@@ -138,6 +144,9 @@ namespace JacRed
             }
 
             var app = builder.Build();
+
+            TrackerSyncHelpers.ConfigureApplicationStopping(
+                app.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 
             JacRedLog.Configure(app.Services.GetRequiredService<ILoggerFactory>());
             JacRedLogSettings.Apply(AppInit.conf);

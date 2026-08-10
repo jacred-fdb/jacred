@@ -134,24 +134,43 @@ def main(argv: Optional[List[str]] = None) -> int:
             out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"         wrote {out.relative_to(REPO_ROOT)}")
 
-            # optional page2 via before_date
+            # optional page2: live older pagination uses after_date=result.before_date
+            # (official docs invert after/before labels; before_date here would return duplicates)
             before = (data.get("result") or {}).get("before_date")
             if before and label == "movie+serial":
                 time.sleep(0.3)
                 try:
+                    page1_ids = {
+                        int(((w.get("item") or {}).get("torrent") or {}).get("id"))
+                        for w in ((data.get("result") or {}).get("items") or [])
+                        if ((w.get("item") or {}).get("torrent") or {}).get("id") is not None
+                    }
                     page2 = api_post(
                         host,
                         {
                             "limit": min(20, limit),
                             "category": ["movie", "serial"],
-                            "before_date": str(before),
+                            "after_date": str(before),
                         },
                     )
                     r2, o2, _, e2 = score_response(page2)
                     if not e2 and r2 > 0:
-                        out2 = fixture_dir / "api_movie_serial_page2.json"
-                        out2.write_text(json.dumps(page2, ensure_ascii=False, indent=2), encoding="utf-8")
-                        print(f"         wrote {out2.relative_to(REPO_ROOT)} (page2 rows={r2} ok={o2})")
+                        page2_ids = {
+                            int(((w.get("item") or {}).get("torrent") or {}).get("id"))
+                            for w in ((page2.get("result") or {}).get("items") or [])
+                            if ((w.get("item") or {}).get("torrent") or {}).get("id") is not None
+                        }
+                        overlap = len(page1_ids & page2_ids)
+                        print(
+                            f"         page2 overlap with page1: {overlap} "
+                            f"(expect 0; page1={len(page1_ids)} page2={len(page2_ids)})"
+                        )
+                        if overlap == len(page2_ids) and page2_ids:
+                            print("         page2 skipped: full subset of page1 (bad cursor)")
+                        else:
+                            out2 = fixture_dir / "api_movie_serial_page2.json"
+                            out2.write_text(json.dumps(page2, ensure_ascii=False, indent=2), encoding="utf-8")
+                            print(f"         wrote {out2.relative_to(REPO_ROOT)} (page2 rows={r2} ok={o2})")
                 except Exception as ex:
                     print(f"         page2 skipped: {ex}")
 

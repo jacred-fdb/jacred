@@ -2,6 +2,15 @@ listenip: any
 listenport: 9117
 apikey: ""
 devkey: ""
+flaresolverr:
+  enable: true
+  url: http://127.0.0.1:8191/v1
+  maxTimeoutMs: 300000
+  sessionIdleMinutes: 120
+  browserTimeoutRetries: 1
+  recycleAfterTimeouts: 3
+  guardedHours: 6
+  recheckMinutes: 30
 mergeduplicates: true
 mergenumduplicates: true
 openstats: true

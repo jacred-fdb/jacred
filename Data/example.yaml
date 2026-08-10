@@ -6,6 +6,22 @@ listenip: any
 listenport: 9117
 apikey: "" # Ключ авторизации API (пусто — без проверки)
 devkey: "" # Ключ для доступа к /dev/, /cron/, /jsondb за туннелем/прокси (пусто — только локальная сеть)
+
+# Cloudflare bypass via FlareSolverr (required for Rutracker when no Worker alias).
+# Local debug: 127.0.0.1; in docker-compose use http://flaresolverr:8191/v1
+# VPS/datacenter: CF often times out without residential/ISP egress —
+# set PROXY_URL / PROXY_USERNAME / PROXY_PASSWORD on the FlareSolverr container
+# (not in this block). network_mode: host does not change public IP.
+flaresolverr:
+  enable: true
+  url: http://127.0.0.1:8191/v1
+  maxTimeoutMs: 300000
+  sessionIdleMinutes: 120
+  browserTimeoutRetries: 1
+  recycleAfterTimeouts: 3
+  guardedHours: 6
+  recheckMinutes: 30
+
 mergeduplicates: true
 mergenumduplicates: true # Объединять дубликаты по номеру (серии и т.п.)
 openstats: true
@@ -133,7 +149,10 @@ NNMClub:
   parseDelay: 7000
   log: true
 
-# BitRu official API (cron: /cron/bitru/parse).
+# BitRu official API.
+# cron parse (newest page): /cron/bitru/parse
+# cron backfill (older archive, persisted cursor): /cron/bitru/backfill?pages=20 (max 50)
+# Live after_date = older-than (official BitRu docs invert the label).
 Bitru:
   host: https://bitru.org
   alias: ""
@@ -162,10 +181,11 @@ Mazepa:
 
 Rutracker:
   host: https://rutracker.org
-  alias: ""
+  alias: "" # optional Worker/onion when flaresolverr.enable=false; FDB urls stay on host
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
+  topicFetchAttempts: 5
   log: true
 
 Selezen:

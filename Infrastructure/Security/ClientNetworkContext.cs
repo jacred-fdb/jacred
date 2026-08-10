@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using System;
 using System.Net;
 using System.Net.Sockets;
 
@@ -82,8 +81,9 @@ namespace JacRed.Infrastructure.Security
                 return true;
             if (headers.ContainsKey("X-Forwarded-For") || headers.ContainsKey("X-Real-IP"))
                 return true;
-            if (headers.TryGetValue("X-Forwarded-Proto", out var proto)
-                && !string.Equals(proto.ToString(), "http", StringComparison.OrdinalIgnoreCase))
+            // Traefik/nginx/Caddy often set these even when client IP headers vary.
+            if (headers.ContainsKey("X-Forwarded-Host") || headers.ContainsKey("X-Forwarded-Proto")
+                || headers.ContainsKey("Forwarded"))
                 return true;
             return false;
         }

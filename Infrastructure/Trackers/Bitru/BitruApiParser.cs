@@ -133,7 +133,7 @@ namespace JacRed.Infrastructure.Trackers.Bitru
             };
         }
 
-        /// <summary>Unix timestamp for ParseFromDate after_date filter (start of calendar day, UTC offset 0).</summary>
+        /// <summary>Unix timestamp for ParseFromDate older-than filter (start of calendar day, UTC). Live after_date = older-than.</summary>
         public static long UnixFromDate(DateTime fromDate)
         {
             return new DateTimeOffset(fromDate.Year, fromDate.Month, fromDate.Day, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();

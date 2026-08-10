@@ -138,7 +138,7 @@ sudo -u myservice ./jacred.sh --remove
 | `listenip` | IP для прослушивания (`any` — все интерфейсы) | `any` |
 | `listenport` | Порт HTTP | `9117` |
 | `apikey` | Ключ для поиска, Torznab, `/stats/*` JSON и прочих путей вне [белого списка](#безопасность-и-доступ-к-api). Передаётся: `?apikey=...`, `X-Api-Key`, `Authorization: Bearer`. Пусто — проверка отключена | — |
-| `devkey` | Ключ для `/dev/`, `/cron/`, `/jsondb/*`, `/api/v1.0/config/*` из интернета или через туннель. **LAN-клиент** или **`devkey`** (`X-Dev-Key`, `?devkey=`). Same-host proxy **без** devkey **не открывает** admin/config | — |
+| `devkey` | Ключ для `/dev/`, `/cron/`, `/jsondb/*`, `/api/v1.0/config/*` из интернета или через туннель. **LAN-клиент** или **`devkey`** (`X-Dev-Key`, `?devkey=`). Reverse proxy (loopback или Docker + XFF) **без** devkey **не открывает** admin/config | — |
 | `mergeduplicates` | Объединять дубликаты в выдаче | `true` |
 | `mergenumduplicates` | Объединять дубликаты по номеру (серии и т.п.) | `true` |
 | `openstats` | Открыть доступ к `/stats/*` | `true` |
@@ -513,13 +513,14 @@ Anifilm, AniLibria, HDRezka.
 1. Настроить **`init.yaml`** или **`init.conf`** (примеры в **`Data/example.yaml`**, **`Data/example.conf`**).
    - Убедитесь, что для нужных трекеров указаны правильные `host`, `login` (если требуется) или `cookie`.
    - Настройте прокси, если требуется доступ к .onion доменам.
+   - **Rutracker / Cloudflare:** блок **`flaresolverr`** + на VPS egress через **WARP SOCKS** (`PROXY_URL` у контейнера FlareSolverr, volume для `/var/lib/cloudflare-warp`). Cookie `cf_clearance` живёт в persistent-сессии FlareSolverr — держите `sessionIdleMinutes` и keep-alive Warmup. `network_mode: host` сам IP не меняет. Альтернатива без FlareSolverr — Worker **`Rutracker.alias`**. Подробности: [`Infrastructure/Trackers/Rutracker/README.md`](Infrastructure/Trackers/Rutracker/README.md).
 
 2. Выберите режим работы:
-   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`**. Активируйте: `crontab /opt/jacred/Data/crontab`
+   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`** (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`). Активируйте: `crontab /opt/jacred/Data/crontab`
    - **Синхронизация:** Укажите **`syncapi`** в конфиге, чтобы подтягивать базу с удалённого сервера. Включите `opensync: true` для участия в синхронизации.
    - **Docker:** в образе нет cron — расписание выносится на хост, отдельный контейнер или оркестратор; см. раздел **«Docker → Самостоятельный парсинг и расписание (cron) в Docker»**.
 
-3. **Важно:** В crontab по умолчанию используется порт **9117** — при смене порта измените URL в crontab. Если в конфиге задан **`apikey`** / **`devkey`**, добавьте их в `curl` к **`/cron/*`** и **`/jsondb/save`** (см. [Безопасность](#безопасность-и-доступ-к-api)).
+3. **Важно:** В crontab по умолчанию используется порт **9117** — при смене порта измените URL в строках **`Data/crontab`**. Если в конфиге задан **`apikey`** / **`devkey`**, добавьте их в URL (`?apikey=...` / `?devkey=...`) в каждой строке crontab (см. [Безопасность](#безопасность-и-доступ-к-api)). Задания вызывают [`Data/run-job.sh`](Data/run-job.sh) (`flock` + `curl --max-time`).
 
 4. Мониторинг парсинга:
    - Логи парсеров: `Data/log/{tracker}.log` (по умолчанию `logParsers: true`, per-tracker `log: true`)
@@ -539,7 +540,7 @@ Anifilm, AniLibria, HDRezka.
 
 JacRed использует единый слой доступа: **`UseJacRedSecurity()`** (`SecurityHeadersMiddleware` + `JacRedAuthorizationMiddleware`). Политика определяется **только** по префиксу пути в `JacRedEndpointRegistry` — без атрибутов на контроллерах.
 
-**Сеть:** **Peer IP** — прямое TCP-подключение к Kestrel. **Client IP** из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (cloudflared/nginx на том же хосте); иначе Client IP = peer. См. `ClientNetworkContext`.
+**Сеть:** **Peer IP** — прямое TCP-подключение к Kestrel. **Client IP** из `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` учитывается **только** если peer — loopback (cloudflared/nginx на том же хосте); иначе Client IP = peer. Если peer — private (loopback **или** RFC1918, напр. Traefik/nginx/Caddy в Docker `172.x`) **и** есть proxy identity headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Forwarded`, `CF-*`, …), запрос **не** считается LAN-клиентом — нужен `devkey`. Прямой LAN/localhost **без** этих заголовков — по-прежнему без ключа. См. `ClientNetworkContext` / `JacRedAccessEvaluator`.
 
 ### Политики
 
@@ -552,7 +553,7 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 
 **Коды отказа:** `OPTIONS` → 204; ключ настроен, но не передан → **401**; иначе → **403**.
 
-> **ConfigApi = DevAdmin** по сети: same-host reverse proxy **сам по себе не заменяет** `devkey`. Нужен LAN-клиент (RFC1918 / loopback по Client IP) или заголовок/`?devkey=`.
+> **ConfigApi = DevAdmin** по сети: reverse proxy (same-host loopback **или** Docker/LAN peer с `X-Forwarded-*` / `X-Real-IP`) **сам по себе не заменяет** `devkey`. Нужен прямой LAN-клиент (RFC1918 / loopback **без** proxy identity headers) или заголовок/`?devkey=`.
 
 ### Префиксы путей → политика
 
@@ -568,8 +569,8 @@ JacRed использует единый слой доступа: **`UseJacRedSe
 
 ### Доступ по контексту клиента
 
-| Политика | Loopback / LAN (Client IP) | Same-host proxy без devkey | Интернет / удалённый прокси |
-| -------- | -------------------------- | -------------------------- | --------------------------- |
+| Политика | Loopback / LAN без proxy headers | Reverse proxy (loopback или Docker `172.x` + XFF) без devkey | Интернет / удалённый прокси |
+| -------- | -------------------------------- | ------------------------------------------------------------ | --------------------------- |
 | Public | ✓ | ✓ | ✓ |
 | ConfigApi | ✓ | ✗ | `devkey` |
 | DevAdmin | ✓ | ✗ | `devkey` (если задан в конфиге) |
@@ -678,7 +679,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 
 REST API и страница **`/settings`** для редактирования **`init.yaml`** / **`init.conf`**.
 
-**Доступ:** политика **ConfigApi** — LAN-клиент **или** `devkey`. Same-host reverse proxy без devkey **недостаточен**. При заданном `apikey` — также ключ API для путей вне белого списка.
+**Доступ:** политика **ConfigApi** — LAN-клиент **или** `devkey`. Reverse proxy (loopback или Docker + XFF) без devkey **недостаточен**. При заданном `apikey` — также ключ API для путей вне белого списка.
 
 | Метод | Путь | Описание |
 |-------|------|----------|
@@ -721,6 +722,7 @@ REST API и страница **`/settings`** для редактирования
 | **`/dev/MigrateAnilibertyUrls`** | Мигрирует торренты Aniliberty на URL с хешем из magnet (`?hash=...`). |
 | **`/dev/RemoveDuplicateAniliberty`** | Удаляет дубликаты Aniliberty по хешу magnet, оставляет запись с последним `updateTime`. |
 | **`/dev/FixAnimelayerDuplicates`** | Устраняет дубликаты Animelayer: нормализует HTTP→HTTPS, удаляет HTTP-дубликаты. |
+| **`/dev/FixKinozalDomainDuplicates`** | Схлопывает дубли Kinozal после смены домена (`.tv`→`.guru`): группирует по `details.php?id=`, оставляет канонический хост из `Kinozal.host`, переписывает одиночные старые URL. Возвращает `{ ok, scanned, rewritten, merged, removed, canonicalHost }`. |
 | **`/dev/TracksStats`** | Статистика ffprobe/tracks (кэш `Data/temp/tracks-stats.json`, обновляется вместе с `stats.json` по `timeStatsUpdate`). Параметры: `?includeTorrentDb=true`, `?refresh=true` — принудительный пересчёт (игнорирует отложенный сбор при пустом index). |
 | **`/dev/ExportTracks`** | Экспорт ffprobe в JSON для lampa-tracks/R2. Параметры: `?dir=Data/tracks-export`, `?dryRun=true`, `?includeTorrentDb=true`, `?background=true`. Формат: `{aa}/{b}/{hash}.json`, тело `{ "streams": [ ... ] }`. |
 | **`/dev/ExportTracksStatus`** | Статус фонового экспорта (см. `ExportTracks` с `background=true`). |
@@ -767,7 +769,73 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 - **`GET /cron/{tracker}/parseMagnet`** — парсинг магнет-ссылок (для поддерживающих трекеров).
 - Дополнительные параметры: `parseFrom`, `parseTo`, `parseFromDate` (зависит от трекера).
 
-**Доступ:** политика **DevAdmin** (`/cron/*`). Подробные таблицы LAN / tunnel / ключи — в разделе **[Безопасность и доступ к API](#безопасность-и-доступ-к-api)**.
+#### Knaben
+
+- **`GET /cron/knaben/parse`** — свежие раздачи (по умолчанию `from=0`, `size=300`, `pages=1`, `orderBy=date`, `orderDirection=desc`, все TV+Movies категории). Параметры: `from`, `size` (≤300), `pages` (≤10), `query`, `hours`, `orderBy` (`date`|`seeders`|`peers`), `orderDirection` (`desc`|`asc`), `categories` (через запятую). Окно Knaben API: `from + size ≤ 10000`.
+- **`GET /cron/knaben/backfill`** — заполнение архива по листовым подкатегориям `2001000`–`2008000` и `3001000`–`3008000`: сначала `asc` (старые), при достижении 10 000 — встречный `desc` (новые). Состояние: **`Data/temp/knaben_backfill.json`**. Параметры: `pages` (≤10), `size` (≤300), `reset=true` — начать заново. Категории ≤10 000 — `complete` за один проход; ≤20 000 — за два; больше 20 000 — `partial` (середина недоступна из‑за лимита API).
+- **`GET /cron/knaben/backfillStatus`** — краткий статус checkpoint без запуска.
+
+Пример crontab (см. также [`Data/crontab`](Data/crontab)):
+
+```text
+*/20 * * * * curl -s "http://127.0.0.1:9117/cron/knaben/parse"
+0 * * * * curl -s "http://127.0.0.1:9117/cron/knaben/backfill?pages=10"
+```
+
+Ручной старт архива с `asc`:
+
+```text
+curl -s "http://127.0.0.1:9117/cron/knaben/parse?from=0&size=300&pages=10&orderBy=date&orderDirection=asc&categories=2001000"
+```
+
+### Обслуживание FDB (`/cron/maintenance` и CLI `maintain`)
+
+Единый проход по FileDB (ключи бакетов + shard-файлы) на битые/устаревшие/несогласованные данные.
+
+**Online (HTTP):** фоновый job (как `ParseAllTask`): `Check` сразу возвращает `ok` / `work`, результат — в `Status` и `Data/temp/maintenance-last.json`. Лимит wall-clock онлайн-джоба — 6 часов.
+
+| Эндпоинт | Описание |
+| --------- | --------- |
+| **`/cron/maintenance/Check`** | Старт проверки. Параметры: `?mode=report\|safe\|full` (по умолчанию `report`), `?sampleSize=20`, `?excludeNumericXx=true`. |
+| **`/cron/maintenance/Status`** | Текущий прогресс и последний отчёт. |
+
+**Offline CLI** (без Kestrel/workers, без лимита 6ч): из каталога установки (рядом с `Data/`):
+
+```bash
+cd /opt/jacred
+# Перед safe/full остановите сервис JacRed вручную (один процесс на Data/).
+./JacRed maintain --mode=report
+./JacRed maintain --mode=safe
+./JacRed maintain --mode=full --sample-size=50
+
+# Фон (stdout → лог):
+nohup ./JacRed maintain --mode=report > Data/temp/maintain.log 2>&1 &
+tail -f Data/temp/maintain.log
+# Итог также в Data/temp/maintenance-last.json
+```
+
+По умолчанию `--mode=report` (только чтение). Ctrl+C отменяет проход. Прогресс пишется в stdout.
+
+**Режимы `mode`:**
+
+| Mode | Поведение |
+| ---- | --------- |
+| `report` | Только чтение: null Value, пустые name/originalname/trackerName/`_sn`/`_so`, ключи `X:X`, несовпадение ключа бакета, dict-key ≠ `url`, отсутствующие/пустые shard, orphan-файлы под `Data/fdb`, пустые magnet/types. |
+| `safe` | Отчёт + удаление null, заполнение `_sn`/`_so` (с миграцией бакета при необходимости), удаление пустых бакетов, пересборка fastdb. |
+| `full` | `safe` + миграция неверных бакетов, синхронизация dict-key с `url`, удаление masterDb-ключей без файла на диске, удаление orphan shard-файлов, удаление записей с пустыми magnet **и** types. |
+
+Трекер-специфичные миграции (Knaben, Bitru, Aniliberty, Animelayer) остаются на `/dev/*`.
+
+Примеры HTTP:
+
+```bash
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Check'
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Check?mode=safe'
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Check?mode=full&sampleSize=50'
+curl -s 'http://127.0.0.1:9117/cron/maintenance/Status'
+```
+
+**Доступ (HTTP):** политика **DevAdmin** (`/cron/*`). Подробные таблицы LAN / tunnel / ключи — в разделе **[Безопасность и доступ к API](#безопасность-и-доступ-к-api)**.
 
 HTTP-вызовы `/cron/*` логируются с префиксом `cron:` (уровень зависит от `logging.cronSkipFastMs`).
 
@@ -899,13 +967,13 @@ volumes:
   - ./data:/app/Data
 ```
 
-Готовые примеры: **`docker/docker-compose.yml`** (bind mounts), **`docker-compose.example.yml`** (named volumes).
+Готовый пример: **`docker-compose.example.yml`** (JacRed + FlareSolverr, named volumes).
 
 **Полезно:**
 
-- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` или каталоге `./config` (при bind mount). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера.
-- **Порты:** веб-интерфейс и API доступны на порту **9117** (при необходимости измените маппинг `ports` и `listenport` в конфиге).
-- **Память:** при большой базе или активном парсинге увеличьте лимит `memory` в `deploy.resources.limits` (рекомендуется минимум 2GB).
+- **Конфиг:** после первого запуска настройте **`init.yaml`** или **`init.conf`** в томе `jacred-config` или каталоге `./config` (при bind mount). Конфиг автоматически копируется из `/app/config/` в `/app/` при старте контейнера. Для Rutracker в compose задайте `flaresolverr.url: http://flaresolverr:8191/v1`.
+- **Порты:** веб-интерфейс и API доступны на порту **9117** (при необходимости измените маппинг `ports` и `listenport` в конфиге). Порт FlareSolverr **8191** в примере не публикуется наружу — только внутренняя сеть Compose.
+- **Память:** JacRed + FlareSolverr (~1 GiB) — ориентир **≥4 GiB** на сервис JacRed в примере compose; при большой базе увеличьте лимит.
 - **Тома:**
   - `jacred-config` — хранит конфигурацию (`init.yaml` или `init.conf`)
   - `jacred-data` — хранит базу данных (`fdb/`), логи (`log/`), временные файлы (`temp/`) и треки (`tracks/`)
@@ -919,15 +987,16 @@ volumes:
 
 **Типовые варианты:**
 
-1. **Cron на хосте** (чаще всего) — в crontab пользователя на машине, где крутится Docker, вызывать `curl` на опубликованный порт (например `http://127.0.0.1:9117/...`). Запрос с хоста в контейнер обычно приходит с адреса из **приватной подсети** (в т.ч. шлюз Docker `172.x`), что удовлетворяет проверке «локальная/приватная сеть» в приложении.
+1. **Cron на хосте** (чаще всего) — установить crontab из **`Data/crontab`** (вызовы [`Data/run-job.sh`](Data/run-job.sh)) или вручную дергать `curl` на опубликованный порт (например `http://127.0.0.1:9117/...`). Запрос с хоста в контейнер обычно приходит с адреса из **приватной подсети** (в т.ч. шлюз Docker `172.x`), что удовлетворяет проверке «локальная/приватная сеть» в приложении.
 2. **Отдельный контейнер с cron** — маленький образ (например `curl` + `cron`), в том же Docker Compose, который по расписанию дергает сервис JacRed по **внутреннему** имени и порту (например `http://jacred:9117/...`). Убедитесь, что с точки зрения JacRed IP источника остаётся в приватном диапазоне (типично так и есть в user-defined bridge-сети).
 3. **Kubernetes CronJob**, **systemd timer** на хосте — по сути то же, что п.1: периодический HTTP-запрос к JacRed.
 
-**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
+**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh`, `cloudflare-warmup` перед `rutracker-parse`, и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
 
-- замените хост/порт на ваши (`127.0.0.1:9117` или имя сервиса в Compose);
-- если в **`init.yaml` / `init.conf`** задан **`apikey`** — добавьте в каждый `curl` ключ (`-H "X-Api-Key: ..."` или `?apikey=...`), иначе запросы к `/cron/*` и `/jsondb/save` получат **401**;
-- если задан **`devkey`** и запрос считается «локальным» — добавьте `-H "X-Dev-Key: ..."` или `?devkey=...`.
+- при использовании `run-job.sh` убедитесь, что скрипт доступен по пути из crontab (в релизе — `/opt/jacred/Data/run-job.sh`); либо замените строки на прямой `curl`;
+- замените хост/порт в URL на ваши (`127.0.0.1:9117` или имя сервиса в Compose);
+- если в **`init.yaml` / `init.conf`** задан **`apikey`** — добавьте в каждый URL `?apikey=...` (или в `curl` `-H "X-Api-Key: ..."`), иначе запросы к `/cron/*` и `/jsondb/save` получат **401**;
+- если задан **`devkey`** и запрос считается «локальным» — добавьте `?devkey=...` или `-H "X-Dev-Key: ..."`.
 
 Подробнее про ключи для `/cron/*` — в разделе **«Парсинг трекеров»** выше.
 
@@ -952,6 +1021,7 @@ volumes:
 - Убедитесь, что `syncapi` указан корректно (если используется синхронизация)
 - Проверьте логи парсеров: `tail -f Data/log/{tracker}.log`
 - Убедитесь, что трекер доступен и учётные данные верны
+- **Rutracker / Cloudflare:** проверьте, что FlareSolverr доступен (`curl http://127.0.0.1:8191/` или `http://flaresolverr:8191/` в compose), в конфиге `flaresolverr.enable: true` и верный `url`, и что срабатывает warmup: `curl http://127.0.0.1:9117/cron/cloudflare/Warmup` (первый ответ может занять до ~180 с). Если на VPS challenge детектится, но не решается — задайте residential/ISP `PROXY_*` у контейнера FlareSolverr (см. playbook в Rutracker README). Smoke: `./scripts/cron_rutracker_smoke.sh`
 
 ### API не отвечает
 
@@ -973,6 +1043,7 @@ volumes:
 - Уменьшите `maxreadfile` в конфиге
 - Настройте ротацию логов через `logFdbRetentionDays`, `logFdbMaxSizeMb`, `logFdbMaxFiles`
 - Для Docker: увеличьте лимит памяти в `deploy.resources.limits.memory`
+- FlareSolverr держит ~600–700 МБ на сессию Chromium; при простое сессия закрывается через `flaresolverr.sessionIdleMinutes` (по умолчанию 30)
 
 ---
 

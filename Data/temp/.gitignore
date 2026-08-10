@@ -1,0 +1,5 @@
+# Runtime FDB maintenance / CLI outputs
+maintenance-last.json
+maintain.log
+*
+!.gitignore

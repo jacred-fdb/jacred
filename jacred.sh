@@ -13,7 +13,7 @@ readonly SERVICE_NAME="jacred"
 readonly SYSTEMD_UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly RELEASE_BASE="https://github.com/jacred-fdb/jacred/releases/latest/download"
 readonly DB_URL="https://sync.jacred.stream/latest.tar.zst.zip"
-readonly CRON_JACRED_MARKER="127.0.0.1:9117"
+readonly CRON_JACRED_MARKER="run-job.sh"
 readonly SAVE_URL="http://127.0.0.1:9117/jsondb/save"
 
 CRON_USER="${SUDO_USER:-root}"
@@ -278,6 +278,10 @@ EOF
 
 install_cron() {
   local crontab_file="${INSTALL_ROOT}/Data/crontab"
+  local run_job="${INSTALL_ROOT}/Data/run-job.sh"
+  if [[ -f "$run_job" ]]; then
+    chmod +x "$run_job"
+  fi
   if [[ ! -f "$crontab_file" ]]; then
     log_info "Data/crontab not found, skipping crontab install"
     return 0

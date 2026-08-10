@@ -43,6 +43,12 @@ namespace JacRed.Models.AppConf
 
         public int reqMinute { get; set; }
 
+        /// <summary>
+        /// Сколько раз тянуть topic page за один parsePage, пока не соберутся
+        /// magnet/details (Rutracker под FlareSolverr). 0 или меньше → 1 попытка.
+        /// </summary>
+        public int topicFetchAttempts { get; set; } = 5;
+
         public int parseDelay
         {
             get

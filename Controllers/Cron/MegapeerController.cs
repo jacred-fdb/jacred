@@ -16,7 +16,7 @@ namespace JacRed.Controllers.Cron
         }
 
         async public Task<string> Parse(int page) =>
-            await _syncService.ParseAsync(page);
+            await _syncService.ParseAsync(page, HttpContext.RequestAborted);
 
         async public Task<string> UpdateTasksParse() =>
             await _syncService.UpdateTasksParseAsync();

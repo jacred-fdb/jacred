@@ -1,11 +1,14 @@
 // Tracker sync shared helpers — parse lock and cron guard patterns.
 //
 // ParseAsync: TrackerParseLock + RunParseAsync
-// ParseAllTask: TrackerWorkFlag + RunParseAllTaskAsync
+// ParseAllTask / UpdateTasksParse: TrackerWorkFlag + RunInBackground (HTTP returns immediately)
 // ParseLatest: TrackerLatestParseLock + RunParseLatestAsync
 
 using JacRed.Infrastructure.Logging;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,14 +41,14 @@ namespace JacRed.Infrastructure.Trackers
         }
     }
 
-    /// <summary>Work flag for secondary jobs (ParseAllTask).</summary>
+    /// <summary>Work flag for secondary jobs (ParseAllTask / UpdateTasksParse).</summary>
     public sealed class TrackerWorkFlag
     {
-        volatile bool _work;
+        int _work;
 
-        public bool TryStart() => System.Threading.Interlocked.CompareExchange(ref _work, true, false) == false;
+        public bool TryStart() => Interlocked.CompareExchange(ref _work, 1, 0) == 0;
 
-        public void End() => System.Threading.Interlocked.Exchange(ref _work, false);
+        public void End() => Interlocked.Exchange(ref _work, 0);
     }
 
     /// <summary>Semaphore guard for ParseLatest (one concurrent run per tracker).</summary>
@@ -59,10 +62,76 @@ namespace JacRed.Infrastructure.Trackers
         public void Exit() => _semaphore.Release();
     }
 
+    /// <summary>Snapshot of an in-process background cron job.</summary>
+    public sealed class TrackerBackgroundJobInfo
+    {
+        public string Key { get; init; }
+        public string Tracker { get; init; }
+        public string JobLabel { get; init; }
+        public DateTime StartedAtUtc { get; init; }
+        public long ProgressCurrent;
+        public long ProgressTotal;
+        public string ProgressDetail;
+    }
+
     public static class TrackerSyncHelpers
     {
         public const string DisabledResult = "disabled";
         public const string WorkResult = "work";
+        public const string OkResult = "ok";
+
+        /// <summary>Default wall-clock limit for background ParseAllTask jobs.</summary>
+        public static readonly TimeSpan DefaultParseAllMaxDuration = TimeSpan.FromHours(6);
+
+        /// <summary>Default wall-clock limit for background UpdateTasksParse jobs.</summary>
+        public static readonly TimeSpan DefaultUpdateTasksMaxDuration = TimeSpan.FromMinutes(30);
+
+        const int ProgressLogEvery = 25;
+
+        static readonly ConcurrentDictionary<string, TrackerBackgroundJobInfo> ActiveJobs =
+            new ConcurrentDictionary<string, TrackerBackgroundJobInfo>(StringComparer.OrdinalIgnoreCase);
+
+        static CancellationToken _applicationStopping = CancellationToken.None;
+
+        /// <summary>Link background wall clocks to host shutdown (call once from Program).</summary>
+        public static void ConfigureApplicationStopping(CancellationToken applicationStopping)
+            => _applicationStopping = applicationStopping;
+
+        public static IReadOnlyList<TrackerBackgroundJobInfo> GetActiveJobs()
+            => ActiveJobs.Values
+                .OrderBy(j => j.Tracker, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(j => j.JobLabel, StringComparer.OrdinalIgnoreCase)
+                .Select(j => new TrackerBackgroundJobInfo
+                {
+                    Key = j.Key,
+                    Tracker = j.Tracker,
+                    JobLabel = j.JobLabel,
+                    StartedAtUtc = j.StartedAtUtc,
+                    ProgressCurrent = Interlocked.Read(ref j.ProgressCurrent),
+                    ProgressTotal = Interlocked.Read(ref j.ProgressTotal),
+                    ProgressDetail = j.ProgressDetail
+                })
+                .ToList();
+
+        public static void ReportProgress(string trackerName, string jobLabel, long current, long total, string detail = null)
+        {
+            var key = JobKey(trackerName, jobLabel);
+            if (!ActiveJobs.TryGetValue(key, out var info))
+                return;
+
+            Interlocked.Exchange(ref info.ProgressCurrent, current);
+            Interlocked.Exchange(ref info.ProgressTotal, total);
+            if (detail != null)
+                info.ProgressDetail = detail;
+
+            if (current == 0 || current == total || current % ProgressLogEvery == 0)
+            {
+                JacRedLog.Information(JacRedLogCategories.Trackers,
+                    $"{trackerName}: {jobLabel} progress={current}/{total}{(string.IsNullOrEmpty(detail) ? "" : $" ({detail})")}");
+            }
+        }
+
+        static string JobKey(string trackerName, string jobLabel) => $"{trackerName}:{jobLabel}";
 
         public static bool IsTrackerDisabled(string trackerName)
         {
@@ -79,7 +148,8 @@ namespace JacRed.Infrastructure.Trackers
             string trackerName,
             TrackerParseLock parseLock,
             bool checkDisabled,
-            Func<Task<string>> action)
+            Func<Task<string>> action,
+            CancellationToken cancellationToken = default)
         {
             if (checkDisabled && IsTrackerDisabled(trackerName))
             {
@@ -95,6 +165,7 @@ namespace JacRed.Infrastructure.Trackers
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 return await action();
             }
             finally
@@ -103,6 +174,95 @@ namespace JacRed.Infrastructure.Trackers
             }
         }
 
+        /// <summary>
+        /// Starts work on a background task and returns immediately with ok/work/disabled.
+        /// Releases <paramref name="workFlag"/> when the background work finishes.
+        /// Linked to application shutdown and an optional wall-clock limit.
+        /// </summary>
+        public static string RunInBackground(
+            string trackerName,
+            string jobLabel,
+            TrackerWorkFlag workFlag,
+            bool checkDisabled,
+            Func<CancellationToken, Task> action,
+            TimeSpan? maxDuration = null)
+        {
+            if (checkDisabled && IsTrackerDisabled(trackerName))
+            {
+                LogParseSkipped(trackerName, DisabledResult);
+                return DisabledResult;
+            }
+
+            if (!workFlag.TryStart())
+            {
+                LogParseSkipped(trackerName, WorkResult);
+                return WorkResult;
+            }
+
+            var duration = maxDuration ?? DefaultParseAllMaxDuration;
+            var key = JobKey(trackerName, jobLabel);
+            var info = new TrackerBackgroundJobInfo
+            {
+                Key = key,
+                Tracker = trackerName,
+                JobLabel = jobLabel,
+                StartedAtUtc = DateTime.UtcNow
+            };
+            ActiveJobs[key] = info;
+
+            _ = Task.Run(async () =>
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
+                cts.CancelAfter(duration);
+                var token = cts.Token;
+
+                try
+                {
+                    JacRedLog.Information(JacRedLogCategories.Trackers,
+                        $"{trackerName}: {jobLabel} started (background, limit={duration.TotalSeconds:F0}s)");
+                    await action(token).ConfigureAwait(false);
+                    JacRedLog.Information(JacRedLogCategories.Trackers,
+                        $"{trackerName}: {jobLabel} finished");
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    JacRedLog.Warning(JacRedLogCategories.Trackers,
+                        $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown)");
+                }
+                catch (Exception ex)
+                {
+                    JacRedLog.Error(JacRedLogCategories.Trackers,
+                        $"{trackerName}: {jobLabel} error: {ex.Message}");
+                }
+                finally
+                {
+                    ActiveJobs.TryRemove(key, out _);
+                    workFlag.End();
+                }
+            });
+
+            return OkResult;
+        }
+
+        public static string RunParseAllTaskInBackground(
+            string trackerName,
+            TrackerWorkFlag workFlag,
+            bool checkDisabled,
+            Func<CancellationToken, Task> action,
+            TimeSpan? maxDuration = null)
+            => RunInBackground(trackerName, "ParseAllTask", workFlag, checkDisabled, action,
+                maxDuration ?? DefaultParseAllMaxDuration);
+
+        public static string RunUpdateTasksParseInBackground(
+            string trackerName,
+            TrackerWorkFlag workFlag,
+            bool checkDisabled,
+            Func<CancellationToken, Task> action,
+            TimeSpan? maxDuration = null)
+            => RunInBackground(trackerName, "UpdateTasksParse", workFlag, checkDisabled, action,
+                maxDuration ?? DefaultUpdateTasksMaxDuration);
+
+        /// <summary>Synchronous wait variant (tests / manual). Prefer background helpers for HTTP cron.</summary>
         public static async Task<string> RunParseAllTaskAsync(
             string trackerName,
             TrackerWorkFlag workFlag,
@@ -137,7 +297,7 @@ namespace JacRed.Infrastructure.Trackers
                 workFlag.End();
             }
 
-            return "ok";
+            return OkResult;
         }
 
         public static async Task<string> RunParseLatestAsync(
@@ -162,7 +322,7 @@ namespace JacRed.Infrastructure.Trackers
             try
             {
                 var logText = await buildLogAsync();
-                return string.IsNullOrWhiteSpace(logText) ? "ok" : logText;
+                return string.IsNullOrWhiteSpace(logText) ? OkResult : logText;
             }
             finally
             {

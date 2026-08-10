@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models;
 using JacRed.Models.Details;
@@ -426,10 +428,18 @@ namespace JacRed.Infrastructure.Persistence
         {
             SaveChangesIfNeeded();
 
-            if (openWriteTask.TryGetValue(fdbkey, out WriteTaskModel val))
+            if (openWriteTask.TryGetValue(fdbkey, out WriteTaskModel val) && ReferenceEquals(val.db, this))
             {
-                val.openconnection -= 1;
-                if (0 >= val.openconnection)
+                int remaining = Interlocked.Decrement(ref val.openconnection);
+                if (remaining < 0)
+                {
+                    Interlocked.Exchange(ref val.openconnection, 0);
+                    remaining = 0;
+                    JacRedLog.Warning(JacRedLogCategories.Fdb,
+                        $"openconnection underflow for key={fdbkey}");
+                }
+
+                if (remaining <= 0)
                 {
                     if (!AppInit.conf.evercache.enable || (AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour > 0))
                         openWriteTask.TryRemove(fdbkey, out _);

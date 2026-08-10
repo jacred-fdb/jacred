@@ -68,7 +68,11 @@ namespace JacRed.Infrastructure.Trackers.Baibako
 
         async Task<bool> TakeLogin()
         {
-            await loginSemaphore.WaitAsync();
+            if (!await loginSemaphore.WaitAsync(TimeSpan.FromSeconds(15)))
+            {
+                ParserLog.Write(TrackerName, "TakeLogin skipped: login semaphore timeout (15s)");
+                return false;
+            }
             try
             {
                 if (Cookie() != null)
@@ -87,6 +91,7 @@ namespace JacRed.Infrastructure.Trackers.Baibako
 
                 using (var client = new System.Net.Http.HttpClient(clientHandler))
                 {
+                    client.Timeout = TimeSpan.FromSeconds(10);
                     client.MaxResponseContentBufferSize = 2000000;
                     client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36");
 

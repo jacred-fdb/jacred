@@ -13,6 +13,8 @@ services:
     environment:
       - TZ=Europe/London
       - UMASK=0027
+    depends_on:
+      - flaresolverr
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "--max-time", "10", "http://127.0.0.1:9117/health"]
       interval: 30s
@@ -25,6 +27,56 @@ services:
           memory: 4096M
           cpus: "4"
 
+  # Cloudflare WARP SOCKS egress for FlareSolverr on datacenter IPs.
+  # Persist /var/lib/cloudflare-warp so registration (reg.json) survives restarts
+  # — otherwise WARP may get a new identity/IP and CF challenges return more often.
+  warp:
+    image: caomingjun/warp
+    container_name: warp
+    hostname: warp
+    restart: unless-stopped
+    device_cgroup_rules:
+      - "c 10:200 rwm"
+    ports:
+      - "127.0.0.1:20001:1080" # SOCKS5 — FlareSolverr PROXY_URL
+      # - "127.0.0.1:20002:8080" # HTTP proxy (optional)
+    environment:
+      - WARP_SLEEP=2
+      # - WARP_LICENSE_KEY=
+    cap_add:
+      - MKNOD
+      - AUDIT_WRITE
+      - NET_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.src_valid_mark=1
+    volumes:
+      - warp-data:/var/lib/cloudflare-warp
+
+  # Cloudflare bypass for Rutracker (~1 GiB RAM).
+  # With WARP: one Challenge solved after sessions.create (~11s), then
+  # Challenge not detected (~0.5s) while the same FlareSolverr session lives.
+  # Do not publish 8191 externally. Host-run JacRed: flaresolverr.url http://127.0.0.1:8191/v1
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - warp
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/London
+      - PROXY_URL=socks5://127.0.0.1:20001
+      - DISABLE_MEDIA=true
+      # Debug: LOG_LEVEL=debug (LOG_HTML=true is very noisy)
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "2"
+
 volumes:
   jacred-config:
   jacred-data:
+  warp-data:

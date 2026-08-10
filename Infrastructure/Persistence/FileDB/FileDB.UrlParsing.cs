@@ -51,6 +51,13 @@ namespace JacRed.Infrastructure.Persistence
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // Kinozal: .../details.php?id=2058877 (домен мог смениться .tv → .guru)
+            if (string.Equals(trackerName, "kinozal", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"details\.php\?id=(\d+)", RegexOptions.IgnoreCase);
+                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+            }
+
             // NNMClub: .../forum/viewtopic.php?t=1882070
             if (string.Equals(trackerName, "nnmclub", StringComparison.OrdinalIgnoreCase))
             {

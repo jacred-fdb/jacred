@@ -407,3 +407,4 @@ temp/*
 
 # Version info file
 VersionInfo.g.cs
+init.yaml

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
@@ -19,6 +20,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
     public class TolokaSyncService
     {
         const string TrackerName = "toloka";
+        const string TaskParsePath = "Data/temp/toloka_taskParse.json";
 
         readonly IMemoryCache _memoryCache;
 
@@ -26,12 +28,19 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
         static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
 
         static TolokaSyncService()
         {
-            if (IO.File.Exists("Data/temp/toloka_taskParse.json"))
-                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText("Data/temp/toloka_taskParse.json"));
+            if (IO.File.Exists(TaskParsePath))
+                taskParse = JsonConvert.DeserializeObject<Dictionary<string, List<TaskParse>>>(IO.File.ReadAllText(TaskParsePath));
+        }
+
+        static void PersistTaskParse()
+        {
+            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            catch { }
         }
 
         public TolokaSyncService(IMemoryCache memoryCache)
@@ -143,85 +152,96 @@ namespace JacRed.Infrastructure.Trackers.Toloka
             {
                 string authKey = "toloka:TakeLogin()";
                 if (_memoryCache.TryGetValue(authKey, out _))
-                {
-                    IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
                     return "TakeLogin == null";
-                }
 
                 if (await TakeLogin(_memoryCache) == false)
                 {
                     _memoryCache.Set(authKey, 0, TimeSpan.FromMinutes(5));
-                    IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
                     return "TakeLogin == null";
                 }
             }
             #endregion
 
-            foreach (string cat in new List<string>()
+            return TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                // Українське озвучення
-                "16", "32",  "19", "44", "127",
-
-                // Українське кіно
-                "84", "42", "124", "125",
-
-                // HD українською
-                "96", "173", "139", "174", "140",
-
-                // Документальні фільми українською
-                "12", "131", "230", "226", "227", "228", "229",
-
-                // Телевізійні шоу та програми
-                "132"
-            })
-            {
-                // Получаем html
-                string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}", timeoutSeconds: 10, cookie: Cookie(_memoryCache));
-                if (html == null)
-                    continue;
-
-                // Максимальное количиство страниц
-                int.TryParse(Regex.Match(html, ">([0-9]+)</a>&nbsp;&nbsp;<a href=\"[^\"]+\">наступна</a>").Groups[1].Value, out int maxpages);
-
-                // Загружаем список страниц в список задач
-                for (int page = 0; page <= maxpages; page++)
+                foreach (string cat in new List<string>()
                 {
-                    try
+                    // Українське озвучення
+                    "16", "32",  "19", "44", "127",
+
+                    // Українське кіно
+                    "84", "42", "124", "125",
+
+                    // HD українською
+                    "96", "173", "139", "174", "140",
+
+                    // Документальні фільми українською
+                    "12", "131", "230", "226", "227", "228", "229",
+
+                    // Телевізійні шоу та програми
+                    "132"
+                })
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    // Получаем html
+                    string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}", timeoutSeconds: 10, cookie: Cookie(_memoryCache), cancellationToken: ct);
+                    if (html == null)
+                        continue;
+
+                    // Максимальное количиство страниц
+                    int.TryParse(Regex.Match(html, ">([0-9]+)</a>&nbsp;&nbsp;<a href=\"[^\"]+\">наступна</a>").Groups[1].Value, out int maxpages);
+
+                    // Загружаем список страниц в список задач
+                    for (int page = 0; page <= maxpages; page++)
                     {
-                        if (!taskParse.ContainsKey(cat))
-                            taskParse.Add(cat, new List<TaskParse>());
+                        try
+                        {
+                            if (!taskParse.ContainsKey(cat))
+                                taskParse.Add(cat, new List<TaskParse>());
 
-                        var val = taskParse[cat];
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
+                            var val = taskParse[cat];
+                            if (val.FirstOrDefault(i => i.page == page) == null)
+                                val.Add(new TaskParse(page));
+                        }
+                        catch { }
                     }
-                    catch { }
                 }
-            }
 
-            IO.File.WriteAllText("Data/temp/toloka_taskParse.json", JsonConvert.SerializeObject(taskParse));
-            return "ok";
+                PersistTaskParse();
+            });
         }
 
-        public async Task<string> ParseAllTaskAsync()
+        public Task<string> ParseAllTaskAsync()
         {
-            return await TrackerSyncHelpers.RunParseAllTaskAsync(TrackerName, _parseAllTaskWork, checkDisabled: false, async () =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
             {
-                foreach (var task in taskParse.ToArray())
+                try
                 {
-                    foreach (var val in task.Value.ToArray())
+                    var pending = taskParse.ToArray()
+                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .ToArray();
+                    int done = 0;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
+
+                    foreach (var item in pending)
                     {
-                        if (DateTime.Today == val.updateTime)
-                            continue;
+                        ct.ThrowIfCancellationRequested();
+                        await Task.Delay(AppInit.conf.Toloka.parseDelay, ct);
 
-                        await Task.Delay(AppInit.conf.Toloka.parseDelay);
-
-                        bool res = await parsePage(task.Key, val.page);
+                        bool res = await parsePage(item.cat, item.val.page, ct);
                         if (res)
-                            val.updateTime = DateTime.Today;
+                            item.val.updateTime = DateTime.Today;
+
+                        done++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
                     }
                 }
-            });
+                finally
+                {
+                    PersistTaskParse();
+                }
+            }));
         }
 
         public async Task<string> ParseLatestAsync(int pages = 5)
@@ -263,7 +283,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
             });
         }
 
-        async Task<bool> parsePage(string cat, int page)
+        async Task<bool> parsePage(string cat, int page, CancellationToken cancellationToken = default)
         {
             #region Авторизация
             if (Cookie(_memoryCache) == null)
@@ -280,7 +300,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
             }
             #endregion
 
-            string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}{(page == 0 ? "" : $"-{page * 45}")}?sort=8", cookie: Cookie(_memoryCache)/*, useproxy: true, proxy: tParse.webProxy()*/);
+            string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}{(page == 0 ? "" : $"-{page * 45}")}?sort=8", cookie: Cookie(_memoryCache), cancellationToken: cancellationToken/*, useproxy: true, proxy: tParse.webProxy()*/);
             if (html == null || !html.Contains("<html lang=\"uk\""))
                 return false;
 
@@ -291,7 +311,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                 if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
                     return true;
 
-                byte[] torrent = await HttpClient.Download($"{AppInit.conf.Toloka.host}/download.php?id={t.downloadId}", cookie: Cookie(_memoryCache), referer: AppInit.conf.Toloka.host);
+                byte[] torrent = await HttpClient.Download($"{AppInit.conf.Toloka.host}/download.php?id={t.downloadId}", cookie: Cookie(_memoryCache), referer: AppInit.conf.Toloka.host, cancellationToken: cancellationToken);
                 string magnet = BencodeTo.Magnet(torrent);
                 if (magnet != null)
                 {
