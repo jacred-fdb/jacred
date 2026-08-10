@@ -74,13 +74,13 @@ namespace JacRed.Application.Search
             #endregion
 
             if (string.IsNullOrWhiteSpace(search) || search.Length == 1)
-                return (torrents);
+                return Array.Empty<object>();
 
             string _s = StringConvert.SearchName(search);
             string _altsearch = StringConvert.SearchName(altname);
 
             if (string.IsNullOrEmpty(_s) && string.IsNullOrEmpty(_altsearch))
-                return (torrents);
+                return Array.Empty<object>();
 
             if (exact)
             {
@@ -128,7 +128,7 @@ namespace JacRed.Application.Search
             }
 
             if (torrents.Count == 0)
-                return (torrents);
+                return Array.Empty<object>();
 
             IEnumerable<TorrentDetails> query = torrents.Values;
 
