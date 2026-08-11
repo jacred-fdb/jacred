@@ -39,6 +39,7 @@ synctrackers:
   - mazepa
   - megapeer
   - nnmclub
+  - rudub
   - rutor
   - rutracker
   - selezen
@@ -143,6 +144,18 @@ Ultradox:
 
 Korsars:
   host: https://korsars.pro
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+  login:
+    u: ""
+    p: ""
+
+Rudub:
+  host: https://r4.rudub.world
   alias: ""
   useproxy: false
   reqMinute: 8

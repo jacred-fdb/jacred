@@ -19,8 +19,8 @@
 - 📡 **Torznab XML** — встроенный Torznab API для Sonarr/Radarr/Prowlarr
 - 🌐 **Веб-интерфейс** — поиск, статистика и редактор конфигурации
 - ⚙️ **Настройки в браузере** — `/settings` (форма, YAML/JSON, валидация, diff перед сохранением)
-- 📖 **OpenAPI / Swagger** — `/openapi.yaml` (v1.2.0), интерактивная документация на `/swagger`
-- 🗂️ **23 трекера** — парсинг и sync (см. [Источники](#источники-трекеры))
+- 📖 **OpenAPI / Swagger** — `/openapi.yaml` (v1.2.1), интерактивная документация на `/swagger`
+- 🗂️ **24 трекера** — парсинг и sync (см. [Источники](#источники-трекеры))
 - 🔐 **Поддержка прокси** и Tor для доступа к .onion доменам
 - 📊 **Статистика** по трекерам и торрентам
 - 🎵 **Модуль tracks** для сбора метаданных треков (опционально)
@@ -362,6 +362,7 @@ journalctl -u jacred -g 'fdb:' -p warning
 | **Anifilm** | `login` **или** session cookie (например `XSRF-TOKEN` + session) |
 | **Anistar** | Статическая cookie (`cf_clearance` + session) обязательна для live-парса; получить экспортом из браузера или через FlareSolverr вручную. **Не** использует блок `flaresolverr` / `/cron/cloudflare/Warmup` как Rutracker |
 | **Anibelka** | Только анонимно — **не** задавайте `cookie` / `login` (в раздачах есть passkey) |
+| **RuDub** | `login` **или** cookie (`PHPSESSID` / `uid` / `pass`); парсит только HD 1080 / HD 2160; зеркала `rN.rudub.world` через `host`/`alias` |
 | **Ultradox** | Логин не нужен; Referer должен выглядеть как поиск google/yandex (свой origin → 503) |
 | **Rutracker** | См. FlareSolverr ниже и [`Infrastructure/Trackers/Rutracker/README.md`](Infrastructure/Trackers/Rutracker/README.md) |
 | **Baibako / Lostfilm / Animelayer / …** | См. блоки в `Data/example.yaml` |
@@ -508,9 +509,9 @@ API key — значение `apikey` из конфига (query `?apikey=...` �
 
 ## Источники (трекеры)
 
-Известные slug’и (`ConfigSchema.KnownTrackerSlugs` / OpenAPI `TrackerSlug`, 23 шт.):
+Известные slug’и (`ConfigSchema.KnownTrackerSlugs` / OpenAPI `TrackerSlug`, 24 шт.):
 
-`anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`, `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`, `megapeer`, `nnmclub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`, `ultradox`, `viruseproject`.
+`anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`, `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`, `megapeer`, `nnmclub`, `rudub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`, `ultradox`, `viruseproject`.
 
 **Парсеры (cron + FileDB):** все slug’и выше имеют контроллер `/cron/{slug}/…` (кроме служебных `cloudflare` / `maintenance`).
 
@@ -534,7 +535,7 @@ API key — значение `apikey` из конфига (query `?apikey=...` �
    - **Anistar:** задайте cookie в конфиге; встроенный FlareSolverr-warmup Rutracker на Anistar не действует.
 
 2. Выберите режим работы:
-   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`** (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`, daily page-парсеры и hourly Rutor-style для anibelka/korsars/ultradox). Активируйте: `crontab /opt/jacred/Data/crontab`
+   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`** (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`, daily page-парсеры и hourly Rutor-style для anibelka/korsars/ultradox/rudub). Активируйте: `crontab /opt/jacred/Data/crontab`
    - **Синхронизация:** Укажите **`syncapi`** в конфиге, чтобы подтягивать базу с удалённого сервера. Включите `opensync: true` для участия в синхронизации.
    - **Docker:** в образе нет cron — расписание выносится на хост, отдельный контейнер или оркестратор; см. раздел **«Docker → Самостоятельный парсинг и расписание (cron) в Docker»**.
 
@@ -641,7 +642,7 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 
 ### OpenAPI / Swagger
 
-Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.0** (источник: [`web/public/openapi.yaml`](web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
+Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.1** (источник: [`web/public/openapi.yaml`](web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
 
 | URL | Назначение |
 |-----|------------|
@@ -811,6 +812,7 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 | **anibelka** | `parse`, `UpdateTasksParse`, `ParseAllTask`, `ParseLatest` | hourly + daily tasks |
 | **korsars** | то же + login/`bb_data` | hourly + daily tasks |
 | **ultradox** | то же (Referer search-like) | hourly + daily tasks |
+| **rudub** | `parse?limit_page=10` (login/cookie; HD 1080/2160 only; max_time 1800s). Initial fill: `?limit_page=50` or `parseFrom`/`parseTo` (cap 100) | hourly `:40` |
 
 Полный канон расписания и `max_time` — только в **`Data/crontab`** (через `Data/run-job.sh`).
 
@@ -1036,7 +1038,7 @@ volumes:
 2. **Отдельный контейнер с cron** — маленький образ (например `curl` + `cron`), в том же Docker Compose, который по расписанию дергает сервис JacRed по **внутреннему** имени и порту (например `http://jacred:9117/...`). Убедитесь, что с точки зрения JacRed IP источника остаётся в приватном диапазоне (типично так и есть в user-defined bridge-сети).
 3. **Kubernetes CronJob**, **systemd timer** на хосте — по сути то же, что п.1: периодический HTTP-запрос к JacRed.
 
-**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh`, `cloudflare-warmup` перед `rutracker-parse`, daily anistar/leproduction/viruseproject/anifilm, hourly anibelka/korsars/ultradox + ParseLatest, knaben parse/backfill, и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
+**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh`, `cloudflare-warmup` перед `rutracker-parse`, daily anistar/leproduction/viruseproject/anifilm, hourly anibelka/korsars/ultradox/rudub + ParseLatest, knaben parse/backfill, и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
 
 - при использовании `run-job.sh` убедитесь, что скрипт доступен по пути из crontab (в релизе — `/opt/jacred/Data/run-job.sh`); либо замените строки на прямой `curl`;
 - замените хост/порт в URL на ваши (`127.0.0.1:9117` или имя сервиса в Compose);

@@ -11,14 +11,14 @@ namespace JacRed.Configuration.Schema
         {
             "rutracker", "rutor", "kinozal", "nnmclub", "megapeer", "bitru", "toloka", "mazepa",
             "lostfilm", "baibako", "torrentby", "selezen", "animelayer", "anidub", "anistar", "anibelka", "aniliberty", "knaben",
-            "leproduction", "viruseproject", "anifilm", "korsars", "ultradox"
+            "leproduction", "viruseproject", "anifilm", "korsars", "ultradox", "rudub"
         };
 
         public static readonly HashSet<string> TrackerBlockNames = new HashSet<string>(StringComparer.Ordinal)
         {
             "Rutor", "Megapeer", "TorrentBy", "Kinozal", "NNMClub", "Bitru", "Toloka", "Mazepa",
             "Rutracker", "Selezen", "Lostfilm", "Animelayer", "Anidub", "Anistar", "Anibelka", "Aniliberty", "Knaben", "Baibako",
-            "Leproduction", "Viruseproject", "Anifilm", "Korsars", "Ultradox"
+            "Leproduction", "Viruseproject", "Anifilm", "Korsars", "Ultradox", "Rudub"
         };
 
         public static readonly HashSet<string> SensitiveFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

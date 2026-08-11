@@ -131,6 +131,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # baibako-parse -> /cron/baibako/parse (max_time=900s)
 8,23,38,53 * * * *  /opt/jacred/Data/run-job.sh baibako-parse http://127.0.0.1:9117/cron/baibako/parse 900
 
+# --- rudub (ex-BaibaKoTV; HD 1080/2160 only; login/cookie) ---
+# rudub-parse -> /cron/rudub/parse?limit_page=10 (max_time=1800s) — pages 0..9 × vf 4+5
+# Initial FDB fill: ?limit_page=50 (or parseFrom/parseTo). Cap is 100.
+# minute :40 — free of other hourly page parsers (avoid ultradox 13/28/43/58 and rutor 1/16/31/46)
+40 * * * *  /opt/jacred/Data/run-job.sh rudub-parse "http://127.0.0.1:9117/cron/rudub/parse?limit_page=10" 1800
+
 # --- aniliberty (~5k) ---
 # aniliberty-parse -> /cron/aniliberty/parse (max_time=900s)
 6,21,36,51 * * * *  /opt/jacred/Data/run-job.sh aniliberty-parse http://127.0.0.1:9117/cron/aniliberty/parse 900

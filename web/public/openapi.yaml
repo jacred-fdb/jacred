@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JacRed API
-  version: 1.2.0
+  version: 1.2.1
   description: |
     Torrent aggregator API: Jackett-compatible search, native torrent search, Torznab XML,
     statistics, sync protocol, and configuration management.
@@ -17,7 +17,7 @@ info:
     Parsers / cron (`/cron/{slug}/…`, DevAdmin):
     `anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`,
     `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`,
-    `megapeer`, `nnmclub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`,
+    `megapeer`, `nnmclub`, `rudub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`,
     `ultradox`, `viruseproject`.
 
     Web UI icons: `/img/ico/{slug}.ico` (fallback `/img/ico/default.ico`).
@@ -1493,6 +1493,7 @@ components:
         - mazepa
         - megapeer
         - nnmclub
+        - rudub
         - rutor
         - rutracker
         - selezen

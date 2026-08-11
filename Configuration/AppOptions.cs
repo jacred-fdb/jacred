@@ -165,6 +165,9 @@ namespace JacRed.Configuration
         // TODO: fix parser
         public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");
 
+        /// <summary>RuDub (ex-BaibaKoTV). Host mirrors rotate (rN.rudub.world).</summary>
+        public TrackerSettings Rudub = new TrackerSettings("https://r4.rudub.world");
+
         /// <summary>Cloudflare bypass via FlareSolverr (persistent browser session).</summary>
         public FlareSolverrSettings flaresolverr = new FlareSolverrSettings();
 

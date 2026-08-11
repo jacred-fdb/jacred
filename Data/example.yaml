@@ -50,6 +50,7 @@ synctrackers:
   - mazepa
   - megapeer
   - nnmclub
+  - rudub
   - rutor
   - rutracker
   - selezen
@@ -312,6 +313,19 @@ Baibako:
   login:
     u: ""
     p: ""
+
+# RuDub (ex-BaibaKoTV). Host mirrors rotate (rN.rudub.world). Parses HD 1080 / HD 2160 only.
+Rudub:
+  host: https://r4.rudub.world
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: "PHPSESSID=your_session_id; uid=your_user_id; pass=your_pass_hash"
+  login:
+    u: "your_rudub_username"
+    p: "your_rudub_password"
 
 Lostfilm:
   host: https://www.lostfilm.tv

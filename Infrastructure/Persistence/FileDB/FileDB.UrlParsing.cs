@@ -44,8 +44,9 @@ namespace JacRed.Infrastructure.Persistence
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
-            // Baibako: details.php?id=42075 или /details.php?id=42075
-            if (string.Equals(trackerName, "baibako", StringComparison.OrdinalIgnoreCase))
+            // Baibako / RuDub: details.php?id=42075 или /details.php?id=42075
+            if (string.Equals(trackerName, "baibako", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trackerName, "rudub", StringComparison.OrdinalIgnoreCase))
             {
                 var m = Regex.Match(url, @"details\.php\?id=(\d+)", RegexOptions.IgnoreCase);
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
