@@ -23,29 +23,29 @@ logFdbMaxFiles: 0
 logParsers: true
 syncapi: ""
 synctrackers:
-  - rutracker
-  - rutor
-  - kinozal
-  - nnmclub
-  - megapeer
-  - bitru
-  - toloka
-  - mazepa
-  - lostfilm
-  - baibako
-  - torrentby
-  - selezen
-  - animelayer
-  - anidub
-  - aniliberty
-  - knaben
-  - anistar
-  - leproduction
-  - viruseproject
-  - anifilm
   - anibelka
+  - anidub
+  - anifilm
+  - aniliberty
+  - animelayer
+  - anistar
+  - baibako
+  - bitru
+  - kinozal
+  - knaben
   - korsars
+  - leproduction
+  - lostfilm
+  - mazepa
+  - megapeer
+  - nnmclub
+  - rutor
+  - rutracker
+  - selezen
+  - toloka
+  - torrentby
   - ultradox
+  - viruseproject
 disable_trackers: []
 syncsport: false
 syncspidr: false
