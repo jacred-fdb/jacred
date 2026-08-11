@@ -255,7 +255,10 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
                 }
 
                 if (pages <= 0)
-                    pages = 1;
+                    pages = 5;
+
+                if (taskParse.Count == 0)
+                    await RebuildTasksAsync(host, cancellationToken);
 
                 var log = new StringBuilder();
                 try
@@ -263,19 +266,33 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
                     var sw = Stopwatch.StartNew();
                     ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
-                    foreach (var kv in AnibelkaCategories.Map)
+                    foreach (var task in taskParse.ToArray())
                     {
-                        for (int page = 0; page < pages; page++)
+                        var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
+                        foreach (var val in pagesToParse)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                             if (AppInit.conf.Anibelka.parseDelay > 0)
                                 await Task.Delay(AppInit.conf.Anibelka.parseDelay, cancellationToken);
 
-                            await ParseSectionPageAsync(host, kv.Key, page, cancellationToken);
-                            log.AppendLine($"{kv.Key} - {page}");
+                            try
+                            {
+                                await ParseSectionPageAsync(host, task.Key, val.page, cancellationToken);
+                                val.updateTime = DateTime.Today;
+                                log.AppendLine($"{task.Key} - {val.page}");
+                            }
+                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                            {
+                                throw;
+                            }
+                            catch (Exception ex)
+                            {
+                                ParserLog.Write(TrackerName, $"ParseLatest f={task.Key} page={val.page} error: {ex.Message}");
+                            }
                         }
                     }
 
+                    PersistTaskParse();
                     ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
                 catch (Exception ex)

@@ -18,9 +18,10 @@ namespace JacRed.Controllers.Cron
         /// <summary>
         /// Parse one zero-based listing page of every anime forum section.
         /// Anonymous only — never logs in (passkey risk).
+        /// Long-running: not tied to HttpContext.RequestAborted (cron/curl disconnect must not cancel).
         /// </summary>
         async public Task<string> Parse(int page = 0) =>
-            await _syncService.ParseAsync(page, HttpContext.RequestAborted);
+            await _syncService.ParseAsync(page);
 
         async public Task<string> UpdateTasksParse() =>
             await _syncService.UpdateTasksParseAsync();
@@ -28,8 +29,8 @@ namespace JacRed.Controllers.Cron
         async public Task<string> ParseAllTask() =>
             await _syncService.ParseAllTaskAsync();
 
-        /// <summary>Cheap daily pass: first N pages of every section.</summary>
+        /// <summary>Cheap daily pass: first N pages of every section (from task list).</summary>
         async public Task<string> ParseLatest(int pages = 5) =>
-            await _syncService.ParseLatestAsync(pages, HttpContext.RequestAborted);
+            await _syncService.ParseLatestAsync(pages);
     }
 }

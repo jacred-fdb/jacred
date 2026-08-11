@@ -230,8 +230,10 @@ Anistar:
   reqMinute: 8
   parseDelay: 7000
   log: true
-  cookie: ""
+  # CF/session cookie required for live parse (FlareSolverr or browser export).
+  cookie: "cf_clearance=example_clearance; PHPSESSID=example_phpsessid"
 
+# Anonymous only — do not set cookie/login (passkeys must not enter magnets).
 Anibelka:
   host: https://anibelka.com
   useproxy: false
@@ -252,10 +254,11 @@ Anifilm:
   reqMinute: 8
   parseDelay: 7000
   log: true
-  cookie: "" # Статический cookie (CF/session); иначе login ниже
+  # Static session cookie (optional). If set, login.u/p are not required.
+  cookie: "XSRF-TOKEN=example_xsrf; anifilm_session=example_session"
   login:
-    u: ""
-    p: ""
+    u: "your_anifilm_username"
+    p: "your_anifilm_password"
 
 Leproduction:
   host: https://www.le-production.online
@@ -286,10 +289,11 @@ Korsars:
   reqMinute: 8
   parseDelay: 7000
   log: true
-  cookie: "" # optional static bb_data; otherwise login below
+  # Static bb_data cookie (optional). If set, login.u/p are not required.
+  cookie: "bb_data=1-exampleUserId-exampleHash-exampleIp-exampleUaHash"
   login:
-    u: ""
-    p: ""
+    u: "your_korsars_username"
+    p: "your_korsars_password"
 
 Knaben:
   host: https://api.knaben.org

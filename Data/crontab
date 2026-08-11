@@ -162,6 +162,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # anifilm-parse -> /cron/anifilm/parse (max_time=1800s)
 55 6 * * *  /opt/jacred/Data/run-job.sh anifilm-parse http://127.0.0.1:9117/cron/anifilm/parse 1800
 
+# anibelka-parse -> /cron/anibelka/parse (max_time=900s)
+# runs every hour at :09,:24,:39,:54 (staggered from torrentby)
+9,24,39,54 * * * *  /opt/jacred/Data/run-job.sh anibelka-parse http://127.0.0.1:9117/cron/anibelka/parse 900
+
 # anibelka-UpdateTasksParse -> /cron/anibelka/UpdateTasksParse (max_time=60s)
 25 2 * * *  /opt/jacred/Data/run-job.sh anibelka-UpdateTasksParse http://127.0.0.1:9117/cron/anibelka/UpdateTasksParse 60
 
@@ -171,6 +175,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # anibelka-ParseLatest -> /cron/anibelka/ParseLatest (max_time=900s)
 10 7 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseLatest http://127.0.0.1:9117/cron/anibelka/ParseLatest 900
 
+# korsars-parse -> /cron/korsars/parse (max_time=900s)
+# runs every hour at :03,:18,:33,:48 (avoid lostfilm :11,:26,:41,:56)
+3,18,33,48 * * * *  /opt/jacred/Data/run-job.sh korsars-parse http://127.0.0.1:9117/cron/korsars/parse 900
+
 # korsars-UpdateTasksParse -> /cron/korsars/UpdateTasksParse (max_time=60s)
 30 2 * * *  /opt/jacred/Data/run-job.sh korsars-UpdateTasksParse http://127.0.0.1:9117/cron/korsars/UpdateTasksParse 60
 
@@ -179,6 +187,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # korsars-ParseLatest -> /cron/korsars/ParseLatest (max_time=900s)
 15 7 * * *  /opt/jacred/Data/run-job.sh korsars-ParseLatest http://127.0.0.1:9117/cron/korsars/ParseLatest 900
+
+# ultradox-parse -> /cron/ultradox/parse (max_time=900s)
+# runs every hour at :13,:28,:43,:58
+13,28,43,58 * * * *  /opt/jacred/Data/run-job.sh ultradox-parse http://127.0.0.1:9117/cron/ultradox/parse 900
 
 # ultradox-UpdateTasksParse -> /cron/ultradox/UpdateTasksParse (max_time=60s)
 35 2 * * *  /opt/jacred/Data/run-job.sh ultradox-UpdateTasksParse http://127.0.0.1:9117/cron/ultradox/UpdateTasksParse 60

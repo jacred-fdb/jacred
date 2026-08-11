@@ -18,9 +18,10 @@ namespace JacRed.Controllers.Cron
         /// <summary>
         /// Parse one zero-based listing page of every movie/serial/cartoon forum.
         /// Login required — listings expose inline magnets.
+        /// Long-running: not tied to HttpContext.RequestAborted (cron/curl disconnect must not cancel).
         /// </summary>
         async public Task<string> Parse(int page = 0) =>
-            await _syncService.ParseAsync(page, HttpContext.RequestAborted);
+            await _syncService.ParseAsync(page);
 
         async public Task<string> UpdateTasksParse() =>
             await _syncService.UpdateTasksParseAsync();
@@ -30,6 +31,6 @@ namespace JacRed.Controllers.Cron
 
         /// <summary>Cheap daily pass: first N pages of every category (from task list).</summary>
         async public Task<string> ParseLatest(int pages = 5) =>
-            await _syncService.ParseLatestAsync(pages, HttpContext.RequestAborted);
+            await _syncService.ParseLatestAsync(pages);
     }
 }

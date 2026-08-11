@@ -108,7 +108,19 @@ namespace JacRed.Infrastructure.Trackers.Korsars
             string pass = AppInit.conf.Korsars?.login?.p ?? "";
             if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(user))
             {
-                ParserLog.Write(TrackerName, "Login skipped — no host or login configured");
+                var cfg = AppInit.GetConfigSourceInfo();
+                string reason = string.IsNullOrWhiteSpace(host) && string.IsNullOrWhiteSpace(user)
+                    ? "host empty and login.u empty"
+                    : string.IsNullOrWhiteSpace(host)
+                        ? "host empty"
+                        : "login.u empty";
+                ParserLog.Write(TrackerName, "Login skipped — " + reason, new Dictionary<string, object>
+                {
+                    { "configPath", cfg?.path ?? "(none)" },
+                    { "cwd", IO.Directory.GetCurrentDirectory() },
+                    { "rawHost", AppInit.conf.Korsars?.host ?? "" },
+                    { "hasLoginU", !string.IsNullOrWhiteSpace(user) }
+                });
                 return false;
             }
 

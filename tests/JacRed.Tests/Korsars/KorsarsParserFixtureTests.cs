@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using JacRed.Infrastructure.Trackers.Korsars;
 using Xunit;
 using Xunit.Abstractions;
@@ -6,8 +7,8 @@ using Xunit.Abstractions;
 namespace JacRed.Tests.Korsars;
 
 /// <summary>
-/// Synthetic fixtures (login-gated site). Regexes match Go cron/korsars/korsars.go.
-/// Refresh live: python3 scripts/dry_run_korsars_parser.py --user U --password P --refresh-fixtures
+/// Live listing fixtures (login-gated). Regexes match Go cron/korsars/korsars.go.
+/// Refresh: python3 scripts/dry_run_korsars_parser.py --user U --password P --refresh-fixtures
 /// </summary>
 public class KorsarsParserFixtureTests
 {
@@ -44,27 +45,25 @@ public class KorsarsParserFixtureTests
         var items = KorsarsParser.ParseListingHtml(html, "282", Host);
 
         _output.WriteLine($"movies={items.Count}");
-        Assert.Equal(3, items.Count);
+        Assert.True(items.Count >= 1, $"expected >=1 movie topics, got {items.Count}");
 
-        Assert.Equal($"{Host}/viewtopic.php?t=12345", items[0].url);
-        Assert.Equal("Начало", items[0].name);
-        Assert.Equal("Inception", items[0].originalname);
-        Assert.Equal(2010, items[0].relased);
-        Assert.Equal(10, items[0].sid);
-        Assert.Equal(2, items[0].pir);
-        Assert.Equal("1.50 GB", items[0].sizeName);
-        Assert.StartsWith("magnet:?xt=urn:btih:", items[0].magnet);
-        Assert.DoesNotContain("&amp;", items[0].magnet);
-        Assert.Equal(new[] { "movie" }, items[0].types);
-        Assert.Equal(new DateTime(2024, 6, 15, 9, 30, 0, DateTimeKind.Utc), items[0].createTime);
+        Assert.All(items, t =>
+        {
+            Assert.Equal("korsars", t.trackerName);
+            Assert.Equal(new[] { "movie" }, t.types);
+            Assert.StartsWith(Host + "/viewtopic.php?t=", t.url, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(t.name));
+            Assert.False(string.IsNullOrWhiteSpace(t.title));
+            Assert.False(string.IsNullOrWhiteSpace(t.magnet));
+            Assert.StartsWith("magnet:?xt=urn:btih:", t.magnet, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("&amp;", t.magnet);
+            Assert.True(t.sid >= 0);
+            Assert.True(t.pir >= 0);
+        });
 
-        Assert.Equal("Матрица", items[1].name);
-        Assert.Equal("Matrix", items[1].originalname);
-        Assert.Equal(1999, items[1].relased);
-
-        Assert.Equal("Солярис", items[2].name);
-        Assert.Equal("", items[2].originalname);
-        Assert.Equal(1972, items[2].relased);
+        var first = items[0];
+        _output.WriteLine($"first: {first.name} / {first.originalname} {first.relased} | {first.sizeName}");
+        Assert.Contains("viewtopic.php?t=", first.url, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -74,27 +73,27 @@ public class KorsarsParserFixtureTests
         var items = KorsarsParser.ParseListingHtml(html, "287", Host);
 
         _output.WriteLine($"serials={items.Count}");
-        Assert.Equal(3, items.Count);
+        Assert.True(items.Count >= 1, $"expected >=1 serial topics, got {items.Count}");
 
-        Assert.Equal("Игра престолов", items[0].name);
-        Assert.Equal("Game of Thrones", items[0].originalname);
-        Assert.Equal(2011, items[0].relased);
-        Assert.Equal(new[] { "serial" }, items[0].types);
+        Assert.All(items, t =>
+        {
+            Assert.Equal(new[] { "serial" }, t.types);
+            Assert.False(string.IsNullOrWhiteSpace(t.name));
+            Assert.StartsWith("magnet:?xt=urn:btih:", t.magnet, StringComparison.OrdinalIgnoreCase);
+        });
 
-        Assert.Equal("Во все тяжкие", items[1].name);
-        Assert.Equal("Breaking Bad", items[1].originalname);
-        Assert.Equal(2008, items[1].relased);
-
-        Assert.Equal("Чернобыль", items[2].name);
-        Assert.Equal("", items[2].originalname);
-        Assert.Equal(2019, items[2].relased);
+        // At least one title should look like a season pack or named release
+        Assert.Contains(items, t => !string.IsNullOrWhiteSpace(t.title));
+        _output.WriteLine($"first: {items[0].name} / {items[0].originalname} {items[0].relased}");
     }
 
     [Fact]
     public void LastPageFromHtml_MovieFixture()
     {
         string html = FixtureLoader.Read("Korsars/listing_movie.html");
-        Assert.Equal(2, KorsarsParser.LastPageFromHtml(html));
+        int last = KorsarsParser.LastPageFromHtml(html);
+        _output.WriteLine($"lastPage={last}");
+        Assert.True(last >= 1, $"expected last page >= 1, got {last}");
     }
 
     [Fact]

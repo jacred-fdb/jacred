@@ -39,6 +39,13 @@ synctrackers:
   - anidub
   - aniliberty
   - knaben
+  - anistar
+  - leproduction
+  - viruseproject
+  - anifilm
+  - anibelka
+  - korsars
+  - ultradox
 disable_trackers: []
 syncsport: false
 syncspidr: false
@@ -86,3 +93,62 @@ logging:
   cronSkipFastMs: 100
   categories:
     parsers: None
+
+Anistar:
+  host: https://anistar.org
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+
+Leproduction:
+  host: https://www.le-production.online
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Viruseproject:
+  host: https://viruseproject.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Anifilm:
+  host: https://anifilm.pro
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+  login:
+    u: ""
+    p: ""
+
+Anibelka:
+  host: https://anibelka.com
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Ultradox:
+  host: https://ultradox.onl
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Korsars:
+  host: https://korsars.pro
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+  login:
+    u: ""
+    p: ""

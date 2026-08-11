@@ -13,7 +13,7 @@ namespace JacRed.Models.AppConf
         }
 
 
-        public string host { get; }
+        public string host { get; set; }
 
         public string alias { get; set; }
 
