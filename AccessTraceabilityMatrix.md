@@ -2,7 +2,7 @@
 
 **Источник истины (код):** `Infrastructure/Security/JacRedEndpointRegistry.cs`  
 **Проверка:** `JacRedAccessCatalog.VerifyRegistry()` — выполняется при старте (несовпадения пишутся в лог)  
-**Последняя проверка:** 2026-08-09 — порт 7 трекеров (`anistar`, `leproduction`, `viruseproject`, `anifilm`, `anibelka`, `korsars`, `ultradox`); иконки `/img/ico/{slug}.ico`; OpenAPI 1.1 `TrackerSlug`
+**Последняя проверка:** 2026-08-11 — порт 7 трекеров (`anistar`, `leproduction`, `viruseproject`, `anifilm`, `anibelka`, `korsars`, `ultradox`); иконки `/img/ico/{slug}.ico`; OpenAPI 1.2.0 `TrackerSlug`
 **README (оператор):** [Безопасность и доступ](README.md#безопасность-и-доступ-к-api) · [Логирование](README.md#консольное-логирование-logging)
 
 ---

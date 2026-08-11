@@ -12,7 +12,7 @@ info:
 
     **Static spec (this file):** `/openapi.yaml` (source: `web/public/openapi.yaml`, published to `wwwroot/openapi.yaml`)
 
-    ## Supported tracker slugs (v1.1)
+    ## Supported tracker slugs (v1.2)
 
     Parsers / cron (`/cron/{slug}/…`, DevAdmin):
     `anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`,
@@ -21,6 +21,9 @@ info:
     `ultradox`, `viruseproject`.
 
     Web UI icons: `/img/ico/{slug}.ico` (fallback `/img/ico/default.ico`).
+
+    Page-only parsers (`anistar`, `leproduction`, `viruseproject`, `anifilm`) usually do **not**
+    appear in `GET /health/background-jobs` (only UpdateTasks/ParseAll-style workers register there).
 
     ## Authentication
 
@@ -244,13 +247,7 @@ paths:
           schema:
             type: string
             enum: [sid, pir, size, create, update]
-        - name: tracker
-          description: |
-            Tracker name filter; accepts a comma-separated list (for example, `kinozal,rutracker`).
-            Case-insensitive; matches any comma-separated part of stored trackerName (merged duplicates).
-          in: query
-          schema:
-            type: string
+        - $ref: "#/components/parameters/TrackerAlias"
         - name: voice
           in: query
           schema:
@@ -296,14 +293,14 @@ paths:
         - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
         "200":
-          description: Available tracker names (e.g. rutracker, kinozal)
+          description: Available tracker names (e.g. rutracker, kinozal, korsars)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: string
-                example: [kinozal, rutracker, rutor]
+                  $ref: "#/components/schemas/TrackerSlug"
+                example: [kinozal, korsars, rutracker, rutor]
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1429,15 +1426,19 @@ components:
       in: query
       schema:
         type: string
+        description: Comma-separated `TrackerSlug` values (e.g. `kinozal,korsars`)
       description: |
-        Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+        Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
         Also accepted as `tracker` / `Tracker[n]`.
     TrackerAlias:
       name: tracker
       in: query
       schema:
         type: string
-      description: Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+        description: Comma-separated `TrackerSlug` values (e.g. `kinozal,rutracker`)
+      description: |
+        Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+        (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
     Genres:
       name: genres
       in: query
@@ -1527,8 +1528,7 @@ components:
           type: string
           description: Internal job key
         Tracker:
-          type: string
-          description: Tracker slug
+          $ref: "#/components/schemas/TrackerSlug"
         JobLabel:
           type: string
           description: Human-readable job label (e.g. ParseAll, UpdateTasks)

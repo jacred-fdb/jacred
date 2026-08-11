@@ -751,8 +751,7 @@ export interface components {
         BackgroundJob: {
             /** @description Internal job key */
             Key?: string;
-            /** @description Tracker slug */
-            Tracker?: string;
+            Tracker?: components["schemas"]["TrackerSlug"];
             /** @description Human-readable job label (e.g. ParseAll, UpdateTasks) */
             JobLabel?: string;
             /** Format: date-time */
@@ -1204,11 +1203,14 @@ export interface components {
          */
         TrackerArray: components["schemas"]["TrackerSlug"][];
         /**
-         * @description Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+         * @description Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
          *     Also accepted as `tracker` / `Tracker[n]`.
          */
         TrackerFilter: string;
-        /** @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker` */
+        /**
+         * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+         *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+         */
         TrackerAlias: string;
         /**
          * @description When non-empty, enables JacRed card-metadata search mode (same trigger as title/title_original).
@@ -1370,11 +1372,14 @@ export interface operations {
                  */
                 "Tracker[]"?: components["parameters"]["TrackerArray"];
                 /**
-                 * @description Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+                 * @description Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
                  *     Also accepted as `tracker` / `Tracker[n]`.
                  */
                 Tracker?: components["parameters"]["TrackerFilter"];
-                /** @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker` */
+                /**
+                 * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+                 *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+                 */
                 tracker?: components["parameters"]["TrackerAlias"];
                 /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
                 imdbid?: components["parameters"]["TorznabImdbId"];
@@ -1431,10 +1436,10 @@ export interface operations {
                 type?: string;
                 sort?: "sid" | "pir" | "size" | "create" | "update";
                 /**
-                 * @description Tracker name filter; accepts a comma-separated list (for example, `kinozal,rutracker`).
-                 *     Case-insensitive; matches any comma-separated part of stored trackerName (merged duplicates).
+                 * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+                 *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
                  */
-                tracker?: string;
+                tracker?: components["parameters"]["TrackerAlias"];
                 voice?: string;
                 videotype?: string;
                 relased?: number;
@@ -1471,13 +1476,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Available tracker names (e.g. rutracker, kinozal) */
+            /** @description Available tracker names (e.g. rutracker, kinozal, korsars) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["TrackerSlug"][];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1581,7 +1586,7 @@ export interface operations {
                  */
                 configured?: components["parameters"]["TorznabConfigured"];
                 /**
-                 * @description Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+                 * @description Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
                  *     Also accepted as `tracker` / `Tracker[n]`.
                  */
                 Tracker?: components["parameters"]["TrackerFilter"];
@@ -1590,7 +1595,10 @@ export interface operations {
                  *     Case-insensitive; matches any comma-separated part of stored trackerName.
                  */
                 "Tracker[]"?: components["parameters"]["TrackerArray"];
-                /** @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker` */
+                /**
+                 * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+                 *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+                 */
                 tracker?: components["parameters"]["TrackerAlias"];
             };
             header?: never;
@@ -1711,7 +1719,7 @@ export interface operations {
                  */
                 configured?: components["parameters"]["TorznabConfigured"];
                 /**
-                 * @description Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+                 * @description Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
                  *     Also accepted as `tracker` / `Tracker[n]`.
                  */
                 Tracker?: components["parameters"]["TrackerFilter"];
@@ -1720,7 +1728,10 @@ export interface operations {
                  *     Case-insensitive; matches any comma-separated part of stored trackerName.
                  */
                 "Tracker[]"?: components["parameters"]["TrackerArray"];
-                /** @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker` */
+                /**
+                 * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+                 *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+                 */
                 tracker?: components["parameters"]["TrackerAlias"];
             };
             header?: never;
@@ -1936,7 +1947,7 @@ export interface operations {
                  */
                 configured?: components["parameters"]["TorznabConfigured"];
                 /**
-                 * @description Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+                 * @description Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
                  *     Also accepted as `tracker` / `Tracker[n]`.
                  */
                 Tracker?: components["parameters"]["TrackerFilter"];
@@ -1945,7 +1956,10 @@ export interface operations {
                  *     Case-insensitive; matches any comma-separated part of stored trackerName.
                  */
                 "Tracker[]"?: components["parameters"]["TrackerArray"];
-                /** @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker` */
+                /**
+                 * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+                 *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+                 */
                 tracker?: components["parameters"]["TrackerAlias"];
             };
             header?: never;
@@ -2056,7 +2070,7 @@ export interface operations {
                  */
                 genres?: components["parameters"]["Genres"];
                 /**
-                 * @description Optional tracker filter (comma-separated); same semantics as `Tracker[]`.
+                 * @description Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
                  *     Also accepted as `tracker` / `Tracker[n]`.
                  */
                 Tracker?: components["parameters"]["TrackerFilter"];
@@ -2065,7 +2079,10 @@ export interface operations {
                  *     Case-insensitive; matches any comma-separated part of stored trackerName.
                  */
                 "Tracker[]"?: components["parameters"]["TrackerArray"];
-                /** @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker` */
+                /**
+                 * @description Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+                 *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+                 */
                 tracker?: components["parameters"]["TrackerAlias"];
                 /** @description Max results after filters */
                 limit?: components["parameters"]["TorznabLimit"];
