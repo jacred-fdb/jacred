@@ -19,7 +19,8 @@
 - 📡 **Torznab XML** — встроенный Torznab API для Sonarr/Radarr/Prowlarr
 - 🌐 **Веб-интерфейс** — поиск, статистика и редактор конфигурации
 - ⚙️ **Настройки в браузере** — `/settings` (форма, YAML/JSON, валидация, diff перед сохранением)
-- 📖 **OpenAPI / Swagger** — `/openapi.yaml`, интерактивная документация на `/swagger`
+- 📖 **OpenAPI / Swagger** — `/openapi.yaml` (v1.2.0), интерактивная документация на `/swagger`
+- 🗂️ **23 трекера** — парсинг и sync (см. [Источники](#источники-трекеры))
 - 🔐 **Поддержка прокси** и Tor для доступа к .onion доменам
 - 📊 **Статистика** по трекерам и торрентам
 - 🎵 **Модуль tracks** для сбора метаданных треков (опционально)
@@ -175,8 +176,8 @@ evercache:
 | ---------- | ---------- | -------------- |
 | `syncapi` | URL upstream-сервера с `opensync: true` | `""` |
 | `opensync` | Разрешить отдачу базы через `/sync/fdb/*` | `false` |
-| `synctrackers` | Фильтр трекеров при pull | см. example |
-| `disable_trackers` | Исключить трекеры из sync | `[]` |
+| `synctrackers` | Фильтр трекеров при pull (slug’и из `TrackerSlug` / `ConfigSchema.KnownTrackerSlugs`) | см. example |
+| `disable_trackers` | Исключить трекеры из sync и API `GET /api/v1.0/trackers` | `[]` |
 | `timeSync` | Интервал pull torrents, мин | `120` |
 | `timeSyncSpidr` | Интервал Spidr pull, мин | `360` |
 | `syncsport` | Синхронизировать sport | `false` |
@@ -348,11 +349,22 @@ journalctl -u jacred -g 'fdb:' -p warning
 | `reqMinute` | Максимальное число запросов в минуту | `8` |
 | `parseDelay` | Задержка между запросами при парсинге, мс | `7000` |
 | `log` | Включить логи парсера для этого трекера (Data/log/{tracker}.log) | `true` |
-| `login` | Учётные данные (u — username, p — password) | `{u: "user", p: "pass"}` |
-| `cookie` | Cookie для аутентификации | `"session=value"` |
+| `login` | Учётные данные (u — username, p — password), если трекер требует логин | `{u: "user", p: "pass"}` |
+| `cookie` | Статическая cookie-сессия (часто альтернатива `login`) | `"session=value"` |
 
 Полный список трекеров и значения по умолчанию — в **`Data/example.yaml`** / **`Data/example.conf`**.
 
+**Аутентификация отдельных трекеров** (плейсхолдеры — в `Data/example.yaml`; реальные секреты не коммитьте):
+
+| Трекер | Что нужно |
+| ------ | --------- |
+| **Korsars** | `login.u` / `login.p` **или** статическая cookie с `bb_data` (если задана cookie — логин не обязателен) |
+| **Anifilm** | `login` **или** session cookie (например `XSRF-TOKEN` + session) |
+| **Anistar** | Статическая cookie (`cf_clearance` + session) обязательна для live-парса; получить экспортом из браузера или через FlareSolverr вручную. **Не** использует блок `flaresolverr` / `/cron/cloudflare/Warmup` как Rutracker |
+| **Anibelka** | Только анонимно — **не** задавайте `cookie` / `login` (в раздачах есть passkey) |
+| **Ultradox** | Логин не нужен; Referer должен выглядеть как поиск google/yandex (свой origin → 503) |
+| **Rutracker** | См. FlareSolverr ниже и [`Infrastructure/Trackers/Rutracker/README.md`](Infrastructure/Trackers/Rutracker/README.md) |
+| **Baibako / Lostfilm / Animelayer / …** | См. блоки в `Data/example.yaml` |
 ### Прокси
 
 Настройки прокси позволяют маршрутизировать запросы через прокси-серверы.
@@ -496,13 +508,17 @@ API key — значение `apikey` из конфига (query `?apikey=...` �
 
 ## Источники (трекеры)
 
-**Активные (парсинг и/или синхронизация):**  
-Kinozal, NNMClub, Rutor, TorrentBy, Bitru (в т.ч. Bitru API), Rutracker, Megapeer, Selezen, Toloka, Mazepa, Baibako, Lostfilm, Animelayer.
+Известные slug’и (`ConfigSchema.KnownTrackerSlugs` / OpenAPI `TrackerSlug`, 23 шт.):
 
-**Отключены по умолчанию (только sync, без парсинга):**  
-Anifilm, AniLibria, HDRezka.
+`anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`, `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`, `megapeer`, `nnmclub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`, `ultradox`, `viruseproject`.
 
-Список для `synctrackers` и настройки по трекерам см. в **`Data/example.yaml`**.
+**Парсеры (cron + FileDB):** все slug’и выше имеют контроллер `/cron/{slug}/…` (кроме служебных `cloudflare` / `maintenance`).
+
+**Иконки UI:** `/img/ico/{slug}.ico` (fallback `/img/ico/default.ico`). Файлы вроде `anilibria.ico` / `hdrezka.ico` / `underverse.ico` — устаревшие ассеты, **не** активные трекеры.
+
+**Не добавляйте в `synctrackers`:** retired-трекеры (AniLibria, HDRezka и т.п.). При фильтрации остатков sync — `disable_trackers`.
+
+Список для `synctrackers` и блоки настроек — в **`Data/example.yaml`**. Конфиг приложения при запуске: **`init.yaml`** / **`init.conf`** в **корне рабочего каталога** (рядом с бинарником), не `Data/init.yaml` (тот — шаблон/defaults при установке).
 
 ---
 
@@ -511,12 +527,14 @@ Anifilm, AniLibria, HDRezka.
 Для самостоятельного парсинга трекеров:
 
 1. Настроить **`init.yaml`** или **`init.conf`** (примеры в **`Data/example.yaml`**, **`Data/example.conf`**).
-   - Убедитесь, что для нужных трекеров указаны правильные `host`, `login` (если требуется) или `cookie`.
+   - Убедитесь, что для нужных трекеров указаны правильные `host`, `login` / `cookie` (см. таблицу аутентификации выше).
+   - Добавьте slug’и в **`synctrackers`**, если хотите видеть их в `GET /api/v1.0/trackers` и sync-фильтре.
    - Настройте прокси, если требуется доступ к .onion доменам.
    - **Rutracker / Cloudflare:** блок **`flaresolverr`** + на VPS egress через **WARP SOCKS** (`PROXY_URL` у контейнера FlareSolverr, volume для `/var/lib/cloudflare-warp`). Cookie `cf_clearance` живёт в persistent-сессии FlareSolverr — держите `sessionIdleMinutes` и keep-alive Warmup. `network_mode: host` сам IP не меняет. Альтернатива без FlareSolverr — Worker **`Rutracker.alias`**. Подробности: [`Infrastructure/Trackers/Rutracker/README.md`](Infrastructure/Trackers/Rutracker/README.md).
+   - **Anistar:** задайте cookie в конфиге; встроенный FlareSolverr-warmup Rutracker на Anistar не действует.
 
 2. Выберите режим работы:
-   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`** (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`). Активируйте: `crontab /opt/jacred/Data/crontab`
+   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из **`Data/crontab`** (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`, daily page-парсеры и hourly Rutor-style для anibelka/korsars/ultradox). Активируйте: `crontab /opt/jacred/Data/crontab`
    - **Синхронизация:** Укажите **`syncapi`** в конфиге, чтобы подтягивать базу с удалённого сервера. Включите `opensync: true` для участия в синхронизации.
    - **Docker:** в образе нет cron — расписание выносится на хост, отдельный контейнер или оркестратор; см. раздел **«Docker → Самостоятельный парсинг и расписание (cron) в Docker»**.
 
@@ -525,6 +543,7 @@ Anifilm, AniLibria, HDRezka.
 4. Мониторинг парсинга:
    - Логи парсеров: `Data/log/{tracker}.log` (по умолчанию `logParsers: true`, per-tracker `log: true`)
    - Логи БД: `Data/log/fdb.*.log` (по умолчанию `logFdb: true`)
+   - Активные длинные джобы: `GET /health/background-jobs` (ParseAll / UpdateTasks; page-only парсеры туда обычно не попадают)
    - Статистика: `GET /stats/*` (если `openstats: true`)
 
 ---
@@ -622,6 +641,8 @@ curl -s -H "X-Api-Key: YOUR_API_KEY" -H "X-Dev-Key: YOUR_DEV_KEY" \
 
 ### OpenAPI / Swagger
 
+Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.0** (источник: [`web/public/openapi.yaml`](web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
+
 | URL | Назначение |
 |-----|------------|
 | `GET /swagger` | Swagger UI (интерактивная документация) |
@@ -632,7 +653,9 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 
 При настроенном `apikey` пути `/swagger`, `/swagger/*` и `/openapi.yaml` доступны без ключа (как `/health`). Схемы авторизации в UI: `apikey` (query), `X-Api-Key`, `Authorization: Bearer`, `X-Dev-Key` (для Config API).
 
-В спецификацию входят публичные эндпоинты (`/api/*`, `/torznab/*`, `/stats/*`, `/sync/*`, `/health`, `/health/background-jobs`, …). Пути `/cron/*`, `/dev/*`, `/jsondb/*` в OpenAPI **не описаны** (политика DevAdmin).
+В спецификацию входят публичные эндпоинты (`/api/*`, `/torznab/*`, `/stats/*`, `/sync/*`, `/health`, `/health/background-jobs`, …). Пути `/cron/*`, `/dev/*`, `/jsondb/*` в OpenAPI **не описаны** (политика DevAdmin) — см. Controllers и [`Data/crontab`](Data/crontab).
+
+Типы для веб-UI: `cd web && npm run gen:api` → [`web/src/lib/api/types.ts`](web/src/lib/api/types.ts).
 
 Проверка соответствия маршрутов политикам: [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
 
@@ -643,7 +666,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 - **`GET /settings`** — настройки SPA (Config API: LAN или `X-Dev-Key`).
 - **Веб-UI:** Vue 3 SPA в [`web/`](web/) (Vite + Tailwind + shadcn-vue); `make web` / `./scripts/build-web-ui.sh` собирает publish-папку `wwwroot/` (в git не хранится).
 - **`GET /health`** — проверка работы. Ответ JSON: `{"status":"OK"}`.
-- **`GET /health/background-jobs`** — активные in-process ParseAll / UpdateTasks (cron). Ответ JSON: `{"jobs":[…]}` (пустой массив, если ничего не запущено).
+- **`GET /health/background-jobs`** — активные in-process ParseAll / UpdateTasks (cron). Ответ JSON: `{"jobs":[…]}` (пустой массив, если ничего не запущено). Page-only парсеры (`anistar`, `leproduction`, `viruseproject`, `anifilm`) сюда обычно **не** попадают.
 - **`GET /version`** — версия приложения. Ответ JSON: `{"version":"1.0.0"}`.
 - **`GET /lastupdatedb`** — дата/время последнего обновления БД (UTC). Ответ JSON: `{"lastupdatedb":"dd.MM.yyyy HH:mm"}`.
 
@@ -674,8 +697,8 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
   - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный JSON API JacRed, не Torznab и не Jackett).
-  - Параметры: `query` (поисковый запрос), `tracker` (трекер или список трекеров через запятую), `category` (категория), `quality` (качество).
-- **`GET /api/v1.0/trackers`** — список доступных имён трекеров (из `synctrackers`, иначе known slugs; записи из `disable_trackers` исключаются). Пустой `synctrackers: []` возвращает `[]` (скан БД не выполняется).
+  - Параметры: `search` / связанные фильтры, `tracker` (один slug или список через запятую — значения `TrackerSlug`), `sort`, `type`, …
+- **`GET /api/v1.0/trackers`** — список доступных имён трекеров (`TrackerSlug[]` в OpenAPI): из `synctrackers`, иначе known slugs; записи из `disable_trackers` исключаются. Пустой `synctrackers: []` возвращает `[]` (скан БД не выполняется).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.
 
 ### Управление конфигурацией (Config API)
@@ -766,11 +789,30 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 
 ### Парсинг трекеров
 
-- **`GET /cron/{tracker}/parse`** — запуск парсинга трекера.
-- **`GET /cron/{tracker}/ParseAllTask`** — парсинг всех задач трекера.
-- **`GET /cron/{tracker}/UpdateTasksParse`** — обновление задач парсинга.
+Общие маршруты (не все трекеры реализуют каждый):
+
+- **`GET /cron/{tracker}/parse`** — запуск парсинга (часто с `?page=` / `?limit_page=` / `?fullparse=` — зависит от трекера).
+- **`GET /cron/{tracker}/ParseLatest`** — свежие раздачи (Rutor-style: anibelka, korsars, ultradox и ряд старых трекеров).
+- **`GET /cron/{tracker}/ParseAllTask`** — фоновый полный обход задач (регистрируется в `/health/background-jobs`).
+- **`GET /cron/{tracker}/UpdateTasksParse`** — обновление очереди задач (тоже background-jobs).
 - **`GET /cron/{tracker}/parseMagnet`** — парсинг магнет-ссылок (для поддерживающих трекеров).
-- Дополнительные параметры: `parseFrom`, `parseTo`, `parseFromDate` (зависит от трекера).
+- Дополнительные параметры: `parseFrom`, `parseTo`, `parseFromDate`, `pages` (зависит от трекера).
+
+Долгие HTTP-джобы для anibelka / korsars / ultradox **не** отменяют работу при обрыве curl (`RequestAborted` не пробрасывается) — дождитесь ответа или смотрите лог `Data/log/{tracker}.log`.
+
+#### Новые трекеры (ориентир из [`Data/crontab`](Data/crontab))
+
+| Трекер | Типичные действия | Расписание в примере crontab |
+| ------ | ----------------- | ---------------------------- |
+| **anistar** | `parse?limit_page=3` (нужна cookie) | daily `40 6` |
+| **leproduction** | `parse?limit_page=3` | daily `45 6` |
+| **viruseproject** | `parse?limit_page=3` | daily `50 6` |
+| **anifilm** | `parse` (login/cookie; max_time 1800s) | daily `55 6` |
+| **anibelka** | `parse`, `UpdateTasksParse`, `ParseAllTask`, `ParseLatest` | hourly + daily tasks |
+| **korsars** | то же + login/`bb_data` | hourly + daily tasks |
+| **ultradox** | то же (Referer search-like) | hourly + daily tasks |
+
+Полный канон расписания и `max_time` — только в **`Data/crontab`** (через `Data/run-job.sh`).
 
 #### Knaben
 
@@ -778,11 +820,11 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 - **`GET /cron/knaben/backfill`** — заполнение архива по листовым подкатегориям `2001000`–`2008000` и `3001000`–`3008000`: сначала `asc` (старые), при достижении 10 000 — встречный `desc` (новые). Состояние: **`Data/temp/knaben_backfill.json`**. Параметры: `pages` (≤10), `size` (≤300), `reset=true` — начать заново. Категории ≤10 000 — `complete` за один проход; ≤20 000 — за два; больше 20 000 — `partial` (середина недоступна из‑за лимита API).
 - **`GET /cron/knaben/backfillStatus`** — краткий статус checkpoint без запуска.
 
-Пример crontab (см. также [`Data/crontab`](Data/crontab)):
+Пример (как в [`Data/crontab`](Data/crontab)):
 
 ```text
-*/20 * * * * curl -s "http://127.0.0.1:9117/cron/knaben/parse"
-0 * * * * curl -s "http://127.0.0.1:9117/cron/knaben/backfill?pages=10"
+12,32,52 * * * *  /opt/jacred/Data/run-job.sh knaben-parse http://127.0.0.1:9117/cron/knaben/parse 900
+42 * * * *  /opt/jacred/Data/run-job.sh knaben-backfill "http://127.0.0.1:9117/cron/knaben/backfill?pages=10" 900
 ```
 
 Ручной старт архива с `asc`:
@@ -994,7 +1036,7 @@ volumes:
 2. **Отдельный контейнер с cron** — маленький образ (например `curl` + `cron`), в том же Docker Compose, который по расписанию дергает сервис JacRed по **внутреннему** имени и порту (например `http://jacred:9117/...`). Убедитесь, что с точки зрения JacRed IP источника остаётся в приватном диапазоне (типично так и есть в user-defined bridge-сети).
 3. **Kubernetes CronJob**, **systemd timer** на хосте — по сути то же, что п.1: периодический HTTP-запрос к JacRed.
 
-**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh`, `cloudflare-warmup` перед `rutracker-parse`, и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
+**Ориентир по расписанию:** в репозитории лежит пример **`Data/crontab`** (парсинг по трекерам через `Data/run-job.sh`, `cloudflare-warmup` перед `rutracker-parse`, daily anistar/leproduction/viruseproject/anifilm, hourly anibelka/korsars/ultradox + ParseLatest, knaben parse/backfill, и `*/5 * * * *` для **`/jsondb/save`**). Скопируйте нужные строки в свой crontab на хосте (или в свой шаблон для контейнера с cron) и:
 
 - при использовании `run-job.sh` убедитесь, что скрипт доступен по пути из crontab (в релизе — `/opt/jacred/Data/run-job.sh`); либо замените строки на прямой `curl`;
 - замените хост/порт в URL на ваши (`127.0.0.1:9117` или имя сервиса в Compose);
@@ -1024,6 +1066,10 @@ volumes:
 - Убедитесь, что `syncapi` указан корректно (если используется синхронизация)
 - Проверьте логи парсеров: `tail -f Data/log/{tracker}.log`
 - Убедитесь, что трекер доступен и учётные данные верны
+- **Конфиг не подхватывается:** рабочий файл — `./init.yaml` (CWD рядом с бинарником); правка только `Data/init.yaml` без копии/symlink в корень не применяется
+- **Korsars:** в логе `login.u empty` / `login failed` — задайте `Korsars.login` или `cookie` с `bb_data` в корневом `init.yaml`
+- **Anistar:** пустой parse при 403/CF — нужна cookie; встроенный Rutracker Warmup не помогает
+- **Anibelka:** не логиньтесь — анонимный download
 - **Rutracker / Cloudflare:** проверьте, что FlareSolverr доступен (`curl http://127.0.0.1:8191/` или `http://flaresolverr:8191/` в compose), в конфиге `flaresolverr.enable: true` и верный `url`, и что срабатывает warmup: `curl http://127.0.0.1:9117/cron/cloudflare/Warmup` (первый ответ может занять до ~180 с). Если на VPS challenge детектится, но не решается — задайте residential/ISP `PROXY_*` у контейнера FlareSolverr (см. playbook в Rutracker README). Smoke: `./scripts/cron_rutracker_smoke.sh`
 
 ### API не отвечает
