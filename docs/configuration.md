@@ -263,17 +263,17 @@ globalproxy:
 | `auto` | v2 only | v2 + v1 fuzzy (до `maxV1Pairs`) |
 | `true` | v2 + v1 fuzzy (без лимита) | v2 + v1 fuzzy (без лимита) |
 
-IMDB/KP (`tt…`, `kp…`) всегда через v1 exact (после резолва Alloha), независимо от `mergeV1`.
+IMDB/KP/TMDB (`tt…`, `kp…`, `tmdb…`, themoviedb.org URL) всегда через v1 exact (после резолва Alloha), независимо от `mergeV1`.
 
 Jackett JSON (`/api/v2.0/indexers/.../results`) **всегда** использует combined search; на `torznab.enable` не зависит.
 
 ### Alloha (`alloha`)
 
-Резолв Kinopoisk / IMDb ID → названия через **Alloha TV API v2** (`GET /v2/movies/search`), затем точный поиск в FileDB.
+Резолв Kinopoisk / IMDb / TMDB ID → названия через **Alloha TV API v2** (`GET /v2/movies/search`), затем точный поиск в FileDB.
 
 | Параметр | Описание | По умолчанию |
 | --- | --- | --- |
-| `enable` | Включить резолв `tt…` / `kp…` | `true` |
+| `enable` | Включить резолв `tt…` / `kp…` / `tmdb…` / themoviedb.org URL | `true` |
 | `baseUrl` | Хост API | `https://apbugall.org` |
 | `token` | Bearer-токен (`Authorization`) | — (см. `example.yaml`) |
 | `timeoutSeconds` | Таймаут HTTP | `8` |

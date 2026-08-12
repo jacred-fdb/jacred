@@ -112,9 +112,9 @@ namespace JacRed.Configuration.Schema
                         Field("search.stripTrailingYear", "bool", "Strip trailing year", "Fuzzy: запрос без года"),
                         Field("search.skipCatFilter", "bool", "Skip cat filter", "Не фильтровать cat/Category[] на сервере")
                     }),
-                    Group("alloha", "Alloha", "KP/IMDB ID → title (API v2)", new[]
+                    Group("alloha", "Alloha", "KP/IMDB/TMDB ID → title (API v2)", new[]
                     {
-                        Field("alloha.enable", "bool", "Включить", "Резолв tt… / kp… через Alloha"),
+                        Field("alloha.enable", "bool", "Включить", "Резолв tt… / kp… / tmdb… через Alloha"),
                         Field("alloha.baseUrl", "string", "Base URL", "https://apbugall.org"),
                         Field("alloha.token", "password", "Bearer token", "Authorization: Bearer …", sensitive: true),
                         Field("alloha.timeoutSeconds", "int", "Timeout (с)", null, min: 1),

@@ -1,3 +1,4 @@
+using JacRed.Infrastructure.External;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,6 @@ namespace JacRed.Infrastructure.Indexers
 {
     public static class IndexerRequestParams
     {
-        static readonly Regex ImdbKpRegex = new Regex(@"^(tt|kp)[0-9]+$", RegexOptions.IgnoreCase);
-
         public static string StripWrappingQuotes(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null;
@@ -24,23 +23,42 @@ namespace JacRed.Infrastructure.Indexers
             var s = StripWrappingQuotes(value);
             if (string.IsNullOrWhiteSpace(s)) return null;
             s = s.Trim();
+            if (AllohaTitleResolver.TryNormalizeId(s, out string canonical, out _))
+                return canonical;
             if (s.StartsWith("kp", StringComparison.OrdinalIgnoreCase)) return s.ToLowerInvariant();
             if (s.StartsWith("tt", StringComparison.OrdinalIgnoreCase)) return s.ToLowerInvariant();
             if (Regex.IsMatch(s, @"^\d{7,10}$")) return "tt" + s;
             return s;
         }
 
+        /// <summary>True for <c>tt…</c> / <c>kp…</c> / <c>tmdb…</c> / themoviedb.org URLs.</summary>
         public static bool IsImdbOrKpQuery(string query)
         {
-            return !string.IsNullOrWhiteSpace(query) && ImdbKpRegex.IsMatch(query.Trim());
+            return AllohaTitleResolver.IsResolvableId(query);
         }
 
         public static string NormalizeQuery(string query)
         {
             var q = StripWrappingQuotes(query);
             if (string.IsNullOrWhiteSpace(q)) return null;
-            if (Regex.IsMatch(q.Trim(), @"^\d{7,10}$")) return "tt" + q.Trim();
-            return q.Trim();
+            q = q.Trim();
+            if (AllohaTitleResolver.TryNormalizeId(q, out string canonical, out _))
+                return canonical;
+            if (Regex.IsMatch(q, @"^\d{7,10}$")) return "tt" + q;
+            return q;
+        }
+
+        public static string NormalizeTmdbId(string value)
+        {
+            var s = StripWrappingQuotes(value);
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            s = s.Trim();
+            if (AllohaTitleResolver.TryNormalizeId(s, out string canonical, out _)
+                && canonical.StartsWith("tmdb", StringComparison.OrdinalIgnoreCase))
+                return canonical;
+            if (Regex.IsMatch(s, @"^\d+$"))
+                return "tmdb" + s;
+            return null;
         }
 
         public static string ImDbIdFromQuery(IQueryCollection query)

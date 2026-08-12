@@ -101,7 +101,7 @@ search:
   stripTrailingYear: true # Fuzzy: доп. запрос без года в конце
   skipCatFilter: true # Не фильтровать cat/Category[] на сервере (Lampa фильтрует сама)
 
-# Alloha TV API v2 — resolve KP/IMDB (tt… / kp…) to titles for FileDB search
+# Alloha TV API v2 — resolve KP/IMDB/TMDB (tt… / kp… / tmdb… / themoviedb.org URL) to titles for FileDB search
 alloha:
   enable: true
   baseUrl: https://apbugall.org

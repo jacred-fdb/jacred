@@ -20,7 +20,7 @@ namespace JacRed.Application.Search
             #region search kp/imdb
             int allohaYear = 0;
             string allohaAltTitle = null;
-            bool idQuery = AllohaTitleResolver.IsImdbOrKpId(search);
+            bool idQuery = AllohaTitleResolver.IsResolvableId(search);
             if (idQuery)
             {
                 var resolved = await AllohaTitleResolver.ResolveAsync(search, altname, memoryCache);

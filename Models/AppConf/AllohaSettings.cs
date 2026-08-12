@@ -1,7 +1,7 @@
 namespace JacRed.Models.AppConf
 {
     /// <summary>
-    /// Alloha TV API v2 — resolve KP/IMDB IDs to titles for FileDB search.
+    /// Alloha TV API v2 — resolve KP/IMDB/TMDB IDs to titles for FileDB search.
     /// </summary>
     public class AllohaSettings
     {

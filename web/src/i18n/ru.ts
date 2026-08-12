@@ -43,7 +43,7 @@ export default {
   search: {
     title: 'Поиск торрентов',
     subtitle: 'Имя, код Кинопоиска или IMDb · Enter или кнопка «Искать»',
-    placeholder: 'Название, kp123456, tt1234567…',
+    placeholder: 'Название, kp123456, tt1234567, tmdb1315772…',
     queryAria: 'Поисковый запрос',
     submit: 'Искать',
     searching: 'Поиск…',

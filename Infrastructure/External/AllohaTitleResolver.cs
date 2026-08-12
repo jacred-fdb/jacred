@@ -18,6 +18,7 @@ namespace JacRed.Infrastructure.External
         public string Type { get; init; }
         public string ImdbId { get; init; }
         public string KpId { get; init; }
+        public string TmdbId { get; init; }
 
         public static AllohaResolveResult Unresolved(string search, string altname) => new AllohaResolveResult
         {
@@ -27,38 +28,112 @@ namespace JacRed.Infrastructure.External
     }
 
     /// <summary>
-    /// Alloha TV API v2: resolve <c>tt…</c> / <c>kp…</c> to titles (+ year/type) for FileDB search.
+    /// Alloha TV API v2: resolve <c>tt…</c> / <c>kp…</c> / <c>tmdb…</c> (and TMDB URLs) to titles for FileDB search.
     /// </summary>
     public static class AllohaTitleResolver
     {
-        static readonly Regex IdPattern = new Regex("^(tt|kp)[0-9]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex CompactIdPattern = new Regex(
+            @"^(?:tt|kp|tmdb:?)\d+$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public static bool IsImdbOrKpId(string search) =>
-            !string.IsNullOrWhiteSpace(search) && IdPattern.IsMatch(search.Trim());
+        /// <summary>themoviedb.org/movie|tv/{id} or /{id}-{slug}</summary>
+        static readonly Regex TmdbUrlPattern = new Regex(
+            @"themoviedb\.org/(?<kind>movie|tv)/(?<id>\d+)(?:-[^\s/?#]*)?",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static bool IsResolvableId(string search) =>
+            TryNormalizeId(search, out _, out _);
+
+        /// <summary>Backward-compatible alias for <see cref="IsResolvableId"/>.</summary>
+        public static bool IsImdbOrKpId(string search) => IsResolvableId(search);
 
         /// <summary>
-        /// If <paramref name="search"/> is an IMDb/KP id, resolve via Alloha; otherwise return inputs unchanged.
+        /// Normalize <c>tt…</c>/<c>kp…</c>/<c>tmdb…</c>/TMDB URL to a canonical id.
+        /// </summary>
+        /// <param name="raw">User input (id or themoviedb.org URL).</param>
+        /// <param name="canonicalId">Normalized id such as <c>tmdb1315772</c>.</param>
+        /// <param name="urlCategoryHint">movie or serial from TMDB URL path when present.</param>
+        public static bool TryNormalizeId(string raw, out string canonicalId, out string urlCategoryHint)
+        {
+            canonicalId = null;
+            urlCategoryHint = null;
+            if (string.IsNullOrWhiteSpace(raw))
+                return false;
+
+            string s = raw.Trim();
+
+            var url = TmdbUrlPattern.Match(s);
+            if (url.Success)
+            {
+                canonicalId = "tmdb" + url.Groups["id"].Value;
+                string kind = url.Groups["kind"].Value;
+                urlCategoryHint = kind.Equals("tv", StringComparison.OrdinalIgnoreCase) ? "serial"
+                    : kind.Equals("movie", StringComparison.OrdinalIgnoreCase) ? "movie"
+                    : null;
+                return true;
+            }
+
+            if (CompactIdPattern.IsMatch(s))
+            {
+                if (s.StartsWith("tmdb", StringComparison.OrdinalIgnoreCase))
+                {
+                    string digits = s.Substring(4).TrimStart(':');
+                    if (!Regex.IsMatch(digits, @"^\d+$"))
+                        return false;
+                    canonicalId = "tmdb" + digits;
+                    return true;
+                }
+
+                canonicalId = s.ToLowerInvariant();
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// If <paramref name="search"/> is an external id / TMDB URL, resolve via Alloha; otherwise return unchanged.
         /// </summary>
         public static async Task<AllohaResolveResult> ResolveAsync(
             string search, string altname, IMemoryCache memoryCache)
         {
-            if (!IsImdbOrKpId(search))
+            if (!TryNormalizeId(search, out string id, out string urlCategoryHint))
                 return AllohaResolveResult.Unresolved(search, altname);
 
             var conf = AppInit.conf.alloha;
             if (conf == null || !conf.enable || string.IsNullOrWhiteSpace(conf.token))
                 return AllohaResolveResult.Unresolved(search, altname);
 
-            string id = search.Trim();
             string memkey = CacheKey(id);
 
             if (memoryCache != null && memoryCache.TryGetValue(memkey, out AllohaResolveResult cached) && cached != null)
-                return WithFallback(cached, search, altname);
+            {
+                var fromCache = WithFallback(cached, search, altname);
+                if (string.IsNullOrWhiteSpace(fromCache.Type) && !string.IsNullOrWhiteSpace(urlCategoryHint))
+                {
+                    return new AllohaResolveResult
+                    {
+                        Search = fromCache.Search,
+                        AltName = fromCache.AltName,
+                        AlternativeName = fromCache.AlternativeName,
+                        Year = fromCache.Year,
+                        Type = urlCategoryHint,
+                        ImdbId = fromCache.ImdbId,
+                        KpId = fromCache.KpId,
+                        TmdbId = fromCache.TmdbId ?? id
+                    };
+                }
+                return fromCache;
+            }
 
             string baseUrl = (conf.baseUrl ?? "https://apbugall.org").TrimEnd('/');
-            string query = id.StartsWith("kp", StringComparison.OrdinalIgnoreCase)
-                ? $"kp={id.Substring(2)}"
-                : $"imdb={id}";
+            string query;
+            if (id.StartsWith("kp", StringComparison.OrdinalIgnoreCase))
+                query = $"kp={id.Substring(2)}";
+            else if (id.StartsWith("tmdb", StringComparison.OrdinalIgnoreCase))
+                query = $"tmdb={id.Substring(4)}";
+            else
+                query = $"imdb={id}";
 
             var headers = new List<(string name, string val)>
             {
@@ -80,8 +155,10 @@ namespace JacRed.Infrastructure.External
             var ids = data?.Value<JObject>("ids");
             string imdbId = NormalizeImdbId(ids?.Value<string>("imdb"));
             string kpId = NormalizeKpId(ids?.Value<object>("kp"));
+            string tmdbId = NormalizeTmdbId(ids?.Value<object>("tmdb")) ?? (id.StartsWith("tmdb", StringComparison.OrdinalIgnoreCase) ? id : null);
 
-            var mapped = MapTitles(originalName, name, alternativeName, year, categorySlug, imdbId, kpId, search, altname);
+            var mapped = MapTitles(originalName, name, alternativeName, year, categorySlug, urlCategoryHint,
+                imdbId, kpId, tmdbId, search, altname);
 
             int cacheHours = conf.cacheHours > 0 ? conf.cacheHours : 24;
             var expiry = DateTime.Now.AddHours(cacheHours);
@@ -102,6 +179,9 @@ namespace JacRed.Infrastructure.External
 
             if (!string.IsNullOrWhiteSpace(result.KpId))
                 memoryCache.Set(CacheKey(result.KpId), result, expiry);
+
+            if (!string.IsNullOrWhiteSpace(result.TmdbId))
+                memoryCache.Set(CacheKey(result.TmdbId), result, expiry);
         }
 
         static string CacheKey(string id) => $"alloha:title:{id.Trim().ToLowerInvariant()}";
@@ -128,6 +208,16 @@ namespace JacRed.Infrastructure.External
             return "kp" + s;
         }
 
+        static string NormalizeTmdbId(object tmdb)
+        {
+            if (tmdb == null)
+                return null;
+            string s = tmdb.ToString()?.Trim();
+            if (string.IsNullOrWhiteSpace(s) || !Regex.IsMatch(s, "^[0-9]+$"))
+                return null;
+            return "tmdb" + s;
+        }
+
         static string MapCategorySlug(string slug)
         {
             if (string.IsNullOrWhiteSpace(slug))
@@ -148,8 +238,8 @@ namespace JacRed.Infrastructure.External
         }
 
         static AllohaResolveResult MapTitles(
-            string originalName, string name, string alternativeName, int year, string categorySlug,
-            string imdbId, string kpId, string fallbackSearch, string fallbackAlt)
+            string originalName, string name, string alternativeName, int year, string categorySlug, string urlCategoryHint,
+            string imdbId, string kpId, string tmdbId, string fallbackSearch, string fallbackAlt)
         {
             string search;
             string alt;
@@ -183,15 +273,18 @@ namespace JacRed.Infrastructure.External
                     altNameDistinct = a;
             }
 
+            string type = MapCategorySlug(categorySlug) ?? urlCategoryHint;
+
             return new AllohaResolveResult
             {
                 Search = search,
                 AltName = alt,
                 AlternativeName = altNameDistinct,
                 Year = year,
-                Type = MapCategorySlug(categorySlug),
+                Type = type,
                 ImdbId = imdbId,
-                KpId = kpId
+                KpId = kpId,
+                TmdbId = tmdbId
             };
         }
 

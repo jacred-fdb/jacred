@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JacRed API
-  version: 1.2.2
+  version: 1.2.3
   description: |
     Torrent aggregator API: Jackett-compatible search, native torrent search, Torznab XML,
     statistics, sync protocol, and configuration management.
@@ -170,7 +170,8 @@ paths:
         When `{status}` is a tracker id from `GET /api/v1.0/trackers` (for example `rutracker`),
         results are filtered to that tracker (case-insensitive; matches any part of a merged trackerName).
 
-        **IMDb / Kinopoisk IDs:** `query`/`q` as `tt…` or `kp…`, or `imdbid`, are resolved via Alloha TV API v2
+        **IMDb / Kinopoisk / TMDB IDs:** `query`/`q` as `tt…`, `kp…`, `tmdb…`, a themoviedb.org
+        `/movie|tv/{id}-…` URL, or `imdbid`, are resolved via Alloha TV API v2
         (`GET /v2/movies/search`) to titles (plus optional alternative name, year, type), then searched
         in FileDB with exact match. When the client omits `year`, Alloha year ±1 is applied if
         `alloha.filterByYear` is enabled.
@@ -229,7 +230,8 @@ paths:
       description: |
         Native JacRed JSON search (not Torznab/Jackett).
 
-        **IMDb / Kinopoisk IDs:** when `search` is `tt…` or `kp…`, JacRed resolves titles via Alloha TV API v2,
+        **IMDb / Kinopoisk / TMDB IDs:** when `search` is `tt…`, `kp…`, `tmdb…`, or a themoviedb.org
+        `/movie|tv/{id}-…` URL, JacRed resolves titles via Alloha TV API v2,
         forces `exact=true`, and may fill `type` / year filter from Alloha when the client omitted them
         (`relased` unset → Alloha year ±1 if `alloha.filterByYear`; empty `type` → Alloha category).
       parameters:
@@ -240,7 +242,8 @@ paths:
           schema:
             type: string
           description: |
-            Title query, or an IMDb/KP id (`tt1234567`, `kp301`). Empty or omitted yields an empty result array.
+            Title query, or an external id (`tt1234567`, `kp301`, `tmdb1315772`) or themoviedb.org URL.
+            Empty or omitted yields an empty result array.
             ID queries are resolved via Alloha v2 before FileDB lookup.
         - name: altname
           in: query
@@ -380,8 +383,8 @@ paths:
         (`Tracker`/`Tracker[]`/`tracker`).
         `t=indexers` returns aggregate `all` plus one indexer entry per `GET /api/v1.0/trackers` name.
 
-        **IMDb / Kinopoisk IDs:** `q` as `tt…`/`kp…` or `imdbid` → Alloha TV API v2 title resolve →
-        FileDB exact search (year ±1 when client `year` absent and `alloha.filterByYear`).
+        **IMDb / Kinopoisk / TMDB IDs:** `q` as `tt…`/`kp…`/`tmdb…`, a themoviedb.org URL, or `imdbid` →
+        Alloha TV API v2 title resolve → FileDB exact search (year ±1 when client `year` absent and `alloha.filterByYear`).
       operationId: torznabRoot
       parameters:
         - $ref: "#/components/parameters/ApiKeyQuery"
@@ -450,7 +453,7 @@ paths:
         When `{indexer}` is a tracker id (not `all`), search results are filtered to that tracker.
         `t=indexers` lists `all` plus per-tracker indexers from the tracker catalog.
         Same query params as `/torznab/api` (caps + JacRed card fields, categories, tracker filters),
-        including Alloha v2 resolve for `tt…` / `kp…` / `imdbid`.
+        including Alloha v2 resolve for `tt…` / `kp…` / `tmdb…` / themoviedb.org URLs / `imdbid`.
       operationId: torznabIndexer
       parameters:
         - name: indexer
@@ -609,7 +612,7 @@ paths:
       summary: Prowlarr Torznab proxy
       description: |
         Prowlarr-compatible Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`).
-        Same handler as `/torznab/api` and Jackett alias paths (including Alloha v2 resolve for `tt…` / `kp…` / `imdbid`).
+        Same handler as `/torznab/api` and Jackett alias paths (including Alloha v2 resolve for `tt…` / `kp…` / `tmdb…` / `imdbid`).
         Path `{indexer}` is typically numeric (`1` = aggregate JacRed); numeric ids do not apply a tracker filter.
       operationId: prowlarrNewznab
       parameters:
@@ -691,7 +694,8 @@ paths:
         Prowlarr-compatible interactive search (`/api/v1/search`).
         Returns a JSON array of ReleaseResource-shaped objects.
         Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
-        IMDb/KP id queries (`tt…`, `kp…`, or brace `{ImdbId:…}`) are resolved via Alloha TV API v2 before FileDB exact search.
+        IMDb/KP/TMDB id queries (`tt…`, `kp…`, `tmdb…`, themoviedb.org URL, or brace `{ImdbId:…}` / `{TmdbId:…}`)
+        are resolved via Alloha TV API v2 before FileDB exact search.
         JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
         Each release also includes JacRed extensions (`ffprobe`, `languages`, `info`) when `tracks: true`, same as Jackett results.
         Lampa Prowlarr mode (`query` + `type` + `categories`) is promoted to Jackett-style card search
@@ -1320,7 +1324,8 @@ components:
       description: |
         IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
         Resolved via Alloha TV API v2 to titles before FileDB search.
-        Kinopoisk ids are accepted on `q`/`query` as `kp…` (same Alloha resolve path).
+        Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+        `/movie|tv/{id}-…` URL (same Alloha resolve path).
     TorznabTvdbId:
       name: tvdbid
       in: query
@@ -1481,7 +1486,7 @@ components:
         type: integer
       description: |
         Release year filter / card-search override.
-        When omitted on an IMDb/KP id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+        When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
     IsSerial:
       name: is_serial
       in: query

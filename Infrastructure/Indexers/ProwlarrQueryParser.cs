@@ -44,6 +44,7 @@ namespace JacRed.Infrastructure.Indexers
         {
             public string Query { get; set; }
             public string ImdbId { get; set; }
+            public string TmdbId { get; set; }
             public int? Season { get; set; }
             public int? Episode { get; set; }
             public int? Year { get; set; }
@@ -73,6 +74,8 @@ namespace JacRed.Infrastructure.Indexers
                         hadTvdb = true;
                     if (match.Groups["imdbid"].Success)
                         result.ImdbId = IndexerRequestParams.NormalizeImdbId(match.Groups["imdbid"].Value);
+                    if (match.Groups["tmdbid"].Success)
+                        result.TmdbId = IndexerRequestParams.NormalizeTmdbId(match.Groups["tmdbid"].Value);
                     if (match.Groups["season"].Success && int.TryParse(match.Groups["season"].Value, out int season) && season > 0)
                         result.Season = season;
                     if (match.Groups["episode"].Success && int.TryParse(match.Groups["episode"].Value, out int episode) && episode > 0)
@@ -90,6 +93,8 @@ namespace JacRed.Infrastructure.Indexers
                 {
                     if (match.Groups["imdbid"].Success)
                         result.ImdbId = IndexerRequestParams.NormalizeImdbId(match.Groups["imdbid"].Value);
+                    if (match.Groups["tmdbid"].Success)
+                        result.TmdbId = IndexerRequestParams.NormalizeTmdbId(match.Groups["tmdbid"].Value);
                     if (match.Groups["year"].Success && int.TryParse(match.Groups["year"].Value, out int year) && year > 0)
                         result.Year = year;
                     if (match.Groups["genre"].Success)
@@ -131,17 +136,23 @@ namespace JacRed.Infrastructure.Indexers
             q = IndexerRequestParams.NormalizeQuery(q?.Trim());
             if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.ImdbId))
                 q = result.ImdbId;
+            if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.TmdbId))
+                q = result.TmdbId;
             if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.Title))
                 q = result.Title;
             if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.Artist))
                 q = string.IsNullOrWhiteSpace(result.Album) ? result.Artist : $"{result.Artist} {result.Album}";
 
             // Lampa Prowlarr card search: plain query only — promote into Jackett card fields.
-            if (!string.IsNullOrWhiteSpace(q) && string.IsNullOrWhiteSpace(result.ImdbId))
+            if (!string.IsNullOrWhiteSpace(q)
+                && string.IsNullOrWhiteSpace(result.ImdbId)
+                && string.IsNullOrWhiteSpace(result.TmdbId))
                 EnrichPlainQuery(result, q);
 
             result.Query = q;
-            result.TvdbIdOnly = hadTvdb && string.IsNullOrWhiteSpace(result.Query) && string.IsNullOrWhiteSpace(result.ImdbId);
+            result.TvdbIdOnly = hadTvdb && string.IsNullOrWhiteSpace(result.Query)
+                && string.IsNullOrWhiteSpace(result.ImdbId)
+                && string.IsNullOrWhiteSpace(result.TmdbId);
             return result;
         }
 
