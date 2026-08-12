@@ -54,6 +54,7 @@ synctrackers:
   - rutor
   - rutracker
   - selezen
+  - subsplease
   - toloka
   - torrentby
   - ultradox
@@ -335,6 +336,14 @@ Rudub:
   login:
     u: "your_rudub_username"
     p: "your_rudub_password"
+
+# SubsPlease — public anime API; 1080p magnets only (batches via ParseShows).
+SubsPlease:
+  host: https://subsplease.org
+  useproxy: false
+  reqMinute: 30
+  parseDelay: 1000
+  log: true
 
 Lostfilm:
   host: https://www.lostfilm.tv

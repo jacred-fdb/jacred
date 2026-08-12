@@ -15,6 +15,7 @@ using JacRed.Infrastructure.Trackers.Mazepa;
 using JacRed.Infrastructure.Trackers.Megapeer;
 using JacRed.Infrastructure.Trackers.NNMClub;
 using JacRed.Infrastructure.Trackers.Rudub;
+using JacRed.Infrastructure.Trackers.SubsPlease;
 using JacRed.Infrastructure.Trackers.Rutor;
 using JacRed.Infrastructure.Trackers.Rutracker;
 using JacRed.Infrastructure.Trackers.Selezen;
@@ -40,6 +41,7 @@ namespace JacRed.Infrastructure.Trackers
             services.AddSingleton<MegapeerSyncService>();
             services.AddSingleton<BaibakoSyncService>();
             services.AddSingleton<RudubSyncService>();
+            services.AddSingleton<SubsPleaseSyncService>();
             services.AddSingleton<AnidubSyncService>();
             services.AddSingleton<AnistarSyncService>();
             services.AddSingleton<AnibelkaSyncService>();

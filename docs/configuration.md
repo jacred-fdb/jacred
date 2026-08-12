@@ -150,6 +150,7 @@ journalctl -u jacred -g 'fdb:' -p warning
 | **Anifilm** | `login` **или** session cookie (например `XSRF-TOKEN` + session) |
 | **Anistar** | Статическая cookie (`cf_clearance` + session) обязательна для live-парса; получить экспортом из браузера или через FlareSolverr вручную. **Не** использует блок `flaresolverr` / `/cron/cloudflare/Warmup` как Rutracker |
 | **Anibelka** | Только анонимно — **не** задавайте `cookie` / `login` (в раздачах есть passkey) |
+| **SubsPlease** | Только анонимно — JSON API; 1080p magnets only; Batches via `ParseShows` |
 | **RuDub** | `login` **или** cookie (`PHPSESSID` / `uid` / `pass`); парсит только HD 1080 / HD 2160; зеркала `rN.rudub.world` через `host`/`alias` |
 | **Ultradox** | Логин не нужен; Referer должен выглядеть как поиск google/yandex (свой origin → 503) |
 | **Rutracker** | См. [`Infrastructure/Trackers/Rutracker/README.md`](https://github.com/jacred-fdb/jacred/blob/main/Infrastructure/Trackers/Rutracker/README.md) и [парсинг](trackers-and-parsing.md) |

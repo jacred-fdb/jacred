@@ -9,9 +9,9 @@ tags:
 
 ## Источники (трекеры)
 
-Известные slug’и (`ConfigSchema.KnownTrackerSlugs` / OpenAPI `TrackerSlug`, 24 шт.):
+Известные slug’и (`ConfigSchema.KnownTrackerSlugs` / OpenAPI `TrackerSlug`, 25 шт.):
 
-`anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`, `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`, `megapeer`, `nnmclub`, `rudub`, `rutor`, `rutracker`, `selezen`, `toloka`, `torrentby`, `ultradox`, `viruseproject`.
+`anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`, `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`, `megapeer`, `nnmclub`, `rudub`, `rutor`, `rutracker`, `selezen`, `subsplease`, `toloka`, `torrentby`, `ultradox`, `viruseproject`.
 
 **Парсеры (cron + FileDB):** все slug’и выше имеют контроллер `/cron/{slug}/…` (кроме служебных `cloudflare` / `maintenance`).
 
@@ -35,7 +35,7 @@ tags:
    - **Anistar:** задайте cookie в конфиге; встроенный FlareSolverr-warmup Rutracker на Anistar не действует.
 
 2. Выберите режим работы:
-   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из [`Data/crontab`](https://github.com/jacred-fdb/jacred/blob/main/Data/crontab) (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`, daily page-парсеры и hourly Rutor-style для anibelka/korsars/ultradox/rudub). Активируйте: `crontab /opt/jacred/Data/crontab`
+   - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из [`Data/crontab`](https://github.com/jacred-fdb/jacred/blob/main/Data/crontab) (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`, daily page-парсеры и hourly Rutor-style для anibelka/korsars/ultradox/rudub/subsplease). Активируйте: `crontab /opt/jacred/Data/crontab`
    - **Синхронизация:** Укажите **`syncapi`** в конфиге, чтобы подтягивать базу с удалённого сервера. Включите `opensync: true` для участия в синхронизации.
    - **Docker:** в образе нет cron — расписание выносится на хост, отдельный контейнер или оркестратор; см. [Docker → cron](docker.md#cron-docker).
 

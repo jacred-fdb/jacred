@@ -79,6 +79,7 @@ namespace JacRed.Configuration
                 case "animelayer": return config.Animelayer.log;
                 case "baibako": return config.Baibako.log;
                 case "rudub": return config.Rudub.log;
+                case "subsplease": return config.SubsPlease.log;
                 case "bitru": return config.Bitru.log;
                 case "knaben": return config.Knaben.log;
                 case "kinozal": return config.Kinozal.log;

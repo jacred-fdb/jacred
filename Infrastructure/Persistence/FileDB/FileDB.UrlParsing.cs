@@ -52,6 +52,16 @@ namespace JacRed.Infrastructure.Persistence
                 return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
             }
 
+            // SubsPlease: /shows/{slug}/?ep=...&res=1080 — stable id from episode query
+            if (string.Equals(trackerName, "subsplease", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(url, @"[?&]ep=([^&]+)", RegexOptions.IgnoreCase);
+                if (!m.Success)
+                    return 0;
+                string ep = Uri.UnescapeDataString(m.Groups[1].Value);
+                return JacRed.Infrastructure.Trackers.SubsPlease.SubsPleaseParser.StableUrlId(ep);
+            }
+
             // Kinozal: .../details.php?id=2058877 (домен мог смениться .tv → .guru)
             if (string.Equals(trackerName, "kinozal", StringComparison.OrdinalIgnoreCase))
             {

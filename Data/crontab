@@ -137,6 +137,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # minute :40 — free of other hourly page parsers (avoid ultradox 13/28/43/58 and rutor 1/16/31/46)
 40 * * * *  /opt/jacred/Data/run-job.sh rudub-parse "http://127.0.0.1:9117/cron/rudub/parse?limit_page=10" 1800
 
+# --- subsplease (public API; 1080p magnets; Batches via ParseShows) ---
+# subsplease-parse -> /cron/subsplease/parse?pages=2 (max_time=900s)
+35 * * * *  /opt/jacred/Data/run-job.sh subsplease-parse "http://127.0.0.1:9117/cron/subsplease/parse?pages=2" 900
+# subsplease-ParseShows -> /cron/subsplease/ParseShows (default limit=50; max_time=1800s)
+25 5 * * *  /opt/jacred/Data/run-job.sh subsplease-ParseShows http://127.0.0.1:9117/cron/subsplease/ParseShows 1800
+
 # --- aniliberty (~5k) ---
 # aniliberty-parse -> /cron/aniliberty/parse (max_time=900s)
 6,21,36,51 * * * *  /opt/jacred/Data/run-job.sh aniliberty-parse http://127.0.0.1:9117/cron/aniliberty/parse 900

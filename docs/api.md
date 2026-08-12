@@ -9,7 +9,7 @@ tags:
 
 ## OpenAPI / Swagger
 
-Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.1** (источник: [`web/public/openapi.yaml`](https://github.com/jacred-fdb/jacred/blob/main/web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
+Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.4** (источник: [`web/public/openapi.yaml`](https://github.com/jacred-fdb/jacred/blob/main/web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
 
 | URL | Назначение |
 | --- | --- |
@@ -181,6 +181,7 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 | **korsars** | то же + login/`bb_data` | hourly + daily tasks |
 | **ultradox** | то же (Referer search-like) | hourly + daily tasks |
 | **rudub** | `parse?limit_page=10` (login/cookie; HD 1080/2160 only; max_time 1800s). Initial fill: `?limit_page=50` or `parseFrom`/`parseTo` (cap 100) | hourly `:40` |
+| **subsplease** | `parse?pages=2` (1080 only); `ParseShows` (default limit=50; Batches + backlog); `ParseShowStatus` | hourly `:35` + daily `25 5` |
 
 Полный канон расписания и `max_time` — только в **`Data/crontab`** (через `Data/run-job.sh`).
 

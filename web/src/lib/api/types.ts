@@ -756,7 +756,7 @@ export interface components {
          * @example korsars
          * @enum {string}
          */
-        TrackerSlug: "anibelka" | "anidub" | "anifilm" | "aniliberty" | "animelayer" | "anistar" | "baibako" | "bitru" | "kinozal" | "knaben" | "korsars" | "leproduction" | "lostfilm" | "mazepa" | "megapeer" | "nnmclub" | "rudub" | "rutor" | "rutracker" | "selezen" | "toloka" | "torrentby" | "ultradox" | "viruseproject";
+        TrackerSlug: "anibelka" | "anidub" | "anifilm" | "aniliberty" | "animelayer" | "anistar" | "baibako" | "bitru" | "kinozal" | "knaben" | "korsars" | "leproduction" | "lostfilm" | "mazepa" | "megapeer" | "nnmclub" | "rudub" | "rutor" | "rutracker" | "selezen" | "subsplease" | "toloka" | "torrentby" | "ultradox" | "viruseproject";
         HealthResponse: {
             /** @example OK */
             status?: string;

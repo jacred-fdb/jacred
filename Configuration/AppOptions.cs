@@ -168,6 +168,9 @@ namespace JacRed.Configuration
         /// <summary>RuDub (ex-BaibaKoTV). Host mirrors rotate (rN.rudub.world).</summary>
         public TrackerSettings Rudub = new TrackerSettings("https://r4.rudub.world");
 
+        /// <summary>SubsPlease — public anime API (1080p magnets only).</summary>
+        public TrackerSettings SubsPlease = new TrackerSettings("https://subsplease.org");
+
         /// <summary>Cloudflare bypass via FlareSolverr (persistent browser session).</summary>
         public FlareSolverrSettings flaresolverr = new FlareSolverrSettings();
 
