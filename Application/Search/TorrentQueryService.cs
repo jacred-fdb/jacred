@@ -19,13 +19,17 @@ namespace JacRed.Application.Search
         {
             #region search kp/imdb
             int allohaYear = 0;
+            string allohaAltTitle = null;
             bool idQuery = AllohaTitleResolver.IsImdbOrKpId(search);
             if (idQuery)
             {
                 var resolved = await AllohaTitleResolver.ResolveAsync(search, altname, memoryCache);
-                search = resolved.search;
-                altname = resolved.altname;
-                allohaYear = resolved.year;
+                search = resolved.Search;
+                altname = resolved.AltName;
+                allohaYear = resolved.Year;
+                allohaAltTitle = resolved.AlternativeName;
+                if (string.IsNullOrWhiteSpace(type) && !string.IsNullOrWhiteSpace(resolved.Type))
+                    type = resolved.Type;
                 exact = true;
             }
             #endregion
@@ -59,14 +63,18 @@ namespace JacRed.Application.Search
 
             string _s = StringConvert.SearchName(search);
             string _altsearch = StringConvert.SearchName(altname);
+            string _alt2 = StringConvert.SearchName(allohaAltTitle);
 
-            if (string.IsNullOrEmpty(_s) && string.IsNullOrEmpty(_altsearch))
+            if (string.IsNullOrEmpty(_s) && string.IsNullOrEmpty(_altsearch) && string.IsNullOrEmpty(_alt2))
                 return Array.Empty<object>();
 
             if (exact)
             {
                 #region Точный поиск
-                foreach (var mdb in FileDB.masterDb.Where(i => (_s != null && (i.Key.StartsWith($"{_s}:") || i.Key.EndsWith($":{_s}"))) || (_altsearch != null && i.Key.Contains(_altsearch))))
+                foreach (var mdb in FileDB.masterDb.Where(i =>
+                    (_s != null && (i.Key.StartsWith($"{_s}:") || i.Key.EndsWith($":{_s}")))
+                    || (_altsearch != null && i.Key.Contains(_altsearch))
+                    || (_alt2 != null && i.Key.Contains(_alt2))))
                 {
                     foreach (var t in FileDB.OpenRead(mdb.Key, true).Values)
                     {
@@ -78,7 +86,9 @@ namespace JacRed.Application.Search
                             string _n = t._sn ?? StringConvert.SearchName(t.name);
                             string _o = t._so ?? StringConvert.SearchName(t.originalname);
 
-                            if (_n == _s || _o == _s || (_altsearch != null && (_n == _altsearch || _o == _altsearch)))
+                            if (_n == _s || _o == _s
+                                || (_altsearch != null && (_n == _altsearch || _o == _altsearch))
+                                || (_alt2 != null && (_n == _alt2 || _o == _alt2)))
                                 AddTorrents(t);
                         }
                     }

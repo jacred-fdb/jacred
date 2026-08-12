@@ -35,10 +35,15 @@ namespace JacRed.Infrastructure.Indexers
             if (imdbMode)
             {
                 var resolved = await AllohaTitleResolver.ResolveAsync(query, null, cache);
-                batches.Add(await V1SearchAsync(resolved.search, resolved.altname, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                batches.Add(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                if (!string.IsNullOrWhiteSpace(resolved.AlternativeName))
+                    batches.Add(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+
                 var merged = IndexerResultMerger.MergeAndSort(batches.ToArray());
-                if (req.Year <= 0 && resolved.year > 0 && AppInit.conf.alloha?.filterByYear == true)
-                    merged = IndexerResultFilters.FilterByYear(merged, resolved.year);
+                if (req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true)
+                    merged = IndexerResultFilters.FilterByYear(merged, resolved.Year);
+                if ((req.Categories == null || req.Categories.Count == 0) && !string.IsNullOrWhiteSpace(resolved.Type))
+                    merged = IndexerResultFilters.FilterByType(merged, resolved.Type);
                 return merged;
             }
 
@@ -229,7 +234,7 @@ namespace JacRed.Infrastructure.Indexers
         static async Task<(string search, string altname)> ResolveImdbSearchAsync(string search, string altname, IMemoryCache cache)
         {
             var resolved = await AllohaTitleResolver.ResolveAsync(search, altname, cache);
-            return (resolved.search, resolved.altname);
+            return (resolved.Search, resolved.AltName);
         }
 
         static Result MapV1(TorrentDetails i, bool rqnum)

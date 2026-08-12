@@ -48,6 +48,18 @@ namespace JacRed.Infrastructure.Indexers
             }).ToList();
         }
 
+        /// <summary>Keep items whose info.types contains <paramref name="type"/>; items with null/empty types pass.</summary>
+        public static List<Result> FilterByType(List<Result> items, string type)
+        {
+            if (string.IsNullOrWhiteSpace(type)) return items;
+            return items.Where(t =>
+            {
+                var types = t.info?.types;
+                if (types == null || types.Length == 0) return true;
+                return types.Contains(type);
+            }).ToList();
+        }
+
         public static List<Result> FilterByTrackers(List<Result> items, List<string> trackers)
         {
             if (trackers == null || trackers.Count == 0)
