@@ -108,6 +108,12 @@ export interface paths {
          * @description Lampa and other Jackett JSON clients. Path `{status}` is normally `all` (aggregate).
          *     When `{status}` is a tracker id from `GET /api/v1.0/trackers` (for example `rutracker`),
          *     results are filtered to that tracker (case-insensitive; matches any part of a merged trackerName).
+         *
+         *     **IMDb / Kinopoisk / TMDB IDs:** `query`/`q` as `tt…`, `kp…`, `tmdb…`, a themoviedb.org
+         *     `/movie|tv/{id}-…` URL, or `imdbid`, are resolved via Alloha TV API v2
+         *     (`GET /v2/movies/search`) to titles (plus optional alternative name, year, type), then searched
+         *     in FileDB with exact match. When the client omits `year`, Alloha year ±1 is applied if
+         *     `alloha.filterByYear` is enabled.
          */
         get: operations["jackettSearch"];
         put?: never;
@@ -125,7 +131,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Native torrent search */
+        /**
+         * Native torrent search
+         * @description Native JacRed JSON search (not Torznab/Jackett).
+         *
+         *     **IMDb / Kinopoisk / TMDB IDs:** when `search` is `tt…`, `kp…`, `tmdb…`, or a themoviedb.org
+         *     `/movie|tv/{id}-…` URL, JacRed resolves titles via Alloha TV API v2,
+         *     forces `exact=true`, and may fill `type` / year filter from Alloha when the client omitted them
+         *     (`relased` unset → Alloha year ±1 if `alloha.filterByYear`; empty `type` → Alloha category).
+         */
         get: operations["torrentsSearch"];
         put?: never;
         post?: never;
@@ -189,6 +203,9 @@ export interface paths {
          *     category aliases (`cat`/`Category`/`categories`/`Category[]`), and tracker filters
          *     (`Tracker`/`Tracker[]`/`tracker`).
          *     `t=indexers` returns aggregate `all` plus one indexer entry per `GET /api/v1.0/trackers` name.
+         *
+         *     **IMDb / Kinopoisk / TMDB IDs:** `q` as `tt…`/`kp…`/`tmdb…`, a themoviedb.org URL, or `imdbid` →
+         *     Alloha TV API v2 title resolve → FileDB exact search (year ±1 when client `year` absent and `alloha.filterByYear`).
          */
         get: operations["torznabRoot"];
         put?: never;
@@ -215,7 +232,8 @@ export interface paths {
          * @description Jackett-compatible Torznab alias. Path `{indexer}` is normally `all`.
          *     When `{indexer}` is a tracker id (not `all`), search results are filtered to that tracker.
          *     `t=indexers` lists `all` plus per-tracker indexers from the tracker catalog.
-         *     Same query params as `/torznab/api` (caps + JacRed card fields, categories, tracker filters).
+         *     Same query params as `/torznab/api` (caps + JacRed card fields, categories, tracker filters),
+         *     including Alloha v2 resolve for `tt…` / `kp…` / `tmdb…` / themoviedb.org URLs / `imdbid`.
          */
         get: operations["torznabIndexer"];
         put?: never;
@@ -304,7 +322,7 @@ export interface paths {
         /**
          * Prowlarr Torznab proxy
          * @description Prowlarr-compatible Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`).
-         *     Same handler as `/torznab/api` and Jackett alias paths.
+         *     Same handler as `/torznab/api` and Jackett alias paths (including Alloha v2 resolve for `tt…` / `kp…` / `tmdb…` / `imdbid`).
          *     Path `{indexer}` is typically numeric (`1` = aggregate JacRed); numeric ids do not apply a tracker filter.
          */
         get: operations["prowlarrNewznab"];
@@ -332,6 +350,8 @@ export interface paths {
          * @description Prowlarr-compatible interactive search (`/api/v1/search`).
          *     Returns a JSON array of ReleaseResource-shaped objects.
          *     Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
+         *     IMDb/KP/TMDB id queries (`tt…`, `kp…`, `tmdb…`, themoviedb.org URL, or brace `{ImdbId:…}` / `{TmdbId:…}`)
+         *     are resolved via Alloha TV API v2 before FileDB exact search.
          *     JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
          *     Each release also includes JacRed extensions (`ffprobe`, `languages`, `info`) when `tracks: true`, same as Jackett results.
          *     Lampa Prowlarr mode (`query` + `type` + `categories`) is promoted to Jackett-style card search
@@ -1154,7 +1174,12 @@ export interface components {
         TorznabQ: string;
         /** @description Comma-separated Torznab category ids */
         TorznabCat: string;
-        /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+        /**
+         * @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
+         *     Resolved via Alloha TV API v2 to titles before FileDB search.
+         *     Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+         *     `/movie|tv/{id}-…` URL (same Alloha resolve path).
+         */
         TorznabImdbId: string;
         /** @description TheTVDB id (tv-search) */
         TorznabTvdbId: string;
@@ -1217,7 +1242,10 @@ export interface components {
          *     Not used as a genre filter on results.
          */
         Genres: string;
-        /** @description Release year filter / card-search override */
+        /**
+         * @description Release year filter / card-search override.
+         *     When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+         */
         Year: number;
         /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
         IsSerial: number;
@@ -1351,7 +1379,10 @@ export interface operations {
                 title?: components["parameters"]["TorznabTitle"];
                 /** @description Original title (JacRed / Lampa card search) */
                 title_original?: components["parameters"]["TorznabTitleOriginal"];
-                /** @description Release year filter / card-search override */
+                /**
+                 * @description Release year filter / card-search override.
+                 *     When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+                 */
                 year?: components["parameters"]["Year"];
                 /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
                 is_serial?: components["parameters"]["IsSerial"];
@@ -1381,7 +1412,12 @@ export interface operations {
                  *     (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
                  */
                 tracker?: components["parameters"]["TrackerAlias"];
-                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                /**
+                 * @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
+                 *     Resolved via Alloha TV API v2 to titles before FileDB search.
+                 *     Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+                 *     `/movie|tv/{id}-…` URL (same Alloha resolve path).
+                 */
                 imdbid?: components["parameters"]["TorznabImdbId"];
                 /** @description Alias for `imdbid` */
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
@@ -1429,9 +1465,15 @@ export interface operations {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                /** @description Empty or omitted yields an empty result array */
+                /**
+                 * @description Title query, or an external id (`tt1234567`, `kp301`, `tmdb1315772`) or themoviedb.org URL.
+                 *     Empty or omitted yields an empty result array.
+                 *     ID queries are resolved via Alloha v2 before FileDB lookup.
+                 */
                 search?: string;
+                /** @description Alternate title (e.g. Russian name). After Alloha resolve, filled from `data.name` when both titles exist. */
                 altname?: string;
+                /** @description Exact title match. Forced to true after IMDb/KP Alloha resolve. */
                 exact?: boolean;
                 type?: string;
                 sort?: "sid" | "pir" | "size" | "create" | "update";
@@ -1442,6 +1484,10 @@ export interface operations {
                 tracker?: components["parameters"]["TrackerAlias"];
                 voice?: string;
                 videotype?: string;
+                /**
+                 * @description Release year filter (exact). When 0/omitted on an ID query and `alloha.filterByYear`,
+                 *     Alloha year ±1 is used instead.
+                 */
                 relased?: number;
                 quality?: number;
                 season?: number;
@@ -1546,7 +1592,12 @@ export interface operations {
                  *     Also accepted as `cat`, `Category`, `Category[]`, `Category[n]`.
                  */
                 categories?: components["parameters"]["Categories"];
-                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                /**
+                 * @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
+                 *     Resolved via Alloha TV API v2 to titles before FileDB search.
+                 *     Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+                 *     `/movie|tv/{id}-…` URL (same Alloha resolve path).
+                 */
                 imdbid?: components["parameters"]["TorznabImdbId"];
                 /** @description Alias for `imdbid` */
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
@@ -1566,7 +1617,10 @@ export interface operations {
                 title?: components["parameters"]["TorznabTitle"];
                 /** @description Original title (JacRed / Lampa card search) */
                 title_original?: components["parameters"]["TorznabTitleOriginal"];
-                /** @description Release year filter / card-search override */
+                /**
+                 * @description Release year filter / card-search override.
+                 *     When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+                 */
                 year?: components["parameters"]["Year"];
                 /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
                 is_serial?: components["parameters"]["IsSerial"];
@@ -1679,7 +1733,12 @@ export interface operations {
                  *     Also accepted as `cat`, `Category`, `Category[]`, `Category[n]`.
                  */
                 categories?: components["parameters"]["Categories"];
-                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                /**
+                 * @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
+                 *     Resolved via Alloha TV API v2 to titles before FileDB search.
+                 *     Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+                 *     `/movie|tv/{id}-…` URL (same Alloha resolve path).
+                 */
                 imdbid?: components["parameters"]["TorznabImdbId"];
                 /** @description Alias for `imdbid` */
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
@@ -1699,7 +1758,10 @@ export interface operations {
                 title?: components["parameters"]["TorznabTitle"];
                 /** @description Original title (JacRed / Lampa card search) */
                 title_original?: components["parameters"]["TorznabTitleOriginal"];
-                /** @description Release year filter / card-search override */
+                /**
+                 * @description Release year filter / card-search override.
+                 *     When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+                 */
                 year?: components["parameters"]["Year"];
                 /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
                 is_serial?: components["parameters"]["IsSerial"];
@@ -1907,7 +1969,12 @@ export interface operations {
                  *     Also accepted as `cat`, `Category`, `Category[]`, `Category[n]`.
                  */
                 categories?: components["parameters"]["Categories"];
-                /** @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted */
+                /**
+                 * @description IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
+                 *     Resolved via Alloha TV API v2 to titles before FileDB search.
+                 *     Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+                 *     `/movie|tv/{id}-…` URL (same Alloha resolve path).
+                 */
                 imdbid?: components["parameters"]["TorznabImdbId"];
                 /** @description Alias for `imdbid` */
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
@@ -1927,7 +1994,10 @@ export interface operations {
                 title?: components["parameters"]["TorznabTitle"];
                 /** @description Original title (JacRed / Lampa card search) */
                 title_original?: components["parameters"]["TorznabTitleOriginal"];
-                /** @description Release year filter / card-search override */
+                /**
+                 * @description Release year filter / card-search override.
+                 *     When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+                 */
                 year?: components["parameters"]["Year"];
                 /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
                 is_serial?: components["parameters"]["IsSerial"];
@@ -2054,7 +2124,10 @@ export interface operations {
                 title?: components["parameters"]["TorznabTitle"];
                 /** @description Original title (JacRed / Lampa card search) */
                 title_original?: components["parameters"]["TorznabTitleOriginal"];
-                /** @description Release year filter / card-search override */
+                /**
+                 * @description Release year filter / card-search override.
+                 *     When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+                 */
                 year?: components["parameters"]["Year"];
                 /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
                 is_serial?: components["parameters"]["IsSerial"];
