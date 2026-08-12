@@ -1,16 +1,14 @@
 using JacRed.Application.Search;
+using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Persistence;
-using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Api;
 using JacRed.Models.AppConf;
 using JacRed.Models.Details;
 using Microsoft.Extensions.Caching.Memory;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace JacRed.Infrastructure.Indexers
@@ -36,8 +34,12 @@ namespace JacRed.Infrastructure.Indexers
 
             if (imdbMode)
             {
-                batches.Add(await V1SearchAsync(query, null, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
-                return IndexerResultMerger.MergeAndSort(batches.ToArray());
+                var resolved = await AllohaTitleResolver.ResolveAsync(query, null, cache);
+                batches.Add(await V1SearchAsync(resolved.search, resolved.altname, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                var merged = IndexerResultMerger.MergeAndSort(batches.ToArray());
+                if (req.Year <= 0 && resolved.year > 0 && AppInit.conf.alloha?.filterByYear == true)
+                    merged = IndexerResultFilters.FilterByYear(merged, resolved.year);
+                return merged;
             }
 
             var category = BuildCategoryDict(req.Categories);
@@ -226,26 +228,8 @@ namespace JacRed.Infrastructure.Indexers
 
         static async Task<(string search, string altname)> ResolveImdbSearchAsync(string search, string altname, IMemoryCache cache)
         {
-            if (string.IsNullOrWhiteSpace(search) || !Regex.IsMatch(search.Trim(), "^(tt|kp)[0-9]+$", RegexOptions.IgnoreCase))
-                return (search, altname);
-
-            string memkey = $"api:v1.0/torrents:{search}";
-            if (cache == null || !cache.TryGetValue(memkey, out (string original_name, string name) c))
-            {
-                search = search.Trim();
-                string uri = search.StartsWith("kp", StringComparison.OrdinalIgnoreCase)
-                    ? $"&kp={search.Substring(2)}"
-                    : $"&imdb={search}";
-                var root = await HttpClient.Get<JObject>("https://api.apbugall.org/?token=04941a9a3ca3ac16e2b4327347bbc1" + uri, timeoutSeconds: 8);
-                c.original_name = root?.Value<JObject>("data")?.Value<string>("original_name");
-                c.name = root?.Value<JObject>("data")?.Value<string>("name");
-                cache?.Set(memkey, c, DateTime.Now.AddDays(1));
-            }
-
-            if (!string.IsNullOrWhiteSpace(c.name) && !string.IsNullOrWhiteSpace(c.original_name))
-                return (c.original_name, c.name);
-
-            return (c.original_name ?? c.name ?? search, altname);
+            var resolved = await AllohaTitleResolver.ResolveAsync(search, altname, cache);
+            return (resolved.search, resolved.altname);
         }
 
         static Result MapV1(TorrentDetails i, bool rqnum)

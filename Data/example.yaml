@@ -101,6 +101,15 @@ search:
   stripTrailingYear: true # Fuzzy: доп. запрос без года в конце
   skipCatFilter: true # Не фильтровать cat/Category[] на сервере (Lampa фильтрует сама)
 
+# Alloha TV API v2 — resolve KP/IMDB (tt… / kp…) to titles for FileDB search
+alloha:
+  enable: true
+  baseUrl: https://apbugall.org
+  token: "04941a9a3ca3ac16e2b4327347bbc1" # Bearer; redact in /settings
+  timeoutSeconds: 10
+  cacheHours: 24
+  filterByYear: true # when client year absent, keep FileDB hits with relased ±1 of Alloha year
+
 # Torznab XML (Sonarr/Radarr/Prowlarr). Не влияет на Lampa Jackett JSON.
 torznab:
   enable: true # false → 404 на /torznab/api и Prowlarr meta

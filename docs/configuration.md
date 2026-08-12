@@ -199,6 +199,10 @@ globalproxy:
       mergeV1: auto
       skipCatFilter: true
 
+    alloha:
+      enable: true
+      token: "YOUR_ALLOHA_TOKEN"
+
     torznab:
       enable: true
 
@@ -228,6 +232,10 @@ globalproxy:
         "stripTrailingYear": true,
         "skipCatFilter": true
       },
+      "alloha": {
+        "enable": true,
+        "token": "YOUR_ALLOHA_TOKEN"
+      },
       "torznab": {
         "enable": true,
         "enrichTitles": true
@@ -255,9 +263,22 @@ globalproxy:
 | `auto` | v2 only | v2 + v1 fuzzy (до `maxV1Pairs`) |
 | `true` | v2 + v1 fuzzy (без лимита) | v2 + v1 fuzzy (без лимита) |
 
-IMDB/KP (`tt…`, `kp…`) всегда через v1 exact, независимо от `mergeV1`.
+IMDB/KP (`tt…`, `kp…`) всегда через v1 exact (после резолва Alloha), независимо от `mergeV1`.
 
 Jackett JSON (`/api/v2.0/indexers/.../results`) **всегда** использует combined search; на `torznab.enable` не зависит.
+
+### Alloha (`alloha`)
+
+Резолв Kinopoisk / IMDb ID → названия через **Alloha TV API v2** (`GET /v2/movies/search`), затем точный поиск в FileDB.
+
+| Параметр | Описание | По умолчанию |
+| --- | --- | --- |
+| `enable` | Включить резолв `tt…` / `kp…` | `true` |
+| `baseUrl` | Хост API | `https://apbugall.org` |
+| `token` | Bearer-токен (`Authorization`) | — (см. `example.yaml`) |
+| `timeoutSeconds` | Таймаут HTTP | `8` |
+| `cacheHours` | Memory-cache ID → titles | `24` |
+| `filterByYear` | Если клиент не передал year — фильтр FileDB по году Alloha (±1) | `true` |
 
 ### Torznab XML (`torznab`)
 

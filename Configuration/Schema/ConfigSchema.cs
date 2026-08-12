@@ -23,7 +23,7 @@ namespace JacRed.Configuration.Schema
 
         public static readonly HashSet<string> SensitiveFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "apikey", "devkey", "cookie", "u", "p", "username", "password"
+            "apikey", "devkey", "cookie", "u", "p", "username", "password", "token"
         };
 
         public static object Get()
@@ -111,6 +111,15 @@ namespace JacRed.Configuration.Schema
                         Field("search.v1Sort", "string", "V1 sort", "sid, pir, size…"),
                         Field("search.stripTrailingYear", "bool", "Strip trailing year", "Fuzzy: запрос без года"),
                         Field("search.skipCatFilter", "bool", "Skip cat filter", "Не фильтровать cat/Category[] на сервере")
+                    }),
+                    Group("alloha", "Alloha", "KP/IMDB ID → title (API v2)", new[]
+                    {
+                        Field("alloha.enable", "bool", "Включить", "Резолв tt… / kp… через Alloha"),
+                        Field("alloha.baseUrl", "string", "Base URL", "https://apbugall.org"),
+                        Field("alloha.token", "password", "Bearer token", "Authorization: Bearer …", sensitive: true),
+                        Field("alloha.timeoutSeconds", "int", "Timeout (с)", null, min: 1),
+                        Field("alloha.cacheHours", "int", "Cache (ч)", "Memory cache ID → titles", min: 0),
+                        Field("alloha.filterByYear", "bool", "Filter by year", "Если клиент не передал year — ±1 от Alloha")
                     }),
                     Group("torznab", "Torznab", "Torznab XML (Sonarr/Radarr/Prowlarr)", new[]
                     {

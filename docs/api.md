@@ -43,7 +43,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 Сводная таблица «клиент → URL → формат» — в [Torznab XML](configuration.md#torznab-xml-torznab).
 
 - **`GET /api/v2.0/indexers/{status}/results`** — поиск в формате Jackett JSON (**Lampa** и др.).
-  - Combined search (`search.*`): v2 card/fuzzy + v1 fuzzy (только fuzzy mode при `mergeV1: auto`) + IMDB/KP exact + card fallback.
+  - Combined search (`search.*`): v2 card/fuzzy + v1 fuzzy (только fuzzy mode при `mergeV1: auto`) + IMDB/KP exact (Alloha v2 ID→title) + card fallback.
   - Параметры Lampa: `Query`, `title`, `title_original`, `year`, `is_serial`, `genres`, `Category[]`, `Tracker[]`, `season`, `ep`, `limit`, `offset`, `apikey`.
   - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true`.
 - **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).
@@ -61,11 +61,12 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 
   Параметры и поведение одинаковы для обоих Torznab-путей:
   - Параметры: `q`, `imdbid`, `season`, `ep`, `year`, `cat`, `title`, `title_original`, `is_serial`, `limit`, `offset`, `apikey`.
-  - IMDB/KP ID (`tt…`, `kp…`) → поиск через v1 с `exact=true`.
+  - IMDB/KP ID (`tt…`, `kp…`) → Alloha v2 title resolve, затем v1 FileDB с `exact=true` (год ±1 при `alloha.filterByYear`).
   - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
   - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный JSON API JacRed, не Torznab и не Jackett).
   - Параметры: `search` / связанные фильтры, `tracker` (один slug или список через запятую — значения `TrackerSlug`), `sort`, `type`, …
+  - IMDB/KP ID (`tt…`, `kp…`) → Alloha v2 title resolve, затем exact FileDB (+ год ±1 при `alloha.filterByYear`).
 - **`GET /api/v1.0/trackers`** — список доступных имён трекеров (`TrackerSlug[]` в OpenAPI): из `synctrackers`, иначе known slugs; записи из `disable_trackers` исключаются. Пустой `synctrackers: []` возвращает `[]` (скан БД не выполняется).
 - **`GET /api/v1.0/qualitys`** — список доступных качеств.
 

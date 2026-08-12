@@ -175,6 +175,9 @@ namespace JacRed.Configuration
 
         public SearchSettings search = new SearchSettings();
 
+        /// <summary>Alloha TV API v2 — KP/IMDB ID → title resolve.</summary>
+        public AllohaSettings alloha = new AllohaSettings();
+
         public TorznabSettings torznab = new TorznabSettings();
 
         public LoggingOptions logging = new LoggingOptions
