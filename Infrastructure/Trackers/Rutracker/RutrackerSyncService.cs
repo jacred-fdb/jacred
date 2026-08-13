@@ -165,6 +165,8 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             {
                 var cats = ResolveCatFilter(cat) ?? RutrackerCategories.Ids.ToArray();
                 ParserLog.Write(TrackerName, $"UpdateTasksParse start cats={cats.Length}");
+                int done = 0;
+                TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", 0, cats.Length);
 
                 foreach (string c in cats)
                 {
@@ -173,34 +175,37 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                     try
                     {
                         string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={c}", useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: ct);
-                        if (html == null)
-                            continue;
-
-                        int.TryParse(Regex.Match(html, "Страница <b>1</b> из <b>([0-9]+)</b>").Groups[1].Value, out int maxpages);
-
-                        if (maxpages > 0)
+                        if (html != null)
                         {
-                            for (int page = 0; page <= maxpages; page++)
+                            int.TryParse(Regex.Match(html, "Страница <b>1</b> из <b>([0-9]+)</b>").Groups[1].Value, out int maxpages);
+
+                            if (maxpages > 0)
+                            {
+                                for (int page = 0; page <= maxpages; page++)
+                                {
+                                    if (!taskParse.ContainsKey(c))
+                                        taskParse.Add(c, new List<TaskParse>());
+
+                                    var val = taskParse[c];
+                                    if (val.FirstOrDefault(i => i.page == page) == null)
+                                        val.Add(new TaskParse(page));
+                                }
+                            }
+                            else
                             {
                                 if (!taskParse.ContainsKey(c))
                                     taskParse.Add(c, new List<TaskParse>());
 
                                 var val = taskParse[c];
-                                if (val.FirstOrDefault(i => i.page == page) == null)
-                                    val.Add(new TaskParse(page));
+                                if (val.FirstOrDefault(i => i.page == 1) == null)
+                                    val.Add(new TaskParse(1));
                             }
-                        }
-                        else
-                        {
-                            if (!taskParse.ContainsKey(c))
-                                taskParse.Add(c, new List<TaskParse>());
-
-                            var val = taskParse[c];
-                            if (val.FirstOrDefault(i => i.page == 1) == null)
-                                val.Add(new TaskParse(1));
                         }
                     }
                     catch { }
+
+                    done++;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", done, cats.Length, c);
                 }
 
                 PersistTaskParse();

@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 
 namespace JacRed.Infrastructure.Persistence
 {
@@ -14,6 +15,12 @@ namespace JacRed.Infrastructure.Persistence
             new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
         static readonly TimeSpan SlowWriteWarn = TimeSpan.FromSeconds(5);
+
+        /// <summary>Fail soft instead of blocking forever when another write holds the path lock.</summary>
+        public static readonly TimeSpan PathLockTimeout = TimeSpan.FromMinutes(2);
+
+        /// <summary>Upper bound callers may wait for serialize+replace before abandoning the wait.</summary>
+        public static readonly TimeSpan WriteTimeout = TimeSpan.FromMinutes(3);
 
         static object LockFor(string path)
         {
@@ -61,38 +68,53 @@ namespace JacRed.Infrastructure.Persistence
         public static void Write(string path, object db)
         {
             var gate = LockFor(path);
-            lock (gate)
+            if (!Monitor.TryEnter(gate, PathLockTimeout))
             {
-                var sw = Stopwatch.StartNew();
-                try
+                JacRedLog.Error(JacRedLogCategories.Fdb,
+                    $"JsonStream.Write lock timeout path={path} wait={PathLockTimeout.TotalSeconds:F0}s");
+                return;
+            }
+
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                WriteCore(path, db);
+            }
+            catch (Exception ex)
+            {
+                JacRedLog.Warning(JacRedLogCategories.Fdb,
+                    $"JsonStream.Write failed path={path}: {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                sw.Stop();
+                if (sw.Elapsed > SlowWriteWarn)
                 {
-                    var serializer = JsonSerializer.Create();
-                    var tempPath = path + ".tmp";
-
-                    using (var streamWriter = new StreamWriter(new GZipStream(File.Create(tempPath), CompressionMode.Compress)))
-                    {
-                        using (var jsonTextWriter = new JsonTextWriter(streamWriter))
-                        {
-                            serializer.Serialize(jsonTextWriter, db);
-                        }
-                    }
-
-                    if (File.Exists(path))
-                        File.Replace(tempPath, path, null);
-                    else
-                        File.Move(tempPath, path);
+                    JacRedLog.Warning(JacRedLogCategories.Fdb,
+                        $"JsonStream.Write slow path={path} elapsed={sw.Elapsed.TotalSeconds:F1}s");
                 }
-                catch { }
-                finally
+
+                Monitor.Exit(gate);
+            }
+        }
+
+        static void WriteCore(string path, object db)
+        {
+            var serializer = JsonSerializer.Create();
+            var tempPath = path + ".tmp";
+
+            using (var streamWriter = new StreamWriter(new GZipStream(File.Create(tempPath), CompressionMode.Compress)))
+            {
+                using (var jsonTextWriter = new JsonTextWriter(streamWriter))
                 {
-                    sw.Stop();
-                    if (sw.Elapsed > SlowWriteWarn)
-                    {
-                        JacRedLog.Warning(JacRedLogCategories.Fdb,
-                            $"JsonStream.Write slow path={path} elapsed={sw.Elapsed.TotalSeconds:F1}s");
-                    }
+                    serializer.Serialize(jsonTextWriter, db);
                 }
             }
+
+            if (File.Exists(path))
+                File.Replace(tempPath, path, null);
+            else
+                File.Move(tempPath, path);
         }
         #endregion
     }

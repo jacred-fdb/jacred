@@ -75,31 +75,38 @@ namespace JacRed.Infrastructure.Trackers.Rutor
         {
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                foreach (string cat in RutorCategories.Ids)
+                var cats = RutorCategories.Ids.ToArray();
+                int done = 0;
+                TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", 0, cats.Length);
+
+                foreach (string cat in cats)
                 {
                     ct.ThrowIfCancellationRequested();
 
                     string html = await HttpClient.Get($"{AppInit.conf.Rutor.rqHost()}/browse/0/{cat}/0/0", useproxy: AppInit.conf.Rutor.useproxy, cancellationToken: ct);
-                    if (html == null)
-                        continue;
-
-                    // Максимальное количиство страниц
-                    int.TryParse(Regex.Match(html, "<a href=\"/browse/([0-9]+)/[0-9]+/[0-9]+/[0-9]+\"><b>[0-9]+&nbsp;-&nbsp;[0-9]+</b></a></p>").Groups[1].Value, out int maxpages);
-
-                    // Загружаем список страниц в список задач
-                    for (int page = 0; page <= maxpages; page++)
+                    if (html != null)
                     {
-                        try
-                        {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
+                        // Максимальное количиство страниц
+                        int.TryParse(Regex.Match(html, "<a href=\"/browse/([0-9]+)/[0-9]+/[0-9]+/[0-9]+\"><b>[0-9]+&nbsp;-&nbsp;[0-9]+</b></a></p>").Groups[1].Value, out int maxpages);
 
-                            var val = taskParse[cat];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
+                        // Загружаем список страниц в список задач
+                        for (int page = 0; page <= maxpages; page++)
+                        {
+                            try
+                            {
+                                if (!taskParse.ContainsKey(cat))
+                                    taskParse.Add(cat, new List<TaskParse>());
+
+                                var val = taskParse[cat];
+                                if (val.FirstOrDefault(i => i.page == page) == null)
+                                    val.Add(new TaskParse(page));
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
+
+                    done++;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", done, cats.Length, cat);
                 }
 
                 PersistTaskParse();

@@ -255,18 +255,30 @@ namespace JacRed.Infrastructure.Persistence
 
             foreach (var t in temp)
             {
-                using (var fdb = OpenWrite(t.Key))
+                // Run HTTP/magnet predicates against a snapshot first so OpenWrite is not held
+                // across network I/O (stuck openconnection + uncancellable Dispose save).
+                IReadOnlyList<T> toWrite = t.Value;
+                if (predicate != null)
                 {
+                    var snapshot = OpenRead(t.Key);
+                    var accepted = new List<T>(t.Value.Count);
                     foreach (var torrent in t.Value)
                     {
-                        if (predicate != null)
-                        {
-                            if (await predicate.Invoke(torrent, fdb.Database) == false)
-                                continue;
-                        }
-
-                        fdb.AddOrUpdate(torrent);
+                        if (await predicate.Invoke(torrent, snapshot) == false)
+                            continue;
+                        accepted.Add(torrent);
                     }
+
+                    if (accepted.Count == 0)
+                        continue;
+
+                    toWrite = accepted;
+                }
+
+                using (var fdb = OpenWrite(t.Key))
+                {
+                    foreach (var torrent in toWrite)
+                        fdb.AddOrUpdate(torrent);
                 }
             }
         }

@@ -72,6 +72,12 @@ namespace JacRed.Infrastructure.Trackers
         public long ProgressCurrent;
         public long ProgressTotal;
         public string ProgressDetail;
+
+        /// <summary>Wall-clock limit used for CancelAfter / zombie sweep.</summary>
+        internal TimeSpan MaxDuration { get; init; }
+
+        /// <summary>Flag to release when sweeping a non-cooperative zombie.</summary>
+        internal TrackerWorkFlag WorkFlag { get; init; }
     }
 
     public static class TrackerSyncHelpers
@@ -85,6 +91,9 @@ namespace JacRed.Infrastructure.Trackers
 
         /// <summary>Default wall-clock limit for background UpdateTasksParse jobs.</summary>
         public static readonly TimeSpan DefaultUpdateTasksMaxDuration = TimeSpan.FromMinutes(30);
+
+        /// <summary>Extra grace after MaxDuration before force-clearing ActiveJobs / workFlag.</summary>
+        public static readonly TimeSpan ZombieSweepGrace = TimeSpan.FromMinutes(5);
 
         const int ProgressLogEvery = 25;
 
@@ -109,9 +118,40 @@ namespace JacRed.Infrastructure.Trackers
                     StartedAtUtc = j.StartedAtUtc,
                     ProgressCurrent = Interlocked.Read(ref j.ProgressCurrent),
                     ProgressTotal = Interlocked.Read(ref j.ProgressTotal),
-                    ProgressDetail = j.ProgressDetail
+                    ProgressDetail = j.ProgressDetail,
+                    MaxDuration = j.MaxDuration
                 })
                 .ToList();
+
+        /// <summary>
+        /// Force-clear jobs that outlived CancelAfter (non-cooperative hang).
+        /// Does not abort the wedged thread; unsticks cron so a new run can start.
+        /// </summary>
+        public static int SweepZombieJobs(TimeSpan? grace = null)
+        {
+            var extra = grace ?? ZombieSweepGrace;
+            int swept = 0;
+            var now = DateTime.UtcNow;
+
+            foreach (var job in ActiveJobs.Values.ToArray())
+            {
+                var limit = job.MaxDuration > TimeSpan.Zero ? job.MaxDuration : DefaultParseAllMaxDuration;
+                if (now < job.StartedAtUtc + limit + extra)
+                    continue;
+
+                if (!ActiveJobs.TryRemove(job.Key, out var removed))
+                    continue;
+
+                try { removed.WorkFlag?.End(); } catch { }
+
+                long ageSec = (long)(now - removed.StartedAtUtc).TotalSeconds;
+                JacRedLog.Warning(JacRedLogCategories.Trackers,
+                    $"{removed.Tracker}: {removed.JobLabel} zombie swept ageSec={ageSec} limitSec={limit.TotalSeconds:F0} progress={Interlocked.Read(ref removed.ProgressCurrent)}/{Interlocked.Read(ref removed.ProgressTotal)}");
+                swept++;
+            }
+
+            return swept;
+        }
 
         public static void ReportProgress(string trackerName, string jobLabel, long current, long total, string detail = null)
         {
@@ -206,7 +246,10 @@ namespace JacRed.Infrastructure.Trackers
                 Key = key,
                 Tracker = trackerName,
                 JobLabel = jobLabel,
-                StartedAtUtc = DateTime.UtcNow
+                StartedAtUtc = DateTime.UtcNow,
+                MaxDuration = duration,
+                WorkFlag = workFlag,
+                ProgressDetail = jobLabel == "UpdateTasksParse" ? "running" : null
             };
             ActiveJobs[key] = info;
 
@@ -259,8 +302,12 @@ namespace JacRed.Infrastructure.Trackers
             bool checkDisabled,
             Func<CancellationToken, Task> action,
             TimeSpan? maxDuration = null)
-            => RunInBackground(trackerName, "UpdateTasksParse", workFlag, checkDisabled, action,
-                maxDuration ?? DefaultUpdateTasksMaxDuration);
+            => RunInBackground(trackerName, "UpdateTasksParse", workFlag, checkDisabled, async ct =>
+            {
+                ReportProgress(trackerName, "UpdateTasksParse", 0, 0, "running");
+                await action(ct).ConfigureAwait(false);
+                ReportProgress(trackerName, "UpdateTasksParse", 1, 1, "done");
+            }, maxDuration ?? DefaultUpdateTasksMaxDuration);
 
         /// <summary>Synchronous wait variant (tests / manual). Prefer background helpers for HTTP cron.</summary>
         public static async Task<string> RunParseAllTaskAsync(

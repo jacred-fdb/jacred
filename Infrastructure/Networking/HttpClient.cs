@@ -145,7 +145,7 @@ namespace JacRed.Infrastructure.Networking
             // через challenge-ветку ниже (таймаут до 180 с).
             if (CloudflareClearance.IsGuarded(requestHost))
             {
-                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(viaBrowser))
                     return (viaBrowser, OkResponse(url));
 
@@ -202,7 +202,7 @@ namespace JacRed.Infrastructure.Networking
                                 if (CloudflareClearance.IsChallengeBody(okBody))
                                 {
                                     CloudflareClearance.MarkGuarded(requestHost);
-                                    string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                                    string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie, cancellationToken);
                                     if (!string.IsNullOrWhiteSpace(viaBrowser))
                                         return (viaBrowser, OkResponse(url));
                                     continue;
@@ -213,7 +213,6 @@ namespace JacRed.Infrastructure.Networking
                             }
 
                             // cf-mitigated или разметка «Just a moment…» → браузер.
-                            // Таймаут браузера свой; token вызывающего сюда не идёт.
                             bool challenge = CloudflareClearance.IsChallenge(response);
 
                             if (!challenge
@@ -235,7 +234,7 @@ namespace JacRed.Infrastructure.Networking
                             {
                                 CloudflareClearance.MarkGuarded(requestHost);
 
-                                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie, cancellationToken);
                                 if (!string.IsNullOrWhiteSpace(viaBrowser))
                                     return (viaBrowser, OkResponse(url));
                             }

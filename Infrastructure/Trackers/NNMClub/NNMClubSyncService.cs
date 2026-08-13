@@ -78,40 +78,47 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
             // Cap at MaxPortalPages: NNMClub redirects older portal offsets to FAQ t=1626984.
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                foreach (string cat in NNMClubCategories.Ids)
+                var cats = NNMClubCategories.Ids.ToArray();
+                int catDone = 0;
+                TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", 0, cats.Length);
+
+                foreach (string cat in cats)
                 {
                     ct.ThrowIfCancellationRequested();
 
                     string html = await HttpClient.Get($"{AppInit.conf.NNMClub.rqHost()}/forum/portal.php?c={cat}", encoding: Encoding.GetEncoding(1251), timeoutSeconds: 10, useproxy: AppInit.conf.NNMClub.useproxy, cancellationToken: ct);
-                    if (html == null || !html.Contains("NNM-Club</title>"))
-                        continue;
-
-                    // Максимальное количиство страниц
-                    int.TryParse(Regex.Match(html, "<a href=\"[^\"]+\">([0-9]+)</a>[^<\n\r]+<a href=\"[^\"]+\">След.</a>").Groups[1].Value, out int maxpages);
-                    int taskCount = NNMClubPortalPagination.ClampTaskPageCount(maxpages);
-
-                    if (!taskParse.ContainsKey(cat))
-                        taskParse.Add(cat, new List<TaskParse>());
-
-                    var val = taskParse[cat];
-                    int added = 0;
-
-                    // Загружаем список страниц в список задач (0 .. taskCount-1, capped at MaxPortalPages)
-                    for (int page = 0; page < taskCount; page++)
+                    if (html != null && html.Contains("NNM-Club</title>"))
                     {
-                        try
+                        // Максимальное количиство страниц
+                        int.TryParse(Regex.Match(html, "<a href=\"[^\"]+\">([0-9]+)</a>[^<\n\r]+<a href=\"[^\"]+\">След.</a>").Groups[1].Value, out int maxpages);
+                        int taskCount = NNMClubPortalPagination.ClampTaskPageCount(maxpages);
+
+                        if (!taskParse.ContainsKey(cat))
+                            taskParse.Add(cat, new List<TaskParse>());
+
+                        var val = taskParse[cat];
+                        int added = 0;
+
+                        // Загружаем список страниц в список задач (0 .. taskCount-1, capped at MaxPortalPages)
+                        for (int page = 0; page < taskCount; page++)
                         {
-                            if (val.FirstOrDefault(i => i.page == page) == null)
+                            try
                             {
-                                val.Add(new TaskParse(page));
-                                added++;
+                                if (val.FirstOrDefault(i => i.page == page) == null)
+                                {
+                                    val.Add(new TaskParse(page));
+                                    added++;
+                                }
                             }
+                            catch { }
                         }
-                        catch { }
+
+                        int pruned = NNMClubPortalPagination.PruneTasksBeyondPortalLimit(val);
+                        ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: pagerMax={maxpages}, taskCount={taskCount}, added={added}, pruned={pruned}, total={val.Count}");
                     }
 
-                    int pruned = NNMClubPortalPagination.PruneTasksBeyondPortalLimit(val);
-                    ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: pagerMax={maxpages}, taskCount={taskCount}, added={added}, pruned={pruned}, total={val.Count}");
+                    catDone++;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", catDone, cats.Length, cat);
                 }
 
                 PersistTaskParse();

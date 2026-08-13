@@ -426,23 +426,66 @@ namespace JacRed.Infrastructure.Persistence
         #region Dispose
         public void Dispose()
         {
-            SaveChangesIfNeeded();
-
-            if (openWriteTask.TryGetValue(fdbkey, out WriteTaskModel val) && ReferenceEquals(val.db, this))
+            // Do not let a wedged shard write pin openconnection forever: wait up to
+            // PathLock+Write timeout, then always decrement. If save is still running,
+            // keep the cache entry so the same FileDB instance is reused.
+            bool saveTimedOut = false;
+            try
             {
-                int remaining = Interlocked.Decrement(ref val.openconnection);
-                if (remaining < 0)
+                Exception saveError = null;
+                using var saveDone = new ManualResetEventSlim(false);
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    Interlocked.Exchange(ref val.openconnection, 0);
-                    remaining = 0;
-                    JacRedLog.Warning(JacRedLogCategories.Fdb,
-                        $"openconnection underflow for key={fdbkey}");
-                }
+                    try
+                    {
+                        SaveChangesIfNeeded();
+                    }
+                    catch (Exception ex)
+                    {
+                        saveError = ex;
+                    }
+                    finally
+                    {
+                        saveDone.Set();
+                    }
+                });
 
-                if (remaining <= 0)
+                var wait = JsonStream.PathLockTimeout + JsonStream.WriteTimeout;
+                if (!saveDone.Wait(wait))
                 {
-                    if (!AppInit.conf.evercache.enable || (AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour > 0))
-                        openWriteTask.TryRemove(fdbkey, out _);
+                    saveTimedOut = true;
+                    JacRedLog.Error(JacRedLogCategories.Fdb,
+                        $"Dispose save timeout key={fdbkey} path={pathDb(fdbkey)} wait={wait.TotalSeconds:F0}s");
+                }
+                else if (saveError != null)
+                {
+                    JacRedLog.Warning(JacRedLogCategories.Fdb,
+                        $"Dispose SaveChangesIfNeeded failed key={fdbkey} path={pathDb(fdbkey)}: {saveError.GetType().Name}: {saveError.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                JacRedLog.Warning(JacRedLogCategories.Fdb,
+                    $"Dispose SaveChangesIfNeeded failed key={fdbkey} path={pathDb(fdbkey)}: {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                if (openWriteTask.TryGetValue(fdbkey, out WriteTaskModel val) && ReferenceEquals(val.db, this))
+                {
+                    int remaining = Interlocked.Decrement(ref val.openconnection);
+                    if (remaining < 0)
+                    {
+                        Interlocked.Exchange(ref val.openconnection, 0);
+                        remaining = 0;
+                        JacRedLog.Warning(JacRedLogCategories.Fdb,
+                            $"openconnection underflow for key={fdbkey}");
+                    }
+
+                    if (remaining <= 0 && !saveTimedOut)
+                    {
+                        if (!AppInit.conf.evercache.enable || (AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour > 0))
+                            openWriteTask.TryRemove(fdbkey, out _);
+                    }
                 }
             }
         }

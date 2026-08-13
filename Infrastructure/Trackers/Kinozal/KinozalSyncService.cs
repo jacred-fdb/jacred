@@ -290,7 +290,11 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
             return TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                foreach (string cat in KinozalCategories.Ids)
+                var cats = KinozalCategories.Ids.ToArray();
+                int catDone = 0;
+                TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", 0, cats.Length);
+
+                foreach (string cat in cats)
                 {
                     for (int year = DateTime.Today.Year; year >= 1990; year--)
                     {
@@ -324,6 +328,9 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             catch { }
                         }
                     }
+
+                    catDone++;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", catDone, cats.Length, cat);
                 }
 
                 PersistTaskParse();

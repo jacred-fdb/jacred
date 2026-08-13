@@ -76,29 +76,36 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
         {
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                foreach (string cat in TorrentByCategories.Ids)
+                var cats = TorrentByCategories.Ids.ToArray();
+                int done = 0;
+                TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", 0, cats.Length);
+
+                foreach (string cat in cats)
                 {
                     ct.ThrowIfCancellationRequested();
 
                     string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy, cancellationToken: ct);
-                    if (html == null)
-                        continue;
-
-                    int.TryParse(System.Text.RegularExpressions.Regex.Match(html, "href=\"\\?page=([0-9]+)\">[0-9]+</a>([\t ]+)?</center></td>").Groups[1].Value, out int maxpages);
-
-                    for (int page = 0; page <= maxpages; page++)
+                    if (html != null)
                     {
-                        try
-                        {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
+                        int.TryParse(System.Text.RegularExpressions.Regex.Match(html, "href=\"\\?page=([0-9]+)\">[0-9]+</a>([\t ]+)?</center></td>").Groups[1].Value, out int maxpages);
 
-                            var val = taskParse[cat];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
+                        for (int page = 0; page <= maxpages; page++)
+                        {
+                            try
+                            {
+                                if (!taskParse.ContainsKey(cat))
+                                    taskParse.Add(cat, new List<TaskParse>());
+
+                                var val = taskParse[cat];
+                                if (val.FirstOrDefault(i => i.page == page) == null)
+                                    val.Add(new TaskParse(page));
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
+
+                    done++;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", done, cats.Length, cat);
                 }
 
                 PersistTaskParse();

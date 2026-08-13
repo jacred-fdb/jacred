@@ -178,7 +178,7 @@ namespace JacRed.Infrastructure.Networking
         /// Browser timeout: сначала retry той же сессии, destroy только после
         /// <c>recycleAfterTimeouts</c> подряд (или сразу при явной ошибке session).
         /// </summary>
-        public static async Task<string> FetchAsync(string url, string cookie = null)
+        public static async Task<string> FetchAsync(string url, string cookie = null, CancellationToken cancellationToken = default)
         {
             var conf = Conf;
             if (conf.Url == null || string.IsNullOrWhiteSpace(url))
@@ -188,13 +188,15 @@ namespace JacRed.Infrastructure.Networking
             try { host = new Uri(url).Host; }
             catch (UriFormatException) { return null; }
 
-            await _gate.WaitAsync();
+            await _gate.WaitAsync(cancellationToken);
             try
             {
-                if (!_sessionAlive && !await CreateSessionAsync(conf))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!_sessionAlive && !await CreateSessionAsync(conf, cancellationToken))
                     return null;
 
-                var (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, url, cookie);
+                var (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, url, cookie, cancellationToken);
 
                 if (outcome == FetchOutcome.Ok)
                 {
@@ -233,13 +235,13 @@ namespace JacRed.Infrastructure.Networking
                         $"{host}: FlareSolverr session recycle — {failMessage}");
                 }
 
-                await DestroySessionAsync(conf);
+                await DestroySessionAsync(conf, cancellationToken);
                 _consecutiveBrowserTimeouts = 0;
 
-                if (!await CreateSessionAsync(conf))
+                if (!await CreateSessionAsync(conf, cancellationToken))
                     return null;
 
-                (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, url, cookie);
+                (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, url, cookie, cancellationToken);
 
                 if (outcome == FetchOutcome.Ok)
                 {
@@ -254,6 +256,10 @@ namespace JacRed.Infrastructure.Networking
 
                 TouchSession(conf);
                 return null;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -274,7 +280,7 @@ namespace JacRed.Infrastructure.Networking
 
         /// <summary>Same-session retries on browser timeout before escalating.</summary>
         static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestWithTimeoutRetriesAsync(
-            FlareSolverrSettingsView conf, string url, string cookie)
+            FlareSolverrSettingsView conf, string url, string cookie, CancellationToken cancellationToken = default)
         {
             int attempts = 1 + conf.BrowserTimeoutRetries;
             FetchOutcome outcome = FetchOutcome.BrowserFailed;
@@ -283,10 +289,12 @@ namespace JacRed.Infrastructure.Networking
 
             for (int i = 0; i < attempts; i++)
             {
-                if (i > 0)
-                    await Task.Delay(1500);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                (outcome, html, failMessage) = await RequestAsync(conf, url, cookie);
+                if (i > 0)
+                    await Task.Delay(1500, cancellationToken);
+
+                (outcome, html, failMessage) = await RequestAsync(conf, url, cookie, cancellationToken);
 
                 if (outcome != FetchOutcome.BrowserFailed)
                     return (outcome, html, failMessage);
@@ -309,7 +317,8 @@ namespace JacRed.Infrastructure.Networking
             BrowserFailed
         }
 
-        static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestAsync(FlareSolverrSettingsView conf, string url, string cookie)
+        static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestAsync(
+            FlareSolverrSettingsView conf, string url, string cookie, CancellationToken cancellationToken = default)
         {
             var payload = new Dictionary<string, object>
             {
@@ -326,7 +335,7 @@ namespace JacRed.Infrastructure.Networking
             // Proxy только через PROXY_* у контейнера FlareSolverr — в body не шлём
             // (при session FlareSolverr всё равно игнорирует request proxy).
 
-            var root = await CallAsync(conf, payload, conf.MaxTimeoutMs + 30000);
+            var root = await CallAsync(conf, payload, conf.MaxTimeoutMs + 30000, cancellationToken);
 
             if (root == null)
                 return (FetchOutcome.BrowserFailed, null, "empty response / unreachable");
@@ -398,13 +407,13 @@ namespace JacRed.Infrastructure.Networking
 
         #region сессия
 
-        static async Task<bool> CreateSessionAsync(FlareSolverrSettingsView conf)
+        static async Task<bool> CreateSessionAsync(FlareSolverrSettingsView conf, CancellationToken cancellationToken = default)
         {
             var root = await CallAsync(conf, new Dictionary<string, object>
             {
                 ["cmd"] = "sessions.create",
                 ["session"] = SessionName
-            }, conf.MaxTimeoutMs + 30000);
+            }, conf.MaxTimeoutMs + 30000, cancellationToken);
 
             bool ok = root != null &&
                       (string.Equals(root.Value<string>("status"), "ok", StringComparison.OrdinalIgnoreCase)
@@ -420,13 +429,13 @@ namespace JacRed.Infrastructure.Networking
             return ok;
         }
 
-        static async Task DestroySessionAsync(FlareSolverrSettingsView conf)
+        static async Task DestroySessionAsync(FlareSolverrSettingsView conf, CancellationToken cancellationToken = default)
         {
             await CallAsync(conf, new Dictionary<string, object>
             {
                 ["cmd"] = "sessions.destroy",
                 ["session"] = SessionName
-            }, 60000);
+            }, 60000, cancellationToken);
 
             _sessionAlive = false;
         }
@@ -479,15 +488,24 @@ namespace JacRed.Infrastructure.Networking
 
         #endregion
 
-        static async Task<JObject> CallAsync(FlareSolverrSettingsView conf, Dictionary<string, object> payload, int timeoutMs)
+        static async Task<JObject> CallAsync(
+            FlareSolverrSettingsView conf, Dictionary<string, object> payload, int timeoutMs,
+            CancellationToken cancellationToken = default)
         {
             try
             {
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(timeoutMs);
+
                 using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
                 using var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-                using var response = await client.PostAsync(conf.Url, content);
+                using var response = await client.PostAsync(conf.Url, content, timeoutCts.Token);
 
-                return JObject.Parse(await response.Content.ReadAsStringAsync());
+                return JObject.Parse(await response.Content.ReadAsStringAsync(timeoutCts.Token));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

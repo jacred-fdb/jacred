@@ -164,7 +164,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
             return TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                foreach (string cat in new List<string>()
+                var cats = new List<string>()
                 {
                     // Українське озвучення
                     "16", "32",  "19", "44", "127",
@@ -180,32 +180,39 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
                     // Телевізійні шоу та програми
                     "132"
-                })
+                };
+                int done = 0;
+                TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", 0, cats.Count);
+
+                foreach (string cat in cats)
                 {
                     ct.ThrowIfCancellationRequested();
 
                     // Получаем html
                     string html = await HttpClient.Get($"{AppInit.conf.Toloka.host}/f{cat}", timeoutSeconds: 10, cookie: Cookie(_memoryCache), cancellationToken: ct);
-                    if (html == null)
-                        continue;
-
-                    // Максимальное количиство страниц
-                    int.TryParse(Regex.Match(html, ">([0-9]+)</a>&nbsp;&nbsp;<a href=\"[^\"]+\">наступна</a>").Groups[1].Value, out int maxpages);
-
-                    // Загружаем список страниц в список задач
-                    for (int page = 0; page <= maxpages; page++)
+                    if (html != null)
                     {
-                        try
-                        {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
+                        // Максимальное количиство страниц
+                        int.TryParse(Regex.Match(html, ">([0-9]+)</a>&nbsp;&nbsp;<a href=\"[^\"]+\">наступна</a>").Groups[1].Value, out int maxpages);
 
-                            var val = taskParse[cat];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
+                        // Загружаем список страниц в список задач
+                        for (int page = 0; page <= maxpages; page++)
+                        {
+                            try
+                            {
+                                if (!taskParse.ContainsKey(cat))
+                                    taskParse.Add(cat, new List<TaskParse>());
+
+                                var val = taskParse[cat];
+                                if (val.FirstOrDefault(i => i.page == page) == null)
+                                    val.Add(new TaskParse(page));
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
+
+                    done++;
+                    TrackerSyncHelpers.ReportProgress(TrackerName, "UpdateTasksParse", done, cats.Count, cat);
                 }
 
                 PersistTaskParse();
