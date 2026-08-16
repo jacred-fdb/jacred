@@ -67,6 +67,17 @@ public class TrackerNameMatchingTests
     }
 
     [Fact]
+    public void ApplyIndexerPathFilter_IgnoresHealthyStatus()
+    {
+        var req = new IndexerSearchRequest();
+
+        TrackerNameMatching.ApplyIndexerPathFilter(req, "status:healthy");
+
+        Assert.True(req.Trackers == null || req.Trackers.Count == 0);
+        Assert.Null(req.Tracker);
+    }
+
+    [Fact]
     public void FilterByTrackers_UsesSharedMatcher()
     {
         var items = new List<Result>

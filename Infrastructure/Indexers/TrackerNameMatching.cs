@@ -62,8 +62,9 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         /// <summary>
-        /// When route <c>{indexer}</c> / <c>{status}</c> is a specific tracker (not empty/"all"/numeric Prowlarr id),
-        /// ensure it is included in the request tracker filter.
+        /// When route <c>{indexer}</c> / <c>{status}</c> is a specific tracker (not empty/"all"/
+        /// Jackett's virtual "status:healthy" selector/numeric Prowlarr id), ensure it is included
+        /// in the request tracker filter.
         /// </summary>
         public static void ApplyIndexerPathFilter(IndexerSearchRequest req, string indexer)
         {
@@ -84,6 +85,7 @@ namespace JacRed.Infrastructure.Indexers
 
         public static bool IsAllIndexer(string indexer) =>
             string.IsNullOrWhiteSpace(indexer) ||
-            indexer.Equals("all", StringComparison.OrdinalIgnoreCase);
+            indexer.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+            indexer.Equals("status:healthy", StringComparison.OrdinalIgnoreCase);
     }
 }
