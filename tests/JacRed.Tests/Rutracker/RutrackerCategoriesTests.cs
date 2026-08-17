@@ -9,10 +9,32 @@ public class RutrackerCategoriesTests
     [Fact]
     public void Map_HasExpectedCounts()
     {
-        Assert.Equal(211, RutrackerCategories.Map.Count);
-        Assert.Equal(65, RutrackerCategories.QuickParseIds.Count());
+        Assert.Equal(232, RutrackerCategories.Map.Count);
+        Assert.Equal(84, RutrackerCategories.QuickParseIds.Count());
         Assert.Equal(RutrackerCategories.Map.Count, RutrackerCategories.Ids.Distinct().Count());
         Assert.True(RutrackerCategories.QuickParseIds.All(id => RutrackerCategories.Map.ContainsKey(id)));
+    }
+
+    /// <summary>
+    /// Разделы, добавленные 15.08.2026, и почему их отсутствие било по выдаче.
+    ///
+    /// У rutracker раздел может иметь и подразделы, и собственные темы, поэтому
+    /// обход родителя НЕ заменяет обход детей. Так «Дом дракона» S3 в 2160p
+    /// (t=6873874) не попадал в базу вовсе: он лежит в 1171, а в списке был
+    /// только родительский 119, где своих тем два десятка.
+    /// </summary>
+    [Theory]
+    [InlineData("1171")]   // Новинки и сериалы в стадии показа (UHD Video)
+    [InlineData("2366")]   // Зарубежные сериалы (HD Video)
+    [InlineData("189")]    // Зарубежные сериалы
+    [InlineData("2100")]   // Азиатские сериалы
+    [InlineData("812")]    // Русские сериалы (UHD Video)
+    [InlineData("718")]    // UHD Video
+    [InlineData("1106")]   // Онгоинги (HD Video)
+    public void FormerlyMissingSections_AreInQuickParse(string id)
+    {
+        Assert.True(RutrackerCategories.Map.ContainsKey(id));
+        Assert.Contains(id, RutrackerCategories.QuickParseIds);
     }
 
     [Fact]

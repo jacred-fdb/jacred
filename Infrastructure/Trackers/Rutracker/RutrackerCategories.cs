@@ -50,6 +50,16 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["140"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["252"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
 
+            // Фильмы: разделы UHD и DVD, тоже пропущенные (15.08.2026).
+            ["7"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["718"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["1940"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["271"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["1543"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["101"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["100"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["572"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+
             // 3D Мультфильмы / Мультфильмы
             ["2343"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["930"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
@@ -58,6 +68,8 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["539"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["209"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["1213"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["4"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["1577"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
 
             // Мультсериалы
             ["921"] = new() { Types = new[] { "multserial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
@@ -94,14 +106,33 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["915"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
             ["1939"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
 
+            // Сериальные разделы, которых в списке не было (добавлены 15.08.2026).
+            //
+            // Повод: раздача «Дом дракона» S3 в 2160p (t=6873874) не находилась
+            // ни в вебе, ни в Лампе — она лежит в разделе 1171, а у нас был
+            // только его РОДИТЕЛЬ, 119. У rutracker раздел может иметь и
+            // подразделы, и собственные темы, поэтому обход родителя не
+            // заменяет обход детей: в самом 119 всего два десятка тем.
+            ["2366"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["189"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["1171"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["812"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["920"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["911"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["2100"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+
             // Аниме
             ["1105"] = new() { Types = new[] { "anime" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
             ["2491"] = new() { Types = new[] { "anime" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
             ["1389"] = new() { Types = new[] { "anime" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
+            ["33"] = new() { Types = new[] { "anime" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
+            ["1106"] = new() { Types = new[] { "anime" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
 
             // Документальные фильмы
             ["709"] = new() { Types = new[] { "documovie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = false },
             ["2109"] = new() { Types = new[] { "documovie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = false },
+            ["1985"] = new() { Types = new[] { "documovie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = false },
+            ["1202"] = new() { Types = new[] { "documovie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = false },
 
             // Документалистика
             ["46"] = new() { Types = new[] { "docuserial", "documovie" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = false },
