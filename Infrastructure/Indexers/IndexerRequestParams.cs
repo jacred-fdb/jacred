@@ -282,5 +282,38 @@ namespace JacRed.Infrastructure.Indexers
             var m = Regex.Match(query.Trim(), @"^(.+?)\s+(19|20)\d{2}$");
             return m.Success ? m.Groups[1].Value.Trim() : null;
         }
+
+        static readonly Regex SeasonEpisodeTokenRe = new Regex(
+            @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        static readonly Regex RussianSeasonSuffixRe = new Regex(
+            @"\s*\d{1,2}(-\d{1,2})?\s*сезон\s*.*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        static readonly Regex SeasonWordSuffixRe = new Regex(
+            @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Strip inline TV season/episode tokens from text search queries (AIOStreams/Sonarr-style <c>q=</c> params).
+        /// Returns null when nothing changed.
+        /// </summary>
+        public static string StripSeasonEpisode(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return null;
+            if (IsImdbOrKpQuery(query)) return null;
+
+            string original = query.Trim();
+            string t = SeasonEpisodeTokenRe.Replace(original, "");
+            t = RussianSeasonSuffixRe.Replace(t, "");
+            t = SeasonWordSuffixRe.Replace(t, "");
+            t = Regex.Replace(t, @"\s{2,}", " ").Trim();
+
+            if (string.IsNullOrEmpty(t) || string.Equals(t, original, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            return t;
+        }
     }
 }

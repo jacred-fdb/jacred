@@ -231,6 +231,8 @@ globalproxy:
         "maxV1Pairs": 4,
         "v1Sort": "sid",
         "stripTrailingYear": true,
+        "stripSeasonEpisode": true,
+        "skipSeasonEpisodeFilter": false,
         "skipCatFilter": true
       },
       "alloha": {
@@ -254,6 +256,8 @@ globalproxy:
 | `maxV1Pairs` | Лимит v1-запросов при `mergeV1=auto` (fuzzy) | `4` |
 | `v1Sort` | Сортировка v1 (`sid` = seeders; также IMDB/KP) | `sid` |
 | `stripTrailingYear` | Доп. вариант fuzzy-запроса без года | `true` |
+| `stripSeasonEpisode` | Доп. вариант fuzzy-запроса без S01/S01E01 | `true` |
+| `skipSeasonEpisodeFilter` | Не фильтровать по `season`/`ep` на сервере (AIOStreams) | `false` |
 | `skipCatFilter` | Не фильтровать по `cat` / `Category[]` на сервере | `true` |
 
 **`mergeV1: auto`** — v1 fuzzy **только в fuzzy mode** (Torznab text search, Lampa global search). Card mode (Lampa: `title` + `title_original`) — только v2 exact, без v1 fuzzy.

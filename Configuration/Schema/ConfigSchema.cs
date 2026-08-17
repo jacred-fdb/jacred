@@ -110,6 +110,8 @@ namespace JacRed.Configuration.Schema
                         Field("search.maxV1Pairs", "int", "Max v1 pairs", "При mergeV1=auto или true (fuzzy)", min: 1),
                         Field("search.v1Sort", "string", "V1 sort", "sid, pir, size…"),
                         Field("search.stripTrailingYear", "bool", "Strip trailing year", "Fuzzy: запрос без года"),
+                        Field("search.stripSeasonEpisode", "bool", "Strip season/episode", "Fuzzy: запрос без SxxExx"),
+                        Field("search.skipSeasonEpisodeFilter", "bool", "Skip season/ep filter", "Не фильтровать season/ep на сервере"),
                         Field("search.skipCatFilter", "bool", "Skip cat filter", "Не фильтровать cat/Category[] на сервере")
                     }),
                     Group("alloha", "Alloha", "KP/IMDB/TMDB ID → title (API v2)", new[]

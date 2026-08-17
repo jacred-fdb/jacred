@@ -111,4 +111,37 @@ public class AllohaSearchParamsTests
         Assert.Equal(3, filtered.Count);
         Assert.DoesNotContain(filtered, r => r.Title == "y2001");
     }
+
+    [Theory]
+    [InlineData("silo S01", "silo")]
+    [InlineData("укрытие S01", "укрытие")]
+    [InlineData("silo us S01", "silo us")]
+    [InlineData("укрытие 2023 S01E01", "укрытие 2023")]
+    [InlineData("silo 2023 S01", "silo 2023")]
+    [InlineData("укрытие S01E01", "укрытие")]
+    [InlineData("укрытие 2023 S01", "укрытие 2023")]
+    [InlineData("silo S01E01", "silo")]
+    [InlineData("silo 2023 S01E01", "silo 2023")]
+    [InlineData("silo us S01E01", "silo us")]
+    public void StripSeasonEpisode_SiloQueries(string raw, string expected)
+    {
+        Assert.Equal(expected, IndexerRequestParams.StripSeasonEpisode(raw));
+    }
+
+    [Theory]
+    [InlineData("Fight Club 1999")]
+    [InlineData("tt14688458")]
+    [InlineData("Breaking Bad")]
+    public void StripSeasonEpisode_Unchanged_ReturnsNull(string raw)
+    {
+        Assert.Null(IndexerRequestParams.StripSeasonEpisode(raw));
+    }
+
+    [Fact]
+    public void StripSeasonEpisode_ChainedWithTrailingYear()
+    {
+        var strippedSeason = IndexerRequestParams.StripSeasonEpisode("укрытие 2023 S01");
+        Assert.Equal("укрытие 2023", strippedSeason);
+        Assert.Equal("укрытие", IndexerRequestParams.StripTrailingYear(strippedSeason));
+    }
 }

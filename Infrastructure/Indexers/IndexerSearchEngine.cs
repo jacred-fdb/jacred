@@ -94,11 +94,26 @@ namespace JacRed.Infrastructure.Indexers
 
             if (!string.IsNullOrWhiteSpace(query) && !skipCombined)
             {
+                string strippedSeason = settings.stripSeasonEpisode
+                    ? IndexerRequestParams.StripSeasonEpisode(query)
+                    : null;
+
                 if (settings.stripTrailingYear)
                 {
-                    var stripped = IndexerRequestParams.StripTrailingYear(query);
-                    if (!string.IsNullOrWhiteSpace(stripped)) variants.Add(stripped);
+                    var strippedYear = IndexerRequestParams.StripTrailingYear(query);
+                    if (!string.IsNullOrWhiteSpace(strippedYear)) variants.Add(strippedYear);
                 }
+
+                if (!string.IsNullOrWhiteSpace(strippedSeason))
+                    variants.Add(strippedSeason);
+
+                if (settings.stripTrailingYear && !string.IsNullOrWhiteSpace(strippedSeason))
+                {
+                    var strippedYearFromSeason = IndexerRequestParams.StripTrailingYear(strippedSeason);
+                    if (!string.IsNullOrWhiteSpace(strippedYearFromSeason))
+                        variants.Add(strippedYearFromSeason);
+                }
+
                 if (!variants.Contains(query)) variants.Add(query);
             }
 

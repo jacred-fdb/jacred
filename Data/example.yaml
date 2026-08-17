@@ -100,6 +100,8 @@ search:
   maxV1Pairs: 4 # Лимит v1-пар при mergeV1=auto в fuzzy mode
   v1Sort: sid # sid (seeders), pir, size; также IMDB/KP exact v1
   stripTrailingYear: true # Fuzzy: доп. запрос без года в конце
+  stripSeasonEpisode: true # Fuzzy: доп. запрос без S01/S01E01 (AIOStreams)
+  skipSeasonEpisodeFilter: false # true — не фильтровать season/ep (AIOStreams фильтрует сам)
   skipCatFilter: true # Не фильтровать cat/Category[] на сервере (Lampa фильтрует сама)
 
 # Alloha TV API v2 — resolve KP/IMDB/TMDB (tt… / kp… / tmdb… / themoviedb.org URL) to titles for FileDB search
