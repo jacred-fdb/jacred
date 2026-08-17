@@ -23,6 +23,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
     {
         const string TrackerName = UltradoxParser.TrackerName;
         const string TaskParsePath = "Data/temp/ultradox_taskParse.json";
+        static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 
         static readonly List<(string name, string val)> BrowserHeaders = new()
         {
@@ -63,13 +64,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
 
         static void PersistTaskParse()
         {
-            try
-            {
-                string dir = IO.Path.GetDirectoryName(TaskParsePath);
-                if (!string.IsNullOrEmpty(dir))
-                    IO.Directory.CreateDirectory(dir);
-                IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse));
-            }
+            try { ParseAllCycleStore.WriteJsonAtomic(TaskParsePath, taskParse); }
             catch { }
         }
 
@@ -227,8 +222,11 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
 
                 try
                 {
+                    var (cycle, mapCount, pendingCount) = ParseAllCycleStore.BeginFlatFullRun(TrackerName, taskParse);
+                    ParserLog.Write(TrackerName, $"ParseAllTask start {ParseAllCycleStore.FormatStartLog(cycle, pendingCount, mapCount)}");
+
                     var pending = taskParse.ToArray()
-                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime)
+                        .SelectMany(t => t.Value.Where(v => ParseAllCycleStore.IsPendingInCycle(v, cycle))
                             .Select(v => (cat: t.Key, val: v)))
                         .ToArray();
                     int done = 0;
@@ -247,7 +245,8 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                         try
                         {
                             await ParseSectionPageAsync(host, item.cat, types, item.val.page, ct);
-                            item.val.updateTime = DateTime.Today;
+                            ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
+                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                         }
                         catch (OperationCanceledException) when (ct.IsCancellationRequested)
                         {
@@ -292,6 +291,8 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                     var sw = Stopwatch.StartNew();
                     ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
+                    var cycle = ParseAllCycleStore.LoadFlatActiveCycle(TrackerName, taskParse);
+
                     foreach (var task in taskParse.ToArray())
                     {
                         if (!UltradoxCategories.Map.TryGetValue(task.Key, out var meta) || meta?.Types == null)
@@ -307,7 +308,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                             try
                             {
                                 await ParseSectionPageAsync(host, task.Key, meta.Types, val.page, cancellationToken);
-                                val.updateTime = DateTime.Today;
+                                ParseAllCycleStore.MarkDoneInCycle(val, cycle);
                                 log.AppendLine($"{task.Key} - {val.page}");
                             }
                             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -322,6 +323,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                     }
 
                     PersistTaskParse();
+                    ParseAllCycleStore.SaveState(CyclePath, cycle);
                     ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
                 catch (Exception ex)

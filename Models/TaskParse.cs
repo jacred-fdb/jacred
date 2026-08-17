@@ -15,6 +15,9 @@ namespace JacRed.Models.tParse
 
         public DateTime updateTime { get; set; }
 
+        /// <summary>ParseAllTask cycle id when this page was last completed in a full crawl.</summary>
+        public string parseAllCycleId { get; set; }
+
         public int page { get; set; }
     }
 }

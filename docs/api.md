@@ -162,7 +162,7 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 
 - **`GET /cron/{tracker}/parse`** — запуск парсинга (часто с `?page=` / `?limit_page=` / `?fullparse=` — зависит от трекера).
 - **`GET /cron/{tracker}/ParseLatest`** — свежие раздачи (Rutor-style: anibelka, korsars, ultradox и ряд старых трекеров).
-- **`GET /cron/{tracker}/ParseAllTask`** — фоновый полный обход задач (регистрируется в `/health/background-jobs`).
+- **`GET /cron/{tracker}/ParseAllTask`** — фоновый полный обход задач (регистрируется в `/health/background-jobs`). Прогресс цикла хранится в **`Data/temp/{tracker}_parseAllCycle.json`** и на страницах карты (`parseAllCycleId` в `{tracker}_taskParse.json`): обход **не сбрасывается в полночь**, продолжается между 6‑часовыми запусками; новый цикл начинается только после полного прохода карты. Rutracker smoke (`?cat=` / `?maxPages=`) глобальный цикл не трогает.
 - **`GET /cron/{tracker}/UpdateTasksParse`** — обновление очереди задач (тоже background-jobs).
 - **`GET /cron/{tracker}/parseMagnet`** — парсинг магнет-ссылок (для поддерживающих трекеров).
 - Дополнительные параметры: `parseFrom`, `parseTo`, `parseFromDate`, `pages` (зависит от трекера).

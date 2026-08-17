@@ -27,6 +27,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
     {
         const string TrackerName = KorsarsParser.TrackerName;
         const string TaskParsePath = "Data/temp/korsars_taskParse.json";
+        static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
         const string CookieCacheKey = "cron:KorsarsController:Cookie";
         const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
@@ -65,10 +66,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
         {
             try
             {
-                string dir = IO.Path.GetDirectoryName(TaskParsePath);
-                if (!string.IsNullOrEmpty(dir))
-                    IO.Directory.CreateDirectory(dir);
-                IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse));
+                ParseAllCycleStore.WriteJsonAtomic(TaskParsePath, taskParse);
             }
             catch { }
         }
@@ -355,8 +353,11 @@ namespace JacRed.Infrastructure.Trackers.Korsars
 
                 try
                 {
+                    var (cycle, mapCount, pendingCount) = ParseAllCycleStore.BeginFlatFullRun(TrackerName, taskParse);
+                    ParserLog.Write(TrackerName, $"ParseAllTask start {ParseAllCycleStore.FormatStartLog(cycle, pendingCount, mapCount)}");
+
                     var pending = taskParse.ToArray()
-                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime)
+                        .SelectMany(t => t.Value.Where(v => ParseAllCycleStore.IsPendingInCycle(v, cycle))
                             .Select(v => (cat: t.Key, val: v)))
                         .ToArray();
                     int done = 0;
@@ -372,7 +373,8 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                         {
                             await ParseCategoryPageAsync(rqHost, canonHost, item.cat, item.val.page, ct);
                             // Empty listings still count as done (Go markTaskToday).
-                            item.val.updateTime = DateTime.Today;
+                            ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
+                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                         }
                         catch (OperationCanceledException) when (ct.IsCancellationRequested)
                         {
@@ -421,6 +423,8 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                     var sw = Stopwatch.StartNew();
                     ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
+                    var cycle = ParseAllCycleStore.LoadFlatActiveCycle(TrackerName, taskParse);
+
                     foreach (var task in taskParse.ToArray())
                     {
                         var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
@@ -433,7 +437,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                             try
                             {
                                 await ParseCategoryPageAsync(rqHost, canonHost, task.Key, val.page, cancellationToken);
-                                val.updateTime = DateTime.Today;
+                                ParseAllCycleStore.MarkDoneInCycle(val, cycle);
                                 log.AppendLine($"{task.Key} - {val.page}");
                             }
                             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -448,6 +452,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                     }
 
                     PersistTaskParse();
+                    ParseAllCycleStore.SaveState(CyclePath, cycle);
                     ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
                 catch (Exception ex)

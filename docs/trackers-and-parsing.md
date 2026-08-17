@@ -45,6 +45,7 @@ tags:
    - Логи парсеров: `Data/log/{tracker}.log` (по умолчанию `logParsers: true`, per-tracker `log: true`)
    - Логи БД: `Data/log/fdb.*.log` (по умолчанию `logFdb: true`)
    - Активные длинные джобы: `GET /health/background-jobs` (ParseAll / UpdateTasks; page-only парсеры туда обычно не попадают)
+   - Полный обход ParseAllTask: checkpoint цикла в `Data/temp/{tracker}_parseAllCycle.json` (не сбрасывается в полночь; см. [API → ParseAllTask](api.md#parsing-trackers))
    - Статистика: `GET /stats/*` (если `openstats: true`)
 
 ---

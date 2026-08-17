@@ -17,6 +17,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
     {
         const string TrackerName = "torrentby";
         const string TaskParsePath = "Data/temp/torrentby_taskParse.json";
+        static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 
         static Dictionary<string, List<TaskParse>> taskParse = new Dictionary<string, List<TaskParse>>();
 
@@ -33,7 +34,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
         static void PersistTaskParse()
         {
-            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            try { ParseAllCycleStore.WriteJsonAtomic(TaskParsePath, taskParse); }
             catch { }
         }
 
@@ -111,8 +112,11 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
             {
                 try
                 {
+                    var (cycle, mapCount, pendingCount) = ParseAllCycleStore.BeginFlatFullRun(TrackerName, taskParse);
+                    ParserLog.Write(TrackerName, $"ParseAllTask start {ParseAllCycleStore.FormatStartLog(cycle, pendingCount, mapCount)}");
+
                     var pending = taskParse.ToArray()
-                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .SelectMany(t => t.Value.Where(v => ParseAllCycleStore.IsPendingInCycle(v, cycle)).Select(v => (cat: t.Key, val: v)))
                         .ToArray();
                     int done = 0;
                     TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
@@ -124,7 +128,10 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
                         bool res = await TorrentByParser.ParsePageAsync(item.cat, item.val.page, ct);
                         if (res)
-                            item.val.updateTime = DateTime.Today;
+                        {
+                            ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
+                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
+                        }
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
@@ -148,6 +155,8 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                     var sw = Stopwatch.StartNew();
                     ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
+                    var cycle = ParseAllCycleStore.LoadFlatActiveCycle(TrackerName, taskParse);
+
                     foreach (var task in taskParse.ToArray())
                     {
                         var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
@@ -159,12 +168,14 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                             bool res = await TorrentByParser.ParsePageAsync(task.Key, val.page);
                             if (res)
                             {
-                                val.updateTime = DateTime.Today;
+                                ParseAllCycleStore.MarkDoneInCycle(val, cycle);
                                 log.AppendLine($"{task.Key} - {val.page}");
                             }
                         }
                     }
 
+                    PersistTaskParse();
+                    ParseAllCycleStore.SaveState(CyclePath, cycle);
                     ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
                 catch (Exception ex)
