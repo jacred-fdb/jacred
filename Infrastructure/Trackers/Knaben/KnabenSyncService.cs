@@ -145,10 +145,13 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                     if (pageSize <= 0) break;
 
                     var batch = await FetchTorrentsFromApi(offset, pageSize, secondsSince, query, orderBy, orderDirection, categories, cancellationToken);
-                    if (batch.Torrents == null || batch.Torrents.Count == 0) break;
-                    all.AddRange(batch.Torrents);
-                    totalFetched += batch.Torrents.Count;
-                    if (batch.Torrents.Count < pageSize) break;
+                    if (!batch.IsValid) break;
+                    if (batch.Torrents.Count > 0)
+                    {
+                        all.AddRange(batch.Torrents);
+                        totalFetched += batch.Torrents.Count;
+                    }
+                    if (batch.RawHitCount < pageSize) break;
                     if (page < pages - 1) await Task.Delay(ApiDelayMs, cancellationToken);
                 }
 
@@ -214,15 +217,41 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                         continue;
                     }
 
-                    var batch = await FetchTorrentsFromApi(
-                        state.From,
+                    var (batch, outcome, attempts) = await KnabenBackfillPageLogic.FetchWithRetry(
+                        ct => FetchTorrentsFromApi(
+                            state.From,
+                            pageSize,
+                            secondsSince: null,
+                            query: null,
+                            orderBy: "date",
+                            orderDirection: state.Direction,
+                            categories: new[] { state.CategoryId },
+                            ct),
                         pageSize,
-                        secondsSince: null,
-                        query: null,
-                        orderBy: "date",
-                        orderDirection: state.Direction,
-                        categories: new[] { state.CategoryId },
-                        cancellationToken);
+                        state.From,
+                        (ms, ct) => Task.Delay(ms, ct),
+                        cancellationToken,
+                        onAttempt: (page, pageOutcome, attempt) =>
+                        {
+                            ParserLog.Write(TrackerName, "Backfill fetch", PageLogFields(state, page, pageOutcome, attempt));
+                        });
+
+                    if (outcome == KnabenPageOutcome.Retryable)
+                    {
+                        if (batch.Torrents.Count > 0)
+                        {
+                            var (added, updated, skipped, failed) = await SaveTorrents(batch.Torrents, cancellationToken);
+                            callFetched += batch.Torrents.Count;
+                            callAdded += added;
+                            callUpdated += updated;
+                            callSkipped += skipped;
+                            callFailed += failed;
+                        }
+
+                        ParserLog.Write(TrackerName, "Backfill page retry exhausted, holding checkpoint",
+                            PageLogFields(state, batch, outcome, attempts, reason: "retryHold"));
+                        break;
+                    }
 
                     if (batch.Torrents.Count > 0)
                     {
@@ -237,16 +266,17 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                         state.TotalUpdated += updated;
                     }
 
-                    bool earlyEnd = batch.Torrents.Count < pageSize;
+                    bool earlyEnd = outcome == KnabenPageOutcome.EndOfFeed;
                     bool isAsc = state.Direction == "asc";
+                    var ids = batch.Ids ?? new List<string>();
 
-                    if (isAsc && batch.Ids.Count > 0)
-                        state.AscEdgeIds = batch.Ids;
+                    if (isAsc && ids.Count > 0)
+                        state.AscEdgeIds = ids;
 
                     if (!isAsc
                         && state.AscEdgeIds != null
                         && state.AscEdgeIds.Count > 0
-                        && batch.Ids.Any(id => state.AscEdgeIds.Contains(id)))
+                        && ids.Any(id => state.AscEdgeIds.Contains(id)))
                     {
                         state.DescSawOverlap = true;
                     }
@@ -256,7 +286,16 @@ namespace JacRed.Infrastructure.Trackers.Knaben
 
                     if (earlyEnd || state.From >= MaxFromWindow)
                     {
-                        AdvanceBackfillPass(state, batch.Ids, earlyEnd);
+                        bool wasAsc = state.Direction == "asc";
+                        bool overlap = !wasAsc
+                            && (state.DescSawOverlap
+                                || (state.AscEdgeIds != null && ids.Any(id => state.AscEdgeIds.Contains(id))));
+                        string reason = wasAsc
+                            ? (earlyEnd ? "endOfFeed" : "window")
+                            : (overlap ? "overlap" : "partial");
+                        var passLog = PageLogFields(state, batch, outcome, attempts, reason);
+                        AdvanceBackfillPass(state, ids, earlyEnd);
+                        ParserLog.Write(TrackerName, "Backfill pass ended", passLog);
                     }
 
                     PersistBackfillState(state);
@@ -292,7 +331,7 @@ namespace JacRed.Infrastructure.Trackers.Knaben
             }
         }
 
-        static void AdvanceBackfillPass(KnabenBackfillState state, List<string> lastPageIds, bool earlyEnd)
+        internal static void AdvanceBackfillPass(KnabenBackfillState state, List<string> lastPageIds, bool earlyEnd)
         {
             bool isAsc = state.Direction == "asc";
 
@@ -454,6 +493,31 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                 + $" updatedAt={state.UpdatedAt:O}";
         }
 
+        static Dictionary<string, object> PageLogFields(
+            KnabenBackfillState state,
+            KnabenFetchPage page,
+            KnabenPageOutcome outcome,
+            int attempts,
+            string reason = null)
+        {
+            var fields = new Dictionary<string, object>
+            {
+                { "cat", state.CategoryId },
+                { "dir", state.Direction },
+                { "from", state.From },
+                { "rawHits", page?.RawHitCount ?? 0 },
+                { "mappedTorrents", page?.Torrents?.Count ?? 0 },
+                { "total.value", page?.TotalValue },
+                { "total.relation", page?.TotalRelation },
+                { "outcome", outcome.ToString() },
+                { "attempts", attempts },
+                { "valid", page?.IsValid ?? false }
+            };
+            if (!string.IsNullOrEmpty(reason))
+                fields["reason"] = reason;
+            return fields;
+        }
+
         async Task<KnabenApiResponse> ApiRequestAsync(KnabenApiRequest req, CancellationToken cancellationToken)
         {
             if (AppInit.conf?.Knaben == null) return null;
@@ -482,13 +546,12 @@ namespace JacRed.Infrastructure.Trackers.Knaben
             int[] categories,
             CancellationToken cancellationToken)
         {
-            var empty = new KnabenFetchPage { Torrents = new List<TorrentDetails>(), Ids = new List<string>() };
             if (from >= MaxFromWindow || size <= 0)
-                return empty;
+                return KnabenFetchPage.Invalid();
 
             int clampedSize = Math.Min(size, MaxFromWindow - from);
             if (clampedSize <= 0)
-                return empty;
+                return KnabenFetchPage.Invalid();
 
             var req = new KnabenApiRequest
             {
@@ -506,15 +569,7 @@ namespace JacRed.Infrastructure.Trackers.Knaben
             await Task.Delay(ApiDelayMs, cancellationToken);
 
             var resp = await ApiRequestAsync(req, cancellationToken);
-            if (resp?.Hits == null || resp.Hits.Count == 0)
-                return empty;
-
-            var ids = resp.Hits
-                .Select(h => h.Id)
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .ToList();
-            var torrents = resp.Hits.Select(KnabenParser.MapToTorrentDetails).Where(t => t != null).ToList();
-            return new KnabenFetchPage { Torrents = torrents, Ids = ids };
+            return KnabenFetchPage.FromResponse(resp);
         }
 
         async Task<(int added, int updated, int skipped, int failed)> SaveTorrents(List<TorrentDetails> torrents, CancellationToken cancellationToken)
@@ -570,12 +625,6 @@ namespace JacRed.Infrastructure.Trackers.Knaben
             });
 
             return (added, updated, skipped, failed);
-        }
-
-        sealed class KnabenFetchPage
-        {
-            public List<TorrentDetails> Torrents { get; set; }
-            public List<string> Ids { get; set; }
         }
     }
 }
