@@ -86,6 +86,8 @@ search:
   maxV1Pairs: 4
   v1Sort: sid
   stripTrailingYear: true
+  stripSeasonEpisode: true
+  skipSeasonEpisodeFilter: false
   skipCatFilter: true
 torznab:
   enable: true

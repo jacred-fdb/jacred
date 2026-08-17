@@ -262,6 +262,8 @@ globalproxy:
 
 **`mergeV1: auto`** — v1 fuzzy **только в fuzzy mode** (Torznab text search, Lampa global search). Card mode (Lampa: `title` + `title_original`) — только v2 exact, без v1 fuzzy.
 
+**AIOStreams / Sonarr-style `q=Show S01E01`:** при `stripSeasonEpisode: true` fuzzy ищет и полное `q`, и имя шоу без сезона/эпизода (`silo S01` → `silo`; `укрытие 2023 S01E01` → `укрытие 2023` → `укрытие` вместе с `stripTrailingYear`). `skipSeasonEpisodeFilter: true` отдаёт все релизы шоу — клиент фильтрует эпизоды сам.
+
 | `mergeV1` | Card (Lampa карточка) | Fuzzy (Query / Torznab) |
 | --- | --- | --- |
 | `false` | v2 only | v2 only |
@@ -307,6 +309,7 @@ Jackett JSON (`/api/v2.0/indexers/.../results`) **всегда** использ�
 | --- | --- | --- |
 | **Lampa** | `/api/v2.0/indexers/all/results` | Jackett JSON (`Results[]`). Тип парсера в Lampa: **Jackett**, не Prowlarr/Torznab |
 | **Sonarr / Radarr** | `/torznab/api` | Torznab XML (Generic Torznab indexer) |
+| **AIOStreams** | `/torznab/api` | Torznab XML; `q=Show S01` stripping; `skipSeasonEpisodeFilter: true` если клиент фильтрует эпизоды |
 | **Prowlarr** (ручная настройка Generic Torznab) | `/torznab/api` | Torznab XML |
 | **qui / autobrr** (discover, backend=**jackett**) | `/api/v2.0/indexers/all/results/torznab/api` | Torznab XML + `t=indexers` discover |
 | **qui / autobrr** (discover, backend=**prowlarr**) | `/api/v1/indexer` + `/api/v1/indexer/1/newznab` (+ `/api/v1/search`) | Prowlarr REST + Torznab XML / Search JSON |

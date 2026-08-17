@@ -9,7 +9,7 @@ tags:
 
 ## OpenAPI / Swagger
 
-Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.4** (источник: [`web/public/openapi.yaml`](https://github.com/jacred-fdb/jacred/blob/main/web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
+Спецификация: OpenAPI **3.0.3**, `info.version` **1.2.5** (источник: [`web/public/openapi.yaml`](https://github.com/jacred-fdb/jacred/blob/main/web/public/openapi.yaml)). В описании — список `TrackerSlug`, схема `BackgroundJob`, Torznab HEAD и общие query-параметры.
 
 | URL | Назначение |
 | --- | --- |
@@ -43,7 +43,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 Сводная таблица «клиент → URL → формат» — в [Torznab XML](configuration.md#torznab-xml-torznab).
 
 - **`GET /api/v2.0/indexers/{status}/results`** — поиск в формате Jackett JSON (**Lampa** и др.).
-  - Combined search (`search.*`): v2 card/fuzzy + v1 fuzzy (только fuzzy mode при `mergeV1: auto`) + IMDB/KP/TMDB exact (Alloha v2 ID→title, alternative_name, type hint) + card fallback.
+  - Combined search (`search.*`): v2 card/fuzzy + v1 fuzzy (только fuzzy mode при `mergeV1: auto`) + IMDB/KP/TMDB exact (Alloha v2 ID→title, alternative_name, type hint) + card fallback. Fuzzy `q`/`Query` с `S01`/`S01E01` расширяется до имени шоу при `search.stripSeasonEpisode` (по умолчанию `true`).
   - Параметры Lampa: `Query`, `title`, `title_original`, `year`, `is_serial`, `genres`, `Category[]`, `Tracker[]`, `season`, `ep`, `limit`, `offset`, `apikey`.
   - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true`.
 - **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).
@@ -52,7 +52,7 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 - **`GET /api/v1/indexer/{id}/newznab`** — Torznab XML через Prowlarr-совместимый путь (`t=caps|search|…`).
 - **`GET /api/v1/search`** — Prowlarr Search Feed ([wiki](https://wiki.servarr.com/en/prowlarr/search#search-feed)): JSON-массив релизов.
   - Параметры: `query`, `type` (`search`|`tvsearch`|`movie`|`music`|`book`), `indexerIds` (`1`, `-2` torrents; `-1` usenet → пусто), `categories`, `limit`, `offset`, `apikey`.
-  - Brace-токены в `query` (как в UI Prowlarr): `{ImdbId:tt…}`, `{TmdbId:1315772}`, `{Season:1}`, `{Episode:2}` и т.п. ID-запросы (`tt…`/`kp…`/`tmdb…`/themoviedb.org URL/`{ImdbId:…}`/`{TmdbId:…}`) → Alloha v2.
+  - Brace-токены в `query` (как в UI Prowlarr): `{ImdbId:tt…}`, `{TmdbId:1315772}`, `{Season:1}`, `{Episode:2}` и т.п. ID-запросы (`tt…`/`kp…`/`tmdb…`/themoviedb.org URL/`{ImdbId:…}`/`{TmdbId:…}`) → Alloha v2. Inline `S01`/`S01E01` в `query` снимается при `search.stripSeasonEpisode`.
   - Lampa (`parser_torrent_type=prowlarr`): `query` + `type=tvsearch|search` + `categories` — запрос поднимается до card-поиска как у Jackett (`title`/`title_original`/`year`, `is_serial` 1=фильм / 2=сериал).
   - Один агрегированный indexer `id=1`; ответ в схеме ReleaseResource (`guid`, `title`, `size`, `seeders`, `magnetUrl`, `categories`, …).
   - JacRed-расширения как у Jackett: `ffprobe`, `languages`, `info` при `tracks: true` (иначе поля опускаются / null).
@@ -63,7 +63,8 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
   - Параметры: `q`, `imdbid`, `season`, `ep`, `year`, `cat`, `title`, `title_original`, `is_serial`, `limit`, `offset`, `apikey`.
   - IMDB/KP/TMDB ID (`tt…`, `kp…`, `tmdb…`, themoviedb.org `/movie|tv/{id}-…`) → Alloha v2 title resolve (name / original_name / alternative_name, type), затем v1 FileDB с `exact=true` (год ±1 при `alloha.filterByYear`).
   - Card mode (Lampa): `title` + `title_original` + `year` + `is_serial` + `genres`.
-  - Объединение v1+v2, bilingual `Русский / English`, post-filter по сезону/эпизоду/году/категории.
+  - Объединение v1+v2, bilingual `Русский / English`, stripping `S01`/`S01E01` из `q` (`search.stripSeasonEpisode`), post-filter по сезону/эпизоду/году/категории (`search.skipSeasonEpisodeFilter` отключает season/ep).
+  - `tvdbid`/`rid` без `q`/`imdbid` → пустой ответ (TVDB не резолвится).
 - **`GET /api/v1.0/torrents`** — поиск торрентов (собственный JSON API JacRed, не Torznab и не Jackett).
   - Параметры: `search` / связанные фильтры, `tracker` (один slug или список через запятую — значения `TrackerSlug`), `sort`, `type`, …
   - IMDB/KP/TMDB ID (`tt…`, `kp…`, `tmdb…`, themoviedb.org URL) → Alloha v2 title resolve, затем exact FileDB (+ год ±1 / `type` из Alloha, если клиент не задал).

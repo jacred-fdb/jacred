@@ -114,6 +114,10 @@ export interface paths {
          *     (`GET /v2/movies/search`) to titles (plus optional alternative name, year, type), then searched
          *     in FileDB with exact match. When the client omits `year`, Alloha year ±1 is applied if
          *     `alloha.filterByYear` is enabled.
+         *
+         *     **TV text queries:** when `search.stripSeasonEpisode` is true (default), inline `S01` / `S01E01`
+         *     tokens are stripped and both variants are searched (AIOStreams-style `q=silo S01`).
+         *     Trailing year is also stripped when `search.stripTrailingYear` is true.
          */
         get: operations["jackettSearch"];
         put?: never;
@@ -206,6 +210,9 @@ export interface paths {
          *
          *     **IMDb / Kinopoisk / TMDB IDs:** `q` as `tt…`/`kp…`/`tmdb…`, a themoviedb.org URL, or `imdbid` →
          *     Alloha TV API v2 title resolve → FileDB exact search (year ±1 when client `year` absent and `alloha.filterByYear`).
+         *     **TVDB-only** (`tvdbid` / `rid` with no `q`/`imdbid`) returns empty — JacRed does not resolve TVDB ids.
+         *     **TV text queries:** `search.stripSeasonEpisode` (default true) searches show name without `S01`/`S01E01`;
+         *     `season`/`ep` still post-filter unless `search.skipSeasonEpisodeFilter` is true.
          */
         get: operations["torznabRoot"];
         put?: never;
@@ -352,6 +359,7 @@ export interface paths {
          *     Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
          *     IMDb/KP/TMDB id queries (`tt…`, `kp…`, `tmdb…`, themoviedb.org URL, or brace `{ImdbId:…}` / `{TmdbId:…}`)
          *     are resolved via Alloha TV API v2 before FileDB exact search.
+         *     Inline `S01`/`S01E01` in free-text `query` is stripped when `search.stripSeasonEpisode` is true (default).
          *     JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
          *     Each release also includes JacRed extensions (`ffprobe`, `languages`, `info`) when `tracks: true`, same as Jackett results.
          *     Lampa Prowlarr mode (`query` + `type` + `categories`) is promoted to Jackett-style card search
@@ -1170,7 +1178,13 @@ export interface components {
         ApiKeyQuery: string;
         /** @description Torznab function (`caps`, `indexers`, or search type) */
         TorznabT: "caps" | "indexers" | "search" | "tvsearch" | "movie" | "tv" | "moviesearch";
-        /** @description Free-text search query */
+        /**
+         * @description Free-text search query. When `search.stripSeasonEpisode` is true (default), inline TV tokens
+         *     (`S01`, `S01E01`, `1x01`, `Season 1`) are stripped and both variants are searched
+         *     (e.g. `silo S01` also searches `silo`). Trailing year is also stripped when
+         *     `search.stripTrailingYear` is true (`укрытие 2023 S01` → `укрытие 2023` → `укрытие`).
+         *     IMDb/KP/TMDB ids (`tt…`/`kp…`/`tmdb…`) are not stripped.
+         */
         TorznabQ: string;
         /** @description Comma-separated Torznab category ids */
         TorznabCat: string;
@@ -1181,13 +1195,19 @@ export interface components {
          *     `/movie|tv/{id}-…` URL (same Alloha resolve path).
          */
         TorznabImdbId: string;
-        /** @description TheTVDB id (tv-search) */
+        /**
+         * @description TheTVDB id (tv-search). Advertised in caps; JacRed does not resolve TVDB ids.
+         *     A `tvdbid`-only request (no `q`/`imdbid`) returns empty results — send `q` or `imdbid` instead.
+         */
         TorznabTvdbId: string;
         /** @description Alias for `tvdbid` */
         TorznabRid: string;
-        /** @description Season number (tv-search filter) */
+        /**
+         * @description Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+         *     (clients such as AIOStreams filter episodes themselves).
+         */
         TorznabSeason: number;
-        /** @description Episode number (tv-search filter) */
+        /** @description Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true. */
         TorznabEp: number;
         /** @description Alias for `ep` */
         TorznabEpisode: number;
@@ -1205,9 +1225,9 @@ export interface components {
          * @example true
          */
         TorznabConfigured: string;
-        /** @description Free-text search alias for `query` / Torznab `q` */
+        /** @description Free-text search alias for `query` / Torznab `q`. Same season/year stripping as Torznab `q`. */
         SearchQ: string;
-        /** @description Alternate capitalization of free-text search query */
+        /** @description Alternate capitalization of free-text search query (same stripping as `q`) */
         SearchQueryAlt: string;
         /** @description Alias for `imdbid` */
         ImdbIdAltUnderscore: string;
@@ -1371,9 +1391,9 @@ export interface operations {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
                 query?: string;
-                /** @description Free-text search alias for `query` / Torznab `q` */
+                /** @description Free-text search alias for `query` / Torznab `q`. Same season/year stripping as Torznab `q`. */
                 q?: components["parameters"]["SearchQ"];
-                /** @description Alternate capitalization of free-text search query */
+                /** @description Alternate capitalization of free-text search query (same stripping as `q`) */
                 Query?: components["parameters"]["SearchQueryAlt"];
                 /** @description Localized title (JacRed / Lampa card search) */
                 title?: components["parameters"]["TorznabTitle"];
@@ -1423,9 +1443,12 @@ export interface operations {
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
                 /** @description Alias for `imdbid` */
                 imdbId?: components["parameters"]["ImdbIdAltCamel"];
-                /** @description Season number (tv-search filter) */
+                /**
+                 * @description Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+                 *     (clients such as AIOStreams filter episodes themselves).
+                 */
                 season?: components["parameters"]["TorznabSeason"];
-                /** @description Episode number (tv-search filter) */
+                /** @description Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true. */
                 ep?: components["parameters"]["TorznabEp"];
                 /** @description Alias for `ep` */
                 episode?: components["parameters"]["TorznabEpisode"];
@@ -1577,9 +1600,15 @@ export interface operations {
                 apikey?: components["parameters"]["ApiKeyQuery"];
                 /** @description Torznab function (`caps`, `indexers`, or search type) */
                 t?: components["parameters"]["TorznabT"];
-                /** @description Free-text search query */
+                /**
+                 * @description Free-text search query. When `search.stripSeasonEpisode` is true (default), inline TV tokens
+                 *     (`S01`, `S01E01`, `1x01`, `Season 1`) are stripped and both variants are searched
+                 *     (e.g. `silo S01` also searches `silo`). Trailing year is also stripped when
+                 *     `search.stripTrailingYear` is true (`укрытие 2023 S01` → `укрытие 2023` → `укрытие`).
+                 *     IMDb/KP/TMDB ids (`tt…`/`kp…`/`tmdb…`) are not stripped.
+                 */
                 q?: components["parameters"]["TorznabQ"];
-                /** @description Alternate capitalization of free-text search query */
+                /** @description Alternate capitalization of free-text search query (same stripping as `q`) */
                 Query?: components["parameters"]["SearchQueryAlt"];
                 /** @description Comma-separated Torznab category ids */
                 cat?: components["parameters"]["TorznabCat"];
@@ -1603,13 +1632,19 @@ export interface operations {
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
                 /** @description Alias for `imdbid` */
                 imdbId?: components["parameters"]["ImdbIdAltCamel"];
-                /** @description TheTVDB id (tv-search) */
+                /**
+                 * @description TheTVDB id (tv-search). Advertised in caps; JacRed does not resolve TVDB ids.
+                 *     A `tvdbid`-only request (no `q`/`imdbid`) returns empty results — send `q` or `imdbid` instead.
+                 */
                 tvdbid?: components["parameters"]["TorznabTvdbId"];
                 /** @description Alias for `tvdbid` */
                 rid?: components["parameters"]["TorznabRid"];
-                /** @description Season number (tv-search filter) */
+                /**
+                 * @description Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+                 *     (clients such as AIOStreams filter episodes themselves).
+                 */
                 season?: components["parameters"]["TorznabSeason"];
-                /** @description Episode number (tv-search filter) */
+                /** @description Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true. */
                 ep?: components["parameters"]["TorznabEp"];
                 /** @description Alias for `ep` */
                 episode?: components["parameters"]["TorznabEpisode"];
@@ -1718,9 +1753,15 @@ export interface operations {
                 apikey?: components["parameters"]["ApiKeyQuery"];
                 /** @description Torznab function (`caps`, `indexers`, or search type) */
                 t?: components["parameters"]["TorznabT"];
-                /** @description Free-text search query */
+                /**
+                 * @description Free-text search query. When `search.stripSeasonEpisode` is true (default), inline TV tokens
+                 *     (`S01`, `S01E01`, `1x01`, `Season 1`) are stripped and both variants are searched
+                 *     (e.g. `silo S01` also searches `silo`). Trailing year is also stripped when
+                 *     `search.stripTrailingYear` is true (`укрытие 2023 S01` → `укрытие 2023` → `укрытие`).
+                 *     IMDb/KP/TMDB ids (`tt…`/`kp…`/`tmdb…`) are not stripped.
+                 */
                 q?: components["parameters"]["TorznabQ"];
-                /** @description Alternate capitalization of free-text search query */
+                /** @description Alternate capitalization of free-text search query (same stripping as `q`) */
                 Query?: components["parameters"]["SearchQueryAlt"];
                 /** @description Comma-separated Torznab category ids */
                 cat?: components["parameters"]["TorznabCat"];
@@ -1744,13 +1785,19 @@ export interface operations {
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
                 /** @description Alias for `imdbid` */
                 imdbId?: components["parameters"]["ImdbIdAltCamel"];
-                /** @description TheTVDB id (tv-search) */
+                /**
+                 * @description TheTVDB id (tv-search). Advertised in caps; JacRed does not resolve TVDB ids.
+                 *     A `tvdbid`-only request (no `q`/`imdbid`) returns empty results — send `q` or `imdbid` instead.
+                 */
                 tvdbid?: components["parameters"]["TorznabTvdbId"];
                 /** @description Alias for `tvdbid` */
                 rid?: components["parameters"]["TorznabRid"];
-                /** @description Season number (tv-search filter) */
+                /**
+                 * @description Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+                 *     (clients such as AIOStreams filter episodes themselves).
+                 */
                 season?: components["parameters"]["TorznabSeason"];
-                /** @description Episode number (tv-search filter) */
+                /** @description Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true. */
                 ep?: components["parameters"]["TorznabEp"];
                 /** @description Alias for `ep` */
                 episode?: components["parameters"]["TorznabEpisode"];
@@ -1954,9 +2001,15 @@ export interface operations {
                 apikey?: components["parameters"]["ApiKeyQuery"];
                 /** @description Torznab function (`caps`, `indexers`, or search type) */
                 t?: components["parameters"]["TorznabT"];
-                /** @description Free-text search query */
+                /**
+                 * @description Free-text search query. When `search.stripSeasonEpisode` is true (default), inline TV tokens
+                 *     (`S01`, `S01E01`, `1x01`, `Season 1`) are stripped and both variants are searched
+                 *     (e.g. `silo S01` also searches `silo`). Trailing year is also stripped when
+                 *     `search.stripTrailingYear` is true (`укрытие 2023 S01` → `укрытие 2023` → `укрытие`).
+                 *     IMDb/KP/TMDB ids (`tt…`/`kp…`/`tmdb…`) are not stripped.
+                 */
                 q?: components["parameters"]["TorznabQ"];
-                /** @description Alternate capitalization of free-text search query */
+                /** @description Alternate capitalization of free-text search query (same stripping as `q`) */
                 Query?: components["parameters"]["SearchQueryAlt"];
                 /** @description Comma-separated Torznab category ids */
                 cat?: components["parameters"]["TorznabCat"];
@@ -1980,13 +2033,19 @@ export interface operations {
                 imdb_id?: components["parameters"]["ImdbIdAltUnderscore"];
                 /** @description Alias for `imdbid` */
                 imdbId?: components["parameters"]["ImdbIdAltCamel"];
-                /** @description TheTVDB id (tv-search) */
+                /**
+                 * @description TheTVDB id (tv-search). Advertised in caps; JacRed does not resolve TVDB ids.
+                 *     A `tvdbid`-only request (no `q`/`imdbid`) returns empty results — send `q` or `imdbid` instead.
+                 */
                 tvdbid?: components["parameters"]["TorznabTvdbId"];
                 /** @description Alias for `tvdbid` */
                 rid?: components["parameters"]["TorznabRid"];
-                /** @description Season number (tv-search filter) */
+                /**
+                 * @description Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+                 *     (clients such as AIOStreams filter episodes themselves).
+                 */
                 season?: components["parameters"]["TorznabSeason"];
-                /** @description Episode number (tv-search filter) */
+                /** @description Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true. */
                 ep?: components["parameters"]["TorznabEp"];
                 /** @description Alias for `ep` */
                 episode?: components["parameters"]["TorznabEpisode"];
@@ -2098,9 +2157,12 @@ export interface operations {
             query?: {
                 /** @description API key (alternative — X-Api-Key header or Bearer) */
                 apikey?: components["parameters"]["ApiKeyQuery"];
-                /** @description URL-encoded search string (supports Prowlarr brace tokens) */
+                /**
+                 * @description URL-encoded search string (supports Prowlarr brace tokens).
+                 *     Inline `S01`/`S01E01` is stripped when `search.stripSeasonEpisode` is true.
+                 */
                 query?: string;
-                /** @description Free-text search alias for `query` / Torznab `q` */
+                /** @description Free-text search alias for `query` / Torznab `q`. Same season/year stripping as Torznab `q`. */
                 q?: components["parameters"]["SearchQ"];
                 /** @description Search kind. `movie`/`moviesearch` map to `is_serial=1`; `tv`/`tvsearch` map to `is_serial=2`. */
                 type?: "search" | "tvsearch" | "movie" | "moviesearch" | "tv" | "music" | "book";
@@ -2131,9 +2193,12 @@ export interface operations {
                 year?: components["parameters"]["Year"];
                 /** @description -1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime */
                 is_serial?: components["parameters"]["IsSerial"];
-                /** @description Season number (tv-search filter) */
+                /**
+                 * @description Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+                 *     (clients such as AIOStreams filter episodes themselves).
+                 */
                 season?: components["parameters"]["TorznabSeason"];
-                /** @description Episode number (tv-search filter) */
+                /** @description Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true. */
                 ep?: components["parameters"]["TorznabEp"];
                 /** @description Alias for `ep` */
                 episode?: components["parameters"]["TorznabEpisode"];
