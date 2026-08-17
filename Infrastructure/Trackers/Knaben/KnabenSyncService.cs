@@ -144,7 +144,7 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                     int pageSize = Math.Min(size, MaxFromWindow - offset);
                     if (pageSize <= 0) break;
 
-                    var batch = await FetchTorrentsFromApi(offset, pageSize, secondsSince, query, orderBy, orderDirection, categories, hideUnsafe: true, cancellationToken);
+                    var batch = await FetchTorrentsFromApi(offset, pageSize, secondsSince, query, orderBy, orderDirection, categories, cancellationToken);
                     if (batch.Torrents == null || batch.Torrents.Count == 0) break;
                     all.AddRange(batch.Torrents);
                     totalFetched += batch.Torrents.Count;
@@ -222,7 +222,6 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                         orderBy: "date",
                         orderDirection: state.Direction,
                         categories: new[] { state.CategoryId },
-                        hideUnsafe: false,
                         cancellationToken);
 
                     if (batch.Torrents.Count > 0)
@@ -481,7 +480,6 @@ namespace JacRed.Infrastructure.Trackers.Knaben
             string orderBy,
             string orderDirection,
             int[] categories,
-            bool hideUnsafe,
             CancellationToken cancellationToken)
         {
             var empty = new KnabenFetchPage { Torrents = new List<TorrentDetails>(), Ids = new List<string>() };
@@ -499,7 +497,7 @@ namespace JacRed.Infrastructure.Trackers.Knaben
                 OrderDirection = NormalizeOrderDirection(orderDirection),
                 From = from,
                 Size = clampedSize,
-                HideUnsafe = hideUnsafe,
+                HideUnsafe = true,
                 HideXxx = true
             };
             if (!string.IsNullOrWhiteSpace(query)) { req.Query = query; req.SearchField = "title"; }
