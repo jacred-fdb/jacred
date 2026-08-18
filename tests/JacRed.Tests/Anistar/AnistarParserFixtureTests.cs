@@ -13,7 +13,7 @@ namespace JacRed.Tests.Anistar;
 public class AnistarParserFixtureTests
 {
     readonly ITestOutputHelper _output;
-    const string Host = "https://anistar.org";
+    const string Host = "https://v30.astar.bz";
 
     public AnistarParserFixtureTests(ITestOutputHelper output)
     {
@@ -53,7 +53,7 @@ public class AnistarParserFixtureTests
     public void ParseDetailTorrents_DetailFixture_YieldsTypedTorrents()
     {
         string html = FixtureLoader.Read("Anistar/detail_sample.html");
-        string postUrl = "https://anistar.org/12-test-show.html";
+        string postUrl = "https://v30.astar.bz/12-test-show.html";
         var torrents = AnistarParser.ParseDetailTorrents(html, postUrl, new[] { "anime" });
 
         _output.WriteLine($"torrents={torrents.Count}");
@@ -77,7 +77,7 @@ public class AnistarParserFixtureTests
             Assert.True(t.relased >= 1900);
         });
 
-        // Synthetic fixture (live anistar.org returns 403 without cookie) has two blocks.
+        // Synthetic two-block fixture (or captured live HTML).
         if (torrents.Count == 2 && torrents[0].downloadId == "1001")
         {
             Assert.Equal("Тестовое аниме", torrents[0].name);
@@ -99,9 +99,49 @@ public class AnistarParserFixtureTests
     }
 
     [Fact]
+    public void ParseEpisodeLabel_FilmSize_IsNotEpisodeNumber()
+    {
+        var (filmLabel, filmNum) = AnistarParser.ParseEpisodeLabel("Фильм (3.05 Gb)");
+        Assert.Equal("Фильм", filmLabel);
+        Assert.Equal("film", filmNum);
+
+        var (epLabel, epNum) = AnistarParser.ParseEpisodeLabel("Серия 7 (466.54 Mb)");
+        Assert.Equal("Серия 7", epLabel);
+        Assert.Equal("7", epNum);
+
+        var (rangeLabel, rangeNum) = AnistarParser.ParseEpisodeLabel("Серии 1-12");
+        Assert.Equal("Серии 1-12", rangeLabel);
+        Assert.Equal("1", rangeNum);
+    }
+
+    [Fact]
+    public void ParseDetailTorrents_FilmInfoD1_DoesNotUseSizeAsEpisode()
+    {
+        const string html = """
+            <html><body>
+            <h1>Гандам / Gundam</h1>
+            <div id="torrent_46365_info" class="torrent">
+              <div class="info_d1">Фильм (3.05 Gb)</div>
+              <div>18-08-2026</div>
+              <div class="li_distribute">0</div>
+              <div class="li_swing">23</div>
+            </div>
+            </body></html>
+            """;
+        string postUrl = "https://v30.astar.bz/11012-gundam.html";
+        var torrents = AnistarParser.ParseDetailTorrents(html, postUrl, new[] { "anime" });
+
+        Assert.Single(torrents);
+        Assert.Equal("46365", torrents[0].downloadId);
+        Assert.Contains("Фильм", torrents[0].title, StringComparison.Ordinal);
+        Assert.DoesNotContain("Серия 3", torrents[0].title, StringComparison.Ordinal);
+        Assert.EndsWith("?e=film&id=46365", torrents[0].url, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ParseDetailTorrents_EmptyHtml_ReturnsEmpty()
     {
-        Assert.Empty(AnistarParser.ParseDetailTorrents("", "https://anistar.org/12-x.html", new[] { "anime" }));
-        Assert.Empty(AnistarParser.ParseDetailTorrents("<html></html>", "https://anistar.org/12-x.html", new[] { "anime" }));
+        Assert.Empty(AnistarParser.ParseDetailTorrents("", "https://v30.astar.bz/12-x.html", new[] { "anime" }));
+        Assert.Empty(AnistarParser.ParseDetailTorrents("<html></html>", "https://v30.astar.bz/12-x.html", new[] { "anime" }));
     }
 }

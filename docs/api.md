@@ -175,7 +175,7 @@ curl -s 'http://127.0.0.1:9117/dev/ExportTracksStatus'
 
 | Трекер | Типичные действия | Расписание в примере crontab |
 | --- | --- | --- |
-| **anistar** | `parse?limit_page=3` (нужна cookie) | daily `40 6` |
+| **anistar** | `parse?limit_page=3` (host `v30.astar.bz`) | daily `40 6` |
 | **leproduction** | `parse?limit_page=3` | daily `45 6` |
 | **viruseproject** | `parse?limit_page=3` | daily `50 6` |
 | **anifilm** | `parse` (login/cookie; max_time 1800s) | daily `55 6` |

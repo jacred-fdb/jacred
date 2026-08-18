@@ -23,6 +23,7 @@ namespace JacRed.Controllers.Cron
         /// "work" if parsing is already in progress,
         /// "canceled" if the operation was canceled,
         /// "config missing" if host is empty,
+        /// "empty" if every list page returned no posts,
         /// "ok" if parsing completed successfully.
         /// </returns>
         [HttpGet]

@@ -151,7 +151,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # anidub-parse -> /cron/anidub/parse (max_time=900s)
 4,19,34,49 * * * *  /opt/jacred/Data/run-job.sh anidub-parse http://127.0.0.1:9117/cron/anidub/parse 900
 
-# --- anistar (CF cookie required) ---
+# --- anistar (v30.astar.bz, cookie optional) ---
 # anistar-parse -> /cron/anistar/parse?limit_page=3 (max_time=900s)
 40 6 * * *  /opt/jacred/Data/run-job.sh anistar-parse "http://127.0.0.1:9117/cron/anistar/parse?limit_page=3" 900
 

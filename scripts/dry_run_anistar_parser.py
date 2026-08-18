@@ -78,9 +78,9 @@ def extract_post_urls(html: str, host: str) -> List[str]:
     return out
 
 
-def score_listing(html: str, host: str) -> Tuple[int, List[str]]:
+def score_listing(html: str, host: str, sample_limit: int = 8) -> Tuple[int, List[str]]:
     urls = extract_post_urls(html, host)
-    return len(urls), urls[:3]
+    return len(urls), urls[:sample_limit]
 
 
 def score_detail(html: str) -> Tuple[int, int, List[str]]:
@@ -107,7 +107,7 @@ def write_synthetic_fixtures(fixture_dir: Path) -> None:
     fixture_dir.mkdir(parents=True, exist_ok=True)
     listing = """<!DOCTYPE html>
 <html><head><title>Anistar anime</title></head><body>
-<a href="https://anistar.org/12-test-show.html">Test Show</a>
+<a href="https://v30.astar.bz/12-test-show.html">Test Show</a>
 <a href="/34-another-anime.html">Another</a>
 <div class="navigation"><a href="/anime/page/2/">2</a><a href="/anime/page/5/">5</a></div>
 </body></html>
@@ -137,7 +137,7 @@ def write_synthetic_fixtures(fixture_dir: Path) -> None:
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Dry-run Anistar HTML vs JacRed parser regexes")
-    p.add_argument("--host", default=os.environ.get("ANISTAR_HOST", "https://anistar.org"))
+    p.add_argument("--host", default=os.environ.get("ANISTAR_HOST", "https://v30.astar.bz"))
     p.add_argument("--cookie", default=os.environ.get("ANISTAR_COOKIE", ""))
     p.add_argument("--refresh-fixtures", action="store_true")
     p.add_argument("--fixture-dir", default=str(DEFAULT_FIXTURE_DIR))
@@ -161,34 +161,43 @@ def main(argv: Optional[List[str]] = None) -> int:
         valid_list = posts > 0
         status = "OK" if valid_list else "FAIL"
         print(f"[{status}] listing {args.category} posts={posts}")
-        for s in samples:
+        for s in samples[:3]:
             print(f"         sample: {s}")
-        report["listing"] = {"posts": posts, "valid": valid_list, "samples": samples}
+        report["listing"] = {"posts": posts, "valid": valid_list, "samples": samples[:3]}
 
         detail_html = ""
-        detail_url = samples[0] if samples else ""
+        detail_url = ""
         blocks = ok = 0
         detail_samples: List[str] = []
+        valid_detail = False
+        for candidate in samples:
+            candidate_html = fetch(candidate, args.cookie)
+            candidate_blocks, candidate_ok, candidate_samples = score_detail(candidate_html)
+            if candidate_blocks <= 0:
+                print(f"[SKIP] detail {candidate} blocks=0 (promo/no torrents)")
+                continue
+            detail_url = candidate
+            detail_html = candidate_html
+            blocks, ok, detail_samples = candidate_blocks, candidate_ok, candidate_samples
+            valid_detail = True
+            break
+
+        rate = round(ok / blocks * 100, 1) if blocks else 0.0
+        status = "OK" if valid_detail else "FAIL"
+        print(f"[{status}] detail blocks={blocks} ok={ok} rate={rate}%")
         if detail_url:
-            detail_html = fetch(detail_url, args.cookie)
-            blocks, ok, detail_samples = score_detail(detail_html)
-            rate = round(ok / blocks * 100, 1) if blocks else 0.0
-            valid_detail = blocks > 0
-            status = "OK" if valid_detail else "FAIL"
-            print(f"[{status}] detail blocks={blocks} ok={ok} rate={rate}%")
-            for s in detail_samples:
-                print(f"         sample: {s}")
-            report["detail"] = {
-                "url": detail_url,
-                "blocks": blocks,
-                "ok": ok,
-                "rate": rate,
-                "valid": valid_detail,
-                "samples": detail_samples,
-            }
-            live_ok = valid_list and valid_detail
-        else:
-            live_ok = False
+            print(f"         url: {detail_url}")
+        for s in detail_samples:
+            print(f"         sample: {s}")
+        report["detail"] = {
+            "url": detail_url,
+            "blocks": blocks,
+            "ok": ok,
+            "rate": rate,
+            "valid": valid_detail,
+            "samples": detail_samples,
+        }
+        live_ok = valid_list and valid_detail
 
         report["live"] = live_ok
 

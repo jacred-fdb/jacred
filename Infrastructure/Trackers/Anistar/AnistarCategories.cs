@@ -8,7 +8,7 @@ namespace JacRed.Infrastructure.Trackers.Anistar
     }
 
     /// <summary>
-    /// Single source of truth for anistar.org section paths and JacRed types.
+    /// Single source of truth for Anistar (v30.astar.bz) section paths and JacRed types.
     /// </summary>
     static class AnistarCategories
     {

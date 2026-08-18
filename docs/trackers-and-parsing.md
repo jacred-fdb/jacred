@@ -32,7 +32,7 @@ tags:
    - Добавьте slug’и в **`synctrackers`**, если хотите видеть их в `GET /api/v1.0/trackers` и sync-фильтре.
    - Настройте прокси, если требуется доступ к .onion доменам.
    - **Rutracker / Cloudflare:** блок **`flaresolverr`** + на VPS egress через **WARP SOCKS** (`PROXY_URL` у контейнера FlareSolverr, volume для `/var/lib/cloudflare-warp`). Cookie `cf_clearance` живёт в persistent-сессии FlareSolverr — держите `sessionIdleMinutes` и keep-alive Warmup. `network_mode: host` сам IP не меняет. Альтернатива без FlareSolverr — Worker **`Rutracker.alias`**. Подробности: [`Infrastructure/Trackers/Rutracker/README.md`](https://github.com/jacred-fdb/jacred/blob/main/Infrastructure/Trackers/Rutracker/README.md).
-   - **Anistar:** задайте cookie в конфиге; встроенный FlareSolverr-warmup Rutracker на Anistar не действует.
+   - **Anistar:** `host: https://v30.astar.bz` (анонимно). Не указывайте `anistar.org` — там Cloudflare 403. Встроенный FlareSolverr-warmup Rutracker на Anistar не действует.
 
 2. Выберите режим работы:
    - **Парсинг через cron:** По умолчанию база скачивается при установке, парсинг выполняется по расписанию из [`Data/crontab`](https://github.com/jacred-fdb/jacred/blob/main/Data/crontab) (включая `cloudflare-warmup` за ~5 мин до `rutracker-parse`, daily page-парсеры и hourly Rutor-style для anibelka/korsars/ultradox/rudub/subsplease). Активируйте: `crontab /opt/jacred/Data/crontab`

@@ -37,7 +37,7 @@ cluster over inventing new shapes.
 - Do not edit the user’s `.cursor/plans/*.plan.md` unless asked.
 - Successor sites get a **new slug** (do not retarget predecessors).
 - Icon from **that** site’s favicon; FDB URLs must be unique per release; prefer site JSON APIs when present.
-- Critical auth/magnet: Anibelka anon-only; Rutracker Flare ≠ Anistar cookie; Ultradox Referer; RuDub/Mazepa `MagnetNoTrackers`.
+- Critical auth/magnet: Anibelka anon-only; Rutracker Flare ≠ Anistar (v30 anon); Ultradox Referer; RuDub/Mazepa `MagnetNoTrackers`.
 
 ## Output
 

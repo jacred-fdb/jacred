@@ -25,7 +25,7 @@ tags:
     - Убедитесь, что трекер доступен и учётные данные верны
     - **Конфиг не подхватывается:** рабочий файл — `./init.yaml` (CWD рядом с бинарником); правка только `Data/init.yaml` без копии/symlink в корень не применяется
     - **Korsars:** в логе `login.u empty` / `login failed` — задайте `Korsars.login` или `cookie` с `bb_data` в корневом `init.yaml`
-    - **Anistar:** пустой parse при 403/CF — нужна cookie; встроенный Rutracker Warmup не помогает
+    - **Anistar:** пустой parse за 0s / `empty` — проверьте `Anistar.host` (должен быть `https://v30.astar.bz`, не `anistar.org`). Бренд-домен за Cloudflare 403; встроенный Rutracker Warmup не помогает. В логе ищите `Page fetch failed` / `reason: null response` или `cloudflare challenge`
     - **Anibelka:** не логиньтесь — анонимный download
     - **Rutracker / Cloudflare:** проверьте, что FlareSolverr доступен (`curl http://127.0.0.1:8191/` или `http://flaresolverr:8191/` в compose), в конфиге `flaresolverr.enable: true` и верный `url`, и что срабатывает warmup: `curl http://127.0.0.1:9117/cron/cloudflare/Warmup` (первый ответ может занять до ~180 с). Если на VPS challenge детектится, но не решается — задайте residential/ISP `PROXY_*` у контейнера FlareSolverr (см. playbook в [Rutracker README](https://github.com/jacred-fdb/jacred/blob/main/Infrastructure/Trackers/Rutracker/README.md)). Smoke: [`./scripts/cron_rutracker_smoke.sh`](https://github.com/jacred-fdb/jacred/blob/main/scripts/cron_rutracker_smoke.sh)
 

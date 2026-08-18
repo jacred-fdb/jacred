@@ -17,7 +17,7 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 | Auth | Slugs | Gotcha |
 |------|-------|--------|
 | CF + FlareSolverr | rutracker | Warmup ~5m before parse; not for Anistar |
-| Static CF/session cookie | anistar | Manual/`cf_clearance` export |
+| Public anon HTML | anistar (`v30.astar.bz`) | Brand `anistar.org` is CF 403; cookie optional on v30 |
 | Login and/or cookie | kinozal, baibako, rudub, animelayer, anifilm, korsars (`bb_data`), selezen, toloka, mazepa, lostfilm | Prefer config cookie when set |
 | Anon only | anibelka | Never login — passkeys in torrents |
 | Anon + Referer trick | ultradox | google/yandex Referer; own origin → 503 |
@@ -31,7 +31,8 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 |--------|-------|
 | `MagnetNoTrackers` | rudub, mazepa |
 | t→M anon (full Magnet OK) | anibelka |
-| t→M after login | baibako, animelayer, anistar, anifilm, toloka, lostfilm, megapeer, viruseproject, bitru, knaben fallback |
+| t→M after login | baibako, animelayer, anifilm, toloka, lostfilm, megapeer, viruseproject, bitru, knaben fallback |
+| t→M anon | anistar (`gettorrent.php` on v30) |
 | Magnet HTML/API | rutor, nnmclub, torrentby, rutracker, korsars, selezen, anidub, aniliberty, leproduction, ultradox (detail), kinozal (hash→magnet), subsplease (`xl=`) |
 
 ## Per-slug one-liners
@@ -51,7 +52,7 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 - **rudub** — login/cookie · `limit_page` · NoTrk · 1080/2160, cp1251, mirrors
 - **animelayer** — login/cookie · page-range · t→M · re-login on empty
 - **anidub** — anon · page-range 1-based · magnet prefer
-- **anistar** — static CF cookie · `limit_page` cats · t→M · no JacRed Flare
+- **anistar** — anon on `v30.astar.bz` · `limit_page` cats · t→M · no JacRed Flare; `anistar.org` is CF parking
 - **anibelka** — anon only · trio · t→M
 - **aniliberty** — anon · JSON torrents API · magnet
 - **anifilm** — login/CSRF or cookie · cats + `fullparse` · t→M · prefer 1080

@@ -239,13 +239,14 @@ Anidub:
   log: true
 
 Anistar:
-  host: https://anistar.org
+  host: https://v30.astar.bz
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
   log: true
-  # CF/session cookie required for live parse (FlareSolverr or browser export).
-  cookie: "cf_clearance=example_clearance; PHPSESSID=example_phpsessid"
+  # Cookie optional on v30.astar.bz (anon). Old brand domain anistar.org is CF-only;
+  # next mirror via alias, e.g. alias: https://v31.astar.bz
+  cookie: ""
 
 # Anonymous only — do not set cookie/login (passkeys must not enter magnets).
 Anibelka:
