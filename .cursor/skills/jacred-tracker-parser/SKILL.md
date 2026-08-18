@@ -78,7 +78,7 @@ Details per slug: [reference.md](reference.md).
 ## Magnet / auth rules (critical)
 
 - **Anibelka:** anonymous only — never cookie/login (passkeys).
-- **Rutracker:** FlareSolverr Warmup; Anistar does **not** use that path (live origin `v30.astar.bz`, anon).
+- **Rutracker:** FlareSolverr Warmup; Anistar does **not** use that path (`host`/`alias` mirror split).
 - **Ultradox:** google/yandex-like Referer or 503; magnets on detail pages.
 - **RuDub / Mazepa:** `MagnetNoTrackers` when auth announce has passkey.
 - **Successor sites:** new slug (e.g. `rudub`); never retarget predecessor (`baibako`).

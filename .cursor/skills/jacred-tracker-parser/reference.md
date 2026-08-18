@@ -17,7 +17,7 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 | Auth | Slugs | Gotcha |
 |------|-------|--------|
 | CF + FlareSolverr | rutracker | Warmup ~5m before parse; not for Anistar |
-| Public anon HTML | anistar (`v30.astar.bz`) | Brand `anistar.org` is CF 403; cookie optional on v30 |
+| Public anon HTML | anistar (`host` + `alias`) | FDB on `host`; fetch via `alias` mirror |
 | Login and/or cookie | kinozal, baibako, rudub, animelayer, anifilm, korsars (`bb_data`), selezen, toloka, mazepa, lostfilm | Prefer config cookie when set |
 | Anon only | anibelka | Never login — passkeys in torrents |
 | Anon + Referer trick | ultradox | google/yandex Referer; own origin → 503 |
@@ -52,7 +52,7 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 - **rudub** — login/cookie · `limit_page` · NoTrk · 1080/2160, cp1251, mirrors
 - **animelayer** — login/cookie · page-range · t→M · re-login on empty
 - **anidub** — anon · page-range 1-based · magnet prefer
-- **anistar** — anon on `v30.astar.bz` · `limit_page` cats · t→M · no JacRed Flare; `anistar.org` is CF parking
+- **anistar** — `host`/`alias` · `limit_page` cats · t→M · FDB on brand host, fetch on mirror
 - **anibelka** — anon only · trio · t→M
 - **aniliberty** — anon · JSON torrents API · magnet
 - **anifilm** — login/CSRF or cookie · cats + `fullparse` · t→M · prefer 1080

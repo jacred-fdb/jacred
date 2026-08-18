@@ -13,7 +13,7 @@ namespace JacRed.Tests.Anistar;
 public class AnistarParserFixtureTests
 {
     readonly ITestOutputHelper _output;
-    const string Host = "https://v30.astar.bz";
+    const string CanonHost = "https://anistar.org";
 
     public AnistarParserFixtureTests(ITestOutputHelper output)
     {
@@ -25,7 +25,7 @@ public class AnistarParserFixtureTests
     public void ExtractPostUrls_ListingFixture_YieldsAbsolutePostLinks()
     {
         string html = FixtureLoader.Read("Anistar/listing_anime.html");
-        var urls = AnistarParser.ExtractPostUrls(html, Host);
+        var urls = AnistarParser.ExtractPostUrls(html, CanonHost);
 
         _output.WriteLine($"posts={urls.Count}");
         foreach (var u in urls.Take(3))
@@ -34,10 +34,24 @@ public class AnistarParserFixtureTests
         Assert.True(urls.Count >= 1, $"expected >=1 post urls, got {urls.Count}");
         Assert.All(urls, u =>
         {
-            Assert.StartsWith("http", u, StringComparison.OrdinalIgnoreCase);
+            Assert.StartsWith(CanonHost, u, StringComparison.OrdinalIgnoreCase);
             Assert.Contains(".html", u, StringComparison.OrdinalIgnoreCase);
             Assert.Matches(@"/\d{2,}-", u);
         });
+    }
+
+    [Fact]
+    public void ExtractPostUrls_AbsoluteMirrorLinks_NormalizeToCanonHost()
+    {
+        const string html = """
+            <a href="https://v30.astar.bz/11012-gundam.html">Gundam</a>
+            <a href="/11011-nano.html">Nano</a>
+            """;
+        var urls = AnistarParser.ExtractPostUrls(html, CanonHost);
+
+        Assert.Equal(2, urls.Count);
+        Assert.Contains("https://anistar.org/11012-gundam.html", urls);
+        Assert.Contains("https://anistar.org/11011-nano.html", urls);
     }
 
     [Fact]
@@ -53,7 +67,7 @@ public class AnistarParserFixtureTests
     public void ParseDetailTorrents_DetailFixture_YieldsTypedTorrents()
     {
         string html = FixtureLoader.Read("Anistar/detail_sample.html");
-        string postUrl = "https://v30.astar.bz/12-test-show.html";
+        string postUrl = "https://anistar.org/12-test-show.html";
         var torrents = AnistarParser.ParseDetailTorrents(html, postUrl, new[] { "anime" });
 
         _output.WriteLine($"torrents={torrents.Count}");
@@ -128,7 +142,7 @@ public class AnistarParserFixtureTests
             </div>
             </body></html>
             """;
-        string postUrl = "https://v30.astar.bz/11012-gundam.html";
+        string postUrl = "https://anistar.org/11012-gundam.html";
         var torrents = AnistarParser.ParseDetailTorrents(html, postUrl, new[] { "anime" });
 
         Assert.Single(torrents);
@@ -141,7 +155,7 @@ public class AnistarParserFixtureTests
     [Fact]
     public void ParseDetailTorrents_EmptyHtml_ReturnsEmpty()
     {
-        Assert.Empty(AnistarParser.ParseDetailTorrents("", "https://v30.astar.bz/12-x.html", new[] { "anime" }));
-        Assert.Empty(AnistarParser.ParseDetailTorrents("<html></html>", "https://v30.astar.bz/12-x.html", new[] { "anime" }));
+        Assert.Empty(AnistarParser.ParseDetailTorrents("", "https://anistar.org/12-x.html", new[] { "anime" }));
+        Assert.Empty(AnistarParser.ParseDetailTorrents("<html></html>", "https://anistar.org/12-x.html", new[] { "anime" }));
     }
 }

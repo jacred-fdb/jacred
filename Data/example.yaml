@@ -239,13 +239,13 @@ Anidub:
   log: true
 
 Anistar:
-  host: https://v30.astar.bz
+  host: https://anistar.org
+  alias: https://v30.astar.bz
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
   log: true
-  # Cookie optional on v30.astar.bz (anon). Old brand domain anistar.org is CF-only;
-  # next mirror via alias, e.g. alias: https://v31.astar.bz
+  # alias = live mirror for fetch; host = canonical FDB urls. Cookie optional on v30.
   cookie: ""
 
 # Anonymous only — do not set cookie/login (passkeys must not enter magnets).

@@ -148,7 +148,7 @@ journalctl -u jacred -g 'fdb:' -p warning
 | --- | --- |
 | **Korsars** | `login.u` / `login.p` **или** статическая cookie с `bb_data` (если задана cookie — логин не обязателен) |
 | **Anifilm** | `login` **или** session cookie (например `XSRF-TOKEN` + session) |
-| **Anistar** | Текущий origin — `https://v30.astar.bz` (анонимно, cookie не нужна). Старый бренд `anistar.org` отдаёт Cloudflare 403 без редиректа. Следующее зеркало — `alias`. **Не** использует блок `flaresolverr` / `/cron/cloudflare/Warmup` как Rutracker |
+| **Anistar** | `host` — canonical FDB urls (`anistar.org`); `alias` — live mirror for fetch (`v30.astar.bz`, update when site rotates). Cookie optional on alias. **Не** использует FlareSolverr Warmup |
 | **Anibelka** | Только анонимно — **не** задавайте `cookie` / `login` (в раздачах есть passkey) |
 | **SubsPlease** | Только анонимно — JSON API; 1080p magnets only; Batches via `ParseShows` |
 | **RuDub** | `login` **или** cookie (`PHPSESSID` / `uid` / `pass`); парсит только HD 1080 / HD 2160; зеркала `rN.rudub.world` через `host`/`alias` |

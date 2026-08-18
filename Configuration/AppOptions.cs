@@ -144,7 +144,7 @@ namespace JacRed.Configuration
 
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
-        public TrackerSettings Anistar = new TrackerSettings("https://v30.astar.bz");
+        public TrackerSettings Anistar = new TrackerSettings("https://anistar.org");
 
         public TrackerSettings Anibelka = new TrackerSettings("https://anibelka.com");
 

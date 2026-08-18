@@ -99,7 +99,8 @@ logging:
     parsers: None
 
 Anistar:
-  host: https://v30.astar.bz
+  host: https://anistar.org
+  alias: https://v30.astar.bz
   useproxy: false
   reqMinute: 8
   parseDelay: 7000

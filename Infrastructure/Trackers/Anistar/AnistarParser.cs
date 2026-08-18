@@ -39,28 +39,33 @@ namespace JacRed.Infrastructure.Trackers.Anistar
             return maxPage;
         }
 
-        public static List<string> ExtractPostUrls(string listHtml, string host)
+        public static List<string> ExtractPostUrls(string listHtml, string canonHost)
         {
             var outList = new List<string>();
             if (string.IsNullOrWhiteSpace(listHtml))
                 return outList;
 
-            host = (host ?? "").TrimEnd('/');
+            canonHost = (canonHost ?? "").TrimEnd('/');
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (Match m in PostUrlAbsRe.Matches(listHtml))
+            void AddPath(string path)
             {
-                string url = m.Value;
-                if (seen.Add(url))
-                    outList.Add(url);
-            }
-
-            foreach (Match m in PostUrlRelRe.Matches(listHtml))
-            {
-                string abs = host + m.Value;
+                if (string.IsNullOrWhiteSpace(path))
+                    return;
+                string abs = canonHost + path;
                 if (seen.Add(abs))
                     outList.Add(abs);
             }
+
+            foreach (Match m in PostUrlAbsRe.Matches(listHtml))
+            {
+                var pathMatch = PostUrlRelRe.Match(m.Value);
+                if (pathMatch.Success)
+                    AddPath(pathMatch.Value);
+            }
+
+            foreach (Match m in PostUrlRelRe.Matches(listHtml))
+                AddPath(m.Value);
 
             return outList;
         }

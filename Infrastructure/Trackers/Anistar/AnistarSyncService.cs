@@ -11,6 +11,9 @@ using JacRed.Models.Details;
 
 namespace JacRed.Infrastructure.Trackers.Anistar
 {
+    /// <summary>
+    /// Requests use <c>alias</c> (rqHost); FDB urls stay on <c>host</c>.
+    /// </summary>
     public class AnistarSyncService
     {
         const string TrackerName = "anistar";
@@ -19,7 +22,14 @@ namespace JacRed.Infrastructure.Trackers.Anistar
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
 
+        /// <summary>Canonical host stored in FDB urls.</summary>
+        static string CanonicalHost() => (AppInit.conf.Anistar?.host ?? "").TrimEnd('/');
+
+        /// <summary>Request host — alias when set.</summary>
         static string RequestHost() => (AppInit.conf.Anistar?.rqHost() ?? "").TrimEnd('/');
+
+        static string FetchUrl(string canonUrl)
+            => AppInit.conf.Anistar?.rqHost(canonUrl) ?? canonUrl;
 
         static string CookieOrNull()
             => string.IsNullOrWhiteSpace(AppInit.conf.Anistar?.cookie) ? null : AppInit.conf.Anistar.cookie;
@@ -31,10 +41,14 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                 try
                 {
                     var sw = Stopwatch.StartNew();
-                    string host = RequestHost();
-                    if (string.IsNullOrWhiteSpace(host))
+                    string rqHost = RequestHost();
+                    string canonHost = CanonicalHost();
+                    if (string.IsNullOrWhiteSpace(rqHost) || string.IsNullOrWhiteSpace(canonHost))
                     {
-                        ParserLog.Write(TrackerName, "Config missing", new Dictionary<string, object> { { "reason", "empty host" } });
+                        ParserLog.Write(TrackerName, "Config missing", new Dictionary<string, object>
+                        {
+                            { "reason", string.IsNullOrWhiteSpace(canonHost) ? "empty host" : "empty request host" }
+                        });
                         return "config missing";
                     }
 
@@ -44,7 +58,8 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                     ParserLog.Write(TrackerName, "Starting parse", new Dictionary<string, object>
                     {
                         { "limitPage", limitPage },
-                        { "host", host },
+                        { "host", canonHost },
+                        { "rqHost", rqHost },
                         { "cookieSet", cookieSet }
                     });
 
@@ -58,15 +73,15 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                         int lastPage = limitPage;
                         if (lastPage <= 0)
                         {
-                            string firstHtml = await HttpClient.Get($"{host}/{catPath}/", encoding: PageEncoding, cookie: cookie, useproxy: AppInit.conf.Anistar.useproxy);
+                            string firstHtml = await HttpClient.Get($"{rqHost}/{catPath}/", encoding: PageEncoding, cookie: cookie, useproxy: AppInit.conf.Anistar.useproxy);
                             lastPage = AnistarParser.DetectLastPage(firstHtml);
                         }
 
                         for (int page = 1; page <= lastPage; page++)
                         {
                             string listUrl = page <= 1
-                                ? $"{host}/{catPath}/"
-                                : $"{host}/{catPath}/page/{page}/";
+                                ? $"{rqHost}/{catPath}/"
+                                : $"{rqHost}/{catPath}/page/{page}/";
 
                             ParserLog.Write(TrackerName, "Parsing list page", new Dictionary<string, object>
                             {
@@ -75,8 +90,8 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                                 { "url", listUrl }
                             });
 
-                            string listHtml = await HttpClient.Get(listUrl, encoding: PageEncoding, cookie: cookie, referer: host + "/", useproxy: AppInit.conf.Anistar.useproxy);
-                            if (!TryUseListHtml(listHtml, listUrl, catPath, page, cookieSet, out var postUrls))
+                            string listHtml = await HttpClient.Get(listUrl, encoding: PageEncoding, cookie: cookie, referer: rqHost + "/", useproxy: AppInit.conf.Anistar.useproxy);
+                            if (!TryUseListHtml(listHtml, listUrl, catPath, page, canonHost, cookieSet, out var postUrls))
                             {
                                 emptyPages++;
                                 continue;
@@ -84,9 +99,9 @@ namespace JacRed.Infrastructure.Trackers.Anistar
 
                             totalFetched += postUrls.Count;
 
-                            foreach (string postUrl in postUrls)
+                            foreach (string canonPostUrl in postUrls)
                             {
-                                var (added, updated, skipped, failed) = await ParseDetailAndSave(postUrl, listUrl, host, types, cookie, cookieSet);
+                                var (added, updated, skipped, failed) = await ParseDetailAndSave(canonPostUrl, listUrl, rqHost, types, cookie, cookieSet);
                                 totalAdded += added;
                                 totalUpdated += updated;
                                 totalSkipped += skipped;
@@ -139,7 +154,7 @@ namespace JacRed.Infrastructure.Trackers.Anistar
             });
         }
 
-        static bool TryUseListHtml(string listHtml, string listUrl, string catPath, int page, bool cookieSet, out List<string> postUrls)
+        static bool TryUseListHtml(string listHtml, string listUrl, string catPath, int page, string canonHost, bool cookieSet, out List<string> postUrls)
         {
             postUrls = null;
             if (string.IsNullOrEmpty(listHtml))
@@ -170,7 +185,7 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                 return false;
             }
 
-            postUrls = AnistarParser.ExtractPostUrls(listHtml, RequestHost());
+            postUrls = AnistarParser.ExtractPostUrls(listHtml, canonHost);
             if (postUrls.Count == 0)
             {
                 ParserLog.Write(TrackerName, "No posts extracted", new Dictionary<string, object>
@@ -188,14 +203,16 @@ namespace JacRed.Infrastructure.Trackers.Anistar
             return true;
         }
 
-        async Task<(int added, int updated, int skipped, int failed)> ParseDetailAndSave(string postUrl, string referer, string host, string[] types, string cookie, bool cookieSet)
+        async Task<(int added, int updated, int skipped, int failed)> ParseDetailAndSave(string canonPostUrl, string referer, string rqHost, string[] types, string cookie, bool cookieSet)
         {
-            string postHtml = await HttpClient.Get(postUrl, encoding: PageEncoding, cookie: cookie, referer: referer, useproxy: AppInit.conf.Anistar.useproxy);
+            string fetchPostUrl = FetchUrl(canonPostUrl);
+            string postHtml = await HttpClient.Get(fetchPostUrl, encoding: PageEncoding, cookie: cookie, referer: referer, useproxy: AppInit.conf.Anistar.useproxy);
             if (string.IsNullOrEmpty(postHtml) || CloudflareClearance.IsChallengeBody(postHtml))
             {
                 ParserLog.Write(TrackerName, "Detail fetch failed", new Dictionary<string, object>
                 {
-                    { "url", postUrl },
+                    { "url", fetchPostUrl },
+                    { "canonUrl", canonPostUrl },
                     { "htmlLength", postHtml?.Length ?? 0 },
                     { "cookieSet", cookieSet },
                     { "reason", string.IsNullOrEmpty(postHtml) ? "null response" : "cloudflare challenge" }
@@ -203,12 +220,13 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                 return (0, 0, 0, 1);
             }
 
-            var torrents = AnistarParser.ParseDetailTorrents(postHtml, postUrl, types);
+            var torrents = AnistarParser.ParseDetailTorrents(postHtml, canonPostUrl, types);
             if (torrents.Count == 0)
             {
                 ParserLog.Write(TrackerName, "No torrents extracted", new Dictionary<string, object>
                 {
-                    { "url", postUrl },
+                    { "url", fetchPostUrl },
+                    { "canonUrl", canonPostUrl },
                     { "htmlLength", postHtml.Length }
                 });
                 return (0, 0, 0, 0);
@@ -233,8 +251,8 @@ namespace JacRed.Infrastructure.Trackers.Anistar
 
                 if (!string.IsNullOrWhiteSpace(t.downloadId))
                 {
-                    string downUrl = $"{host}/engine/gettorrent.php?id={t.downloadId}";
-                    byte[] torrentFile = await HttpClient.Download(downUrl, cookie: cookie, referer: host, useproxy: AppInit.conf.Anistar.useproxy);
+                    string downUrl = $"{rqHost}/engine/gettorrent.php?id={t.downloadId}";
+                    byte[] torrentFile = await HttpClient.Download(downUrl, cookie: cookie, referer: rqHost, useproxy: AppInit.conf.Anistar.useproxy);
                     if (torrentFile != null && torrentFile.Length > 0)
                     {
                         string magnet = BencodeTo.Magnet(torrentFile);
