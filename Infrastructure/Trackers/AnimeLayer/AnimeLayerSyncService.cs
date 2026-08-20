@@ -64,6 +64,28 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
             });
         }
 
+        static bool HasAnonymousMarkers(string html)
+        {
+            return !string.IsNullOrWhiteSpace(html)
+                   && (html.Contains("id=\"loginForm\"") || html.Contains("/auth/login/") || html.Contains("/auth/register/"));
+        }
+
+        static bool LooksLikeHtml(byte[] data)
+        {
+            if (data == null)
+                return false;
+
+            foreach (byte b in data.Take(64))
+            {
+                if (char.IsWhiteSpace((char)b))
+                    continue;
+
+                return b == (byte)'<';
+            }
+
+            return false;
+        }
+
         async Task<bool> ValidateCookie(string cookie)
         {
             if (string.IsNullOrWhiteSpace(cookie))
@@ -84,13 +106,13 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                     return false;
                 }
 
-                bool isValid = html.Contains("id=\"wrapper\"") && !html.Contains("id=\"loginForm\"") && !html.Contains("/auth/login/");
+                bool isValid = html.Contains("id=\"wrapper\"") && !HasAnonymousMarkers(html);
 
                 ParserLog.Write(TrackerName, "Cookie validation", new Dictionary<string, object>
                 {
                     { "isValid", isValid },
                     { "hasWrapper", html.Contains("id=\"wrapper\"") },
-                    { "hasLoginForm", html.Contains("id=\"loginForm\"") || html.Contains("/auth/login/") }
+                    { "hasLoginForm", HasAnonymousMarkers(html) }
                 });
 
                 return isValid;
@@ -354,7 +376,22 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                 }
                 else
                 {
+                    cookie = AppInit.conf.Animelayer.cookie.Trim();
                     ParserLog.Write(TrackerName, "Using static cookie from config", new Dictionary<string, object>());
+
+                    if (await ValidateCookie(cookie))
+                    {
+                        _memoryCache.Set(CookieCacheKey, cookie, DateTime.Now.AddDays(1));
+                    }
+                    else
+                    {
+                        ParserLog.Write(TrackerName, "Static cookie is invalid", new Dictionary<string, object>
+                        {
+                            { "reason", "anonymous page markers found" }
+                        });
+                        cookie = null;
+                        needLogin = true;
+                    }
                 }
             }
             else
@@ -534,8 +571,20 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
 
             if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.cookie))
             {
-                newCookie = AppInit.conf.Animelayer.cookie;
                 ParserLog.Write(TrackerName, "Using static cookie from config", new Dictionary<string, object>());
+
+                newCookie = AppInit.conf.Animelayer.cookie.Trim();
+                if (!await ValidateCookie(newCookie))
+                {
+                    ParserLog.Write(TrackerName, "Static cookie is invalid, aborting page parse", new Dictionary<string, object>
+                    {
+                        { "page", page },
+                        { "reason", "anonymous page markers found" }
+                    });
+                    return (0, 0, 0, 0, 0);
+                }
+
+                _memoryCache.Set(CookieCacheKey, newCookie, DateTime.Now.AddDays(1));
             }
             else if (!string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.u) &&
                      !string.IsNullOrWhiteSpace(AppInit.conf.Animelayer.login?.p))
@@ -618,9 +667,26 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                         return true;
                     }
 
-                    byte[] torrent = await HttpClient.Download($"{t.url}download/", cookie: cookie, useproxy: AppInit.conf.Animelayer.useproxy);
+                    string downloadUrl = $"{t.url}download/";
+                    byte[] torrent = await HttpClient.Download(
+                        downloadUrl,
+                        cookie: cookie,
+                        referer: t.url,
+                        addHeaders: new List<(string name, string val)>
+                        {
+                            ("accept", "application/x-bittorrent,application/octet-stream,*/*")
+                        },
+                        useproxy: AppInit.conf.Animelayer.useproxy);
+
+                    if (LooksLikeHtml(torrent))
+                    {
+                        failedCount++;
+                        ParserLog.WriteFailed(TrackerName, t, "download returned html instead of torrent; cookie is likely not authorized");
+                        return false;
+                    }
+
                     string magnet = BencodeTo.Magnet(torrent);
-                    string sizeName = BencodeTo.SizeName(torrent);
+                    string sizeName = BencodeTo.SizeName(torrent) ?? t.sizeName;
 
                     if (!string.IsNullOrWhiteSpace(magnet) && !string.IsNullOrWhiteSpace(sizeName))
                     {
