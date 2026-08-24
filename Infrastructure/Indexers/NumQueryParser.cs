@@ -5,8 +5,7 @@ namespace JacRed.Infrastructure.Indexers
     /// <summary>
     /// Parses NUM / Lampa-style plain Jackett <c>query</c> strings into card fields
     /// (<c>title</c>, <c>title_original</c>, <c>year</c>) so exact FileDB matching works.
-    /// NUM sends query-only requests like <c>Криминальное чтиво Pulp Fiction 1994</c>
-    /// with Chrome/106 User-Agent (<see cref="IndexerSearchRequest.RqNum"/>).
+    /// Covers Ru-first (NUM / Lampa <c>lg_df*</c>) and En-first (Lampa <c>df_lg*</c> / clarification).
     /// </summary>
     public static class NumQueryParser
     {
@@ -18,6 +17,16 @@ namespace JacRed.Infrastructure.Indexers
         // "Русское English"
         static readonly Regex RuEn = new(
             @"^([^a-zA-Z]+) ([^а-яА-ЯёЁ]+)$",
+            RegexOptions.Compiled);
+
+        // "English Русское 1999" (Lampa df_lg_year)
+        static readonly Regex EnRuYear = new(
+            @"^([^а-яА-ЯёЁ]+) ([^a-zA-Z]+) ((?:19|20)\d{2})$",
+            RegexOptions.Compiled);
+
+        // "English Русское" (Lampa df_lg)
+        static readonly Regex EnRu = new(
+            @"^([^а-яА-ЯёЁ]+) ([^a-zA-Z]+)$",
             RegexOptions.Compiled);
 
         static readonly Regex TrailingYear = new(
@@ -65,19 +74,33 @@ namespace JacRed.Infrastructure.Indexers
                 return result;
             }
 
-            // "Русское English 1999" (English token must contain a letter, not digits-only)
-            var mYear = RuEnYear.Match(q);
-            if (mYear.Success && HasLatinToken(mYear.Groups[2].Value))
+            // "Русское English 1999"
+            var mRuEnYear = RuEnYear.Match(q);
+            if (mRuEnYear.Success && HasLatinToken(mRuEnYear.Groups[2].Value))
             {
-                result.Title = mYear.Groups[1].Value.Trim();
-                result.TitleOriginal = mYear.Groups[2].Value.Trim();
-                if (int.TryParse(mYear.Groups[3].Value, out int y) && y > 0)
+                result.Title = mRuEnYear.Groups[1].Value.Trim();
+                result.TitleOriginal = mRuEnYear.Groups[2].Value.Trim();
+                if (int.TryParse(mRuEnYear.Groups[3].Value, out int y) && y > 0)
                     result.Year = y;
                 result.Matched = true;
                 return result;
             }
 
-            // Strip trailing year before RuEn so "Константин 2005" is not misread as original="2005"
+            // "English Русское 1999"
+            var mEnRuYear = EnRuYear.Match(q);
+            if (mEnRuYear.Success
+                && HasLatinToken(mEnRuYear.Groups[1].Value)
+                && HasCyrillicToken(mEnRuYear.Groups[2].Value))
+            {
+                result.TitleOriginal = mEnRuYear.Groups[1].Value.Trim();
+                result.Title = mEnRuYear.Groups[2].Value.Trim();
+                if (int.TryParse(mEnRuYear.Groups[3].Value, out int y) && y > 0)
+                    result.Year = y;
+                result.Matched = true;
+                return result;
+            }
+
+            // Strip trailing year before bilingual so "Константин 2005" / "Pulp Fiction 1994" work
             string body = q;
             if (TryTakeTrailingYear(q, out string stripped, out int trailingYear) && trailingYear > 0)
             {
@@ -91,6 +114,18 @@ namespace JacRed.Infrastructure.Indexers
             {
                 result.Title = mRuEn.Groups[1].Value.Trim();
                 result.TitleOriginal = mRuEn.Groups[2].Value.Trim();
+                result.Matched = true;
+                return result;
+            }
+
+            // "English Русское"
+            var mEnRu = EnRu.Match(body);
+            if (mEnRu.Success
+                && HasLatinToken(mEnRu.Groups[1].Value)
+                && HasCyrillicToken(mEnRu.Groups[2].Value))
+            {
+                result.TitleOriginal = mEnRu.Groups[1].Value.Trim();
+                result.Title = mEnRu.Groups[2].Value.Trim();
                 result.Matched = true;
                 return result;
             }
@@ -109,13 +144,17 @@ namespace JacRed.Infrastructure.Indexers
         static bool HasLatinToken(string value) =>
             !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value, "[a-zA-Z]");
 
+        static bool HasCyrillicToken(string value) =>
+            !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value, @"[а-яА-ЯёЁ]");
+
         /// <summary>
-        /// When <see cref="IndexerSearchRequest.RqNum"/> and no explicit card titles were provided,
-        /// promote free-text <see cref="IndexerSearchRequest.Query"/> into card fields and enable CardMode.
+        /// When no explicit card titles were provided, promote free-text
+        /// <see cref="IndexerSearchRequest.Query"/> into card fields and enable CardMode
+        /// (NUM query-only and Lampa clarification). Skips when title/title_original already set.
         /// </summary>
         public static bool ApplyToRequest(IndexerSearchRequest req)
         {
-            if (req == null || !req.RqNum)
+            if (req == null)
                 return false;
             if (!string.IsNullOrWhiteSpace(req.Title) || !string.IsNullOrWhiteSpace(req.TitleOriginal))
                 return false;
