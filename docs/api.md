@@ -42,11 +42,14 @@ Swagger UI по умолчанию загружает **`/openapi.yaml`**; в в
 
 Сводная таблица «клиент → URL → формат» — в [Torznab XML](configuration.md#torznab-xml-torznab).
 
-- **`GET /api/v2.0/indexers/{status}/results`** — поиск в формате Jackett JSON (**Lampa** и др.).
+- **`GET /api/v2.0/indexers/{status}/results`** — поиск в формате Jackett JSON (**Lampa**, **NUM** и др.).
   - `{status}`: `all` или Jackett-селектор `status:healthy` (Lampa «только доступные трекеры») — агрегат; иначе slug трекера.
   - Combined search (`search.*`): v2 card/fuzzy + v1 fuzzy (только fuzzy mode при `mergeV1: auto`) + IMDB/KP/TMDB exact (Alloha v2 ID→title, alternative_name, type hint) + card fallback. Fuzzy `q`/`Query` с `S01`/`S01E01` расширяется до имени шоу при `search.stripSeasonEpisode` (по умолчанию `true`).
   - Параметры Lampa: `Query`, `title`, `title_original`, `year`, `is_serial`, `genres`, `Category[]`, `Tracker[]`, `season`, `ep`, `limit`, `offset`, `apikey`.
-  - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true`.
+  - **Card mode (Lampa карточка):** явные `title` + `title_original` (+ `year` / `is_serial` / `genres` / `Category[]`). Поле `Query` при этом не переписывается (в т.ч. при любом `parse_lang`: original / локализованное / комбинации ± year).
+  - **Free-text → card:** если `title` / `title_original` **нет**, `Query`/`query` поднимается в card-поля (`NumQueryParser`): `Ru En Year`, `En Ru Year`, `Ru En` / `En Ru`, `title Year` / `original Year`, одноязычный title. Покрывает **NUM** (только `query`) и Lampa «уточнить» (Query без title).
+  - **NUM (`rqnum`):** User-Agent ровно `Mozilla/5.0 … Chrome/106.0.0.0 …` и в query string **нет** `&is_serial=`. В ответе `info` / `ffprobe` опускаются (`null`); merge дубликатов — `mergenumduplicates`.
+  - Ответ: `{ "Results": [...], "jacred": true }` с `ffprobe`, `languages`, `info` при `tracks: true` (кроме режима NUM выше).
 - **`GET /api/v2.0/indexers`** — список индексаторов (Jackett/Prowlarr).
 - **`GET /api/v1/indexer`** — список индексаторов в формате Prowlarr REST API (qui/autobrr discover fallback).
 - **`GET /api/v1/indexer/{id}`** — детали индексатора Prowlarr (`id=1`, для qui backend=prowlarr).

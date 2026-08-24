@@ -260,7 +260,7 @@ globalproxy:
 | `skipSeasonEpisodeFilter` | Не фильтровать по `season`/`ep` на сервере (AIOStreams) | `false` |
 | `skipCatFilter` | Не фильтровать по `cat` / `Category[]` на сервере | `true` |
 
-**`mergeV1: auto`** — v1 fuzzy **только в fuzzy mode** (Torznab text search, Lampa global search). Card mode (Lampa: `title` + `title_original`) — только v2 exact, без v1 fuzzy.
+**`mergeV1: auto`** — v1 fuzzy **только в fuzzy mode** (Torznab text search, Lampa global search). Card mode (Lampa: `title` + `title_original`, либо free-text `Query` без title — NUM / Lampa «уточнить», см. [api.md](api.md)) — только v2 exact, без v1 fuzzy.
 
 **AIOStreams / Sonarr-style `q=Show S01E01`:** при `stripSeasonEpisode: true` fuzzy ищет и полное `q`, и имя шоу без сезона/эпизода (`silo S01` → `silo`; `укрытие 2023 S01E01` → `укрытие 2023` → `укрытие` вместе с `stripTrailingYear`). `skipSeasonEpisodeFilter: true` отдаёт все релизы шоу — клиент фильтрует эпизоды сам.
 
@@ -307,7 +307,8 @@ Jackett JSON (`/api/v2.0/indexers/.../results`) **всегда** использ�
 
 | Клиент | URL (относительно `http://host:9117`) | Формат |
 | --- | --- | --- |
-| **Lampa** | `/api/v2.0/indexers/all/results` или `/api/v2.0/indexers/status:healthy/results` (`status:healthy` ≡ `all`) | Jackett JSON (`Results[]`). Тип парсера в Lampa: **Jackett**, не Prowlarr/Torznab |
+| **Lampa** | `/api/v2.0/indexers/all/results` или `/api/v2.0/indexers/status:healthy/results` (`status:healthy` ≡ `all`) | Jackett JSON (`Results[]`). Тип парсера в Lampa: **Jackett**, не Prowlarr/Torznab. Card: `title`+`title_original`; «уточнить» — только `Query` (поднимается в card на сервере) |
+| **NUM** | тот же Jackett JSON, обычно `query` + UA Chrome/106 без `is_serial` | Free-text → card; в ответе без `info`/`ffprobe` (`rqnum`) |
 | **Sonarr / Radarr** | `/torznab/api` | Torznab XML (Generic Torznab indexer) |
 | **AIOStreams** | `/torznab/api` | Torznab XML; `q=Show S01` stripping; `skipSeasonEpisodeFilter: true` если клиент фильтрует эпизоды |
 | **Prowlarr** (ручная настройка Generic Torznab) | `/torznab/api` | Torznab XML |
