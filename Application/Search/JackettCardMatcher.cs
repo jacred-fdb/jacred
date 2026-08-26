@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using JacRed.Application.Index;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
@@ -27,36 +28,20 @@ namespace JacRed.Application.Search
             var torrents = new Dictionary<string, TorrentDetails>();
 
             #region Запрос с NUM
-            if (rqnum && query != null)
+            // NUM / Lampa free-text: "Ru En Year", "Ru En", or "Ru Year" → card title fields.
+            // Cyrillic+year must NOT empty-return (legacy bug); parse title+year and continue.
+            if (rqnum && !string.IsNullOrWhiteSpace(query)
+                && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(title_original))
             {
-                var mNum = Regex.Match(query, "^([^a-z-A-Z]+) ([^а-я-А-Я]+) ([0-9]{4})$");
-
-                if (mNum.Success)
+                var parsed = NumQueryParser.Parse(query);
+                if (parsed.Matched)
                 {
-                    if (Regex.IsMatch(mNum.Groups[2].Value, "[a-zA-Z0-9]{2}"))
-                    {
-                        var g = mNum.Groups;
-                        title = g[1].Value;
-                        title_original = g[2].Value;
-                        year = int.Parse(g[3].Value);
-                    }
-                }
-                else
-                {
-                    if (Regex.IsMatch(query, "^([^a-z-A-Z]+) ((19|20)[0-9]{2})$"))
-                        return torrents;
-
-                    mNum = Regex.Match(query, "^([^a-z-A-Z]+) ([^а-я-А-Я]+)$");
-
-                    if (mNum.Success)
-                    {
-                        if (Regex.IsMatch(mNum.Groups[2].Value, "[a-zA-Z0-9]{2}"))
-                        {
-                            var g = mNum.Groups;
-                            title = g[1].Value;
-                            title_original = g[2].Value;
-                        }
-                    }
+                    if (!string.IsNullOrWhiteSpace(parsed.Title))
+                        title = parsed.Title;
+                    if (!string.IsNullOrWhiteSpace(parsed.TitleOriginal))
+                        title_original = parsed.TitleOriginal;
+                    if (parsed.Year > 0 && year <= 0)
+                        year = parsed.Year;
                 }
             }
             #endregion

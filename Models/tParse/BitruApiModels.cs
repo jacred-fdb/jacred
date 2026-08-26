@@ -43,10 +43,18 @@ namespace JacRed.Models.tParse
 
     public class BitruApiResult
     {
-        /// <summary>Unix timestamp (в ответе может быть string или number) — сохранять для следующего запроса "после этой даты"</summary>
+        /// <summary>
+        /// Response: max(added) on this page (unix; string or number).
+        /// Live request after_date=X returns items with added &lt; X (older-than). Official docs label is inverted.
+        /// </summary>
         [JsonProperty("after_date")]
         public object AfterDate { get; set; }
 
+        /// <summary>
+        /// Response: min(added) on this page (unix; string or number).
+        /// For the next older page, send this value as request after_date (not before_date).
+        /// Live request before_date=X returns items with added &gt; X (newer-than).
+        /// </summary>
         [JsonProperty("before_date")]
         public object BeforeDate { get; set; }
 

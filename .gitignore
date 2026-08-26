@@ -41,6 +41,9 @@ web/dist/
 # Created by: ./scripts/build-web-ui.sh (CI / Docker / make publish)
 wwwroot/
 
+# MkDocs build output (mkdocs build)
+site/
+
 # Visual Studio 2017 auto generated files
 Generated\ Files/
 

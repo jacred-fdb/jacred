@@ -34,22 +34,31 @@ logFdbMaxFiles: 0
 logParsers: true
 syncapi: https://sync.jacred.stream
 synctrackers:
-  - rutracker
-  - rutor
-  - kinozal
-  - nnmclub
-  - megapeer
-  - bitru
-  - toloka
-  - mazepa
-  - lostfilm
-  - baibako
-  - torrentby
-  - selezen
-  - animelayer
+  - anibelka
   - anidub
+  - anifilm
   - aniliberty
+  - animelayer
+  - anistar
+  - baibako
+  - bitru
+  - kinozal
   - knaben
+  - korsars
+  - leproduction
+  - lostfilm
+  - mazepa
+  - megapeer
+  - nnmclub
+  - rudub
+  - rutor
+  - rutracker
+  - selezen
+  - subsplease
+  - toloka
+  - torrentby
+  - ultradox
+  - viruseproject
 # Retired trackers — do not add to synctrackers; keep in disable_trackers
 disable_trackers: []
 syncsport: true
@@ -78,6 +87,7 @@ tsuri:
 timeStatsUpdate: 15
 timeSync: 120
 timeSyncSpidr: 360
+saveCheckpointEveryNBatches: 5
 evercache:
   enable: false
   validHour: 1
@@ -90,7 +100,18 @@ search:
   maxV1Pairs: 4 # Лимит v1-пар при mergeV1=auto в fuzzy mode
   v1Sort: sid # sid (seeders), pir, size; также IMDB/KP exact v1
   stripTrailingYear: true # Fuzzy: доп. запрос без года в конце
+  stripSeasonEpisode: true # Fuzzy: доп. запрос без S01/S01E01 (AIOStreams)
+  skipSeasonEpisodeFilter: false # true — не фильтровать season/ep (AIOStreams фильтрует сам)
   skipCatFilter: true # Не фильтровать cat/Category[] на сервере (Lampa фильтрует сама)
+
+# Alloha TV API v2 — resolve KP/IMDB/TMDB (tt… / kp… / tmdb… / themoviedb.org URL) to titles for FileDB search
+alloha:
+  enable: true
+  baseUrl: https://apbugall.org
+  token: "04941a9a3ca3ac16e2b4327347bbc1" # Bearer; redact in /settings
+  timeoutSeconds: 10
+  cacheHours: 24
+  filterByYear: true # when client year absent, keep FileDB hits with relased ±1 of Alloha year
 
 # Torznab XML (Sonarr/Radarr/Prowlarr). Не влияет на Lampa Jackett JSON.
 torznab:
@@ -149,7 +170,10 @@ NNMClub:
   parseDelay: 7000
   log: true
 
-# BitRu official API (cron: /cron/bitru/parse).
+# BitRu official API.
+# cron parse (newest page): /cron/bitru/parse
+# cron backfill (older archive, persisted cursor): /cron/bitru/backfill?pages=20 (max 50)
+# Live after_date = older-than (official BitRu docs invert the label).
 Bitru:
   host: https://bitru.org
   alias: ""
@@ -214,12 +238,77 @@ Anidub:
   parseDelay: 7000
   log: true
 
+Anistar:
+  host: https://anistar.org
+  alias: https://v30.astar.bz
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  # alias = live mirror for fetch; host = canonical FDB urls. Cookie optional on v30.
+  cookie: ""
+
+# Anonymous only — do not set cookie/login (passkeys must not enter magnets).
+Anibelka:
+  host: https://anibelka.com
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
 Aniliberty:
   host: https://aniliberty.top
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
   log: true
+
+Anifilm:
+  host: https://anifilm.pro
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  # Static session cookie (optional). If set, login.u/p are not required.
+  cookie: "XSRF-TOKEN=example_xsrf; anifilm_session=example_session"
+  login:
+    u: "your_anifilm_username"
+    p: "your_anifilm_password"
+
+Leproduction:
+  host: https://www.le-production.online
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Viruseproject:
+  host: https://viruseproject.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+# Referer must look like google/yandex search (own origin → 503).
+Ultradox:
+  host: https://ultradox.onl
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Korsars:
+  host: https://korsars.pro
+  alias: "" # optional mirror; FDB urls stay on host, requests use rqHost
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  # Static bb_data cookie (optional). If set, login.u/p are not required.
+  cookie: "bb_data=1-exampleUserId-exampleHash-exampleIp-exampleUaHash"
+  login:
+    u: "your_korsars_username"
+    p: "your_korsars_password"
 
 Knaben:
   host: https://api.knaben.org
@@ -237,6 +326,27 @@ Baibako:
   login:
     u: ""
     p: ""
+
+# RuDub (ex-BaibaKoTV). Host mirrors rotate (rN.rudub.world). Parses HD 1080 / HD 2160 only.
+Rudub:
+  host: https://r4.rudub.world
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: "PHPSESSID=your_session_id; uid=your_user_id; pass=your_pass_hash"
+  login:
+    u: "your_rudub_username"
+    p: "your_rudub_password"
+
+# SubsPlease — public anime API; 1080p magnets only (batches via ParseShows).
+SubsPlease:
+  host: https://subsplease.org
+  useproxy: false
+  reqMinute: 30
+  parseDelay: 1000
+  log: true
 
 Lostfilm:
   host: https://www.lostfilm.tv

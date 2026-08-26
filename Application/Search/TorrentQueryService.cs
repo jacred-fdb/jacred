@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using JacRed.Infrastructure.External;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
-using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
 using JacRed.Models;
 using Microsoft.Extensions.Caching.Memory;
-using Newtonsoft.Json.Linq;
 
 namespace JacRed.Application.Search
 {
@@ -19,32 +18,19 @@ namespace JacRed.Application.Search
         public async Task<object> QueryTorrentsAsync(string search, string altname, bool exact, string type, string sort, string tracker, string voice, string videotype, long relased, long quality, long season, IMemoryCache memoryCache)
         {
             #region search kp/imdb
-            if (!string.IsNullOrWhiteSpace(search) && Regex.IsMatch(search.Trim(), "^(tt|kp)[0-9]+$"))
+            int allohaYear = 0;
+            string allohaAltTitle = null;
+            bool idQuery = AllohaTitleResolver.IsResolvableId(search);
+            if (idQuery)
             {
-                string memkey = $"api/v1.0/torrents:{search}";
-                if (!memoryCache.TryGetValue(memkey, out (string original_name, string name) cache))
-                {
-                    search = search.Trim();
-                    string uri = $"&imdb={search}";
-                    if (search.StartsWith("kp"))
-                        uri = $"&kp={search.Remove(0, 2)}";
-
-                    var root = await HttpClient.Get<JObject>("https://api.apbugall.org/?token=04941a9a3ca3ac16e2b4327347bbc1" + uri, timeoutSeconds: 8);
-                    cache.original_name = root?.Value<JObject>("data")?.Value<string>("original_name");
-                    cache.name = root?.Value<JObject>("data")?.Value<string>("name");
-
-                    memoryCache.Set(memkey, cache, DateTime.Now.AddDays(1));
-                }
-
-                if (!string.IsNullOrWhiteSpace(cache.name) && !string.IsNullOrWhiteSpace(cache.original_name))
-                {
-                    search = cache.original_name;
-                    altname = cache.name;
-                }
-                else
-                {
-                    search = cache.original_name ?? cache.name;
-                }
+                var resolved = await AllohaTitleResolver.ResolveAsync(search, altname, memoryCache);
+                search = resolved.Search;
+                altname = resolved.AltName;
+                allohaYear = resolved.Year;
+                allohaAltTitle = resolved.AlternativeName;
+                if (string.IsNullOrWhiteSpace(type) && !string.IsNullOrWhiteSpace(resolved.Type))
+                    type = resolved.Type;
+                exact = true;
             }
             #endregion
 
@@ -73,18 +59,22 @@ namespace JacRed.Application.Search
             #endregion
 
             if (string.IsNullOrWhiteSpace(search) || search.Length == 1)
-                return (torrents);
+                return Array.Empty<object>();
 
             string _s = StringConvert.SearchName(search);
             string _altsearch = StringConvert.SearchName(altname);
+            string _alt2 = StringConvert.SearchName(allohaAltTitle);
 
-            if (string.IsNullOrEmpty(_s) && string.IsNullOrEmpty(_altsearch))
-                return (torrents);
+            if (string.IsNullOrEmpty(_s) && string.IsNullOrEmpty(_altsearch) && string.IsNullOrEmpty(_alt2))
+                return Array.Empty<object>();
 
             if (exact)
             {
                 #region Точный поиск
-                foreach (var mdb in FileDB.masterDb.Where(i => (_s != null && (i.Key.StartsWith($"{_s}:") || i.Key.EndsWith($":{_s}"))) || (_altsearch != null && i.Key.Contains(_altsearch))))
+                foreach (var mdb in FileDB.masterDb.Where(i =>
+                    (_s != null && (i.Key.StartsWith($"{_s}:") || i.Key.EndsWith($":{_s}")))
+                    || (_altsearch != null && i.Key.Contains(_altsearch))
+                    || (_alt2 != null && i.Key.Contains(_alt2))))
                 {
                     foreach (var t in FileDB.OpenRead(mdb.Key, true).Values)
                     {
@@ -96,7 +86,9 @@ namespace JacRed.Application.Search
                             string _n = t._sn ?? StringConvert.SearchName(t.name);
                             string _o = t._so ?? StringConvert.SearchName(t.originalname);
 
-                            if (_n == _s || _o == _s || (_altsearch != null && (_n == _altsearch || _o == _altsearch)))
+                            if (_n == _s || _o == _s
+                                || (_altsearch != null && (_n == _altsearch || _o == _altsearch))
+                                || (_alt2 != null && (_n == _alt2 || _o == _alt2)))
                                 AddTorrents(t);
                         }
                     }
@@ -127,7 +119,7 @@ namespace JacRed.Application.Search
             }
 
             if (torrents.Count == 0)
-                return (torrents);
+                return Array.Empty<object>();
 
             IEnumerable<TorrentDetails> query = torrents.Values;
 
@@ -153,10 +145,16 @@ namespace JacRed.Application.Search
             #endregion
 
             if (!string.IsNullOrWhiteSpace(tracker))
-                query = query.Where(i => i.trackerName == tracker);
+            {
+                var allowed = TrackerNameMatching.ToAllowSet(TrackerNameMatching.ParseList(tracker));
+                if (allowed.Count > 0)
+                    query = query.Where(i => TrackerNameMatching.Matches(i.trackerName, allowed));
+            }
 
             if (relased > 0)
                 query = query.Where(i => i.relased == relased);
+            else if (allohaYear > 0 && AppInit.conf.alloha?.filterByYear == true)
+                query = query.Where(i => i.relased <= 0 || i.relased == allohaYear || i.relased == allohaYear - 1 || i.relased == allohaYear + 1);
 
             if (quality > 0)
                 query = query.Where(i => i.quality == quality);

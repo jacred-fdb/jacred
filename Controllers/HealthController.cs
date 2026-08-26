@@ -68,10 +68,14 @@ namespace JacRed.Controllers
             var provided = !string.IsNullOrWhiteSpace(apikey)
                 ? apikey.Trim()
                 : JacRedKeyUtils.GetApiKeyFromRequest(HttpContext);
-            var configured = AppInit.conf?.apikey;
+            var configuredKey = AppInit.conf?.apikey;
+            var isConfigured = !string.IsNullOrWhiteSpace(configuredKey);
             return Json(new
             {
-                apikey = string.IsNullOrWhiteSpace(configured) || JacRedKeyUtils.SecureEquals(provided, configured)
+                jacred = true,
+                configured = isConfigured,
+                apikey = !isConfigured || JacRedKeyUtils.SecureEquals(provided, configuredKey),
+                version = VersionInfo.Version
             });
         }
     }

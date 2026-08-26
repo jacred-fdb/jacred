@@ -37,6 +37,9 @@ namespace JacRed.Application.Search
                 return new List<Result>();
 
             var req = IndexerSearchHelper.BuildRequest(q, request.ApiKey, rqnum, query, title, title_original, year, is_serial);
+            // NUM app sends query-only Jackett requests (Chrome/106 UA); promote into card fields.
+            NumQueryParser.ApplyToRequest(req);
+            TrackerNameMatching.ApplyIndexerPathFilter(req, request.IndexerPath);
             var results = await IndexerSearchEngine.SearchCombinedAsync(req, cache, this);
             return IndexerSearchHelper.ApplyPostFilters(results, q, req);
         }

@@ -42,7 +42,7 @@ export default {
   search: {
     title: 'Torrent search',
     subtitle: 'Title, Kinopoisk or IMDb id · Enter or Search',
-    placeholder: 'Title, kp123456, tt1234567…',
+    placeholder: 'Title, kp123456, tt1234567, tmdb1315772…',
     queryAria: 'Search query',
     submit: 'Search',
     searching: 'Searching…',

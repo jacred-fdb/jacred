@@ -144,12 +144,32 @@ namespace JacRed.Configuration
 
         public TrackerSettings Anidub = new TrackerSettings("https://tr.anidub.com");
 
+        public TrackerSettings Anistar = new TrackerSettings("https://anistar.org");
+
+        public TrackerSettings Anibelka = new TrackerSettings("https://anibelka.com");
+
         public TrackerSettings Aniliberty = new TrackerSettings("https://aniliberty.top");
+
+        public TrackerSettings Anifilm = new TrackerSettings("https://anifilm.pro");
+
+        public TrackerSettings Leproduction = new TrackerSettings("https://www.le-production.online");
+
+        public TrackerSettings Viruseproject = new TrackerSettings("https://viruseproject.tv");
+
+        public TrackerSettings Korsars = new TrackerSettings("https://korsars.pro");
+
+        public TrackerSettings Ultradox = new TrackerSettings("https://ultradox.onl");
 
         public TrackerSettings Knaben = new TrackerSettings("https://api.knaben.org");
 
         // TODO: fix parser
         public TrackerSettings Baibako = new TrackerSettings("http://baibako.tv");
+
+        /// <summary>RuDub (ex-BaibaKoTV). Host mirrors rotate (rN.rudub.world).</summary>
+        public TrackerSettings Rudub = new TrackerSettings("https://r4.rudub.world");
+
+        /// <summary>SubsPlease — public anime API (1080p magnets only).</summary>
+        public TrackerSettings SubsPlease = new TrackerSettings("https://subsplease.org");
 
         /// <summary>Cloudflare bypass via FlareSolverr (persistent browser session).</summary>
         public FlareSolverrSettings flaresolverr = new FlareSolverrSettings();
@@ -157,6 +177,9 @@ namespace JacRed.Configuration
         public ProxySettings proxy = new ProxySettings();
 
         public SearchSettings search = new SearchSettings();
+
+        /// <summary>Alloha TV API v2 — KP/IMDB ID → title resolve.</summary>
+        public AllohaSettings alloha = new AllohaSettings();
 
         public TorznabSettings torznab = new TorznabSettings();
 

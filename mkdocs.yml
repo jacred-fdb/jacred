@@ -1,0 +1,150 @@
+site_name: JacRed
+site_description: Агрегатор торрент-трекеров с API Jackett и файловой БД
+site_url: https://jacred-fdb.github.io/jacred/
+repo_url: https://github.com/jacred-fdb/jacred
+repo_name: jacred-fdb/jacred
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; JacRed contributors
+
+theme:
+  name: material
+  language: ru
+  custom_dir: overrides
+  logo: assets/icon-512.png
+  favicon: assets/favicon.ico
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Тёмная тема
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Светлая тема
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - announce.dismiss
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - navigation.path
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jacred-fdb/jacred
+    - icon: fontawesome/solid/book
+      link: https://deepwiki.com/jacred-fdb/jacred
+  status:
+    new: Недавно добавлено
+    deprecated: Устарело
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Главная: README.md
+  - Старт:
+      - Установка: installation.md
+      - Docker: docker.md
+      - Сборка: building.md
+  - Эксплуатация:
+      - Конфигурация: configuration.md
+      - Трекеры и парсинг: trackers-and-parsing.md
+      - Tracks: tracks.md
+      - Решение проблем: troubleshooting.md
+  - Безопасность и API:
+      - Безопасность: security.md
+      - Матрица доступа: access-matrix.md
+      - API: api.md
+      - GET /api/v1.0/conf: conf-endpoint.md
+  - Разработка:
+      - Архитектура: architecture.md
+  - Теги: tags.md
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search:
+      lang:
+        - ru
+        - en
+  - social:
+      cards: !ENV [CI, false]
+      cards_layout_options:
+        background_color: "#3F51B5"
+        color: "#FFFFFF"
+        font_family: Inter
+  - tags
+  - git-revision-date-localized:
+      enable_creation_date: true
+      enable_git_follow: false
+      type: date
+      timezone: UTC
+  - minify:
+      minify_html: true

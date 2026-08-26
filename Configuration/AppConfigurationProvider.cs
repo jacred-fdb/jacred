@@ -72,12 +72,19 @@ namespace JacRed.Configuration
             switch (trackerName.ToLowerInvariant())
             {
                 case "anidub": return config.Anidub.log;
+                case "anistar": return config.Anistar.log;
+                case "anibelka": return config.Anibelka.log;
+                case "anifilm": return config.Anifilm.log;
                 case "aniliberty": return config.Aniliberty.log;
                 case "animelayer": return config.Animelayer.log;
                 case "baibako": return config.Baibako.log;
+                case "rudub": return config.Rudub.log;
+                case "subsplease": return config.SubsPlease.log;
                 case "bitru": return config.Bitru.log;
                 case "knaben": return config.Knaben.log;
                 case "kinozal": return config.Kinozal.log;
+                case "korsars": return config.Korsars.log;
+                case "leproduction": return config.Leproduction.log;
                 case "lostfilm": return config.Lostfilm.log;
                 case "mazepa": return config.Mazepa.log;
                 case "megapeer": return config.Megapeer.log;
@@ -87,6 +94,8 @@ namespace JacRed.Configuration
                 case "selezen": return config.Selezen.log;
                 case "toloka": return config.Toloka.log;
                 case "torrentby": return config.TorrentBy.log;
+                case "viruseproject": return config.Viruseproject.log;
+                case "ultradox": return config.Ultradox.log;
                 default: return parserLogEnabled;
             }
         }

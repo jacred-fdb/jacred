@@ -88,8 +88,18 @@ namespace JacRed.Application.Search
 
                 foreach (var torrent in torrents.Values.OrderByDescending(i => i.createTime).ThenBy(i => i.trackerName == "selezen"))
                 {
-                    var magnetLink = MagnetLink.Parse(torrent.magnet);
-                    string hex = magnetLink.InfoHashes.V1OrV2.ToHex();
+                    MagnetLink magnetLink;
+                    string hex;
+                    try
+                    {
+                        magnetLink = MagnetLink.Parse(torrent.magnet);
+                        hex = magnetLink.InfoHashes.V1OrV2.ToHex();
+                    }
+                    catch
+                    {
+                        // Malformed magnets must not break the whole merge batch.
+                        continue;
+                    }
 
                     if (!temp.TryGetValue(hex, out _))
                     {

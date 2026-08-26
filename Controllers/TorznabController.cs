@@ -16,10 +16,12 @@ namespace JacRed.Controllers
     public class TorznabController : BaseController
     {
         readonly IJackettSearchService _searchService;
+        readonly ITrackerCatalogService _trackerCatalogService;
 
-        public TorznabController(IMemoryCache memoryCache, IJackettSearchService searchService) : base(memoryCache)
+        public TorznabController(IMemoryCache memoryCache, IJackettSearchService searchService, ITrackerCatalogService trackerCatalogService) : base(memoryCache)
         {
             _searchService = searchService;
+            _trackerCatalogService = trackerCatalogService;
         }
 
         public static bool IsTorznabXmlEnabled() =>
@@ -47,7 +49,7 @@ namespace JacRed.Controllers
             {
                 var configured = (query["configured"].ToString() ?? "").ToLowerInvariant();
                 if (configured == "" || configured == "true")
-                    return Content(TorznabXmlFormatter.IndexersXml, "application/xml; charset=utf-8");
+                    return Content(TorznabXmlFormatter.IndexersXml(await _trackerCatalogService.GetTrackerNamesAsync()), "application/xml; charset=utf-8");
                 return Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?><indexers></indexers>", "application/xml; charset=utf-8");
             }
 
@@ -61,6 +63,7 @@ namespace JacRed.Controllers
                 return XmlSearchResult(new List<Result>(), t, query, origin, torznabApiUrl);
 
             var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false, boundQuery: resolvedQuery);
+            TrackerNameMatching.ApplyIndexerPathFilter(req, indexer);
             var results = await IndexerSearchEngine.SearchCombinedAsync(req, memoryCache, _searchService);
             results = IndexerSearchHelper.ApplyPostFilters(results, query, req, t);
             return XmlSearchResult(results, t, query, origin, torznabApiUrl);
@@ -92,16 +95,22 @@ namespace JacRed.Controllers
     public class JackettMetaController : BaseController
     {
         readonly IJackettSearchService _searchService;
+        readonly ITrackerCatalogService _trackerCatalogService;
 
-        public JackettMetaController(IMemoryCache memoryCache, IJackettSearchService searchService) : base(memoryCache)
+        public JackettMetaController(
+            IMemoryCache memoryCache,
+            IJackettSearchService searchService,
+            ITrackerCatalogService trackerCatalogService) : base(memoryCache)
         {
             _searchService = searchService;
+            _trackerCatalogService = trackerCatalogService;
         }
 
         [Route("/api/v2.0/indexers")]
-        public IActionResult IndexersList()
+        public async Task<IActionResult> IndexersList()
         {
-            return Json(new[]
+            var trackers = await _trackerCatalogService.GetTrackerNamesAsync();
+            var list = new List<object>
             {
                 new
                 {
@@ -112,7 +121,22 @@ namespace JacRed.Controllers
                     configured = true,
                     link = "https://github.com/jacred-fdb/jacred"
                 }
-            });
+            };
+
+            foreach (var tracker in trackers)
+            {
+                list.Add(new
+                {
+                    id = tracker,
+                    name = tracker,
+                    description = $"JacRed tracker: {tracker}",
+                    type = "public",
+                    configured = true,
+                    link = "https://github.com/jacred-fdb/jacred"
+                });
+            }
+
+            return Json(list);
         }
 
         /// <summary>

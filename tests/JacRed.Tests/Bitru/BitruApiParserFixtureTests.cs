@@ -83,14 +83,21 @@ public class BitruApiParserFixtureTests
     }
 
     [Fact]
-    public void Page2Fixture_ParsesWhenPresent()
+    public void Page2Fixture_ParsesWhenPresent_AndIsNotFullSubsetOfPage1()
     {
         string path = System.IO.Path.Combine(AppContext.BaseDirectory, "Fixtures", "Bitru", "api_movie_serial_page2.json");
         if (!System.IO.File.Exists(path))
             return; // optional cursor fixture
 
-        string json = FixtureLoader.Read("Bitru/api_movie_serial_page2.json");
-        var torrents = BitruApiParser.ParseTorrentsFromJson(json, Host);
-        Assert.True(torrents.Count >= 1);
+        var page1 = BitruApiParser.ParseTorrentsFromJson(FixtureLoader.Read("Bitru/api_movie_serial_page1.json"), Host);
+        var page2 = BitruApiParser.ParseTorrentsFromJson(FixtureLoader.Read("Bitru/api_movie_serial_page2.json"), Host);
+        Assert.True(page2.Count >= 1);
+
+        var ids1 = BitruApiPagination.CollectTorrentIds(page1.Select(t => t.url));
+        var ids2 = BitruApiPagination.CollectTorrentIds(page2.Select(t => t.url));
+        Assert.False(
+            BitruApiPagination.IsDuplicatePage(ids1, ids2),
+            "page2 must not be a full subset of page1 (indicates before_date bug)");
+        Assert.Empty(ids1.Intersect(ids2));
     }
 }

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JacRed API
-  version: 1.0.0
+  version: 1.2.5
   description: |
     Torrent aggregator API: Jackett-compatible search, native torrent search, Torznab XML,
     statistics, sync protocol, and configuration management.
@@ -11,6 +11,19 @@ info:
     **Runtime OpenAPI JSON:** `/swagger/v1/swagger.json` (converted from this YAML file)
 
     **Static spec (this file):** `/openapi.yaml` (source: `web/public/openapi.yaml`, published to `wwwroot/openapi.yaml`)
+
+    ## Supported tracker slugs (v1.2)
+
+    Parsers / cron (`/cron/{slug}/…`, DevAdmin):
+    `anibelka`, `anidub`, `anifilm`, `aniliberty`, `animelayer`, `anistar`, `baibako`,
+    `bitru`, `kinozal`, `knaben`, `korsars`, `leproduction`, `lostfilm`, `mazepa`,
+    `megapeer`, `nnmclub`, `rudub`, `rutor`, `rutracker`, `selezen`, `subsplease`, `toloka`, `torrentby`,
+    `ultradox`, `viruseproject`.
+
+    Web UI icons: `/img/ico/{slug}.ico` (fallback `/img/ico/default.ico`).
+
+    Page-only parsers (`anistar`, `leproduction`, `viruseproject`, `anifilm`) usually do **not**
+    appear in `GET /health/background-jobs` (only UpdateTasks/ParseAll-style workers register there).
 
     ## Authentication
 
@@ -28,10 +41,10 @@ info:
     **Sync** (`/sync/*`): middleware пропускает без ключей; данные sync требуют `opensync: true` в конфиге.
 
     **Dev/cron/jsondb:** `/dev/*`, `/cron/*`, `/jsondb/*` require DevAdmin (`X-Dev-Key` / `?devkey=`).
-    Those operational actions are **not** enumerated in this public spec; see the Controllers and
-    [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
+    Those operational actions are **not** enumerated path-by-path in this public spec; see Controllers,
+    [`Data/crontab`](Data/crontab), and [`docs/access-matrix.md`](docs/access-matrix.md).
 
-    Полная матрица: [`AccessTraceabilityMatrix.md`](AccessTraceabilityMatrix.md).
+    Полная матрица: [`docs/access-matrix.md`](docs/access-matrix.md).
 
     ## Config files
 
@@ -49,7 +62,7 @@ servers:
 
 tags:
   - name: System
-    description: Health, version, API key check
+    description: Health (including background jobs), version, API key check
   - name: Search
     description: Jackett-compatible and native torrent search
   - name: Torznab
@@ -71,12 +84,29 @@ paths:
       operationId: health
       security: []
       responses:
-        '200':
+        "200":
           description: Service is running
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: "#/components/schemas/HealthResponse"
+
+  /health/background-jobs:
+    get:
+      tags: [System]
+      summary: In-process background ParseAll / UpdateTasks jobs
+      description: |
+        Local ops status for active tracker sync jobs started via `/cron/{slug}/…`.
+        Public (no apikey). Empty `jobs` array when nothing is running.
+      operationId: healthBackgroundJobs
+      security: []
+      responses:
+        "200":
+          description: Active background jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackgroundJobsResponse"
 
   /version:
     get:
@@ -85,12 +115,12 @@ paths:
       operationId: version
       security: []
       responses:
-        '200':
+        "200":
           description: Version metadata
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VersionResponse'
+                $ref: "#/components/schemas/VersionResponse"
 
   /lastupdatedb:
     get:
@@ -99,7 +129,7 @@ paths:
       operationId: lastUpdateDb
       security: []
       responses:
-        '200':
+        "200":
           description: Last update timestamp
           content:
             application/json:
@@ -108,129 +138,158 @@ paths:
                 properties:
                   lastupdatedb:
                     type: string
-                    example: '04.07.2026 15:30'
+                    example: "04.07.2026 15:30"
 
   /api/v1.0/conf:
     get:
       tags: [System]
-      summary: Validate API key
-      description: Returns whether the provided apikey matches server configuration. Whitelisted without apikey.
+      summary: JacRed identity and API key probe
+      description: |
+        Public discovery endpoint for clients and external apps.
+        Always identifies the host as JacRed, reports build version (`VersionInfo.Version`, same as `GET /version`),
+        whether an API key is configured, and whether the provided key is accepted (or none is required).
+        Whitelisted without apikey.
       operationId: checkApiKey
       security: []
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
-          description: Key validation result
+        "200":
+          description: Identity and key validation result
           content:
             application/json:
               schema:
                 type: object
+                required: [jacred, configured, apikey, version]
                 properties:
+                  jacred:
+                    type: boolean
+                    const: true
+                    description: Always true — this host is JacRed
+                  configured:
+                    type: boolean
+                    description: true when the server has a non-blank apikey configured
                   apikey:
                     type: boolean
                     description: true if key is valid or server has no apikey configured
+                  version:
+                    type: string
+                    description: Build version string (same as GET /version `version`)
+                    example: "3.7.1-next+726f1544"
 
   /api/v2.0/indexers/{status}/results:
     get:
       tags: [Search]
       summary: Jackett-compatible search
+      description: |
+        Lampa and other Jackett JSON clients. Path `{status}` is normally `all` (aggregate).
+        Jackett's virtual `status:healthy` selector (Lampa "only available trackers") is also
+        treated as aggregate — JacRed searches its local database, not live indexer health.
+        When `{status}` is a tracker id from `GET /api/v1.0/trackers` (for example `rutracker`),
+        results are filtered to that tracker (case-insensitive; matches any part of a merged trackerName).
+
+        **IMDb / Kinopoisk / TMDB IDs:** `query`/`q` as `tt…`, `kp…`, `tmdb…`, a themoviedb.org
+        `/movie|tv/{id}-…` URL, or `imdbid`, are resolved via Alloha TV API v2
+        (`GET /v2/movies/search`) to titles (plus optional alternative name, year, type), then searched
+        in FileDB with exact match. When the client omits `year`, Alloha year ±1 is applied if
+        `alloha.filterByYear` is enabled.
+
+        **TV text queries:** when `search.stripSeasonEpisode` is true (default), inline `S01` / `S01E01`
+        tokens are stripped and both variants are searched (AIOStreams-style `q=silo S01`).
+        Trailing year is also stripped when `search.stripTrailingYear` is true.
       operationId: jackettSearch
       parameters:
         - name: status
           in: path
           required: true
+          description: |
+            `all` or Jackett `status:healthy` for aggregate search, or a tracker id
+            (e.g. `kinozal`, `rutracker`) to scope results.
           schema:
             type: string
             example: all
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: query
           in: query
           schema:
             type: string
-        - name: title
-          in: query
-          schema:
-            type: string
-        - name: title_original
-          in: query
-          schema:
-            type: string
-        - name: year
-          in: query
-          schema:
-            type: integer
-        - name: is_serial
-          in: query
-          schema:
-            type: integer
-            description: '-1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime'
-        - name: Category[]
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-          description: 'Jackett/Lampa categories (e.g. 2000 movies, 5000 TV, 5070 anime)'
-        - name: Tracker[]
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          description: Jackett-style filter by internal tracker id (e.g. kinozal, rutracker)
-        - name: tracker
-          in: query
-          schema:
-            type: string
-          description: Single-tracker alias for Tracker[]
+        - $ref: "#/components/parameters/SearchQ"
+        - $ref: "#/components/parameters/SearchQueryAlt"
+        - $ref: "#/components/parameters/TorznabTitle"
+        - $ref: "#/components/parameters/TorznabTitleOriginal"
+        - $ref: "#/components/parameters/Year"
+        - $ref: "#/components/parameters/IsSerial"
+        - $ref: "#/components/parameters/CategoryBracket"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/TorznabCat"
+        - $ref: "#/components/parameters/Categories"
+        - $ref: "#/components/parameters/TrackerArray"
+        - $ref: "#/components/parameters/TrackerFilter"
+        - $ref: "#/components/parameters/TrackerAlias"
+        - $ref: "#/components/parameters/TorznabImdbId"
+        - $ref: "#/components/parameters/ImdbIdAltUnderscore"
+        - $ref: "#/components/parameters/ImdbIdAltCamel"
+        - $ref: "#/components/parameters/TorznabSeason"
+        - $ref: "#/components/parameters/TorznabEp"
+        - $ref: "#/components/parameters/TorznabEpisode"
+        - $ref: "#/components/parameters/TorznabLimit"
+        - $ref: "#/components/parameters/TorznabOffset"
+        - $ref: "#/components/parameters/Genres"
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JackettRootObject'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/JackettRootObject"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1.0/torrents:
     get:
       tags: [Search]
       summary: Native torrent search
       operationId: torrentsSearch
+      description: |
+        Native JacRed JSON search (not Torznab/Jackett).
+
+        **IMDb / Kinopoisk / TMDB IDs:** when `search` is `tt…`, `kp…`, `tmdb…`, or a themoviedb.org
+        `/movie|tv/{id}-…` URL, JacRed resolves titles via Alloha TV API v2,
+        forces `exact=true`, and may fill `type` / year filter from Alloha when the client omitted them
+        (`relased` unset → Alloha year ±1 if `alloha.filterByYear`; empty `type` → Alloha category).
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: search
           in: query
           required: false
           schema:
             type: string
-          description: Empty or omitted yields an empty result array
+          description: |
+            Title query, or an external id (`tt1234567`, `kp301`, `tmdb1315772`) or themoviedb.org URL.
+            Empty or omitted yields an empty result array.
+            ID queries are resolved via Alloha v2 before FileDB lookup.
         - name: altname
           in: query
           schema:
             type: string
+          description: Alternate title (e.g. Russian name). After Alloha resolve, filled from `data.name` when both titles exist.
         - name: exact
           in: query
           schema:
             type: boolean
+          description: Exact title match. Forced to true after IMDb/KP Alloha resolve.
         - name: type
           in: query
           schema:
             type: string
-            description: movie, serial, anime, etc.
+            description: |
+              movie, serial, anime, etc. When omitted on an ID query, may be set from Alloha `category.slug`.
         - name: sort
           in: query
           schema:
             type: string
             enum: [sid, pir, size, create, update]
-        - name: tracker
-          in: query
-          schema:
-            type: string
+        - $ref: "#/components/parameters/TrackerAlias"
         - name: voice
           in: query
           schema:
@@ -243,6 +302,9 @@ paths:
           in: query
           schema:
             type: integer
+          description: |
+            Release year filter (exact). When 0/omitted on an ID query and `alloha.filterByYear`,
+            Alloha year ±1 is used instead.
         - name: quality
           in: query
           schema:
@@ -252,16 +314,40 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Ordered torrent result array (maximum 2000 items)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/TorrentListItem'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/TorrentListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1.0/trackers:
+    get:
+      tags: [Search]
+      summary: List available tracker names
+      description: |
+        Returns tracker ids for discovery and filters.
+        Source: `synctrackers` when set (including empty `[]` → empty list); otherwise known built-in slugs.
+        Entries in `disable_trackers` are excluded. Sorted case-insensitively.
+      operationId: trackerNames
+      parameters:
+        - $ref: "#/components/parameters/ApiKeyQuery"
+      responses:
+        "200":
+          description: Available tracker names (e.g. rutracker, kinozal, korsars)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrackerSlug"
+                example: [kinozal, korsars, rutracker, rutor]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1.0/qualitys:
     get:
@@ -269,7 +355,7 @@ paths:
       summary: Quality aggregation by title
       operationId: qualitys
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: name
           in: query
           schema:
@@ -293,7 +379,7 @@ paths:
             type: integer
             default: 1000
       responses:
-        '200':
+        "200":
           description: |
             Nested map: title key → release year → TorrentQuality.
             Empty name and originalname yields `{}`.
@@ -304,46 +390,151 @@ paths:
                 additionalProperties:
                   type: object
                   additionalProperties:
-                    $ref: '#/components/schemas/TorrentQuality'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                    $ref: "#/components/schemas/TorrentQuality"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /torznab/api:
     get:
       tags: [Torznab]
       summary: Torznab API (caps, search)
-      description: Native Torznab XML when torznab.enable is true.
+      description: |
+        Native Torznab XML when `torznab.enable` is true.
+        Caps advertise `q`, `imdbid`[, `tvdbid`, `season`, `ep`]. JacRed also accepts card fields
+        (`title`, `title_original`, `year`, `is_serial`, `genres`), pagination (`limit`/`offset`),
+        category aliases (`cat`/`Category`/`categories`/`Category[]`), and tracker filters
+        (`Tracker`/`Tracker[]`/`tracker`).
+        `t=indexers` returns aggregate `all` plus one indexer entry per `GET /api/v1.0/trackers` name.
+
+        **IMDb / Kinopoisk / TMDB IDs:** `q` as `tt…`/`kp…`/`tmdb…`, a themoviedb.org URL, or `imdbid` →
+        Alloha TV API v2 title resolve → FileDB exact search (year ±1 when client `year` absent and `alloha.filterByYear`).
+        **TVDB-only** (`tvdbid` / `rid` with no `q`/`imdbid`) returns empty — JacRed does not resolve TVDB ids.
+        **TV text queries:** `search.stripSeasonEpisode` (default true) searches show name without `S01`/`S01E01`;
+        `season`/`ep` still post-filter unless `search.skipSeasonEpisodeFilter` is true.
       operationId: torznabRoot
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: t
-          in: query
-          schema:
-            type: string
-            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
-        - name: q
-          in: query
-          schema:
-            type: string
-        - name: cat
-          in: query
-          schema:
-            type: string
+        - $ref: "#/components/parameters/ApiKeyQuery"
+        - $ref: "#/components/parameters/TorznabT"
+        - $ref: "#/components/parameters/TorznabQ"
+        - $ref: "#/components/parameters/SearchQueryAlt"
+        - $ref: "#/components/parameters/TorznabCat"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryBracket"
+        - $ref: "#/components/parameters/Categories"
+        - $ref: "#/components/parameters/TorznabImdbId"
+        - $ref: "#/components/parameters/ImdbIdAltUnderscore"
+        - $ref: "#/components/parameters/ImdbIdAltCamel"
+        - $ref: "#/components/parameters/TorznabTvdbId"
+        - $ref: "#/components/parameters/TorznabRid"
+        - $ref: "#/components/parameters/TorznabSeason"
+        - $ref: "#/components/parameters/TorznabEp"
+        - $ref: "#/components/parameters/TorznabEpisode"
+        - $ref: "#/components/parameters/TorznabTitle"
+        - $ref: "#/components/parameters/TorznabTitleOriginal"
+        - $ref: "#/components/parameters/Year"
+        - $ref: "#/components/parameters/IsSerial"
+        - $ref: "#/components/parameters/Genres"
+        - $ref: "#/components/parameters/TorznabLimit"
+        - $ref: "#/components/parameters/TorznabOffset"
+        - $ref: "#/components/parameters/TorznabConfigured"
+        - $ref: "#/components/parameters/TrackerFilter"
+        - $ref: "#/components/parameters/TrackerArray"
+        - $ref: "#/components/parameters/TrackerAlias"
       responses:
-        '200':
+        "200":
           description: Torznab XML
           content:
             application/xml:
               schema:
                 type: string
-        '404':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Torznab disabled
+    head:
+      tags: [Torznab]
+      summary: Torznab HEAD probe
+      description: Returns empty Torznab XML body (same content-type as GET).
+      operationId: torznabRootHead
+      parameters:
+        - $ref: "#/components/parameters/ApiKeyQuery"
+      responses:
+        "200":
+          description: Empty XML OK
+          content:
+            application/xml:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Torznab disabled
 
   /api/v2.0/indexers/{indexer}/results/torznab/api:
     get:
       tags: [Torznab]
       summary: Torznab API (indexer path)
+      description: |
+        Jackett-compatible Torznab alias. Path `{indexer}` is normally `all`.
+        Jackett's virtual `status:healthy` selector is also treated as aggregate.
+        When `{indexer}` is a tracker id (not `all` / `status:healthy`), search results are filtered to that tracker.
+        `t=indexers` lists `all` plus per-tracker indexers from the tracker catalog.
+        Same query params as `/torznab/api` (caps + JacRed card fields, categories, tracker filters),
+        including Alloha v2 resolve for `tt…` / `kp…` / `tmdb…` / themoviedb.org URLs / `imdbid`.
       operationId: torznabIndexer
+      parameters:
+        - name: indexer
+          in: path
+          required: true
+          description: |
+            `all` or Jackett `status:healthy` for aggregate search, or a tracker id
+            (e.g. `rutracker`) to scope results.
+          schema:
+            type: string
+            example: all
+        - $ref: "#/components/parameters/ApiKeyQuery"
+        - $ref: "#/components/parameters/TorznabT"
+        - $ref: "#/components/parameters/TorznabQ"
+        - $ref: "#/components/parameters/SearchQueryAlt"
+        - $ref: "#/components/parameters/TorznabCat"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryBracket"
+        - $ref: "#/components/parameters/Categories"
+        - $ref: "#/components/parameters/TorznabImdbId"
+        - $ref: "#/components/parameters/ImdbIdAltUnderscore"
+        - $ref: "#/components/parameters/ImdbIdAltCamel"
+        - $ref: "#/components/parameters/TorznabTvdbId"
+        - $ref: "#/components/parameters/TorznabRid"
+        - $ref: "#/components/parameters/TorznabSeason"
+        - $ref: "#/components/parameters/TorznabEp"
+        - $ref: "#/components/parameters/TorznabEpisode"
+        - $ref: "#/components/parameters/TorznabTitle"
+        - $ref: "#/components/parameters/TorznabTitleOriginal"
+        - $ref: "#/components/parameters/Year"
+        - $ref: "#/components/parameters/IsSerial"
+        - $ref: "#/components/parameters/Genres"
+        - $ref: "#/components/parameters/TorznabLimit"
+        - $ref: "#/components/parameters/TorznabOffset"
+        - $ref: "#/components/parameters/TorznabConfigured"
+        - $ref: "#/components/parameters/TrackerFilter"
+        - $ref: "#/components/parameters/TrackerArray"
+        - $ref: "#/components/parameters/TrackerAlias"
+      responses:
+        "200":
+          description: Torznab XML
+          content:
+            application/xml:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Torznab disabled
+    head:
+      tags: [Torznab]
+      summary: Torznab HEAD probe (indexer path)
+      description: Returns empty Torznab XML body (same content-type as GET).
+      operationId: torznabIndexerHead
       parameters:
         - name: indexer
           in: path
@@ -351,37 +542,41 @@ paths:
           schema:
             type: string
             example: all
-        - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: t
-          in: query
-          schema:
-            type: string
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
-          description: Torznab XML
+        "200":
+          description: Empty XML OK
           content:
             application/xml:
               schema:
                 type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Torznab disabled
 
   /api/v2.0/indexers:
     get:
       tags: [Torznab]
-      summary: List configured indexers (Jackett/Prowlarr)
+      summary: List configured indexers (Jackett)
+      description: |
+        Jackett-style indexer discovery. Always includes aggregate `id=all`, then one entry per
+        `GET /api/v1.0/trackers` name (same set as Torznab `t=indexers`).
+        Prowlarr clients should use `/api/v1/indexer` (single aggregate `id=1`).
       operationId: indexersList
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
-          description: Indexer list
+        "200":
+          description: Indexer list (`all` + per-tracker)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/JackettIndexer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1/indexer:
     get:
@@ -392,21 +587,23 @@ paths:
         Returns a JSON array with `enable: true` and `protocol: torrent`.
       operationId: prowlarrIndexerList
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: X-Api-Key
           in: header
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Enabled torrent indexers
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProwlarrIndexer'
-        '404':
+                  $ref: "#/components/schemas/ProwlarrIndexer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Torznab disabled
 
   /api/v1/indexer/{id}:
@@ -424,15 +621,17 @@ paths:
           schema:
             type: integer
             example: 1
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
+        "200":
           description: Indexer detail
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProwlarrIndexerDetail'
-        '404':
+                $ref: "#/components/schemas/ProwlarrIndexerDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Torznab disabled or unknown indexer id
 
   /api/v1/indexer/{indexer}/newznab:
@@ -441,8 +640,60 @@ paths:
       summary: Prowlarr Torznab proxy
       description: |
         Prowlarr-compatible Torznab endpoint (`t=caps`, `search`, `tvsearch`, `moviesearch`).
-        Same handler as `/torznab/api` and Jackett alias paths.
+        Same handler as `/torznab/api` and Jackett alias paths (including Alloha v2 resolve for `tt…` / `kp…` / `tmdb…` / `imdbid`).
+        Path `{indexer}` is typically numeric (`1` = aggregate JacRed); numeric ids do not apply a tracker filter.
       operationId: prowlarrNewznab
+      parameters:
+        - name: indexer
+          in: path
+          required: true
+          description: Prowlarr indexer id (use `1` for JacRed aggregate)
+          schema:
+            type: string
+            example: "1"
+        - $ref: "#/components/parameters/ApiKeyQuery"
+        - $ref: "#/components/parameters/TorznabT"
+        - $ref: "#/components/parameters/TorznabQ"
+        - $ref: "#/components/parameters/SearchQueryAlt"
+        - $ref: "#/components/parameters/TorznabCat"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryBracket"
+        - $ref: "#/components/parameters/Categories"
+        - $ref: "#/components/parameters/TorznabImdbId"
+        - $ref: "#/components/parameters/ImdbIdAltUnderscore"
+        - $ref: "#/components/parameters/ImdbIdAltCamel"
+        - $ref: "#/components/parameters/TorznabTvdbId"
+        - $ref: "#/components/parameters/TorznabRid"
+        - $ref: "#/components/parameters/TorznabSeason"
+        - $ref: "#/components/parameters/TorznabEp"
+        - $ref: "#/components/parameters/TorznabEpisode"
+        - $ref: "#/components/parameters/TorznabTitle"
+        - $ref: "#/components/parameters/TorznabTitleOriginal"
+        - $ref: "#/components/parameters/Year"
+        - $ref: "#/components/parameters/IsSerial"
+        - $ref: "#/components/parameters/Genres"
+        - $ref: "#/components/parameters/TorznabLimit"
+        - $ref: "#/components/parameters/TorznabOffset"
+        - $ref: "#/components/parameters/TorznabConfigured"
+        - $ref: "#/components/parameters/TrackerFilter"
+        - $ref: "#/components/parameters/TrackerArray"
+        - $ref: "#/components/parameters/TrackerAlias"
+      responses:
+        "200":
+          description: Torznab XML
+          content:
+            application/xml:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Torznab disabled
+    head:
+      tags: [Torznab]
+      summary: Prowlarr Torznab HEAD probe
+      description: Returns empty Torznab XML body (same content-type as GET).
+      operationId: prowlarrNewznabHead
       parameters:
         - name: indexer
           in: path
@@ -450,28 +701,17 @@ paths:
           schema:
             type: string
             example: "1"
-        - $ref: '#/components/parameters/ApiKeyQuery'
-        - name: t
-          in: query
-          schema:
-            type: string
-            enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
-        - name: q
-          in: query
-          schema:
-            type: string
-        - name: cat
-          in: query
-          schema:
-            type: string
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
-          description: Torznab XML
+        "200":
+          description: Empty XML OK
           content:
             application/xml:
               schema:
                 type: string
-        '404':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Torznab disabled
 
   /api/v1/search:
@@ -482,13 +722,16 @@ paths:
         Prowlarr-compatible interactive search (`/api/v1/search`).
         Returns a JSON array of ReleaseResource-shaped objects.
         Brace tokens in `query` (e.g. `{ImdbId:tt123}`, `{Season:1}`) are parsed like Prowlarr UI search.
+        IMDb/KP/TMDB id queries (`tt…`, `kp…`, `tmdb…`, themoviedb.org URL, or brace `{ImdbId:…}` / `{TmdbId:…}`)
+        are resolved via Alloha TV API v2 before FileDB exact search.
+        Inline `S01`/`S01E01` in free-text `query` is stripped when `search.stripSeasonEpisode` is true (default).
         JacRed exposes a single aggregate torrent indexer (`id=1`); `indexerIds=-1` (usenet) returns `[]`.
         Each release also includes JacRed extensions (`ffprobe`, `languages`, `info`) when `tracks: true`, same as Jackett results.
         Lampa Prowlarr mode (`query` + `type` + `categories`) is promoted to Jackett-style card search
         (`title`/`title_original`/`year`, `is_serial` 1=movie / 2=serial) for richer TV/movie results.
       operationId: prowlarrSearch
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: X-Api-Key
           in: header
           schema:
@@ -497,42 +740,53 @@ paths:
           in: query
           schema:
             type: string
-          description: URL-encoded search string (supports Prowlarr brace tokens)
+          description: |
+            URL-encoded search string (supports Prowlarr brace tokens).
+            Inline `S01`/`S01E01` is stripped when `search.stripSeasonEpisode` is true.
+        - $ref: "#/components/parameters/SearchQ"
         - name: type
           in: query
           schema:
             type: string
-            enum: [search, tvsearch, movie, music, book]
+            enum: [search, tvsearch, movie, moviesearch, tv, music, book]
             default: search
+          description: |
+            Search kind. `movie`/`moviesearch` map to `is_serial=1`; `tv`/`tvsearch` map to `is_serial=2`.
         - name: indexerIds
           in: query
           schema:
             type: string
           description: Comma-separated or repeated; `1` or `-2` (torrents) select JacRed; omit = all; `-1` = usenet (empty)
           example: "1"
-        - name: categories
-          in: query
-          schema:
-            type: integer
-          description: Repeat for each category (e.g. categories=2000&categories=5000)
-        - name: limit
-          in: query
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/Categories"
+        - $ref: "#/components/parameters/TorznabCat"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/CategoryBracket"
+        - $ref: "#/components/parameters/TorznabTitle"
+        - $ref: "#/components/parameters/TorznabTitleOriginal"
+        - $ref: "#/components/parameters/Year"
+        - $ref: "#/components/parameters/IsSerial"
+        - $ref: "#/components/parameters/TorznabSeason"
+        - $ref: "#/components/parameters/TorznabEp"
+        - $ref: "#/components/parameters/TorznabEpisode"
+        - $ref: "#/components/parameters/Genres"
+        - $ref: "#/components/parameters/TrackerFilter"
+        - $ref: "#/components/parameters/TrackerArray"
+        - $ref: "#/components/parameters/TrackerAlias"
+        - $ref: "#/components/parameters/TorznabLimit"
+        - $ref: "#/components/parameters/TorznabOffset"
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProwlarrRelease'
-        '404':
+                  $ref: "#/components/schemas/ProwlarrRelease"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Torznab disabled
 
   /stats/torrents:
@@ -545,18 +799,18 @@ paths:
         Missing/invalid API key (when configured) is a separate **401**.
       operationId: statsTorrents
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
+        "200":
           description: Tracker summary array (or `[]` when openstats is false)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/TrackerStat'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/TrackerStat"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /stats/tracks:
     get:
@@ -568,15 +822,15 @@ paths:
         Missing/invalid API key (when configured) is a separate **401**.
       operationId: statsTracks
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
         - name: includeTorrentDb
           in: query
           schema:
             type: boolean
             default: true
       responses:
-        '200':
-          description: 'Tracks export aggregate (or `{ ok: false }` when openstats is false)'
+        "200":
+          description: "Tracks export aggregate (or `{ ok: false }` when openstats is false)"
           content:
             application/json:
               schema:
@@ -591,8 +845,8 @@ paths:
                     type: boolean
                   stats:
                     type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /stats/meta:
     get:
@@ -604,16 +858,16 @@ paths:
         Missing/invalid API key (when configured) is a separate **401**.
       operationId: statsMeta
       parameters:
-        - $ref: '#/components/parameters/ApiKeyQuery'
+        - $ref: "#/components/parameters/ApiKeyQuery"
       responses:
-        '200':
-          description: 'Collection timestamps (or `{ ok: false }` when openstats is false)'
+        "200":
+          description: "Collection timestamps (or `{ ok: false }` when openstats is false)"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatsMeta'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/StatsMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /sync/conf:
     get:
@@ -622,7 +876,7 @@ paths:
       operationId: syncConf
       security: []
       responses:
-        '200':
+        "200":
           description: Sync capabilities
           content:
             application/json:
@@ -642,21 +896,36 @@ paths:
       summary: Sync FileDB key listing
       operationId: syncFdb
       security: []
-      description: 'Requires `opensync: true` in server config.'
+      description: |
+        Requires `opensync: true` in server config.
+        When `opensync` is false, returns **200** with body `[]`.
       parameters:
         - name: key
           in: query
           schema:
             type: string
+          description: Substring filter on FileDB master keys (first 20 matches)
       responses:
-        '200':
-          description: FDB sync payload
+        "200":
+          description: Matching FDB keys (or `[]` when opensync is false)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    maxItems: 0
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/SyncFdbKeyItem"
 
   /sync/fdb/torrents:
     get:
       tags: [Sync]
       summary: Sync FileDB torrent collections
-      description: 'Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`. Requires `opensync: true`.'
+      description: |
+        Returns torrent batches changed after `time`. Supports spidr mode and incremental `start`.
+        Requires `opensync: true`. When `opensync` is false or `time` is `0`, returns
+        `{ nextread: false, collections: [] }` (countread/take may be omitted).
       operationId: syncFdbTorrents
       security: []
       parameters:
@@ -678,12 +947,12 @@ paths:
             type: boolean
             default: false
       responses:
-        '200':
+        "200":
           description: Collections with nextread pagination flag
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/SyncFdbTorrentsResponse"
 
   /sync/torrents:
     get:
@@ -702,7 +971,7 @@ paths:
             type: integer
             format: int64
       responses:
-        '200':
+        "200":
           description: Redirect-style error payload
           content:
             application/json:
@@ -733,16 +1002,16 @@ paths:
             enum: [yaml, json]
             default: yaml
       responses:
-        '200':
+        "200":
           description: Configuration payload
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigGetResponse'
-        '401':
-          description: Invalid or missing devkey
-        '403':
-          description: Forbidden (LAN or devkey required)
+                $ref: "#/components/schemas/ConfigGetResponse"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
     post:
       tags: [Config]
@@ -757,29 +1026,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Saved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigSaveResponse'
-        '401':
-          description: Invalid devkey
-        '403':
-          description: Forbidden (LAN or devkey required)
+                $ref: "#/components/schemas/ConfigSaveResponse"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /api/v1.0/config/schema:
     get:
       tags: [Config]
       summary: Form schema for settings UI
+      description: "**LAN or valid X-Dev-Key** (same-host proxy alone is not sufficient)."
       operationId: configSchema
       security:
         - DevKeyHeader: []
         - DevKeyQuery: []
       responses:
-        '200':
+        "200":
           description: Field groups and validation metadata
           content:
             application/json:
@@ -789,12 +1059,17 @@ paths:
                   ok:
                     type: boolean
                   schema:
-                    $ref: '#/components/schemas/ConfigFormSchema'
+                    $ref: "#/components/schemas/ConfigFormSchema"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /api/v1.0/config/validate:
     post:
       tags: [Config]
       summary: Validate configuration without saving
+      description: "**LAN or valid X-Dev-Key.**"
       operationId: configValidate
       security:
         - DevKeyHeader: []
@@ -804,20 +1079,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Validation result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigValidationResponse'
+                $ref: "#/components/schemas/ConfigValidationResponse"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /api/v1.0/config/diff:
     post:
       tags: [Config]
       summary: Diff proposed config vs current
-      description: Used by settings UI before save confirmation.
+      description: Used by settings UI before save confirmation. **LAN or valid X-Dev-Key.**
       operationId: configDiff
       security:
         - DevKeyHeader: []
@@ -827,20 +1106,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Diff entries and validation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigDiffResponse'
+                $ref: "#/components/schemas/ConfigDiffResponse"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /api/v1.0/config/render:
     post:
       tags: [Config]
       summary: Serialize form data to YAML/JSON
-      description: Form ↔ raw editor sync (settings UI).
+      description: Form ↔ raw editor sync (settings UI). **LAN or valid X-Dev-Key.**
       operationId: configRender
       security:
         - DevKeyHeader: []
@@ -861,17 +1144,22 @@ paths:
                   enum: [yaml, json]
                   default: yaml
       responses:
-        '200':
+        "200":
           description: Formatted text
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigRenderResponse'
+                $ref: "#/components/schemas/ConfigRenderResponse"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /api/v1.0/config/parse:
     post:
       tags: [Config]
       summary: Parse YAML/JSON text to JSON object
+      description: "**LAN or valid X-Dev-Key.**"
       operationId: configParse
       security:
         - DevKeyHeader: []
@@ -890,7 +1178,7 @@ paths:
                   type: string
                   enum: [yaml, json]
       responses:
-        '200':
+        "200":
           description: Parsed configuration
           content:
             application/json:
@@ -902,12 +1190,16 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /api/v1.0/config/format:
     post:
       tags: [Config]
       summary: Pretty-print config after AppInit normalization
-      description: Validates, normalizes through AppInit model, returns formatted YAML/JSON.
+      description: Validates, normalizes through AppInit model, returns formatted YAML/JSON. **LAN or valid X-Dev-Key.**
       operationId: configFormat
       security:
         - DevKeyHeader: []
@@ -917,14 +1209,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigSaveRequest'
+              $ref: "#/components/schemas/ConfigSaveRequest"
       responses:
-        '200':
+        "200":
           description: Normalized data and formatted text
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigFormatResponse'
+                $ref: "#/components/schemas/ConfigFormatResponse"
+        "401":
+          $ref: "#/components/responses/ConfigUnauthorized"
+        "403":
+          $ref: "#/components/responses/ConfigForbidden"
 
   /openapi.yaml:
     get:
@@ -933,7 +1229,7 @@ paths:
       operationId: openApiYaml
       security: []
       responses:
-        '200':
+        "200":
           description: This document
           content:
             application/yaml:
@@ -948,7 +1244,7 @@ paths:
       operationId: openSearchXml
       security: []
       responses:
-        '200':
+        "200":
           description: OpenSearchDescription XML
           content:
             application/opensearchdescription+xml:
@@ -962,7 +1258,7 @@ paths:
       operationId: webSearch
       security: []
       responses:
-        '200':
+        "200":
           description: HTML
           content:
             text/html:
@@ -976,7 +1272,7 @@ paths:
       operationId: webStats
       security: []
       responses:
-        '200':
+        "200":
           description: HTML
           content:
             text/html:
@@ -990,7 +1286,7 @@ paths:
       operationId: webSettings
       security: []
       responses:
-        '200':
+        "200":
           description: HTML
           content:
             text/html:
@@ -1032,22 +1328,303 @@ components:
       schema:
         type: string
       description: API key (alternative — X-Api-Key header or Bearer)
+    TorznabT:
+      name: t
+      in: query
+      schema:
+        type: string
+        enum: [caps, indexers, search, tvsearch, movie, tv, moviesearch]
+      description: Torznab function (`caps`, `indexers`, or search type)
+    TorznabQ:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: |
+        Free-text search query. When `search.stripSeasonEpisode` is true (default), inline TV tokens
+        (`S01`, `S01E01`, `1x01`, `Season 1`) are stripped and both variants are searched
+        (e.g. `silo S01` also searches `silo`). Trailing year is also stripped when
+        `search.stripTrailingYear` is true (`укрытие 2023 S01` → `укрытие 2023` → `укрытие`).
+        IMDb/KP/TMDB ids (`tt…`/`kp…`/`tmdb…`) are not stripped.
+    TorznabCat:
+      name: cat
+      in: query
+      schema:
+        type: string
+      description: Comma-separated Torznab category ids
+    TorznabImdbId:
+      name: imdbid
+      in: query
+      schema:
+        type: string
+      description: |
+        IMDb id (`tt…` or bare digits); aliases `imdb_id`, `imdbId` also accepted.
+        Resolved via Alloha TV API v2 to titles before FileDB search.
+        Kinopoisk ids are accepted on `q`/`query` as `kp…`; TMDB as `tmdb…` or a themoviedb.org
+        `/movie|tv/{id}-…` URL (same Alloha resolve path).
+    TorznabTvdbId:
+      name: tvdbid
+      in: query
+      schema:
+        type: string
+      description: |
+        TheTVDB id (tv-search). Advertised in caps; JacRed does not resolve TVDB ids.
+        A `tvdbid`-only request (no `q`/`imdbid`) returns empty results — send `q` or `imdbid` instead.
+    TorznabRid:
+      name: rid
+      in: query
+      schema:
+        type: string
+      description: Alias for `tvdbid`
+    TorznabSeason:
+      name: season
+      in: query
+      schema:
+        type: integer
+      description: |
+        Season number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true
+        (clients such as AIOStreams filter episodes themselves).
+    TorznabEp:
+      name: ep
+      in: query
+      schema:
+        type: integer
+      description: |
+        Episode number (tv-search post-filter). Skipped when `search.skipSeasonEpisodeFilter` is true.
+    TorznabEpisode:
+      name: episode
+      in: query
+      schema:
+        type: integer
+      description: Alias for `ep`
+    TorznabTitle:
+      name: title
+      in: query
+      schema:
+        type: string
+      description: Localized title (JacRed / Lampa card search)
+    TorznabTitleOriginal:
+      name: title_original
+      in: query
+      schema:
+        type: string
+      description: Original title (JacRed / Lampa card search)
+    TorznabLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+      description: Max results after filters
+    TorznabOffset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+      description: Result offset for pagination
+    TorznabConfigured:
+      name: configured
+      in: query
+      schema:
+        type: string
+      description: |
+        Used with `t=indexers`. Omit, empty, or `true` returns the JacRed indexer list XML;
+        `false` returns an empty `<indexers>` document.
+      example: "true"
+    SearchQ:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: |
+        Free-text search alias for `query` / Torznab `q`. Same season/year stripping as Torznab `q`.
+    SearchQueryAlt:
+      name: Query
+      in: query
+      schema:
+        type: string
+      description: Alternate capitalization of free-text search query (same stripping as `q`)
+    ImdbIdAltUnderscore:
+      name: imdb_id
+      in: query
+      schema:
+        type: string
+      description: Alias for `imdbid`
+    ImdbIdAltCamel:
+      name: imdbId
+      in: query
+      schema:
+        type: string
+      description: Alias for `imdbid`
+    Categories:
+      name: categories
+      in: query
+      schema:
+        type: array
+        items:
+          type: integer
+      style: form
+      explode: true
+      description: |
+        Torznab/Jackett category ids (repeat or comma-separated).
+        Also accepted as `cat`, `Category`, `Category[]`, `Category[n]`.
+    Category:
+      name: Category
+      in: query
+      schema:
+        type: string
+      description: Single or comma-separated category ids (alias for `categories` / `cat`)
+    CategoryBracket:
+      name: Category[]
+      in: query
+      schema:
+        type: array
+        items:
+          type: integer
+      style: form
+      explode: true
+      description: Jackett/Lampa category array (e.g. 2000 movies, 5000 TV, 5070 anime)
+    TrackerArray:
+      name: Tracker[]
+      in: query
+      schema:
+        type: array
+        items:
+          $ref: "#/components/schemas/TrackerSlug"
+      style: form
+      explode: true
+      description: |
+        Jackett-style filter by internal tracker id (e.g. kinozal, rutracker).
+        Case-insensitive; matches any comma-separated part of stored trackerName.
+    TrackerFilter:
+      name: Tracker
+      in: query
+      schema:
+        type: string
+        description: Comma-separated `TrackerSlug` values (e.g. `kinozal,korsars`)
+      description: |
+        Optional tracker filter (comma-separated `TrackerSlug` values); same semantics as `Tracker[]`.
+        Also accepted as `tracker` / `Tracker[n]`.
+    TrackerAlias:
+      name: tracker
+      in: query
+      schema:
+        type: string
+        description: Comma-separated `TrackerSlug` values (e.g. `kinozal,rutracker`)
+      description: |
+        Single-tracker or comma-separated alias for `Tracker[]` / `Tracker`
+        (`TrackerSlug` values; case-insensitive; matches any comma-separated part of stored trackerName).
+    Genres:
+      name: genres
+      in: query
+      schema:
+        type: string
+      description: |
+        When non-empty, enables JacRed card-metadata search mode (same trigger as title/title_original).
+        Not used as a genre filter on results.
+    Year:
+      name: year
+      in: query
+      schema:
+        type: integer
+      description: |
+        Release year filter / card-search override.
+        When omitted on an IMDb/KP/TMDB id query and `alloha.filterByYear` is enabled, Alloha year ±1 is applied.
+    IsSerial:
+      name: is_serial
+      in: query
+      schema:
+        type: integer
+      description: "-1 unknown, 1 movie, 2 serial, 3 tvshow, 4 doc, 5 anime"
 
   responses:
     Unauthorized:
-      description: Missing or invalid API key
+      description: Missing or invalid API key (when apikey is configured)
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
+    ConfigUnauthorized:
+      description: Invalid or missing devkey
+    ConfigForbidden:
+      description: Forbidden (LAN trusted client or valid X-Dev-Key / ?devkey= required)
 
   schemas:
+    TrackerSlug:
+      type: string
+      description: Internal tracker id (FileDB / cron / synctrackers)
+      enum:
+        - anibelka
+        - anidub
+        - anifilm
+        - aniliberty
+        - animelayer
+        - anistar
+        - baibako
+        - bitru
+        - kinozal
+        - knaben
+        - korsars
+        - leproduction
+        - lostfilm
+        - mazepa
+        - megapeer
+        - nnmclub
+        - rudub
+        - rutor
+        - rutracker
+        - selezen
+        - subsplease
+        - toloka
+        - torrentby
+        - ultradox
+        - viruseproject
+      example: korsars
+
     HealthResponse:
       type: object
       properties:
         status:
           type: string
           example: OK
+
+    BackgroundJobsResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackgroundJob"
+      required: [jobs]
+
+    BackgroundJob:
+      type: object
+      description: |
+        JSON uses ASP.NET default naming (`PropertyNamingPolicy = null`):
+        PascalCase for Key/Tracker/JobLabel/ProgressDetail and camelCase for the remaining fields.
+      properties:
+        Key:
+          type: string
+          description: Internal job key
+        Tracker:
+          $ref: "#/components/schemas/TrackerSlug"
+        JobLabel:
+          type: string
+          description: Human-readable job label (e.g. ParseAll, UpdateTasks)
+        startedAtUtc:
+          type: string
+          format: date-time
+        ageSec:
+          type: integer
+          description: Seconds since startedAtUtc
+        progressCurrent:
+          type: integer
+          nullable: true
+        progressTotal:
+          type: integer
+          nullable: true
+        ProgressDetail:
+          type: string
+          nullable: true
 
     VersionResponse:
       type: object
@@ -1084,6 +1661,32 @@ components:
           type: string
           enum: [unknown, usenet, torrent]
           example: torrent
+
+    JackettIndexer:
+      type: object
+      description: |
+        Jackett-style indexer discovery item from `GET /api/v2.0/indexers`.
+        `id=all` is the aggregate; other ids are tracker slugs from the tracker catalog.
+      properties:
+        id:
+          type: string
+          description: "'all' or a tracker id (e.g. rutracker)"
+          example: all
+        name:
+          type: string
+          example: JacRed (all trackers)
+        description:
+          type: string
+        type:
+          type: string
+          example: public
+        configured:
+          type: boolean
+        link:
+          type: string
+          format: uri
+          example: https://github.com/jacred-fdb/jacred
+      required: [id, name, configured]
 
     ProwlarrIndexerDetail:
       type: object
@@ -1244,7 +1847,7 @@ components:
           type: string
           description: Serialized config text
         schema:
-          $ref: '#/components/schemas/ConfigFormSchema'
+          $ref: "#/components/schemas/ConfigFormSchema"
         sensitiveFields:
           type: array
           items:
@@ -1311,11 +1914,11 @@ components:
         diffs:
           type: array
           items:
-            $ref: '#/components/schemas/ConfigDiffEntry'
+            $ref: "#/components/schemas/ConfigDiffEntry"
         changeCount:
           type: integer
         validation:
-          $ref: '#/components/schemas/ConfigValidationResponse'
+          $ref: "#/components/schemas/ConfigValidationResponse"
 
     ConfigRenderResponse:
       type: object
@@ -1360,7 +1963,7 @@ components:
               fields:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ConfigFieldSchema'
+                  $ref: "#/components/schemas/ConfigFieldSchema"
               trackers:
                 type: array
                 items:
@@ -1395,7 +1998,7 @@ components:
         Results:
           type: array
           items:
-            $ref: '#/components/schemas/JackettResult'
+            $ref: "#/components/schemas/JackettResult"
         jacred:
           type: boolean
           description: Always true for JacRed responses (read-only marker)
@@ -1495,6 +2098,9 @@ components:
       properties:
         tracker:
           type: string
+          description: |
+            Tracker id, or a merged comma-separated trackerName (e.g. `kinozal,rutracker`).
+            Known single slugs are listed under `TrackerSlug`.
         title:
           type: string
         size:
@@ -1554,6 +2160,9 @@ components:
       properties:
         trackerName:
           type: string
+          description: |
+            Tracker id or merged trackerName from stats.json.
+            Known single slugs are listed under `TrackerSlug`.
         lastnewtor:
           type: string
           nullable: true
@@ -1571,7 +2180,7 @@ components:
           nullable: true
         tracks:
           allOf:
-            - $ref: '#/components/schemas/TrackerTracks'
+            - $ref: "#/components/schemas/TrackerTracks"
           nullable: true
 
     StatsMeta:
@@ -1590,6 +2199,75 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    SyncFdbKeyItem:
+      type: object
+      description: One FileDB master key match from `GET /sync/fdb`
+      properties:
+        Key:
+          type: string
+          description: FileDB bucket key
+        updateTime:
+          type: string
+          format: date-time
+        fileTime:
+          type: integer
+          format: int64
+        path:
+          type: string
+          description: Relative path under Data/fdb
+        value:
+          type: object
+          additionalProperties: true
+          description: Opened FileDB payload for the key
+
+    SyncFdbTorrentsResponse:
+      type: object
+      description: |
+        Incremental torrent sync batch from `GET /sync/fdb/torrents`.
+        Soft-empty when `opensync` is false or `time` is `0`: `{ nextread: false, collections: [] }`.
+      properties:
+        nextread:
+          type: boolean
+          description: True when more batches remain after this response
+        countread:
+          type: integer
+          description: Number of torrents included in this batch
+        take:
+          type: integer
+          description: Soft batch size threshold (default 2000)
+          example: 2000
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncFdbCollection"
+      required: [nextread, collections]
+
+    SyncFdbCollection:
+      type: object
+      properties:
+        Key:
+          type: string
+          description: FileDB bucket key
+        Value:
+          $ref: "#/components/schemas/SyncFdbCollectionValue"
+      required: [Key, Value]
+
+    SyncFdbCollectionValue:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+        fileTime:
+          type: integer
+          format: int64
+        torrents:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: true
+          description: Map of torrent id → torrent details (full or spidr-slim)
 
 security:
   - ApiKeyQuery: []

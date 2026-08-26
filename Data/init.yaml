@@ -23,22 +23,31 @@ logFdbMaxFiles: 0
 logParsers: true
 syncapi: ""
 synctrackers:
-  - rutracker
-  - rutor
-  - kinozal
-  - nnmclub
-  - megapeer
-  - bitru
-  - toloka
-  - mazepa
-  - lostfilm
-  - baibako
-  - torrentby
-  - selezen
-  - animelayer
+  - anibelka
   - anidub
+  - anifilm
   - aniliberty
+  - animelayer
+  - anistar
+  - baibako
+  - bitru
+  - kinozal
   - knaben
+  - korsars
+  - leproduction
+  - lostfilm
+  - mazepa
+  - megapeer
+  - nnmclub
+  - rudub
+  - rutor
+  - rutracker
+  - selezen
+  - subsplease
+  - toloka
+  - torrentby
+  - ultradox
+  - viruseproject
 disable_trackers: []
 syncsport: false
 syncspidr: false
@@ -77,6 +86,8 @@ search:
   maxV1Pairs: 4
   v1Sort: sid
   stripTrailingYear: true
+  stripSeasonEpisode: true
+  skipSeasonEpisodeFilter: false
   skipCatFilter: true
 torznab:
   enable: true
@@ -86,3 +97,82 @@ logging:
   cronSkipFastMs: 100
   categories:
     parsers: None
+
+Anistar:
+  host: https://anistar.org
+  alias: https://v30.astar.bz
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+
+Leproduction:
+  host: https://www.le-production.online
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Viruseproject:
+  host: https://viruseproject.tv
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Anifilm:
+  host: https://anifilm.pro
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+  login:
+    u: ""
+    p: ""
+
+Anibelka:
+  host: https://anibelka.com
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Ultradox:
+  host: https://ultradox.onl
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+
+Korsars:
+  host: https://korsars.pro
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+  login:
+    u: ""
+    p: ""
+
+Rudub:
+  host: https://r4.rudub.world
+  alias: ""
+  useproxy: false
+  reqMinute: 8
+  parseDelay: 7000
+  log: true
+  cookie: ""
+  login:
+    u: ""
+    p: ""
+
+SubsPlease:
+  host: https://subsplease.org
+  useproxy: false
+  reqMinute: 30
+  parseDelay: 1000
+  log: true

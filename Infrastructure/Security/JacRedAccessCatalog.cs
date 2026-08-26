@@ -19,7 +19,7 @@ namespace JacRed.Infrastructure.Security
             new("/health/background-jobs", JacRedAccessPolicy.Public, "HealthController", "In-process ParseAll/UpdateTasks"),
             new("/version", JacRedAccessPolicy.Public, "HealthController"),
             new("/lastupdatedb", JacRedAccessPolicy.Public, "HealthController"),
-            new("/api/v1.0/conf", JacRedAccessPolicy.Public, "HealthController", "Jackett apikey probe"),
+            new("/api/v1.0/conf", JacRedAccessPolicy.Public, "HealthController", "JacRed identity + apikey probe + version"),
             new("/openapi.yaml", JacRedAccessPolicy.Public, "Startup"),
             new("/swagger", JacRedAccessPolicy.Public, "Swagger"),
             new("/swagger/index.html", JacRedAccessPolicy.Public, "Swagger"),
@@ -45,6 +45,7 @@ namespace JacRed.Infrastructure.Security
 
             // Search — apikey when configured
             new("/api/v1.0/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
+            new("/api/v1.0/trackers", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
             new("/api/v1.0/qualitys", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),
             new("/api/v2.0/indexers/all/results", JacRedAccessPolicy.ApiKeyWhenConfigured, "JackettController"),
             new("/torznab/api", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorznabController"),

@@ -1,8 +1,8 @@
 using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Stats;
+using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
 using JacRed.Models.Tracks;
-using MonoTorrent;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -84,19 +84,7 @@ namespace JacRed.Infrastructure.Tracks
 
         public static bool TryGetInfohashFromMagnet(string magnet, out string infohash)
         {
-            infohash = null;
-            if (string.IsNullOrEmpty(magnet))
-                return false;
-
-            try
-            {
-                infohash = TracksPathResolver.NormalizeInfohash(MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex());
-                return TracksPathResolver.IsValidInfohash(infohash);
-            }
-            catch
-            {
-                return false;
-            }
+            return MagnetInfohash.TryGetHexV1OrV2(magnet, out infohash);
         }
 
         public static int TrackIndexCount => TracksIndexManager.TrackIndexCount;

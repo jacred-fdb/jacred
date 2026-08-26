@@ -211,7 +211,8 @@ namespace JacRed.Infrastructure.Trackers.Mazepa
                 }
 
                 byte[] torrentFile = await HttpClient.Download($"{host}/dl.php?id={t.downloadId}", cookie: Cookie(), referer: host);
-                string magnet = BencodeTo.Magnet(torrentFile);
+                // Strip announce: Mazepa embeds uk=<passkey> in tracker URLs when logged in.
+                string magnet = BencodeTo.MagnetNoTrackers(torrentFile);
                 if (magnet == null)
                     return false;
 

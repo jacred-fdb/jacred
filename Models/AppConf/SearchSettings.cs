@@ -17,6 +17,12 @@ namespace JacRed.Models.AppConf
         /// <summary>Strip trailing year from fuzzy query and search both variants.</summary>
         public bool stripTrailingYear { get; set; } = true;
 
+        /// <summary>Strip inline SxxExx / season tokens from fuzzy query and search both variants.</summary>
+        public bool stripSeasonEpisode { get; set; } = true;
+
+        /// <summary>Skip season/episode post-filter (client filters by episode, e.g. AIOStreams).</summary>
+        public bool skipSeasonEpisodeFilter { get; set; } = false;
+
         /// <summary>Skip category post-filter on server (client filters by cat/Category[]).</summary>
         public bool skipCatFilter { get; set; } = true;
     }

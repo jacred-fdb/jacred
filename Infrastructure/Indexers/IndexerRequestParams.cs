@@ -1,3 +1,4 @@
+using JacRed.Infrastructure.External;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,6 @@ namespace JacRed.Infrastructure.Indexers
 {
     public static class IndexerRequestParams
     {
-        static readonly Regex ImdbKpRegex = new Regex(@"^(tt|kp)[0-9]+$", RegexOptions.IgnoreCase);
-
         public static string StripWrappingQuotes(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null;
@@ -24,23 +23,42 @@ namespace JacRed.Infrastructure.Indexers
             var s = StripWrappingQuotes(value);
             if (string.IsNullOrWhiteSpace(s)) return null;
             s = s.Trim();
+            if (AllohaTitleResolver.TryNormalizeId(s, out string canonical, out _))
+                return canonical;
             if (s.StartsWith("kp", StringComparison.OrdinalIgnoreCase)) return s.ToLowerInvariant();
             if (s.StartsWith("tt", StringComparison.OrdinalIgnoreCase)) return s.ToLowerInvariant();
             if (Regex.IsMatch(s, @"^\d{7,10}$")) return "tt" + s;
             return s;
         }
 
+        /// <summary>True for <c>tt…</c> / <c>kp…</c> / <c>tmdb…</c> / themoviedb.org URLs.</summary>
         public static bool IsImdbOrKpQuery(string query)
         {
-            return !string.IsNullOrWhiteSpace(query) && ImdbKpRegex.IsMatch(query.Trim());
+            return AllohaTitleResolver.IsResolvableId(query);
         }
 
         public static string NormalizeQuery(string query)
         {
             var q = StripWrappingQuotes(query);
             if (string.IsNullOrWhiteSpace(q)) return null;
-            if (Regex.IsMatch(q.Trim(), @"^\d{7,10}$")) return "tt" + q.Trim();
-            return q.Trim();
+            q = q.Trim();
+            if (AllohaTitleResolver.TryNormalizeId(q, out string canonical, out _))
+                return canonical;
+            if (Regex.IsMatch(q, @"^\d{7,10}$")) return "tt" + q;
+            return q;
+        }
+
+        public static string NormalizeTmdbId(string value)
+        {
+            var s = StripWrappingQuotes(value);
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            s = s.Trim();
+            if (AllohaTitleResolver.TryNormalizeId(s, out string canonical, out _)
+                && canonical.StartsWith("tmdb", StringComparison.OrdinalIgnoreCase))
+                return canonical;
+            if (Regex.IsMatch(s, @"^\d+$"))
+                return "tmdb" + s;
+            return null;
         }
 
         public static string ImDbIdFromQuery(IQueryCollection query)
@@ -263,6 +281,39 @@ namespace JacRed.Infrastructure.Indexers
             if (string.IsNullOrWhiteSpace(query)) return null;
             var m = Regex.Match(query.Trim(), @"^(.+?)\s+(19|20)\d{2}$");
             return m.Success ? m.Groups[1].Value.Trim() : null;
+        }
+
+        static readonly Regex SeasonEpisodeTokenRe = new Regex(
+            @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        static readonly Regex RussianSeasonSuffixRe = new Regex(
+            @"\s*\d{1,2}(-\d{1,2})?\s*сезон\s*.*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        static readonly Regex SeasonWordSuffixRe = new Regex(
+            @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Strip inline TV season/episode tokens from text search queries (AIOStreams/Sonarr-style <c>q=</c> params).
+        /// Returns null when nothing changed.
+        /// </summary>
+        public static string StripSeasonEpisode(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return null;
+            if (IsImdbOrKpQuery(query)) return null;
+
+            string original = query.Trim();
+            string t = SeasonEpisodeTokenRe.Replace(original, "");
+            t = RussianSeasonSuffixRe.Replace(t, "");
+            t = SeasonWordSuffixRe.Replace(t, "");
+            t = Regex.Replace(t, @"\s{2,}", " ").Trim();
+
+            if (string.IsNullOrEmpty(t) || string.Equals(t, original, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            return t;
         }
     }
 }

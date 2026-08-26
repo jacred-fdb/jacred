@@ -36,7 +36,20 @@ namespace JacRed.Infrastructure.Tracks
             if (types != null && theBad(types))
                 return null;
 
-            string infohash = TracksPathResolver.NormalizeInfohash(MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex());
+            string infohash;
+            try
+            {
+                infohash = TracksPathResolver.NormalizeInfohash(MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex());
+            }
+            catch
+            {
+                // Some trackers may provide malformed magnet URIs.
+                // Skip such torrents without aborting the whole parse/enrichment flow.
+                return null;
+            }
+
+            if (!TracksPathResolver.IsValidInfohash(infohash))
+                return null;
             if (Database.TryGetValue(infohash, out FfprobeModel res))
                 return res.streams;
 

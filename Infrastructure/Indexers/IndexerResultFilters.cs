@@ -48,25 +48,25 @@ namespace JacRed.Infrastructure.Indexers
             }).ToList();
         }
 
+        /// <summary>Keep items whose info.types contains <paramref name="type"/>; items with null/empty types pass.</summary>
+        public static List<Result> FilterByType(List<Result> items, string type)
+        {
+            if (string.IsNullOrWhiteSpace(type)) return items;
+            return items.Where(t =>
+            {
+                var types = t.info?.types;
+                if (types == null || types.Length == 0) return true;
+                return types.Contains(type);
+            }).ToList();
+        }
+
         public static List<Result> FilterByTrackers(List<Result> items, List<string> trackers)
         {
             if (trackers == null || trackers.Count == 0)
                 return items;
 
-            var allowed = new HashSet<string>(trackers, StringComparer.OrdinalIgnoreCase);
-            return items.Where(t =>
-            {
-                if (string.IsNullOrWhiteSpace(t.Tracker))
-                    return false;
-
-                foreach (var part in t.Tracker.Split(','))
-                {
-                    if (allowed.Contains(part.Trim()))
-                        return true;
-                }
-
-                return false;
-            }).ToList();
+            var allowed = TrackerNameMatching.ToAllowSet(trackers);
+            return items.Where(t => TrackerNameMatching.Matches(t.Tracker, allowed)).ToList();
         }
 
         public static List<Result> Paginate(List<Result> items, int? limit, int? offset)

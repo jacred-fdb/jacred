@@ -27,23 +27,11 @@ namespace JacRed.Infrastructure.Indexers
             @"\{((?:author\:)(?<author>[^{]+)|(?:publisher\:)(?<publisher>[^{]+)|(?:title\:)(?<title>[^{]+)|(?:year\:)(?<year>[^{]+)|(?:genre\:)(?<genre>[^{]+))\}",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        // Lampa parse_lang / Jackett NUM: "Русское English 1999" or "Русское English"
-        static readonly Regex RuEnYear = new(
-            @"^([^a-zA-Z]+) ([^а-яА-ЯёЁ]+) ((?:19|20)\d{2})$",
-            RegexOptions.Compiled);
-
-        static readonly Regex RuEn = new(
-            @"^([^a-zA-Z]+) ([^а-яА-ЯёЁ]+)$",
-            RegexOptions.Compiled);
-
-        static readonly Regex TrailingYear = new(
-            @"^(.+?)\s+((?:19|20)\d{2})$",
-            RegexOptions.Compiled);
-
         public sealed class Parsed
         {
             public string Query { get; set; }
             public string ImdbId { get; set; }
+            public string TmdbId { get; set; }
             public int? Season { get; set; }
             public int? Episode { get; set; }
             public int? Year { get; set; }
@@ -73,6 +61,8 @@ namespace JacRed.Infrastructure.Indexers
                         hadTvdb = true;
                     if (match.Groups["imdbid"].Success)
                         result.ImdbId = IndexerRequestParams.NormalizeImdbId(match.Groups["imdbid"].Value);
+                    if (match.Groups["tmdbid"].Success)
+                        result.TmdbId = IndexerRequestParams.NormalizeTmdbId(match.Groups["tmdbid"].Value);
                     if (match.Groups["season"].Success && int.TryParse(match.Groups["season"].Value, out int season) && season > 0)
                         result.Season = season;
                     if (match.Groups["episode"].Success && int.TryParse(match.Groups["episode"].Value, out int episode) && episode > 0)
@@ -90,6 +80,8 @@ namespace JacRed.Infrastructure.Indexers
                 {
                     if (match.Groups["imdbid"].Success)
                         result.ImdbId = IndexerRequestParams.NormalizeImdbId(match.Groups["imdbid"].Value);
+                    if (match.Groups["tmdbid"].Success)
+                        result.TmdbId = IndexerRequestParams.NormalizeTmdbId(match.Groups["tmdbid"].Value);
                     if (match.Groups["year"].Success && int.TryParse(match.Groups["year"].Value, out int year) && year > 0)
                         result.Year = year;
                     if (match.Groups["genre"].Success)
@@ -131,17 +123,23 @@ namespace JacRed.Infrastructure.Indexers
             q = IndexerRequestParams.NormalizeQuery(q?.Trim());
             if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.ImdbId))
                 q = result.ImdbId;
+            if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.TmdbId))
+                q = result.TmdbId;
             if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.Title))
                 q = result.Title;
             if (string.IsNullOrWhiteSpace(q) && !string.IsNullOrWhiteSpace(result.Artist))
                 q = string.IsNullOrWhiteSpace(result.Album) ? result.Artist : $"{result.Artist} {result.Album}";
 
             // Lampa Prowlarr card search: plain query only — promote into Jackett card fields.
-            if (!string.IsNullOrWhiteSpace(q) && string.IsNullOrWhiteSpace(result.ImdbId))
+            if (!string.IsNullOrWhiteSpace(q)
+                && string.IsNullOrWhiteSpace(result.ImdbId)
+                && string.IsNullOrWhiteSpace(result.TmdbId))
                 EnrichPlainQuery(result, q);
 
             result.Query = q;
-            result.TvdbIdOnly = hadTvdb && string.IsNullOrWhiteSpace(result.Query) && string.IsNullOrWhiteSpace(result.ImdbId);
+            result.TvdbIdOnly = hadTvdb && string.IsNullOrWhiteSpace(result.Query)
+                && string.IsNullOrWhiteSpace(result.ImdbId)
+                && string.IsNullOrWhiteSpace(result.TmdbId);
             return result;
         }
 
@@ -151,82 +149,14 @@ namespace JacRed.Infrastructure.Indexers
         /// </summary>
         static void EnrichPlainQuery(Parsed result, string q)
         {
-            var slash = IndexerRequestParams.SplitBilingualQuery(q);
-            if (!string.IsNullOrWhiteSpace(slash.ru) || !string.IsNullOrWhiteSpace(slash.en))
-            {
-                string ru = slash.ru;
-                string en = slash.en;
-                if (!result.Year.HasValue)
-                {
-                    if (TryTakeTrailingYear(ru, out var ruStripped, out int y) && y > 0)
-                    {
-                        result.Year = y;
-                        ru = ruStripped;
-                    }
-                    else if (TryTakeTrailingYear(en, out var enStripped, out y) && y > 0)
-                    {
-                        result.Year = y;
-                        en = enStripped;
-                    }
-                }
-                result.Title ??= ru;
-                result.TitleOriginal ??= en;
+            var parsed = NumQueryParser.Parse(q);
+            if (!parsed.Matched)
                 return;
-            }
 
-            // "Русское English 1999"
-            var mYear = RuEnYear.Match(q);
-            if (mYear.Success && Regex.IsMatch(mYear.Groups[2].Value, "[a-zA-Z0-9]{2}"))
-            {
-                result.Title ??= mYear.Groups[1].Value.Trim();
-                result.TitleOriginal ??= mYear.Groups[2].Value.Trim();
-                if (!result.Year.HasValue && int.TryParse(mYear.Groups[3].Value, out int y) && y > 0)
-                    result.Year = y;
-                return;
-            }
-
-            // "Русское English"
-            var mRuEn = RuEn.Match(q);
-            if (mRuEn.Success && Regex.IsMatch(mRuEn.Groups[2].Value, "[a-zA-Z0-9]{2}"))
-            {
-                result.Title ??= mRuEn.Groups[1].Value.Trim();
-                result.TitleOriginal ??= mRuEn.Groups[2].Value.Trim();
-                return;
-            }
-
-            string single = q;
-            if (!result.Year.HasValue && TryTakeTrailingYear(q, out string stripped, out int trailingYear) && trailingYear > 0)
-            {
-                result.Year = trailingYear;
-                single = stripped;
-            }
-
-            // Single-language query → use as card title for exact match.
-            if (string.IsNullOrWhiteSpace(result.Title) && string.IsNullOrWhiteSpace(result.TitleOriginal))
-            {
-                if (Regex.IsMatch(single, @"[а-яА-ЯёЁ]"))
-                    result.Title = single;
-                else
-                    result.TitleOriginal = single;
-            }
-        }
-
-        static bool TryTakeTrailingYear(string value, out string stripped, out int year)
-        {
-            stripped = value;
-            year = 0;
-            if (string.IsNullOrWhiteSpace(value))
-                return false;
-
-            var m = TrailingYear.Match(value.Trim());
-            if (!m.Success || !int.TryParse(m.Groups[2].Value, out year) || year < 1900 || year > 2100)
-            {
-                year = 0;
-                return false;
-            }
-
-            stripped = m.Groups[1].Value.Trim();
-            return !string.IsNullOrWhiteSpace(stripped);
+            result.Title ??= parsed.Title;
+            result.TitleOriginal ??= parsed.TitleOriginal;
+            if (!result.Year.HasValue && parsed.Year > 0)
+                result.Year = parsed.Year;
         }
     }
 }

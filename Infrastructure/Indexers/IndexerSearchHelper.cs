@@ -128,7 +128,7 @@ namespace JacRed.Infrastructure.Indexers
             if (req.Year > 0 && !req.CardMode)
                 results = IndexerResultFilters.FilterByYear(results, req.Year);
 
-            if (req.Season.HasValue)
+            if (req.Season.HasValue && !settings.skipSeasonEpisodeFilter)
                 results = SeasonEpisodeFilter.Filter(results, req.Season.Value, req.Episode);
 
             results = IndexerResultFilters.FilterByTrackers(results, req.Trackers);

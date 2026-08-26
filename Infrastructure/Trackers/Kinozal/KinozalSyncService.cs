@@ -26,6 +26,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
     {
         const string TrackerName = "kinozal";
         const string TaskParsePath = "Data/temp/kinozal_taskParse.json";
+        static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 
         readonly IMemoryCache _memoryCache;
 
@@ -51,7 +52,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         static void PersistTaskParse()
         {
-            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            try { ParseAllCycleStore.WriteJsonAtomic(TaskParsePath, taskParse); }
             catch { }
         }
 
@@ -336,9 +337,12 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             {
                 try
                 {
+                    var (cycle, mapCount, pendingCount) = ParseAllCycleStore.BeginNestedFullRun(TrackerName, taskParse);
+                    ParserLog.Write(TrackerName, $"ParseAllTask start {ParseAllCycleStore.FormatStartLog(cycle, pendingCount, mapCount)}");
+
                     var pending = taskParse.ToArray()
                         .SelectMany(cat => cat.Value.ToArray()
-                            .SelectMany(arg => arg.Value.Where(v => DateTime.Today != v.updateTime)
+                            .SelectMany(arg => arg.Value.Where(v => ParseAllCycleStore.IsPendingInCycle(v, cycle))
                                 .Select(v => (cat: cat.Key, arg: arg.Key, val: v))))
                         .ToArray();
                     int done = 0;
@@ -351,7 +355,10 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
                         bool res = await parsePage(item.cat, item.val.page, item.arg, ct);
                         if (res)
-                            item.val.updateTime = DateTime.Today;
+                        {
+                            ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
+                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
+                        }
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
@@ -375,6 +382,8 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     var sw = Stopwatch.StartNew();
                     ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
+                    var cycle = ParseAllCycleStore.LoadNestedActiveCycle(TrackerName, taskParse);
+
                     foreach (var cat in taskParse.ToArray())
                     {
                         foreach (var arg in cat.Value.ToArray())
@@ -388,13 +397,15 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                                 bool res = await parsePage(cat.Key, val.page, arg.Key);
                                 if (res)
                                 {
-                                    val.updateTime = DateTime.Today;
+                                    ParseAllCycleStore.MarkDoneInCycle(val, cycle);
                                     log.AppendLine($"{cat.Key} - {arg.Key} - {val.page}");
                                 }
                             }
                         }
                     }
 
+                    PersistTaskParse();
+                    ParseAllCycleStore.SaveState(CyclePath, cycle);
                     ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
                 catch (Exception ex)

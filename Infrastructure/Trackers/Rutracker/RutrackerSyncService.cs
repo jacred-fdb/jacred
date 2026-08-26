@@ -21,6 +21,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
     {
         const string TrackerName = "rutracker";
         const string TaskParsePath = "Data/temp/rutracker_taskParse.json";
+        static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 
         readonly IMemoryCache _memoryCache;
 
@@ -41,7 +42,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
         static void PersistTaskParse()
         {
-            try { IO.File.WriteAllText(TaskParsePath, JsonConvert.SerializeObject(taskParse)); }
+            try { ParseAllCycleStore.WriteJsonAtomic(TaskParsePath, taskParse); }
             catch { }
         }
 
@@ -215,9 +216,25 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 try
                 {
                     var catFilter = ResolveCatFilter(cat);
+                    bool fullRun = catFilter == null && maxPages <= 0;
+                    ParseAllCycleState cycle = null;
+
+                    if (fullRun)
+                    {
+                        var (cycleState, mapCount, pendingCount) = ParseAllCycleStore.BeginFlatFullRun(TrackerName, taskParse);
+                        cycle = cycleState;
+                        ParserLog.Write(TrackerName, $"ParseAllTask start {ParseAllCycleStore.FormatStartLog(cycle, pendingCount, mapCount)} maxPages={maxPages}");
+                    }
+                    else
+                    {
+                        ParserLog.Write(TrackerName, $"ParseAllTask start partial cat={cat ?? "*"} maxPages={maxPages}");
+                    }
+
                     var pending = taskParse.ToArray()
                         .Where(t => catFilter == null || catFilter.Contains(t.Key))
-                        .SelectMany(t => t.Value.Where(v => DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
+                        .SelectMany(t => t.Value.Where(v => fullRun
+                            ? ParseAllCycleStore.IsPendingInCycle(v, cycle)
+                            : DateTime.Today != v.updateTime).Select(v => (cat: t.Key, val: v)))
                         .ToArray();
 
                     if (maxPages > 0 && pending.Length > maxPages)
@@ -225,7 +242,6 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
                     int done = 0;
                     TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
-                    ParserLog.Write(TrackerName, $"ParseAllTask start pending={pending.Length} maxPages={maxPages}");
 
                     foreach (var item in pending)
                     {
@@ -234,7 +250,17 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
                         bool res = await parsePage(item.cat, item.val.page, ct);
                         if (res)
-                            item.val.updateTime = DateTime.Today;
+                        {
+                            if (fullRun)
+                            {
+                                ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
+                                ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
+                            }
+                            else
+                            {
+                                item.val.updateTime = DateTime.Today;
+                            }
+                        }
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
@@ -273,6 +299,9 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                     var sw = Stopwatch.StartNew();
                     ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
+                    var allPages = taskParse.SelectMany(t => t.Value).ToList();
+                    var cycle = ParseAllCycleStore.LoadFlatActiveCycle(TrackerName, taskParse);
+
                     foreach (var task in taskParse.ToArray())
                     {
                         var pagesToParse = task.Value.OrderBy(x => x.page).Take(pages).ToArray();
@@ -284,12 +313,14 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                             bool res = await parsePage(task.Key, val.page);
                             if (res)
                             {
-                                val.updateTime = DateTime.Today;
+                                ParseAllCycleStore.MarkDoneInCycle(val, cycle);
                                 log.AppendLine($"{task.Key} - {val.page}");
                             }
                         }
                     }
 
+                    PersistTaskParse();
+                    ParseAllCycleStore.SaveState(CyclePath, cycle);
                     ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                 }
                 catch (Exception ex)

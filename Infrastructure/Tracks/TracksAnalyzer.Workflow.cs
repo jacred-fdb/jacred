@@ -320,8 +320,20 @@ namespace JacRed.Infrastructure.Tracks
                     {
                         var db = FileDB.OpenRead(key, cache: false);
                         var torrent = db.Values.FirstOrDefault(t =>
-                            !string.IsNullOrEmpty(t.magnet) &&
-                            MagnetLink.Parse(t.magnet).InfoHashes.V1OrV2.ToHex() == infohash);
+                        {
+                            if (string.IsNullOrEmpty(t.magnet))
+                                return false;
+
+                            try
+                            {
+                                return MagnetLink.Parse(t.magnet).InfoHashes.V1OrV2.ToHex() == infohash;
+                            }
+                            catch
+                            {
+                                // Malformed magnet inside stored torrent must not abort the scan.
+                                return false;
+                            }
+                        });
 
                         if (torrent != null)
                             return key;

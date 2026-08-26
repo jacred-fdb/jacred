@@ -1,0 +1,61 @@
+/* Header logo: keep nav bar compact */
+.md-header__button.md-logo img,
+.md-nav__button.md-logo img {
+  height: 2rem;
+}
+
+/* Slightly wider content on large screens */
+@media screen and (min-width: 76.25em) {
+  .md-main__inner {
+    max-width: 61rem;
+  }
+}
+
+/* Table readability for wide config/API tables */
+.md-typeset table:not([class]) {
+  font-size: 0.85rem;
+}
+
+.md-typeset table:not([class]) th {
+  white-space: nowrap;
+}
+
+/* Landing grid cards */
+.md-typeset .grid.cards > ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.8rem;
+  margin: 1.2rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-typeset .grid.cards > ul > li {
+  margin: 0;
+  padding: 1rem;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  background: var(--md-default-bg-color);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: var(--md-shadow-z1);
+}
+
+.md-typeset .grid.cards > ul > li > :last-child {
+  margin-bottom: 0;
+}
+
+.md-typeset .grid.cards > ul > li > p:first-child {
+  margin-top: 0;
+}
+
+/* Hero CTA spacing on home */
+.md-typeset .hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0 1.5rem;
+}
