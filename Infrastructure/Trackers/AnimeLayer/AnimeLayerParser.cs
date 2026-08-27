@@ -64,6 +64,8 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
 
                 string _sid = Match("class=\"icon s-icons-upload\"></i>([0-9]+)");
                 string _pir = Match("class=\"icon s-icons-download\"></i>([0-9]+)");
+                string sizeName = Match(@"s-icons-download""></i>\s*[0-9]+\s*<span[^>]*>[\s\S]*?</span>\s*([0-9]+(?:[\.,][0-9]+)?\s*(?:[KMGT]B|[КМГТ]Б))");
+                sizeName = sizeName.Replace(",", ".");
 
                 if (string.IsNullOrWhiteSpace(urlPath) || string.IsNullOrWhiteSpace(title))
                     continue;
@@ -119,6 +121,7 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                         title = title,
                         sid = sid,
                         pir = pir,
+                        sizeName = sizeName,
                         createTime = createTime,
                         name = name,
                         originalname = originalname,
