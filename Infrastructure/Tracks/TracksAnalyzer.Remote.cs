@@ -23,6 +23,15 @@ namespace JacRed.Infrastructure.Tracks
 
         static readonly TimeSpan ListCacheTtl = TimeSpan.FromSeconds(10);
 
+        // Torrents picked but not yet reflected in a fresh GetTorrentList response (add is still
+        // in flight over the network, or sitting inside the ListCacheTtl window). Without this,
+        // every SelectBestServer call racing within that window sees the same stale count and
+        // all pile onto the same host — see selectBestServer tie/race notes below.
+        static readonly ConcurrentDictionary<string, int> _inFlightCounts =
+            new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        static readonly object _selectLock = new object();
+
         static TimeSpan GetTracksReadTimeout() =>
             TimeSpan.FromSeconds(Math.Max(1, AppInit.conf?.tracksreadtimeout ?? 30));
 
@@ -130,7 +139,15 @@ namespace JacRed.Infrastructure.Tracks
                 {
                     if (_analyzeConcurrency == null || _analyzeConcurrencyLimit != limit)
                     {
-                        _analyzeConcurrency?.Dispose();
+                        // Deliberately not disposing the old semaphore: AcquireAnalyzeSlotAsync
+                        // callers already holding a slot on it (acquired before this config
+                        // change was observed) call Release() on that same instance when their
+                        // analysis finishes. Disposing it here races those in-flight releases —
+                        // ObjectDisposedException, observed live when tracksconcurrency was
+                        // bumped 20->32 under an active batch. SemaphoreSlim.Dispose() is only
+                        // meaningful if AvailableWaitHandle was used (never is, here), so leaving
+                        // the old instance for the GC once its last holder drains is correct, not
+                        // a leak.
                         _analyzeConcurrency = new SemaphoreSlim(limit, limit);
                         _analyzeConcurrencyLimit = limit;
                     }
@@ -307,7 +324,32 @@ namespace JacRed.Infrastructure.Tracks
             if (validServers.Count == 0)
                 return null;
 
-            return validServers.OrderBy(r => r.count).First().server;
+            // The count+ordering+increment must happen as one atomic step: GetTorrentList above
+            // is async and can race across many concurrently-dispatched Add() calls (a batch of
+            // ~tracksconcurrency torrents all select at once, long before any of their adds land
+            // on the server and change the real count). Folding in _inFlightCounts and picking
+            // under a lock makes each concurrent caller see the picks made just microseconds
+            // earlier by the others in the same batch, instead of all racing the same stale
+            // snapshot and all choosing the same "least loaded" host.
+            // Random.Shared.Next() as the final tiebreaker: OrderBy is a stable sort, so without
+            // it, servers still tied after the above always resolve in tsuri list order, starving
+            // whichever tied host comes later in the config.
+            lock (_selectLock)
+            {
+                string chosen = validServers
+                    .OrderBy(r => r.count + _inFlightCounts.GetValueOrDefault(NormalizeTsuriKey(r.server)))
+                    .ThenBy(_ => Random.Shared.Next())
+                    .First().server;
+
+                _inFlightCounts.AddOrUpdate(NormalizeTsuriKey(chosen), 1, (_, v) => v + 1);
+                return chosen;
+            }
+        }
+
+        static void ReleaseInFlight(string tsuri)
+        {
+            string key = NormalizeTsuriKey(tsuri);
+            _inFlightCounts.AddOrUpdate(key, 0, (_, v) => Math.Max(0, v - 1));
         }
 
         static void AddBasicAuthHeader(HttpClient client, string url)

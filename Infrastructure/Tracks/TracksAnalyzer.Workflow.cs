@@ -112,9 +112,19 @@ namespace JacRed.Infrastructure.Tracks
                             cancellationTokenSource.CancelAfter(overallTimeout);
                             var token = cancellationTokenSource.Token;
 
-                            (bool torrentAdded, bool torrentExistsInCorrectCategory, bool serverError, bool addAttempted) =
-                                await AddTorrentToServer(tsuri, magnet, infohash, expectedCategory, token, typetask)
-                                    .ConfigureAwait(false);
+                            bool torrentAdded, torrentExistsInCorrectCategory, serverError, addAttempted;
+                            try
+                            {
+                                (torrentAdded, torrentExistsInCorrectCategory, serverError, addAttempted) =
+                                    await AddTorrentToServer(tsuri, magnet, infohash, expectedCategory, token, typetask)
+                                        .ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                // Only needs to cover the pick→server-reflects-it race window, not
+                                // the whole (possibly minutes-long) analysis that follows.
+                                ReleaseInFlight(tsuri);
+                            }
 
                             if (serverError)
                             {
