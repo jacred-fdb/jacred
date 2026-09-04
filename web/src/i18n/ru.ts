@@ -29,6 +29,7 @@ export default {
     footer: {
       github: 'GitHub',
       telegram: 'Telegram',
+      docs: 'Документация',
       swagger: 'OpenAPI / Swagger',
       swaggerTitle: 'OpenAPI спецификация: /openapi.yaml',
       poweredBy: 'Работает на',
