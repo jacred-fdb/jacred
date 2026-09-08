@@ -42,7 +42,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                 int.TryParse(sid, out int sidNum);
                 int.TryParse(pir, out int pirNum);
 
-                string downloadId = Regex.Match(row, "href=\"download.php\\?id=([0-9]+)\"").Groups[1].Value;
+                string downloadId = Regex.Match(row, "href=\"(?:https?://[^\"]+/)?download\\.php\\?id=([0-9]+)\"", RegexOptions.IgnoreCase).Groups[1].Value;
                 if (string.IsNullOrWhiteSpace(downloadId))
                     continue;
 
@@ -69,6 +69,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
         static string MatchRow(string row, string pattern, int index = 1)
         {
             string res = HttpUtility.HtmlDecode(new Regex(pattern, RegexOptions.IgnoreCase).Match(row).Groups[index].Value.Trim());
+            res = res.Replace('\u00A0', ' ');
             res = Regex.Replace(res, "[\n\r\t ]+", " ");
             return res.Trim();
         }
@@ -87,19 +88,21 @@ namespace JacRed.Infrastructure.Trackers.Toloka
 
         static bool TryParseRowFields(string row, out string url, out string title, out string sid, out string pir, out string sizeName)
         {
-            url = MatchRow(row, "<a href=\"(t[0-9]+)\" class=\"topictitle\"");
+            url = MatchRow(row, "<a href=\"(?:https?://[^\"]+/)?(t[0-9]+)\" class=\"topictitle\"");
             title = MatchRow(row, "class=\"topictitle\">([^<]+)</a>");
-            sid = MatchRow(row, "<span class=\"seedmed\" [^>]+><b>([0-9]+)</b></span>");
-            pir = MatchRow(row, "<span class=\"leechmed\" [^>]+><b>([0-9]+)</b></span>");
-            sizeName = MatchRow(row, "<a href=\"download.php[^\"]+\" [^>]+>([^<]+)</a>").Replace("&nbsp;", " ");
+            sid = MatchRow(row, "<span class=\"seedmed\"[^>]*><b>([0-9]+)</b></span>");
+            pir = MatchRow(row, "<span class=\"leechmed\"[^>]*><b>([0-9]+)</b></span>");
+            sizeName = MatchRow(row, "<a href=\"(?:https?://[^\"]+/)?download\\.php[^\"]+\"[^>]*>([^<]+)</a>");
 
-            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(pir) || string.IsNullOrWhiteSpace(sizeName) || sizeName == "0 B")
+            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(pir)
+                || string.IsNullOrWhiteSpace(sizeName) || sizeName == "0 B"
+                || sizeName.Contains("Завантажити", StringComparison.OrdinalIgnoreCase))
             {
                 url = title = sid = pir = sizeName = null;
                 return false;
             }
 
-            url = $"{AppInit.conf.Toloka.host}/{url}";
+            url = $"{AppInit.conf.Toloka.host.TrimEnd('/')}/{url}";
             return true;
         }
 
