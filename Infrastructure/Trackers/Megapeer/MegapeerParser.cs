@@ -83,6 +83,30 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
             if (html == null || !html.Contains(BrowsePageValidMarker))
                 return false;
 
+            var torrents = ParseTorrentsFromPage(html, cat);
+
+            await FileDB.AddOrUpdate(torrents, async (t, db) =>
+            {
+                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
+                    return true;
+
+                byte[] _t = await HttpClient.Download($"{AppInit.conf.Megapeer.host}/download/{t.downloadId}", referer: AppInit.conf.Megapeer.host);
+                string magnet = BencodeTo.Magnet(_t);
+
+                if (!string.IsNullOrWhiteSpace(magnet))
+                {
+                    t.magnet = magnet;
+                    return true;
+                }
+
+                return false;
+            });
+
+            return torrents.Count > 0;
+        }
+
+        public static List<MegapeerDetails> ParseTorrentsFromPage(string html, string cat)
+        {
             var torrents = new List<MegapeerDetails>();
 
             foreach (string row in html.Split("class=\"table_fon\"").Skip(1))
@@ -94,7 +118,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     return res.Replace(" ", " ").Trim();
                 }
 
-                DateTime createTime = tParse.ParseCreateTime(Match("<td>([0-9]+ [^ ]+ [0-9]+)</td><td>"), "dd.MM.yy");
+                DateTime createTime = tParse.ParseCreateTime(Match("<td>([0-9]+ [^ ]+ [0-9]+)</td>\\s*<td[^>]*>"), "dd.MM.yy");
                 if (createTime == default)
                     continue;
 
@@ -297,24 +321,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                 }
             }
 
-            await FileDB.AddOrUpdate(torrents, async (t, db) =>
-            {
-                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
-                    return true;
-
-                byte[] _t = await HttpClient.Download($"{AppInit.conf.Megapeer.host}/download/{t.downloadId}", referer: AppInit.conf.Megapeer.host);
-                string magnet = BencodeTo.Magnet(_t);
-
-                if (!string.IsNullOrWhiteSpace(magnet))
-                {
-                    t.magnet = magnet;
-                    return true;
-                }
-
-                return false;
-            });
-
-            return torrents.Count > 0;
+            return torrents;
         }
     }
 }
