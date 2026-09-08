@@ -102,6 +102,61 @@ public class TrackerSyncHelpersBackgroundTests
         Assert.True(await WaitForFlagFreeAsync(flag, TimeSpan.FromSeconds(5)));
     }
 
+    [Fact]
+    public async Task ReportProgress_UpdatesGetActiveJobs_WithPagesAndCategory()
+    {
+        var flag = new TrackerWorkFlag();
+        using var started = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
+
+        var result = TrackerSyncHelpers.RunInBackground(
+            "test-progress",
+            "ParseAllTask",
+            flag,
+            checkDisabled: false,
+            async ct =>
+            {
+                started.Set();
+                while (!release.IsSet)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await Task.Delay(20, ct);
+                }
+            },
+            maxDuration: TimeSpan.FromSeconds(30));
+
+        Assert.Equal(TrackerSyncHelpers.OkResult, result);
+        Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+
+        TrackerSyncHelpers.ReportProgress("test-progress", "ParseAllTask", 6, 154, "32", 5);
+
+        var job = Assert.Single(TrackerSyncHelpers.GetActiveJobs(),
+            j => j.Tracker == "test-progress" && j.JobLabel == "ParseAllTask");
+        Assert.Equal("test-progress:ParseAllTask", job.Key);
+        Assert.Equal(6, job.PagesCompleted);
+        Assert.Equal(154, job.PagesTotal);
+        Assert.Equal("32", job.CurrentCategory);
+        Assert.Equal(5, job.CurrentPage);
+        Assert.Equal(4, TrackerSyncHelpers.Percent(job.PagesCompleted, job.PagesTotal));
+        Assert.Equal("6/154 pages · category 32 · page 5", TrackerSyncHelpers.FormatSummary(job));
+
+        release.Set();
+        Assert.True(await WaitForFlagFreeAsync(flag, TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public void Percent_AndFormatSummary_HandleEmptyProgress()
+    {
+        Assert.Null(TrackerSyncHelpers.Percent(0, 0));
+        Assert.Equal("running", TrackerSyncHelpers.FormatSummary(new TrackerBackgroundJobInfo
+        {
+            Key = "kinozal:UpdateTasksParse",
+            Tracker = "kinozal",
+            JobLabel = "UpdateTasksParse",
+            StartedAtUtc = DateTime.UtcNow
+        }));
+    }
+
     static async Task<bool> WaitForFlagFreeAsync(TrackerWorkFlag flag, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;

@@ -100,20 +100,69 @@ GET /api/v1.0/conf?apikey=YOUR_KEY
 GET /health/background-jobs
 ```
 
-Возвращает список активных `ParseAll` и `UpdateTasks` задач. Используйте для проверки, что парсер не завис.
+Возвращает список активных `ParseAllTask` и `UpdateTasksParse` задач. Используйте для проверки, что парсер не завис.
+
+`pagesCompleted` и `pagesTotal` — это страницы листинга текущего цикла ParseAll, не раздачи. `currentCategory` — id или slug раздела, `currentPage` — номер страницы в этом разделе, а не дробь «текущее/всего».
+
+<ResponseField name="id" type="string">
+  Внутренний идентификатор `{tracker}:{job}`, например `anibelka:ParseAllTask`.
+</ResponseField>
+
+<ResponseField name="tracker" type="string">
+  Slug трекера.
+</ResponseField>
+
+<ResponseField name="job" type="string">
+  Cron-действие: `ParseAllTask` или `UpdateTasksParse`.
+</ResponseField>
+
+<ResponseField name="startedAtUtc" type="string">
+  Время старта в UTC (ISO-8601).
+</ResponseField>
+
+<ResponseField name="elapsedSeconds" type="integer">
+  Сколько секунд задача уже выполняется.
+</ResponseField>
+
+<ResponseField name="pagesCompleted" type="integer">
+  Сколько страниц листинга уже обработано в этом цикле.
+</ResponseField>
+
+<ResponseField name="pagesTotal" type="integer">
+  Сколько страниц стояло в очереди на старте этого цикла. У `UpdateTasksParse` обычно `0`.
+</ResponseField>
+
+<ResponseField name="percent" type="integer">
+  Округлённый процент `pagesCompleted/pagesTotal`. `null`, если `pagesTotal` равен 0.
+</ResponseField>
+
+<ResponseField name="currentCategory" type="string">
+  Раздел, который парсится сейчас (`32`, `serial-hd`). Не путайте с прогрессом.
+</ResponseField>
+
+<ResponseField name="currentPage" type="integer">
+  Номер страницы листинга в `currentCategory`.
+</ResponseField>
+
+<ResponseField name="summary" type="string">
+  Строка для `curl`: `6/154 pages · category 32 · page 5`. Без прогресса — `running`.
+</ResponseField>
 
 ```json
 {
   "jobs": [
     {
-      "Key": "kinozal-ParseAllTask-20250115",
-      "Tracker": "kinozal",
-      "JobLabel": "ParseAllTask",
-      "startedAtUtc": "2025-01-15T12:00:00Z",
-      "ageSec": 45,
-      "progressCurrent": 150,
-      "progressTotal": 500,
-      "ProgressDetail": "page 150/500"
+      "id": "anibelka:ParseAllTask",
+      "tracker": "anibelka",
+      "job": "ParseAllTask",
+      "startedAtUtc": "2026-09-08T13:48:01.5624351Z",
+      "elapsedSeconds": 940,
+      "pagesCompleted": 6,
+      "pagesTotal": 154,
+      "percent": 4,
+      "currentCategory": "32",
+      "currentPage": 5,
+      "summary": "6/154 pages · category 32 · page 5"
     }
   ]
 }

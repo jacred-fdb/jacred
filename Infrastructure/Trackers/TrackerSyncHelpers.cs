@@ -69,9 +69,10 @@ namespace JacRed.Infrastructure.Trackers
         public string Tracker { get; init; }
         public string JobLabel { get; init; }
         public DateTime StartedAtUtc { get; init; }
-        public long ProgressCurrent;
-        public long ProgressTotal;
-        public string ProgressDetail;
+        public long PagesCompleted;
+        public long PagesTotal;
+        public string CurrentCategory;
+        public int? CurrentPage;
     }
 
     public static class TrackerSyncHelpers
@@ -107,28 +108,50 @@ namespace JacRed.Infrastructure.Trackers
                     Tracker = j.Tracker,
                     JobLabel = j.JobLabel,
                     StartedAtUtc = j.StartedAtUtc,
-                    ProgressCurrent = Interlocked.Read(ref j.ProgressCurrent),
-                    ProgressTotal = Interlocked.Read(ref j.ProgressTotal),
-                    ProgressDetail = j.ProgressDetail
+                    PagesCompleted = Interlocked.Read(ref j.PagesCompleted),
+                    PagesTotal = Interlocked.Read(ref j.PagesTotal),
+                    CurrentCategory = j.CurrentCategory,
+                    CurrentPage = j.CurrentPage
                 })
                 .ToList();
 
-        public static void ReportProgress(string trackerName, string jobLabel, long current, long total, string detail = null)
+        public static void ReportProgress(string trackerName, string jobLabel, long pagesCompleted, long pagesTotal, string category = null, int? page = null)
         {
             var key = JobKey(trackerName, jobLabel);
             if (!ActiveJobs.TryGetValue(key, out var info))
                 return;
 
-            Interlocked.Exchange(ref info.ProgressCurrent, current);
-            Interlocked.Exchange(ref info.ProgressTotal, total);
-            if (detail != null)
-                info.ProgressDetail = detail;
+            Interlocked.Exchange(ref info.PagesCompleted, pagesCompleted);
+            Interlocked.Exchange(ref info.PagesTotal, pagesTotal);
+            if (category != null)
+                info.CurrentCategory = category;
+            if (page != null)
+                info.CurrentPage = page;
 
-            if (current == 0 || current == total || current % ProgressLogEvery == 0)
+            if (pagesCompleted == 0 || pagesCompleted == pagesTotal || pagesCompleted % ProgressLogEvery == 0)
             {
+                var loc = string.IsNullOrEmpty(info.CurrentCategory) && info.CurrentPage == null
+                    ? ""
+                    : $" (category={info.CurrentCategory} page={info.CurrentPage})";
                 JacRedLog.Information(JacRedLogCategories.Trackers,
-                    $"{trackerName}: {jobLabel} progress={current}/{total}{(string.IsNullOrEmpty(detail) ? "" : $" ({detail})")}");
+                    $"{trackerName}: {jobLabel} progress={pagesCompleted}/{pagesTotal}{loc}");
             }
+        }
+
+        public static int? Percent(long pagesCompleted, long pagesTotal)
+            => pagesTotal <= 0 ? null : (int?)Math.Min(100, (int)Math.Round(100.0 * pagesCompleted / pagesTotal));
+
+        public static string FormatSummary(TrackerBackgroundJobInfo job)
+        {
+            if (job.PagesTotal <= 0)
+                return "running";
+
+            var summary = $"{job.PagesCompleted}/{job.PagesTotal} pages";
+            if (!string.IsNullOrEmpty(job.CurrentCategory))
+                summary += $" · category {job.CurrentCategory}";
+            if (job.CurrentPage.HasValue)
+                summary += $" · page {job.CurrentPage.Value}";
+            return summary;
         }
 
         static string JobKey(string trackerName, string jobLabel) => $"{trackerName}:{jobLabel}";

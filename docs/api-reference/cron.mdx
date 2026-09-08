@@ -124,20 +124,23 @@ curl "http://localhost:9117/jsondb/save"
 GET /health/background-jobs
 ```
 
-Возвращает статус всех активных фоновых задач:
+Возвращает статус всех активных фоновых задач. `pagesCompleted` / `pagesTotal` — страницы листинга текущего цикла ParseAll; `currentCategory` и `currentPage` — раздел и страница, а не дробь прогресса. Полное описание полей — в [Health API](/api-reference/health).
 
 ```json
 {
   "jobs": [
     {
-      "Key": "kinozal-parse-20250115",
-      "Tracker": "kinozal",
-      "JobLabel": "parse",
-      "startedAtUtc": "2025-01-15T12:00:00Z",
-      "ageSec": 45,
-      "progressCurrent": 150,
-      "progressTotal": 500,
-      "ProgressDetail": "page 150/500"
+      "id": "anibelka:ParseAllTask",
+      "tracker": "anibelka",
+      "job": "ParseAllTask",
+      "startedAtUtc": "2026-09-08T13:48:01.5624351Z",
+      "elapsedSeconds": 940,
+      "pagesCompleted": 6,
+      "pagesTotal": 154,
+      "percent": 4,
+      "currentCategory": "32",
+      "currentPage": 5,
+      "summary": "6/154 pages · category 32 · page 5"
     }
   ]
 }

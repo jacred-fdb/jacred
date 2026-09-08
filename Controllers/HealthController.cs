@@ -25,14 +25,17 @@ namespace JacRed.Controllers
         {
             var jobs = TrackerSyncHelpers.GetActiveJobs().Select(j => new
             {
-                j.Key,
-                j.Tracker,
-                j.JobLabel,
+                id = j.Key,
+                tracker = j.Tracker,
+                job = j.JobLabel,
                 startedAtUtc = j.StartedAtUtc.ToString("o"),
-                ageSec = Math.Max(0, (int)(DateTime.UtcNow - j.StartedAtUtc).TotalSeconds),
-                progressCurrent = j.ProgressCurrent,
-                progressTotal = j.ProgressTotal,
-                j.ProgressDetail
+                elapsedSeconds = Math.Max(0, (int)(DateTime.UtcNow - j.StartedAtUtc).TotalSeconds),
+                pagesCompleted = j.PagesCompleted,
+                pagesTotal = j.PagesTotal,
+                percent = TrackerSyncHelpers.Percent(j.PagesCompleted, j.PagesTotal),
+                currentCategory = j.CurrentCategory,
+                currentPage = j.CurrentPage,
+                summary = TrackerSyncHelpers.FormatSummary(j)
             });
             return Json(new { jobs });
         }

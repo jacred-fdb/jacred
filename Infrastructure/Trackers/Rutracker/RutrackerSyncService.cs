@@ -263,7 +263,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                         }
 
                         done++;
-                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
                     }
 
                     ParserLog.Write(TrackerName, $"ParseAllTask done {done}/{pending.Length}");

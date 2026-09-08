@@ -147,7 +147,7 @@ namespace JacRed.Infrastructure.Trackers.NNMClub
                         }
 
                         done++;
-                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
                     }
                 }
                 finally

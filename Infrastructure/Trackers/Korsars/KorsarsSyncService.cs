@@ -387,7 +387,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                         }
 
                         done++;
-                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, $"{item.cat}/{item.val.page}");
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
                     }
                 }
                 finally

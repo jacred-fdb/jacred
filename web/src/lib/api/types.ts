@@ -779,22 +779,64 @@ export interface components {
             jobs: components["schemas"]["BackgroundJob"][];
         };
         /**
-         * @description JSON uses ASP.NET default naming (`PropertyNamingPolicy = null`):
-         *     PascalCase for Key/Tracker/JobLabel/ProgressDetail and camelCase for the remaining fields.
+         * @description In-process tracker sync job. All property names are camelCase.
+         *     `pagesCompleted` / `pagesTotal` count listing pages in the current ParseAll cycle,
+         *     not torrents. `currentCategory` is a forum id or slug; `currentPage` is the listing
+         *     page being processed. UpdateTasksParse jobs register but often have no page progress
+         *     (`pagesTotal` 0, `percent` null, `summary` "running").
          */
         BackgroundJob: {
-            /** @description Internal job key */
-            Key?: string;
-            Tracker?: components["schemas"]["TrackerSlug"];
-            /** @description Human-readable job label (e.g. ParseAll, UpdateTasks) */
-            JobLabel?: string;
-            /** Format: date-time */
+            /**
+             * @description Internal job id `{tracker}:{job}`
+             * @example anibelka:ParseAllTask
+             */
+            id?: string;
+            tracker?: components["schemas"]["TrackerSlug"];
+            /**
+             * @description Cron action name
+             * @example ParseAllTask
+             */
+            job?: string;
+            /**
+             * Format: date-time
+             * @example 2026-09-08T13:48:01.5624351Z
+             */
             startedAtUtc?: string;
-            /** @description Seconds since startedAtUtc */
-            ageSec?: number;
-            progressCurrent?: number | null;
-            progressTotal?: number | null;
-            ProgressDetail?: string | null;
+            /**
+             * @description Seconds since startedAtUtc
+             * @example 940
+             */
+            elapsedSeconds?: number;
+            /**
+             * @description Listing pages finished in this ParseAll cycle
+             * @example 6
+             */
+            pagesCompleted?: number;
+            /**
+             * @description Listing pages queued for this ParseAll cycle
+             * @example 154
+             */
+            pagesTotal?: number;
+            /**
+             * @description Rounded 0–100 from pagesCompleted/pagesTotal; null when pagesTotal is 0
+             * @example 4
+             */
+            percent?: number | null;
+            /**
+             * @description Category id or slug currently being parsed (not current/total)
+             * @example 32
+             */
+            currentCategory?: string | null;
+            /**
+             * @description Listing page number in currentCategory
+             * @example 5
+             */
+            currentPage?: number | null;
+            /**
+             * @description Human-readable progress line for curl
+             * @example 6/154 pages · category 32 · page 5
+             */
+            summary?: string;
         };
         VersionResponse: {
             version?: string;

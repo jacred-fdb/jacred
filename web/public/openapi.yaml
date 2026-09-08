@@ -1600,32 +1600,57 @@ components:
     BackgroundJob:
       type: object
       description: |
-        JSON uses ASP.NET default naming (`PropertyNamingPolicy = null`):
-        PascalCase for Key/Tracker/JobLabel/ProgressDetail and camelCase for the remaining fields.
+        In-process tracker sync job. All property names are camelCase.
+        `pagesCompleted` / `pagesTotal` count listing pages in the current ParseAll cycle,
+        not torrents. `currentCategory` is a forum id or slug; `currentPage` is the listing
+        page being processed. UpdateTasksParse jobs register but often have no page progress
+        (`pagesTotal` 0, `percent` null, `summary` "running").
       properties:
-        Key:
+        id:
           type: string
-          description: Internal job key
-        Tracker:
+          description: Internal job id `{tracker}:{job}`
+          example: anibelka:ParseAllTask
+        tracker:
           $ref: "#/components/schemas/TrackerSlug"
-        JobLabel:
+        job:
           type: string
-          description: Human-readable job label (e.g. ParseAll, UpdateTasks)
+          description: Cron action name
+          example: ParseAllTask
         startedAtUtc:
           type: string
           format: date-time
-        ageSec:
+          example: "2026-09-08T13:48:01.5624351Z"
+        elapsedSeconds:
           type: integer
           description: Seconds since startedAtUtc
-        progressCurrent:
+          example: 940
+        pagesCompleted:
+          type: integer
+          description: Listing pages finished in this ParseAll cycle
+          example: 6
+        pagesTotal:
+          type: integer
+          description: Listing pages queued for this ParseAll cycle
+          example: 154
+        percent:
           type: integer
           nullable: true
-        progressTotal:
-          type: integer
-          nullable: true
-        ProgressDetail:
+          description: Rounded 0–100 from pagesCompleted/pagesTotal; null when pagesTotal is 0
+          example: 4
+        currentCategory:
           type: string
           nullable: true
+          description: Category id or slug currently being parsed (not current/total)
+          example: "32"
+        currentPage:
+          type: integer
+          nullable: true
+          description: Listing page number in currentCategory
+          example: 5
+        summary:
+          type: string
+          description: Human-readable progress line for curl
+          example: "6/154 pages · category 32 · page 5"
 
     VersionResponse:
       type: object
