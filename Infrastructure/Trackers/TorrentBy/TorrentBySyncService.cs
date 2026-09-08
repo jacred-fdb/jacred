@@ -77,33 +77,60 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
         {
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
+                string host = AppInit.conf.TorrentBy.rqHost().TrimEnd('/');
+
                 foreach (string cat in TorrentByCategories.Ids)
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string html = await HttpClient.Get($"{AppInit.conf.TorrentBy.rqHost()}/{cat}/", timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy, cancellationToken: ct);
-                    if (html == null)
-                        continue;
+                    int last = await DiscoverLastPageAsync(host, cat, ct);
+                    if (!taskParse.ContainsKey(cat))
+                        taskParse[cat] = new List<TaskParse>();
 
-                    int.TryParse(System.Text.RegularExpressions.Regex.Match(html, "href=\"\\?page=([0-9]+)\">[0-9]+</a>([\t ]+)?</center></td>").Groups[1].Value, out int maxpages);
-
-                    for (int page = 0; page <= maxpages; page++)
+                    var val = taskParse[cat];
+                    for (int page = 0; page <= last; page++)
                     {
-                        try
-                        {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
-
-                            var val = taskParse[cat];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
-                        }
-                        catch { }
+                        if (val.FirstOrDefault(i => i.page == page) == null)
+                            val.Add(new TaskParse(page));
                     }
+
+                    taskParse[cat] = val.OrderBy(x => x.page).ToList();
+                    ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: maxPage={last}, total={taskParse[cat].Count}");
                 }
 
                 PersistTaskParse();
             }));
+        }
+
+        static async Task<int> DiscoverLastPageAsync(string host, string cat, CancellationToken ct)
+        {
+            int last = 0;
+            int page = 0;
+            for (int hop = 0; hop <= TorrentByPagination.MaxEllipsisHops; hop++)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (hop > 0 && AppInit.conf.TorrentBy.parseDelay > 0)
+                    await Task.Delay(AppInit.conf.TorrentBy.parseDelay, ct);
+
+                string url = page <= 0 ? $"{host}/{cat}/" : $"{host}/{cat}/?page={page}";
+                string html = await HttpClient.Get(url, timeoutSeconds: 10, useproxy: AppInit.conf.TorrentBy.useproxy, cancellationToken: ct);
+                if (html == null)
+                    break;
+
+                var pager = TorrentByPagination.ParsePager(html);
+                if (pager.MaxPageIndex > last)
+                    last = pager.MaxPageIndex;
+
+                if (!pager.HasTrailingEllipsis || pager.EllipsisJumpPage == null)
+                    break;
+
+                int jump = pager.EllipsisJumpPage.Value;
+                if (jump <= page)
+                    break;
+                page = jump;
+            }
+
+            return last;
         }
 
         public Task<string> ParseAllTaskAsync(CancellationToken cancellationToken = default)

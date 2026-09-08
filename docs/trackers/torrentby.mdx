@@ -37,6 +37,14 @@ TorrentBy:
 50 4,16 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
 ```
 
+`ParseAllTask` обходит только страницы из `Data/temp/torrentby_taskParse.json`. Карту собирает `UpdateTasksParse`: читает пейджер `circle_page` и переходит по ссылкам `...`, пока не найдёт последнюю страницу. После обновления JacRed один раз вызовите:
+
+```bash
+curl "http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse"
+```
+
+Новые страницы дописываются к уже существующим (`page: 0` не удаляется). Следующий `ParseAllTask` обработает только ещё не пройденные страницы текущего цикла.
+
 ## Диагностика
 
 ```bash
