@@ -118,6 +118,7 @@ namespace JacRed
             builder.Services.AddScoped<IDevMigrationService, DevMigrationService>();
             builder.Services.AddScoped<FixKnabenNamesMigration>();
             builder.Services.AddScoped<FixBitruNamesMigration>();
+            builder.Services.AddScoped<FixRudubRelasedMigration>();
             builder.Services.AddScoped<CleanupMigrations>();
             builder.Services.AddScoped<FixAnilibertyUrlsMigration>();
             builder.Services.AddScoped<RemoveDuplicateAnilibertyMigration>();

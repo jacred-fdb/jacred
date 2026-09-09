@@ -4,6 +4,7 @@ namespace JacRed.Application.Dev
     {
         object FixKnabenNames();
         object FixBitruNames();
+        object FixRudubRelased();
         object RemoveNullValues();
         object RemoveBucket(string key, string migrateName = null, string migrateOriginalname = null);
         object FixEmptySearchFields();

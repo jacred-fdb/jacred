@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using JacRed.Application.Dev.Migrations;
 using JacRed.Infrastructure.Trackers.Rudub;
+using JacRed.Models.Details;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -132,6 +134,65 @@ public class RudubParserFixtureTests
         Assert.Equal("Мой любимый сотрудник", name);
         Assert.Equal("My Bias, My Boss (Choeaeui sawon)", original);
         Assert.Equal(2026, relased);
+    }
+
+    [Fact]
+    public void TryPatch_FillsMissingYearFromCreateTime()
+    {
+        var t = new TorrentDetails
+        {
+            trackerName = "rudub",
+            title = "Фонари (Lanterns) Сезон 1 Серии 01-04 (HD1080p WEBRip)",
+            name = "Фонари",
+            originalname = "Lanterns",
+            relased = 0,
+            createTime = new DateTime(2026, 9, 7, 19, 2, 58, DateTimeKind.Utc)
+        };
+
+        Assert.True(FixRudubRelasedMigration.TryPatch(t, out bool yearUpdated, out bool namesUpdated));
+        Assert.True(yearUpdated);
+        Assert.False(namesUpdated);
+        Assert.Equal(2026, t.relased);
+        Assert.Equal("Фонари", t.name);
+        Assert.Equal("Lanterns", t.originalname);
+    }
+
+    [Fact]
+    public void TryPatch_FixesYearStolenAsOriginalname()
+    {
+        var t = new TorrentDetails
+        {
+            trackerName = "rudub",
+            title = "Гнев (2026) (Furia (Wrath)) Сезон 1 Серии 01-06 (HD1080p WEBRip)",
+            name = "Гнев",
+            originalname = "2026",
+            relased = 0,
+            createTime = new DateTime(2026, 7, 29, 0, 0, 0, DateTimeKind.Utc)
+        };
+
+        Assert.True(FixRudubRelasedMigration.TryPatch(t, out bool yearUpdated, out bool namesUpdated));
+        Assert.True(yearUpdated);
+        Assert.True(namesUpdated);
+        Assert.Equal(2026, t.relased);
+        Assert.Equal("Гнев", t.name);
+        Assert.Equal("Furia (Wrath)", t.originalname);
+    }
+
+    [Fact]
+    public void TryPatch_Unchanged_ReturnsFalse()
+    {
+        var t = new TorrentDetails
+        {
+            title = "Фонари (Lanterns) Сезон 1 Серии 01-04 (HD1080p WEBRip)",
+            name = "Фонари",
+            originalname = "Lanterns",
+            relased = 2026,
+            createTime = new DateTime(2026, 9, 7, 0, 0, 0, DateTimeKind.Utc)
+        };
+
+        Assert.False(FixRudubRelasedMigration.TryPatch(t, out bool yearUpdated, out bool namesUpdated));
+        Assert.False(yearUpdated);
+        Assert.False(namesUpdated);
     }
 
     [Fact]

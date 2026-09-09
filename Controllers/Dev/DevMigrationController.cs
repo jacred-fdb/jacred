@@ -17,6 +17,8 @@ namespace JacRed.Controllers.Dev
 
         public JsonResult FixBitruNames() => Json(_migrationService.FixBitruNames());
 
+        public JsonResult FixRudubRelased() => Json(_migrationService.FixRudubRelased());
+
         public JsonResult RemoveNullValues() => Json(_migrationService.RemoveNullValues());
 
         public JsonResult RemoveBucket(string key, string migrateName = null, string migrateOriginalname = null) =>

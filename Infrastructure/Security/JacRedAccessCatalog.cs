@@ -39,6 +39,7 @@ namespace JacRed.Infrastructure.Security
             new("/dev/FindCorrupt", JacRedAccessPolicy.DevAdmin, "DevDiagnosticsController"),
             new("/dev/TracksStats", JacRedAccessPolicy.DevAdmin, "DevTracksController"),
             new("/dev/FixKnabenNames", JacRedAccessPolicy.DevAdmin, "DevMigrationController"),
+            new("/dev/FixRudubRelased", JacRedAccessPolicy.DevAdmin, "DevMigrationController"),
             new("/jsondb/save", JacRedAccessPolicy.DevAdmin, "DbController"),
             new("/cron/maintenance/Check", JacRedAccessPolicy.DevAdmin, "MaintenanceController", "FDB integrity report|safe|full"),
             new("/cron/maintenance/Status", JacRedAccessPolicy.DevAdmin, "MaintenanceController"),

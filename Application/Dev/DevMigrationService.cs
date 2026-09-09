@@ -6,6 +6,7 @@ namespace JacRed.Application.Dev
     {
         readonly FixKnabenNamesMigration _fixKnabenNames;
         readonly FixBitruNamesMigration _fixBitruNames;
+        readonly FixRudubRelasedMigration _fixRudubRelased;
         readonly CleanupMigrations _cleanup;
         readonly FixAnilibertyUrlsMigration _fixAnilibertyUrls;
         readonly RemoveDuplicateAnilibertyMigration _removeDuplicateAniliberty;
@@ -15,6 +16,7 @@ namespace JacRed.Application.Dev
         public DevMigrationService(
             FixKnabenNamesMigration fixKnabenNames,
             FixBitruNamesMigration fixBitruNames,
+            FixRudubRelasedMigration fixRudubRelased,
             CleanupMigrations cleanup,
             FixAnilibertyUrlsMigration fixAnilibertyUrls,
             RemoveDuplicateAnilibertyMigration removeDuplicateAniliberty,
@@ -23,6 +25,7 @@ namespace JacRed.Application.Dev
         {
             _fixKnabenNames = fixKnabenNames;
             _fixBitruNames = fixBitruNames;
+            _fixRudubRelased = fixRudubRelased;
             _cleanup = cleanup;
             _fixAnilibertyUrls = fixAnilibertyUrls;
             _removeDuplicateAniliberty = removeDuplicateAniliberty;
@@ -33,6 +36,8 @@ namespace JacRed.Application.Dev
         public object FixKnabenNames() => _fixKnabenNames.Run();
 
         public object FixBitruNames() => _fixBitruNames.Run();
+
+        public object FixRudubRelased() => _fixRudubRelased.Run();
 
         public object RemoveNullValues() => _cleanup.RemoveNullValues();
 
