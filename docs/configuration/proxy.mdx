@@ -42,8 +42,12 @@ proxy:
 </ParamField>
 
 <ParamField path="proxy.list" type="array">
-  Список адресов прокси. Форматы: `ip:port` (HTTP), `socks5://ip:port` (SOCKS5). JacRed случайным образом выбирает один адрес из списка на каждый запрос.
+  Список адресов прокси. Форматы: `ip:port` или `http://ip:port` (HTTP CONNECT), `socks5://ip:port` (SOCKS5). JacRed случайным образом выбирает один адрес из списка на каждый запрос. Запись `socks5h://` (как в curl) приводится к `socks5://`; DNS резолвится на стороне прокси.
 </ParamField>
+
+<Note>
+  SOCKS5 не работает через HTTP CONNECT. Указывайте схему `socks5://`, а не голый `host:port` — без схемы JacRed считает адрес HTTP-прокси.
+</Note>
 
 ## Правила по URL: globalproxy
 
@@ -83,7 +87,7 @@ globalproxy:
 </ParamField>
 
 <ParamField path="list" type="array">
-  Список адресов прокси. Форматы: `ip:port` (HTTP) или `socks5://ip:port` (SOCKS5).
+  Список адресов прокси. Форматы: `ip:port` или `http://ip:port` (HTTP CONNECT), `socks5://ip:port` (SOCKS5). `socks5h://` приводится к `socks5://`.
 </ParamField>
 
 ## Прокси для конкретного трекера

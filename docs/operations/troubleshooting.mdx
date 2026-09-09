@@ -78,7 +78,7 @@ journalctl -u jacred -n 100 --no-pager
     ss -ltnp | grep ':9050'
     ```
 
-    Для Tor используйте URI вида `socks5://127.0.0.1:9050`. Подробнее читайте в разделе [Прокси](/configuration/proxy).
+    Для Tor и любого SOCKS5 используйте URI со схемой, например `socks5://127.0.0.1:9050`. Запись `host:port` без схемы идёт как HTTP-прокси и на SOCKS5-сервере не работает. Если для HTTP-прокси включён `useAuth`, а SOCKS5 авторизацию не принимает, поставьте `useAuth: false`. Подробнее читайте в разделе [Прокси](/configuration/proxy).
   </Accordion>
 
   <Accordion title="JacRed потребляет много памяти">

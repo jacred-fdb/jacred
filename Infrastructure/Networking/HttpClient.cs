@@ -29,23 +29,39 @@ namespace JacRed.Infrastructure.Networking
             }
 
             proxyRandomList.TryTake(out string proxyip);
-
-            ICredentials credentials = null;
-
-            if (AppInit.conf.proxy.useAuth)
-                credentials = new NetworkCredential(AppInit.conf.proxy.username, AppInit.conf.proxy.password);
-
-            return new WebProxy(proxyip, AppInit.conf.proxy.BypassOnLocal, null, credentials);
+            return CreateWebProxy(proxyip, AppInit.conf.proxy);
         }
 
-        static WebProxy CreateWebProxy(string proxyUrl, ProxySettings settings)
+        /// <summary>
+        /// HttpClientHandler.Proxy only speaks HTTP CONNECT. SOCKS5 needs
+        /// SocketsHttpHandler, which understands socks4/socks4a/socks5 schemes.
+        /// curl-style socks5h:// is rewritten to socks5:// (remote DNS still happens).
+        /// </summary>
+        internal static Uri NormalizeProxyAddress(string proxyUrl)
+        {
+            if (string.IsNullOrWhiteSpace(proxyUrl))
+                throw new ArgumentException("Proxy URL is empty.", nameof(proxyUrl));
+
+            proxyUrl = proxyUrl.Trim();
+
+            if (proxyUrl.StartsWith("socks5h://", StringComparison.OrdinalIgnoreCase))
+                proxyUrl = "socks5://" + proxyUrl["socks5h://".Length..];
+            else if (proxyUrl.StartsWith("socks://", StringComparison.OrdinalIgnoreCase))
+                proxyUrl = "socks5://" + proxyUrl["socks://".Length..];
+            else if (proxyUrl.IndexOf("://", StringComparison.Ordinal) < 0)
+                proxyUrl = "http://" + proxyUrl;
+
+            return new Uri(proxyUrl);
+        }
+
+        internal static WebProxy CreateWebProxy(string proxyUrl, ProxySettings settings)
         {
             ICredentials credentials = null;
 
             if (settings != null && settings.useAuth)
                 credentials = new NetworkCredential(settings.username, settings.password);
 
-            return new WebProxy(proxyUrl, settings?.BypassOnLocal ?? false, null, credentials);
+            return new WebProxy(NormalizeProxyAddress(proxyUrl), settings?.BypassOnLocal ?? false, null, credentials);
         }
 
         static List<WebProxy> ResolveProxies(string url, bool useproxy, WebProxy proxyOverride)
@@ -78,14 +94,17 @@ namespace JacRed.Infrastructure.Networking
             return new List<WebProxy>();
         }
 
-        static HttpClientHandler CreateHandler(WebProxy proxy, DecompressionMethods decompression)
+        internal static SocketsHttpHandler CreateHandler(WebProxy proxy, DecompressionMethods decompression, bool allowAutoRedirect = true)
         {
-            var handler = new HttpClientHandler()
+            var handler = new SocketsHttpHandler
             {
-                AutomaticDecompression = decompression
+                AutomaticDecompression = decompression,
+                AllowAutoRedirect = allowAutoRedirect,
+                SslOptions =
+                {
+                    RemoteCertificateValidationCallback = static (_, _, _, _) => true
+                }
             };
-
-            handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
 
             if (proxy != null)
             {
@@ -391,10 +410,7 @@ namespace JacRed.Infrastructure.Networking
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    var handler = CreateHandler(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate);
-                    handler.AllowAutoRedirect = true;
-
-                    using (handler)
+                    using (var handler = CreateHandler(px, DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate))
                     using (var client = new System.Net.Http.HttpClient(handler))
                     {
                         client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
