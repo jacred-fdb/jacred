@@ -59,8 +59,8 @@ namespace JacRed.Infrastructure.Trackers.Rudub
             @"(?i)(?:\bWEBRip\s*XviD\b|\bWEBRip\s*x264\b|\bHD720p\b|(?<![0-9])720p\b)",
             RegexOptions.Compiled);
 
-        static readonly Regex RegexNameOriginal = new Regex(
-            @"^\s*([^(\n]+?)\s*\(([^)]+)\)\s*",
+        static readonly Regex RegexYearOnly = new Regex(
+            @"^(?:19|20)\d{2}(?:\s*[-–]\s*(?:19|20)\d{2})?$",
             RegexOptions.Compiled);
 
         static readonly Regex RegexSerialPattern1 = new Regex(@"[CcСс]езон", RegexOptions.Compiled);
@@ -113,13 +113,13 @@ namespace JacRed.Infrastructure.Trackers.Rudub
                 if (string.IsNullOrWhiteSpace(downloadId))
                     continue;
 
-                ParseNames(title, out string name, out string originalname);
-                if (string.IsNullOrWhiteSpace(name))
-                    continue;
-
                 DateTime createTime = ParseCardDate(card);
                 if (createTime == default)
                     createTime = DateTime.UtcNow;
+
+                var (name, originalname, relased) = ParseTitleFields(title, createTime);
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
 
                 int sid = 1, pir = 0;
                 var act = RegexActivity.Match(card);
@@ -149,6 +149,7 @@ namespace JacRed.Infrastructure.Trackers.Rudub
                     createTime = createTime,
                     sizeName = sizeName,
                     quality = quality,
+                    relased = relased,
                     downloadUri = $"{host}{EndpointDownload}?id={downloadId}"
                 });
             }
@@ -191,19 +192,118 @@ namespace JacRed.Infrastructure.Trackers.Rudub
             return RegexWhitespace.Replace(t, " ").Trim();
         }
 
-        static void ParseNames(string title, out string name, out string originalname)
+        /// <summary>
+        /// Split listing title into name / originalname / year.
+        /// Year comes from a <c>(YYYY)</c> group, otherwise from <paramref name="createTime"/>.
+        /// Year-only parens are skipped as originalname; nested parens are kept balanced.
+        /// </summary>
+        public static (string name, string originalname, int relased) ParseTitleFields(string title, DateTime createTime)
         {
-            name = null;
-            originalname = null;
-            var m = RegexNameOriginal.Match(title);
-            if (m.Success)
+            string name = null;
+            string originalname = null;
+            int relased = 0;
+
+            if (!string.IsNullOrWhiteSpace(title))
             {
-                name = m.Groups[1].Value.Trim();
-                originalname = m.Groups[2].Value.Trim();
-                return;
+                foreach (var (start, inner) in EnumerateParenGroups(title))
+                {
+                    if (TryParseYearGroup(inner, out int year))
+                    {
+                        if (relased <= 0)
+                            relased = year;
+                        continue;
+                    }
+
+                    if (originalname == null)
+                    {
+                        name = StripTrailingYearParens(title.Substring(0, start).Trim());
+                        originalname = inner.Trim();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(name))
+                    name = Regex.Split(title, @"(\(|/|\|)", RegexOptions.IgnoreCase)[0].Trim();
             }
 
-            name = Regex.Split(title, @"(\(|/|\|)", RegexOptions.IgnoreCase)[0].Trim();
+            if (relased <= 0 && createTime != default && createTime.Year > 1)
+                relased = createTime.Year;
+
+            return (
+                string.IsNullOrWhiteSpace(name) ? null : name,
+                string.IsNullOrWhiteSpace(originalname) ? null : originalname,
+                relased);
+        }
+
+        static IEnumerable<(int start, string inner)> EnumerateParenGroups(string title)
+        {
+            int i = 0;
+            while (i < title.Length)
+            {
+                int open = title.IndexOf('(', i);
+                if (open < 0)
+                    yield break;
+
+                int depth = 0;
+                int close = -1;
+                for (int j = open; j < title.Length; j++)
+                {
+                    char c = title[j];
+                    if (c == '(')
+                        depth++;
+                    else if (c == ')')
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            close = j;
+                            break;
+                        }
+                    }
+                }
+
+                if (close < 0)
+                    yield break;
+
+                yield return (open, title.Substring(open + 1, close - open - 1));
+                i = close + 1;
+            }
+        }
+
+        static bool TryParseYearGroup(string inner, out int year)
+        {
+            year = 0;
+            if (string.IsNullOrWhiteSpace(inner))
+                return false;
+
+            string t = inner.Trim();
+            if (!RegexYearOnly.IsMatch(t))
+                return false;
+
+            return int.TryParse(t.AsSpan(0, 4), NumberStyles.None, CultureInfo.InvariantCulture, out year)
+                   && year >= 1900
+                   && year <= 2100;
+        }
+
+        static string StripTrailingYearParens(string prefix)
+        {
+            while (!string.IsNullOrWhiteSpace(prefix))
+            {
+                prefix = prefix.TrimEnd();
+                if (!prefix.EndsWith(')'))
+                    break;
+
+                int open = prefix.LastIndexOf('(');
+                if (open < 0)
+                    break;
+
+                string inner = prefix.Substring(open + 1, prefix.Length - open - 2);
+                if (!TryParseYearGroup(inner, out _))
+                    break;
+
+                prefix = prefix.Substring(0, open).TrimEnd();
+            }
+
+            return prefix;
         }
 
         static DateTime ParseCardDate(string card)

@@ -110,15 +110,8 @@ namespace JacRed.Application.Search
                                     if (Regex.IsMatch(t.title, " (сезон|сери(и|я|й))", RegexOptions.IgnoreCase))
                                         continue;
 
-                                    if (year > 0)
-                                    {
-                                        if (t.relased == year || t.relased == (year - 1) || t.relased == (year + 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                    else
-                                    {
+                                    if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: true))
                                         JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
                                 }
                                 #endregion
                             }
@@ -127,15 +120,8 @@ namespace JacRed.Application.Search
                                 #region Сериал
                                 if (t.types.Contains("serial") || t.types.Contains("multserial") || t.types.Contains("anime") || t.types.Contains("docuserial") || t.types.Contains("tvshow"))
                                 {
-                                    if (year > 0)
-                                    {
-                                        if (t.relased >= (year - 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                    else
-                                    {
+                                    if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
                                         JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
                                 }
                                 #endregion
                             }
@@ -144,15 +130,8 @@ namespace JacRed.Application.Search
                                 #region tvshow
                                 if (t.types.Contains("tvshow"))
                                 {
-                                    if (year > 0)
-                                    {
-                                        if (t.relased >= (year - 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                    else
-                                    {
+                                    if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
                                         JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
                                 }
                                 #endregion
                             }
@@ -161,15 +140,8 @@ namespace JacRed.Application.Search
                                 #region docuserial / documovie
                                 if (t.types.Contains("docuserial") || t.types.Contains("documovie"))
                                 {
-                                    if (year > 0)
-                                    {
-                                        if (t.relased >= (year - 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                    else
-                                    {
+                                    if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
                                         JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
                                 }
                                 #endregion
                             }
@@ -178,38 +150,17 @@ namespace JacRed.Application.Search
                                 #region anime
                                 if (t.types.Contains("anime"))
                                 {
-                                    if (year > 0)
-                                    {
-                                        if (t.relased >= (year - 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                    else
-                                    {
+                                    if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
                                         JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
                                 }
                                 #endregion
                             }
                             else
                             {
                                 #region Неизвестно
-                                if (year > 0)
-                                {
-                                    if (t.types.Contains("movie") || t.types.Contains("multfilm") || t.types.Contains("documovie"))
-                                    {
-                                        if (t.relased == year || t.relased == (year - 1) || t.relased == (year + 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                    else
-                                    {
-                                        if (t.relased >= (year - 1))
-                                            JackettResultBuilder.AddTorrent(torrents, t);
-                                    }
-                                }
-                                else
-                                {
+                                bool movieLike = t.types.Contains("movie") || t.types.Contains("multfilm") || t.types.Contains("documovie");
+                                if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike))
                                     JackettResultBuilder.AddTorrent(torrents, t);
-                                }
                                 #endregion
                             }
                         }

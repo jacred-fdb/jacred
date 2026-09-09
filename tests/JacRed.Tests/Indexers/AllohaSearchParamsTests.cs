@@ -110,6 +110,24 @@ public class AllohaSearchParamsTests
 
         Assert.Equal(3, filtered.Count);
         Assert.DoesNotContain(filtered, r => r.Title == "y2001");
+        Assert.Contains(filtered, r => r.Title == "unknown");
+    }
+
+    [Theory]
+    [InlineData(0, 2026, true, true)]
+    [InlineData(0, 2026, false, true)]
+    [InlineData(2026, 0, true, true)]
+    [InlineData(2026, 2026, true, true)]
+    [InlineData(2025, 2026, true, true)]
+    [InlineData(2027, 2026, true, true)]
+    [InlineData(2024, 2026, true, false)]
+    [InlineData(2026, 2026, false, true)]
+    [InlineData(2025, 2026, false, true)]
+    [InlineData(2024, 2026, false, false)]
+    [InlineData(2027, 2026, false, true)]
+    public void MatchesCardYear_UnknownRelasedPasses(int relased, int year, bool movieLike, bool expected)
+    {
+        Assert.Equal(expected, IndexerResultFilters.MatchesCardYear(relased, year, movieLike));
     }
 
     [Theory]

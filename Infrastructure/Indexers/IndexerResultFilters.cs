@@ -43,9 +43,21 @@ namespace JacRed.Infrastructure.Indexers
             return items.Where(t =>
             {
                 int rel = t.info?.relased ?? 0;
-                if (rel <= 0) return true;
-                return rel == year || rel == year - 1 || rel == year + 1;
+                return MatchesCardYear(rel, year, movieLike: true);
             }).ToList();
+        }
+
+        /// <summary>
+        /// Card-search year gate. Unknown <paramref name="relased"/> (≤0) passes.
+        /// Movies: year ± 1. Serials and other: relased ≥ year − 1.
+        /// </summary>
+        public static bool MatchesCardYear(int relased, int year, bool movieLike)
+        {
+            if (year <= 0 || relased <= 0)
+                return true;
+            if (movieLike)
+                return relased == year || relased == year - 1 || relased == year + 1;
+            return relased >= (year - 1);
         }
 
         /// <summary>Keep items whose info.types contains <paramref name="type"/>; items with null/empty types pass.</summary>

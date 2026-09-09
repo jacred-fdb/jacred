@@ -62,6 +62,7 @@ public class RudubParserFixtureTests
             Assert.False(string.IsNullOrWhiteSpace(t.originalname));
             Assert.False(string.IsNullOrWhiteSpace(t.sizeName));
             Assert.True(t.quality is 1080 or 2160, $"quality={t.quality} title={t.title}");
+            Assert.True(t.relased > 0, $"relased={t.relased} title={t.title}");
             Assert.DoesNotContain("XviD", t.title, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("HD720p", t.title, StringComparison.OrdinalIgnoreCase);
             Assert.True(RudubParser.IsPreferredQualityTitle(t.title));
@@ -79,8 +80,58 @@ public class RudubParserFixtureTests
         Assert.Equal(0, first.pir);
         Assert.Equal("18.68 GB", first.sizeName);
         Assert.Equal(new DateTime(2026, 8, 11, 22, 58, 15, DateTimeKind.Utc), first.createTime);
+        Assert.Equal(2026, first.relased);
         Assert.Equal($"{Host}/download2.php?id=54677", first.downloadUri);
-        _output.WriteLine($"first: {first.name} / {first.originalname} q={first.quality}");
+        _output.WriteLine($"first: {first.name} / {first.originalname} q={first.quality} y={first.relased}");
+    }
+
+    [Fact]
+    public void ParseTitleFields_Fonari_UsesCreateTimeYear()
+    {
+        var created = new DateTime(2026, 9, 7, 19, 2, 58, DateTimeKind.Utc);
+        var (name, original, relased) = RudubParser.ParseTitleFields(
+            "Фонари (Lanterns) Сезон 1 Серии 01-04 (HD1080p WEBRip)", created);
+
+        Assert.Equal("Фонари", name);
+        Assert.Equal("Lanterns", original);
+        Assert.Equal(2026, relased);
+    }
+
+    [Fact]
+    public void ParseTitleFields_MisterKill_UsesCreateTimeYear()
+    {
+        var created = new DateTime(2026, 9, 2, 19, 3, 28, DateTimeKind.Utc);
+        var (name, original, relased) = RudubParser.ParseTitleFields(
+            "Мистер Килл (Mr. Kill) Сезон 1 Серии 01-09 (HD1080p WEBRip)", created);
+
+        Assert.Equal("Мистер Килл", name);
+        Assert.Equal("Mr. Kill", original);
+        Assert.Equal(2026, relased);
+    }
+
+    [Fact]
+    public void ParseTitleFields_YearParen_IsRelasedNotOriginal()
+    {
+        var created = new DateTime(2026, 7, 29, 0, 0, 0, DateTimeKind.Utc);
+        var (name, original, relased) = RudubParser.ParseTitleFields(
+            "Гнев (2026) (Furia (Wrath)) Сезон 1 Серии 01-06 (HD1080p WEBRip)", created);
+
+        Assert.Equal("Гнев", name);
+        Assert.Equal("Furia (Wrath)", original);
+        Assert.Equal(2026, relased);
+    }
+
+    [Fact]
+    public void ParseTitleFields_NestedOriginal_KeepsBalancedParens()
+    {
+        var created = new DateTime(2026, 9, 8, 0, 0, 0, DateTimeKind.Utc);
+        var (name, original, relased) = RudubParser.ParseTitleFields(
+            "Мой любимый сотрудник (My Bias, My Boss (Choeaeui sawon)) Сезон 1 Серии 01-08 (HD1080p WEBRip)",
+            created);
+
+        Assert.Equal("Мой любимый сотрудник", name);
+        Assert.Equal("My Bias, My Boss (Choeaeui sawon)", original);
+        Assert.Equal(2026, relased);
     }
 
     [Fact]
