@@ -43,6 +43,8 @@ namespace JacRed.Infrastructure.Security
             new("/jsondb/save", JacRedAccessPolicy.DevAdmin, "DbController"),
             new("/cron/maintenance/Check", JacRedAccessPolicy.DevAdmin, "MaintenanceController", "FDB integrity report|safe|full"),
             new("/cron/maintenance/Status", JacRedAccessPolicy.DevAdmin, "MaintenanceController"),
+            new("/cron/maintenance/ResumeParseAll", JacRedAccessPolicy.DevAdmin, "MaintenanceController", "Continue incomplete ParseAll after restart"),
+            new("/cron/maintenance/ParseAllStatus", JacRedAccessPolicy.DevAdmin, "MaintenanceController"),
 
             // Search — apikey when configured
             new("/api/v1.0/torrents", JacRedAccessPolicy.ApiKeyWhenConfigured, "TorrentsController"),

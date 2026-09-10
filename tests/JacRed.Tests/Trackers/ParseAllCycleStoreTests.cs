@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using JacRed.Infrastructure.Trackers;
 using JacRed.Models.tParse;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace JacRed.Tests.Trackers;
@@ -226,5 +227,68 @@ public class ParseAllCycleStoreTests : IDisposable
     public void FormatCancelLog_WithoutCycle_UsesSlotTotal()
     {
         Assert.Equal("pending left=3/10", ParseAllCycleStore.FormatCancelLog(null, 3, 10));
+    }
+
+    [Fact]
+    public void FlattenTaskParseToken_ReadsFlatAndNestedMaps()
+    {
+        var flat = ParseAllCycleStore.FlattenTaskParseToken(JToken.Parse(
+            """{"100":[{"page":0},{"page":1}]}"""));
+        Assert.Equal(2, flat.Count);
+        Assert.Equal(new[] { 0, 1 }, flat.Select(p => p.page).ToArray());
+
+        var nested = ParseAllCycleStore.FlattenTaskParseToken(JToken.Parse(
+            """{"2024":{"0":[{"page":3,"parseAllCycleId":"abc"}]}}"""));
+        Assert.Single(nested);
+        Assert.Equal(3, nested[0].page);
+        Assert.Equal("abc", nested[0].parseAllCycleId);
+    }
+
+    [Fact]
+    public void ReadCycleProgress_CountsPendingFromDisk()
+    {
+        var slug = "tpc-" + Guid.NewGuid().ToString("N")[..8];
+        var cyclePath = ParseAllCycleStore.CyclePathForTracker(slug);
+        var taskPath = ParseAllCycleStore.TaskParsePathForTracker(slug);
+        _paths.Add(cyclePath);
+        _paths.Add(taskPath);
+
+        var cycle = ParseAllCycleStore.CreateCycle("fp", 2);
+        ParseAllCycleStore.SaveState(cyclePath, cycle);
+        ParseAllCycleStore.PersistTaskParse(taskPath, new Dictionary<string, List<TaskParse>>
+        {
+            ["1"] =
+            [
+                new TaskParse(0) { parseAllCycleId = cycle.CycleId },
+                new TaskParse(1)
+            ]
+        });
+
+        var (loaded, pending, mapCount) = ParseAllCycleStore.ReadCycleProgress(slug);
+        Assert.Equal(cycle.CycleId, loaded.CycleId);
+        Assert.Equal(1, pending);
+        Assert.Equal(2, mapCount);
+        Assert.True(ParseAllCycleStore.HasPendingWork(slug));
+    }
+
+    [Fact]
+    public void HasPendingWork_FalseWhenCycleMissingOrComplete()
+    {
+        var slug = "tpc-" + Guid.NewGuid().ToString("N")[..8];
+        Assert.False(ParseAllCycleStore.HasPendingWork(slug));
+
+        var cyclePath = ParseAllCycleStore.CyclePathForTracker(slug);
+        var taskPath = ParseAllCycleStore.TaskParsePathForTracker(slug);
+        _paths.Add(cyclePath);
+        _paths.Add(taskPath);
+
+        var cycle = ParseAllCycleStore.CreateCycle("fp", 1);
+        ParseAllCycleStore.SaveState(cyclePath, cycle);
+        ParseAllCycleStore.PersistTaskParse(taskPath, new Dictionary<string, List<TaskParse>>
+        {
+            ["1"] = [new TaskParse(0) { parseAllCycleId = cycle.CycleId }]
+        });
+
+        Assert.False(ParseAllCycleStore.HasPendingWork(slug));
     }
 }

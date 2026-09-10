@@ -1,11 +1,11 @@
 ---
 title: "Фоновые процессы JacRed: workers и cron"
 sidebarTitle: "Фоновые процессы"
-description: "JacRed запускает шесть встроенных BackgroundService: FastDbRefresh, Sync, Trackers, Stats, FileDb и Tracks. Они обновляют индексы и синхронизируют состояние без внешнего cron."
+description: "JacRed запускает семь встроенных BackgroundService: FastDbRefresh, Sync, Trackers, Stats, FileDb, Tracks и ParseAll resume. Они обновляют индексы и синхронизируют состояние без внешнего cron."
 keywords: ["JacRed", "Фоновые процессы", "документация"]
 ---
 
-Внутри JacRed работают шесть встроенных фоновых сервисов ASP.NET (`BackgroundService`). Они запускаются автоматически при старте контейнера, поддерживают индексы в актуальном состоянии и не требуют внешнего cron.
+Внутри JacRed работают семь встроенных фоновых сервисов ASP.NET (`BackgroundService`). Они запускаются автоматически при старте контейнера, поддерживают индексы в актуальном состоянии и не требуют внешнего cron.
 
 ## Обзор сервисов
 
@@ -17,6 +17,7 @@ keywords: ["JacRed", "Фоновые процессы", "документаци�
 | Stats | `StatsWorker` | Обновляет `Data/temp/stats.json` и `tracks-stats.json` | `timeStatsUpdate` |
 | FileDb | `FileDbWorker` | Периодическое сохранение FileDB на диск (`Cron` + `CronFast`) | Внутренний таймер |
 | Tracks | `TracksWorker` | Очередь ffprobe-анализа через tsuri | `tracksinterval.task0`, `task1` |
+| ParseAll resume | `ParseAllResumeWorker` | После старта продолжает незавершённые циклы ParseAll | один раз, ~45 с после старта |
 
 ## FastDbRefreshWorker
 
@@ -85,6 +86,10 @@ tracksinterval:
 ```
 
 Подробнее в [Конфигурация Tracks](/configuration/tracks).
+
+## ParseAllResumeWorker
+
+Через ~45 секунд после старта процесса продолжает незавершённые циклы `ParseAllTask` (`pending > 0`). Не начинает новый круг, если предыдущий уже закончен. Тот же вызов доступен как `GET /cron/maintenance/ResumeParseAll` (в `Data/crontab` каждые 15 минут).
 
 ## Мониторинг
 

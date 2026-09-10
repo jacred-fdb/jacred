@@ -327,7 +327,7 @@ public class TrackerSyncHelpersBackgroundTests
     }
 
     [Fact]
-    public void FormatWallClockCancelMessage_UsesJobProgress()
+    public void FormatBackgroundCancelMessage_UsesJobProgress()
     {
         var info = new TrackerBackgroundJobInfo
         {
@@ -357,6 +357,8 @@ public class TrackerSyncHelpersBackgroundTests
         info.LastActivityUtcTicks = DateTime.UtcNow.AddMinutes(-50).Ticks;
         Assert.True(TrackerSyncHelpers.IsStalled(info, DateTime.UtcNow, TimeSpan.FromMinutes(45)));
         info.LastActivityUtcTicks = DateTime.UtcNow.Ticks;
+        Assert.False(TrackerSyncHelpers.IsStalled(info, DateTime.UtcNow, TimeSpan.FromMinutes(45)));
+        info.LastActivityUtcTicks = 0;
         Assert.False(TrackerSyncHelpers.IsStalled(info, DateTime.UtcNow, TimeSpan.FromMinutes(45)));
     }
 

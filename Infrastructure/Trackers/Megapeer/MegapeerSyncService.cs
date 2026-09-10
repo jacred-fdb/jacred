@@ -16,6 +16,7 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
     {
         const string TrackerName = "megapeer";
         string IParseAllStarter.TrackerName => TrackerName;
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/megapeer_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

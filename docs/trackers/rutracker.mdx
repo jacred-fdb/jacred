@@ -104,4 +104,10 @@ curl "http://localhost:9117/cron/rutracker/parse"
 
 # Проверить фоновые задачи
 curl "http://localhost:9117/health/background-jobs"
+
+# Статус циклов ParseAll (pending / running)
+curl "http://localhost:9117/cron/maintenance/ParseAllStatus"
+
+# Продолжить незавершённый цикл после рестарта
+curl "http://localhost:9117/cron/maintenance/ResumeParseAll"
 ```

@@ -22,6 +22,7 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
     {
         const string TrackerName = AnibelkaParser.TrackerName;
         string IParseAllStarter.TrackerName => TrackerName;
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/anibelka_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

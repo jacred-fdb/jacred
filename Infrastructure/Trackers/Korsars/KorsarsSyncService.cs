@@ -28,6 +28,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
     {
         const string TrackerName = KorsarsParser.TrackerName;
         string IParseAllStarter.TrackerName => TrackerName;
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/korsars_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
         const string CookieCacheKey = "cron:KorsarsController:Cookie";
