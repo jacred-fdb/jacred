@@ -417,6 +417,28 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             && HasKinozalTitle(html);
 
         /// <summary>
+        /// Length / t_peer / title for stale logs. No cookies, no HTML body.
+        /// </summary>
+        public static string FormatBrowseDiag(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return "len=0";
+
+            var title = HtmlTitle.Match(html);
+            string t = title.Success ? title.Groups[1].Value.Trim() : "";
+            if (t.Length > 80)
+                t = t.Substring(0, 80);
+
+            return $"len={html.Length} t_peer={html.Contains("t_peer", StringComparison.Ordinal)} title={t}";
+        }
+
+        /// <summary>
+        /// UpdateTasksParse year-page delay. Cap so 25 cats × ~37 years still finish inside the 2h wall clock.
+        /// </summary>
+        internal static int UpdateTasksParseDelayMs(int parseDelay) =>
+            Math.Clamp(parseDelay, 0, 2000);
+
+        /// <summary>
         /// Logged-in Kinozal chrome without a <c>t_peer</c> table — typical ~15 KB FlareSolverr empty tab.
         /// Retry; do not TakeLogin and do not mark ParseAllTask done.
         /// </summary>

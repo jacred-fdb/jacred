@@ -45,6 +45,7 @@ public class TrackerSyncHelpersBackgroundTests
         Assert.Equal(TrackerSyncHelpers.WorkResult, second);
         Assert.Contains(TrackerSyncHelpers.GetActiveJobs(), j =>
             j.Tracker == "test-tracker" && j.JobLabel == "ParseAllTask");
+        Assert.True(flag.IsBusy);
 
         release.Set();
         Assert.True(await WaitForFlagFreeAsync(flag, TimeSpan.FromSeconds(5)));
@@ -139,9 +140,53 @@ public class TrackerSyncHelpersBackgroundTests
         Assert.Equal(5, job.CurrentPage);
         Assert.Equal(4, TrackerSyncHelpers.Percent(job.PagesCompleted, job.PagesTotal));
         Assert.Equal("6/154 pages · category 32 · page 5", TrackerSyncHelpers.FormatSummary(job));
+        Assert.True(TrackerSyncHelpers.HasActiveJob("test-progress"));
+        Assert.True(TrackerSyncHelpers.HasActiveJob("test-progress", "UpdateTasksParse"));
+        Assert.False(TrackerSyncHelpers.HasActiveJob("test-progress", "ParseAllTask"));
+        Assert.False(TrackerSyncHelpers.HasActiveJob("other-tracker"));
 
         release.Set();
         Assert.True(await WaitForFlagFreeAsync(flag, TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public async Task SharedClusterFlag_ParseAllBlocksUpdateTasks()
+    {
+        var cluster = new TrackerWorkFlag();
+        using var started = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
+
+        var parseAll = TrackerSyncHelpers.RunParseAllTaskInBackground(
+            "kinozal-cluster",
+            cluster,
+            checkDisabled: false,
+            async ct =>
+            {
+                started.Set();
+                while (!release.IsSet)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await Task.Delay(20, ct);
+                }
+            },
+            maxDuration: TimeSpan.FromSeconds(30));
+
+        Assert.Equal(TrackerSyncHelpers.OkResult, parseAll);
+        Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+
+        var update = TrackerSyncHelpers.RunUpdateTasksParseInBackground(
+            "kinozal-cluster",
+            cluster,
+            checkDisabled: false,
+            _ => Task.CompletedTask,
+            maxDuration: TimeSpan.FromHours(2));
+
+        Assert.Equal(TrackerSyncHelpers.WorkResult, update);
+        Assert.True(TrackerSyncHelpers.HasActiveJob("kinozal-cluster", "UpdateTasksParse"));
+        Assert.True(cluster.IsBusy);
+
+        release.Set();
+        Assert.True(await WaitForFlagFreeAsync(cluster, TimeSpan.FromSeconds(5)));
     }
 
     [Fact]

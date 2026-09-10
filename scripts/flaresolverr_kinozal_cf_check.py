@@ -2,14 +2,14 @@
 """Compare FlareSolverr vs plain HTTP for Kinozal Cloudflare.
 
 JacRed already GETs browse.php through FlareSolverr. Magnets need
-get_srv_details.php (info hash). FlareSolverr request.post is flaky in the
-shared `jacred` session (often returns the previous browse tab). Prefer GET
-of the same URL (id/action are query params).
+get_srv_details.php (info hash). Prefer GET of the same URL (id/action are
+query params). Each Cloudflare host uses its own FlareSolverr session
+(`jacred-kinozal_guru`); do not reuse the rutracker session.
 
 Run on the host where FlareSolverr listens (default :8191). Session name
-matches JacRed (`jacred`) so Chromium already has tracker cookies if the
-crawler is running. Login/password is not needed when the browse flags show
-logged_in: True. Do not put uid/pass in this file.
+matches JacRed (`jacred-kinozal_guru`) so Chromium already has tracker cookies
+if the crawler is running. Login/password is not needed when the browse
+flags show logged_in: True. Do not put uid/pass in this file.
 
   python3 scripts/flaresolverr_kinozal_cf_check.py
   BROWSE_URL='https://kinozal.guru/browse.php?c=22&page=0' \\
@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 FS_URL = os.environ.get("FS_URL", "http://127.0.0.1:8191/v1")
-SESSION = os.environ.get("FS_SESSION", "jacred")
+SESSION = os.environ.get("FS_SESSION", "jacred-kinozal_guru")
 # page=0 of a live category — year-filtered ParseAllTask pages are often empty.
 BROWSE_URL = os.environ.get(
     "BROWSE_URL",
@@ -281,9 +281,9 @@ def main() -> int:
     print(f"  hash_via_flaresolverr_post: {'OK' if post_ok else 'FAIL'}")
     print(f"  hash_via_flaresolverr_get: {'OK' if get_ok else 'FAIL'}")
     if post_flags["stale_browse"] or get_flags["stale_browse"]:
-        print("  note: hash call returned a browse listing (shared jacred session / POST did not navigate).")
+        print("  note: hash call returned a browse listing (session did not navigate).")
     if post_flags["rutracker_html"] or get_flags["rutracker_html"]:
-        print("  note: FlareSolverr returned rutracker HTML (shared jacred session). Re-run when parse is idle.")
+        print("  note: FlareSolverr returned rutracker HTML. Set FS_SESSION=jacred-kinozal_guru.")
     if browse_ok and get_ok and direct_blocked:
         print("  next: JacRed should GET get_srv_details.php through FlareSolverr (not POST).")
     elif browse_ok and post_ok and not get_ok:

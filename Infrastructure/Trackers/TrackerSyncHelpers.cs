@@ -49,6 +49,8 @@ namespace JacRed.Infrastructure.Trackers
         public bool TryStart() => Interlocked.CompareExchange(ref _work, 1, 0) == 0;
 
         public void End() => Interlocked.Exchange(ref _work, 0);
+
+        public bool IsBusy => Volatile.Read(ref _work) == 1;
     }
 
     /// <summary>Semaphore guard for ParseLatest (one concurrent run per tracker).</summary>
@@ -114,6 +116,30 @@ namespace JacRed.Infrastructure.Trackers
                     CurrentPage = j.CurrentPage
                 })
                 .ToList();
+
+        /// <summary>
+        /// True if this tracker has an in-process ParseAll/UpdateTasks job.
+        /// Hourly parse is not listed here — it uses <see cref="TrackerParseLock"/>.
+        /// </summary>
+        public static bool HasActiveJob(string trackerName, string exceptJobLabel = null)
+        {
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return false;
+
+            foreach (var job in GetActiveJobs())
+            {
+                if (!string.Equals(job.Tracker, trackerName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (exceptJobLabel != null
+                    && string.Equals(job.JobLabel, exceptJobLabel, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                return true;
+            }
+
+            return false;
+        }
 
         public static void ReportProgress(string trackerName, string jobLabel, long pagesCompleted, long pagesTotal, string category = null, int? page = null)
         {

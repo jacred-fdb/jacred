@@ -125,7 +125,7 @@ GET /health/background-jobs
 </ResponseField>
 
 <ResponseField name="pagesCompleted" type="integer">
-  Сколько страниц листинга уже обработано в этом цикле.
+  Сколько страниц листинга уже обойдено в этом цикле (попытки). У Kinozal это не число записанных магнитов — успешные страницы смотрите в `kinozal.log` (`ParseAllTask ok=`).
 </ResponseField>
 
 <ResponseField name="pagesTotal" type="integer">

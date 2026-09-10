@@ -15,13 +15,14 @@ namespace JacRed.Infrastructure.Networking
     /// Ходит на хосты, закрытые проверкой Cloudflare, через FlareSolverr —
     /// безголовый браузер, стоящий рядом в compose.
     ///
-    /// Cookie `cf_clearance` нельзя переиспользовать в обычном .NET HttpClient:
+    /// Cookie <c>cf_clearance</c> нельзя переиспользовать в обычном .NET HttpClient:
     /// Cloudflare сверяет TLS-отпечаток. Поэтому guarded-хосты обслуживает
-    /// браузер целиком, в одной постоянной сессии (первая ~80 с, далее 2–3 с).
+    /// браузер целиком. У каждого хоста своя сессия Chromium — иначе kinozal и
+    /// anibelka делят одну вкладку и <c>request.get</c> отдаёт предыдущий документ.
     /// </summary>
     public static class CloudflareClearance
     {
-        const string SessionName = "jacred";
+        const string SessionPrefix = "jacred";
 
         sealed class GuardState
         {
@@ -31,14 +32,21 @@ namespace JacRed.Infrastructure.Networking
             public DateTime LastProbe;
         }
 
+        sealed class BrowserSession
+        {
+            public readonly string Name;
+            public readonly SemaphoreSlim Gate = new(1, 1);
+            public bool Alive;
+            public DateTime LastUse = DateTime.MinValue;
+            public int ConsecutiveBrowserTimeouts;
+
+            public BrowserSession(string name) => Name = name;
+        }
+
         static readonly ConcurrentDictionary<string, GuardState> _guarded = new(StringComparer.OrdinalIgnoreCase);
+        static readonly ConcurrentDictionary<string, BrowserSession> _sessions = new(StringComparer.Ordinal);
 
-        static readonly SemaphoreSlim _gate = new(1, 1);
-
-        static bool _sessionAlive;
-        static DateTime _lastUse = DateTime.MinValue;
         static Timer _idleTimer;
-        static int _consecutiveBrowserTimeouts;
 
         static FlareSolverrSettingsView Conf
         {
@@ -72,6 +80,35 @@ namespace JacRed.Infrastructure.Networking
                 GuardedHours = c.guardedHours;
                 RecheckMinutes = c.recheckMinutes;
             }
+        }
+
+        /// <summary>
+        /// FlareSolverr session id for a host. Safe charset <c>[A-Za-z0-9_-]</c>.
+        /// <c>kinozal.guru</c> → <c>jacred-kinozal_guru</c>.
+        /// </summary>
+        public static string SessionNameFor(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+                return SessionPrefix;
+
+            var sb = new StringBuilder(SessionPrefix.Length + 1 + host.Length);
+            sb.Append(SessionPrefix);
+            sb.Append('-');
+            foreach (char c in host.Trim().ToLowerInvariant())
+            {
+                if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-')
+                    sb.Append(c);
+                else
+                    sb.Append('_');
+            }
+
+            return sb.ToString();
+        }
+
+        static BrowserSession SessionForHost(string host)
+        {
+            string name = SessionNameFor(host);
+            return _sessions.GetOrAdd(name, static n => new BrowserSession(n));
         }
 
         #region признак «хост за проверкой»
@@ -188,24 +225,25 @@ namespace JacRed.Infrastructure.Networking
             try { host = new Uri(url).Host; }
             catch (UriFormatException) { return null; }
 
-            await _gate.WaitAsync();
+            var session = SessionForHost(host);
+            await session.Gate.WaitAsync();
             try
             {
-                if (!_sessionAlive && !await CreateSessionAsync(conf))
+                if (!session.Alive && !await CreateSessionAsync(conf, session))
                     return null;
 
-                var (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, url, cookie);
+                var (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, session, url, cookie);
 
                 if (outcome == FetchOutcome.Ok)
                 {
-                    _consecutiveBrowserTimeouts = 0;
-                    TouchSession(conf);
+                    session.ConsecutiveBrowserTimeouts = 0;
+                    TouchSession(conf, session);
                     return html;
                 }
 
                 if (outcome == FetchOutcome.PageFailed)
                 {
-                    TouchSession(conf);
+                    TouchSession(conf, session);
                     return null;
                 }
 
@@ -214,18 +252,18 @@ namespace JacRed.Infrastructure.Networking
 
                 if (browserTimeout && !sessionBroken)
                 {
-                    _consecutiveBrowserTimeouts++;
+                    session.ConsecutiveBrowserTimeouts++;
 
-                    if (_consecutiveBrowserTimeouts < conf.RecycleAfterTimeouts)
+                    if (session.ConsecutiveBrowserTimeouts < conf.RecycleAfterTimeouts)
                     {
                         JacRedLog.Warning(JacRedLogCategories.Host,
-                            $"{host}: FlareSolverr browser timeout ({_consecutiveBrowserTimeouts}/{conf.RecycleAfterTimeouts}) — сессию оставляем, caller ретраит");
-                        TouchSession(conf);
+                            $"{host}: FlareSolverr browser timeout ({session.ConsecutiveBrowserTimeouts}/{conf.RecycleAfterTimeouts}) — сессию оставляем, caller ретраит");
+                        TouchSession(conf, session);
                         return null;
                     }
 
                     JacRedLog.Warning(JacRedLogCategories.Host,
-                        $"{host}: session recycled after {_consecutiveBrowserTimeouts} browser timeouts");
+                        $"{host}: session recycled after {session.ConsecutiveBrowserTimeouts} browser timeouts");
                 }
                 else
                 {
@@ -233,26 +271,26 @@ namespace JacRed.Infrastructure.Networking
                         $"{host}: FlareSolverr session recycle — {failMessage}");
                 }
 
-                await DestroySessionAsync(conf);
-                _consecutiveBrowserTimeouts = 0;
+                await DestroySessionAsync(conf, session);
+                session.ConsecutiveBrowserTimeouts = 0;
 
-                if (!await CreateSessionAsync(conf))
+                if (!await CreateSessionAsync(conf, session))
                     return null;
 
-                (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, url, cookie);
+                (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(conf, session, url, cookie);
 
                 if (outcome == FetchOutcome.Ok)
                 {
-                    _consecutiveBrowserTimeouts = 0;
+                    session.ConsecutiveBrowserTimeouts = 0;
                     JacRedLog.Warning(JacRedLogCategories.Host, $"{host}: session recycled, OK");
-                    TouchSession(conf);
+                    TouchSession(conf, session);
                     return html;
                 }
 
                 if (IsBrowserTimeoutMessage(failMessage))
-                    _consecutiveBrowserTimeouts = 1;
+                    session.ConsecutiveBrowserTimeouts = 1;
 
-                TouchSession(conf);
+                TouchSession(conf, session);
                 return null;
             }
             catch (Exception ex)
@@ -262,19 +300,49 @@ namespace JacRed.Infrastructure.Networking
             }
             finally
             {
-                _gate.Release();
+                session.Gate.Release();
             }
         }
 
-        static void TouchSession(FlareSolverrSettingsView conf)
+        /// <summary>
+        /// Destroy and recreate the Chromium session for this host (stale-shell storms).
+        /// No-op when FlareSolverr is disabled.
+        /// </summary>
+        public static async Task RecycleSession(string host)
         {
-            _lastUse = DateTime.UtcNow;
+            var conf = Conf;
+            if (conf.Url == null || string.IsNullOrWhiteSpace(host))
+                return;
+
+            var session = SessionForHost(host);
+            await session.Gate.WaitAsync();
+            try
+            {
+                JacRedLog.Warning(JacRedLogCategories.Host,
+                    $"{host}: FlareSolverr session recycle requested ({session.Name})");
+                await DestroySessionAsync(conf, session);
+                session.ConsecutiveBrowserTimeouts = 0;
+                await CreateSessionAsync(conf, session);
+            }
+            catch (Exception ex)
+            {
+                JacRedLog.Error(JacRedLogCategories.Host, $"FlareSolverr recycle {host}: {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                session.Gate.Release();
+            }
+        }
+
+        static void TouchSession(FlareSolverrSettingsView conf, BrowserSession session)
+        {
+            session.LastUse = DateTime.UtcNow;
             ArmIdleTimer(conf);
         }
 
         /// <summary>Same-session retries on browser timeout before escalating.</summary>
         static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestWithTimeoutRetriesAsync(
-            FlareSolverrSettingsView conf, string url, string cookie)
+            FlareSolverrSettingsView conf, BrowserSession session, string url, string cookie)
         {
             int attempts = 1 + conf.BrowserTimeoutRetries;
             FetchOutcome outcome = FetchOutcome.BrowserFailed;
@@ -286,7 +354,7 @@ namespace JacRed.Infrastructure.Networking
                 if (i > 0)
                     await Task.Delay(1500);
 
-                (outcome, html, failMessage) = await RequestAsync(conf, url, cookie);
+                (outcome, html, failMessage) = await RequestAsync(conf, session, url, cookie);
 
                 if (outcome != FetchOutcome.BrowserFailed)
                     return (outcome, html, failMessage);
@@ -309,12 +377,13 @@ namespace JacRed.Infrastructure.Networking
             BrowserFailed
         }
 
-        static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestAsync(FlareSolverrSettingsView conf, string url, string cookie)
+        static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestAsync(
+            FlareSolverrSettingsView conf, BrowserSession session, string url, string cookie)
         {
             var payload = new Dictionary<string, object>
             {
                 ["cmd"] = "request.get",
-                ["session"] = SessionName,
+                ["session"] = session.Name,
                 ["url"] = url,
                 ["maxTimeout"] = conf.MaxTimeoutMs
             };
@@ -329,7 +398,10 @@ namespace JacRed.Infrastructure.Networking
             var root = await CallAsync(conf, payload, conf.MaxTimeoutMs + 30000);
 
             if (root == null)
+            {
+                session.Alive = false;
                 return (FetchOutcome.BrowserFailed, null, "empty response / unreachable");
+            }
 
             if (!string.Equals(root.Value<string>("status"), "ok", StringComparison.OrdinalIgnoreCase))
             {
@@ -403,37 +475,37 @@ namespace JacRed.Infrastructure.Networking
 
         #region сессия
 
-        static async Task<bool> CreateSessionAsync(FlareSolverrSettingsView conf)
+        static async Task<bool> CreateSessionAsync(FlareSolverrSettingsView conf, BrowserSession session)
         {
             var root = await CallAsync(conf, new Dictionary<string, object>
             {
                 ["cmd"] = "sessions.create",
-                ["session"] = SessionName
+                ["session"] = session.Name
             }, conf.MaxTimeoutMs + 30000);
 
             bool ok = root != null &&
                       (string.Equals(root.Value<string>("status"), "ok", StringComparison.OrdinalIgnoreCase)
                        || (root.Value<string>("message") ?? "").IndexOf("already exists", StringComparison.OrdinalIgnoreCase) >= 0);
 
-            _sessionAlive = ok;
+            session.Alive = ok;
 
             if (ok)
-                JacRedLog.Warning(JacRedLogCategories.Host, "FlareSolverr: сессия браузера создана");
+                JacRedLog.Warning(JacRedLogCategories.Host, $"FlareSolverr: сессия {session.Name} создана");
             else
-                JacRedLog.Error(JacRedLogCategories.Host, $"FlareSolverr: сессию создать не удалось: {root?.Value<string>("message")}");
+                JacRedLog.Error(JacRedLogCategories.Host, $"FlareSolverr: сессию {session.Name} создать не удалось: {root?.Value<string>("message")}");
 
             return ok;
         }
 
-        static async Task DestroySessionAsync(FlareSolverrSettingsView conf)
+        static async Task DestroySessionAsync(FlareSolverrSettingsView conf, BrowserSession session)
         {
             await CallAsync(conf, new Dictionary<string, object>
             {
                 ["cmd"] = "sessions.destroy",
-                ["session"] = SessionName
+                ["session"] = session.Name
             }, 60000);
 
-            _sessionAlive = false;
+            session.Alive = false;
         }
 
         static void ArmIdleTimer(FlareSolverrSettingsView conf)
@@ -450,35 +522,40 @@ namespace JacRed.Infrastructure.Networking
         static void CloseIfIdle()
         {
             var conf = Conf;
-            if (conf.Url == null || !_sessionAlive || conf.SessionIdleMinutes <= 0)
+            if (conf.Url == null || conf.SessionIdleMinutes <= 0)
                 return;
 
-            if (DateTime.UtcNow < _lastUse.AddMinutes(conf.SessionIdleMinutes))
-                return;
-
-            if (!_gate.Wait(0))
-                return;
-
-            try
+            foreach (var session in _sessions.Values)
             {
-                CallAsync(conf, new Dictionary<string, object>
+                if (!session.Alive)
+                    continue;
+
+                if (DateTime.UtcNow < session.LastUse.AddMinutes(conf.SessionIdleMinutes))
+                    continue;
+
+                if (!session.Gate.Wait(0))
+                    continue;
+
+                try
                 {
-                    ["cmd"] = "sessions.destroy",
-                    ["session"] = SessionName
-                }, 60000).GetAwaiter().GetResult();
+                    CallAsync(conf, new Dictionary<string, object>
+                    {
+                        ["cmd"] = "sessions.destroy",
+                        ["session"] = session.Name
+                    }, 60000).GetAwaiter().GetResult();
 
-                _sessionAlive = false;
-                _idleTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-
-                JacRedLog.Warning(JacRedLogCategories.Host, "FlareSolverr: сессия закрыта по простою, память освобождена");
-            }
-            catch (Exception ex)
-            {
-                JacRedLog.Error(JacRedLogCategories.Host, $"FlareSolverr: не удалось закрыть сессию: {ex.Message}");
-            }
-            finally
-            {
-                _gate.Release();
+                    session.Alive = false;
+                    JacRedLog.Warning(JacRedLogCategories.Host,
+                        $"FlareSolverr: сессия {session.Name} закрыта по простою, память освобождена");
+                }
+                catch (Exception ex)
+                {
+                    JacRedLog.Error(JacRedLogCategories.Host, $"FlareSolverr: не удалось закрыть сессию {session.Name}: {ex.Message}");
+                }
+                finally
+                {
+                    session.Gate.Release();
+                }
             }
         }
 
@@ -497,7 +574,6 @@ namespace JacRed.Infrastructure.Networking
             catch (Exception ex)
             {
                 JacRedLog.Error(JacRedLogCategories.Host, $"FlareSolverr недоступен: {ex.GetType().Name}: {ex.Message}");
-                _sessionAlive = false;
                 return null;
             }
         }

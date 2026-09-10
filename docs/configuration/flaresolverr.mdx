@@ -7,6 +7,8 @@ keywords: ["JacRed", "конфигурация", "FlareSolverr", "init.yaml", "R
 
 Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium для получения clearance и передаёт HTML в JacRed.
 
+У каждого guarded-хоста **своя** сессия FlareSolverr (`jacred-kinozal_guru`, `jacred-rutracker_org`, …). Одна общая вкладка `jacred` заставляла Kinozal получать HTML anibelka/rutracker или пустую оболочку без таблицы. Cron `/cron/cloudflare/Warmup` прогревает только сессию того URL, который передан (по умолчанию rutracker); Kinozal создаёт свою сессию при первом `browse.php`. RAM: один процесс Chromium на хост.
+
 ## Принцип работы
 
 1. JacRed отправляет запрос в FlareSolverr (`request.get`).
@@ -121,5 +123,5 @@ volumes:
 ```
 
 <Warning>
-  Без прогрева сессии первый запрос к rutracker после простоя займёт ~80 секунд вместо 2-3.
+  Без прогрева сессии первый запрос к rutracker после простоя займёт ~80 секунд вместо 2-3. Warmup открывает сессию `jacred-rutracker_org`; kinozal.guru при этом не прогревается.
 </Warning>

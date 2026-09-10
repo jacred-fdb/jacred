@@ -228,6 +228,33 @@ public class KinozalParserFixtureTests
     }
 
     [Fact]
+    public void FormatBrowseDiag_LengthTPeerTitle_NoBody()
+    {
+        const string shell =
+            "<title>Раздачи :: Кинозал.GURU</title>"
+            + "<a href=\"/userdetails.php?id=191355\">profile</a>"
+            + "<a href=\"#\">Выход</a>";
+
+        string diag = KinozalParser.FormatBrowseDiag(shell);
+        Assert.Contains("len=", diag);
+        Assert.Contains("t_peer=False", diag);
+        Assert.Contains("Кинозал.GURU", diag);
+        Assert.DoesNotContain("userdetails", diag);
+
+        Assert.Equal("len=0", KinozalParser.FormatBrowseDiag(null));
+        Assert.Contains("t_peer=True", KinozalParser.FormatBrowseDiag(FixtureLoader.Read("Kinozal/browse_c22.html")));
+    }
+
+    [Fact]
+    public void UpdateTasksParseDelayMs_CapsAtTwoSeconds()
+    {
+        Assert.Equal(0, KinozalParser.UpdateTasksParseDelayMs(0));
+        Assert.Equal(1500, KinozalParser.UpdateTasksParseDelayMs(1500));
+        Assert.Equal(2000, KinozalParser.UpdateTasksParseDelayMs(10000));
+        Assert.Equal(0, KinozalParser.UpdateTasksParseDelayMs(-5));
+    }
+
+    [Fact]
     public void IsStaleListingHtml_LoggedInShellWithoutTPeer()
     {
         const string shell =

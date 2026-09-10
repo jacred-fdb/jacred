@@ -40,9 +40,12 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static readonly Regex RegexCookieValue = new Regex("([^;]+)(;|$)", RegexOptions.Compiled);
 
         static readonly TrackerParseLock _parseLock = new TrackerParseLock();
-        static readonly TrackerWorkFlag _parseAllTaskWork = new TrackerWorkFlag();
-        static readonly TrackerWorkFlag _updateTasksWork = new TrackerWorkFlag();
+        static readonly TrackerWorkFlag _cluster = new TrackerWorkFlag();
         static readonly TrackerLatestParseLock _parseLatestLock = new TrackerLatestParseLock();
+        static int _consecutiveStales;
+        const int StaleRecycleAfter = 3;
+        const int StaleRetryDelayMs = 3000;
+        const int StaleMaxRetries = 3;
 
         static KinozalSyncService()
         {
@@ -59,6 +62,45 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         public KinozalSyncService(IMemoryCache memoryCache)
         {
             _memoryCache = memoryCache;
+        }
+
+        static string TrackerHost()
+        {
+            try
+            {
+                return new Uri(AppInit.conf.Kinozal.host).Host;
+            }
+            catch (UriFormatException)
+            {
+                return "kinozal.guru";
+            }
+            catch (ArgumentException)
+            {
+                return "kinozal.guru";
+            }
+        }
+
+        static bool TryEnterCluster(string jobLabel)
+        {
+            if (_cluster.TryStart())
+                return true;
+
+            TrackerSyncHelpers.LogParseSkipped(TrackerName, TrackerSyncHelpers.WorkResult);
+            ParserLog.Write(TrackerName, $"{jobLabel} skipped: sibling job running");
+            return false;
+        }
+
+        void NoteValidBrowse() => Interlocked.Exchange(ref _consecutiveStales, 0);
+
+        async Task NoteStaleBrowseAsync()
+        {
+            int n = Interlocked.Increment(ref _consecutiveStales);
+            if (n < StaleRecycleAfter)
+                return;
+
+            Interlocked.Exchange(ref _consecutiveStales, 0);
+            ParserLog.Write(TrackerName, "recycle FlareSolverr session after consecutive stale shells");
+            await CloudflareClearance.RecycleSession(TrackerHost());
         }
 
         string CookieHeader()
@@ -261,83 +303,111 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         public async Task<string> ParseAsync(int page)
         {
-            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
+            if (!TryEnterCluster("parse"))
+                return TrackerSyncHelpers.WorkResult;
+
+            try
             {
-                string log = "";
-
-                try
+                return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
                 {
-                    var sw = Stopwatch.StartNew();
-                    string baseUrl = $"{AppInit.conf.Kinozal.host}/browse.php";
-                    ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                    foreach (string cat in KinozalCategories.Ids)
+                    string log = "";
+
+                    try
                     {
-                        string pageUrl = $"{baseUrl}?c={cat}&page={page}";
-                        ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                        await parsePage(cat, page);
-                        log += $"{cat} - {page}\n";
+                        var sw = Stopwatch.StartNew();
+                        string baseUrl = $"{AppInit.conf.Kinozal.host}/browse.php";
+                        ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
+                        foreach (string cat in KinozalCategories.Ids)
+                        {
+                            string pageUrl = $"{baseUrl}?c={cat}&page={page}";
+                            ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
+                            await parsePage(cat, page);
+                            log += $"{cat} - {page}\n";
+                        }
+                        ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
                     }
-                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-                }
-                catch (Exception ex)
-                {
-                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-                }
+                    catch (Exception ex)
+                    {
+                        ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                    }
 
-                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-            });
+                    return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+                });
+            }
+            finally
+            {
+                _cluster.End();
+            }
         }
 
         public async Task<string> UpdateTasksParseAsync()
         {
+            if (_cluster.IsBusy)
+            {
+                TrackerSyncHelpers.LogParseSkipped(TrackerName, TrackerSyncHelpers.WorkResult);
+                ParserLog.Write(TrackerName, "UpdateTasksParse skipped: sibling job running");
+                return TrackerSyncHelpers.WorkResult;
+            }
+
             if (!await EnsureLoggedIn())
                 return string.IsNullOrWhiteSpace(_lastLoginError) ? "login failed" : $"login failed: {_lastLoginError}";
 
-            return TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
-            {
-                foreach (string cat in KinozalCategories.Ids)
+            return TrackerSyncHelpers.RunUpdateTasksParseInBackground(
+                TrackerName,
+                _cluster,
+                checkDisabled: false,
+                async ct =>
                 {
-                    for (int year = DateTime.Today.Year; year >= 1990; year--)
+                    int delayMs = KinozalParser.UpdateTasksParseDelayMs(AppInit.conf.Kinozal.parseDelay);
+                    foreach (string cat in KinozalCategories.Ids)
                     {
-                        ct.ThrowIfCancellationRequested();
-
-                        // Получаем html
-                        string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", ct);
-                        if (!KinozalParser.IsValidBrowsePage(html))
-                            continue;
-
-                        // Максимальное количиство страниц
-                        int.TryParse(Regex.Match(html, ">([0-9]+)</a></li><li><a rel=\"next\"").Groups[1].Value, out int maxpages);
-
-                        // Загружаем список страниц в список задач
-                        for (int page = 0; page <= maxpages; page++)
+                        for (int year = DateTime.Today.Year; year >= 1990; year--)
                         {
-                            try
+                            ct.ThrowIfCancellationRequested();
+
+                            string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", ct);
+                            if (delayMs > 0)
+                                await Task.Delay(delayMs, ct);
+
+                            if (KinozalParser.IsStaleListingHtml(html))
+                                await NoteStaleBrowseAsync();
+                            else if (KinozalParser.IsValidBrowsePage(html))
+                                NoteValidBrowse();
+
+                            if (!KinozalParser.IsValidBrowsePage(html))
+                                continue;
+
+                            int.TryParse(Regex.Match(html, ">([0-9]+)</a></li><li><a rel=\"next\"").Groups[1].Value, out int maxpages);
+
+                            for (int page = 0; page <= maxpages; page++)
                             {
-                                if (!taskParse.ContainsKey(cat))
-                                    taskParse.Add(cat, new Dictionary<string, List<TaskParse>>());
+                                try
+                                {
+                                    if (!taskParse.ContainsKey(cat))
+                                        taskParse.Add(cat, new Dictionary<string, List<TaskParse>>());
 
-                                string arg = $"&d={year}&t=1";
-                                var catVal = taskParse[cat];
-                                if (!catVal.ContainsKey(arg))
-                                    catVal.Add(arg, new List<TaskParse>());
+                                    string arg = $"&d={year}&t=1";
+                                    var catVal = taskParse[cat];
+                                    if (!catVal.ContainsKey(arg))
+                                        catVal.Add(arg, new List<TaskParse>());
 
-                                var val = catVal[arg];
-                                if (val.FirstOrDefault(i => i.page == page) == null)
-                                    val.Add(new TaskParse(page));
+                                    var val = catVal[arg];
+                                    if (val.FirstOrDefault(i => i.page == page) == null)
+                                        val.Add(new TaskParse(page));
+                                }
+                                catch { }
                             }
-                            catch { }
                         }
                     }
-                }
 
-                PersistTaskParse();
-            });
+                    PersistTaskParse();
+                },
+                TimeSpan.FromHours(2));
         }
 
         public Task<string> ParseAllTaskAsync()
         {
-            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _parseAllTaskWork, checkDisabled: false, async ct =>
+            return Task.FromResult(TrackerSyncHelpers.RunParseAllTaskInBackground(TrackerName, _cluster, checkDisabled: false, async ct =>
             {
                 try
                 {
@@ -349,7 +419,8 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             .SelectMany(arg => arg.Value.Where(v => ParseAllCycleStore.IsPendingInCycle(v, cycle))
                                 .Select(v => (cat: cat.Key, arg: arg.Key, val: v))))
                         .ToArray();
-                    int done = 0;
+                    int attempted = 0;
+                    int succeeded = 0;
                     TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", 0, pending.Length);
 
                     foreach (var item in pending)
@@ -362,10 +433,13 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                         {
                             ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
                             ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
+                            succeeded++;
                         }
 
-                        done++;
-                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
+                        attempted++;
+                        TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", attempted, pending.Length, item.cat, item.val.page);
+                        if (attempted == pending.Length || attempted % 25 == 0)
+                            ParserLog.Write(TrackerName, $"ParseAllTask ok={succeeded}/{attempted}");
                     }
                 }
                 finally
@@ -377,48 +451,58 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         public async Task<string> ParseLatestAsync(int pages = 5)
         {
-            return await TrackerSyncHelpers.RunParseLatestAsync(TrackerName, _parseLatestLock, checkDisabled: false, async () =>
+            if (!TryEnterCluster("ParseLatest"))
+                return TrackerSyncHelpers.WorkResult;
+
+            try
             {
-                var log = new StringBuilder();
-
-                try
+                return await TrackerSyncHelpers.RunParseLatestAsync(TrackerName, _parseLatestLock, checkDisabled: false, async () =>
                 {
-                    var sw = Stopwatch.StartNew();
-                    ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
+                    var log = new StringBuilder();
 
-                    var cycle = ParseAllCycleStore.LoadNestedActiveCycle(TrackerName, taskParse);
-
-                    foreach (var cat in taskParse.ToArray())
+                    try
                     {
-                        foreach (var arg in cat.Value.ToArray())
+                        var sw = Stopwatch.StartNew();
+                        ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
+
+                        var cycle = ParseAllCycleStore.LoadNestedActiveCycle(TrackerName, taskParse);
+
+                        foreach (var cat in taskParse.ToArray())
                         {
-                            var pagesToParse = arg.Value.OrderBy(x => x.page).Take(pages).ToArray();
-
-                            foreach (var val in pagesToParse)
+                            foreach (var arg in cat.Value.ToArray())
                             {
-                                await Task.Delay(AppInit.conf.Kinozal.parseDelay);
+                                var pagesToParse = arg.Value.OrderBy(x => x.page).Take(pages).ToArray();
 
-                                bool res = await parsePage(cat.Key, val.page, arg.Key);
-                                if (res)
+                                foreach (var val in pagesToParse)
                                 {
-                                    ParseAllCycleStore.MarkDoneInCycle(val, cycle);
-                                    log.AppendLine($"{cat.Key} - {arg.Key} - {val.page}");
+                                    await Task.Delay(AppInit.conf.Kinozal.parseDelay);
+
+                                    bool res = await parsePage(cat.Key, val.page, arg.Key);
+                                    if (res)
+                                    {
+                                        ParseAllCycleStore.MarkDoneInCycle(val, cycle);
+                                        log.AppendLine($"{cat.Key} - {arg.Key} - {val.page}");
+                                    }
                                 }
                             }
                         }
+
+                        PersistTaskParse();
+                        ParseAllCycleStore.SaveState(CyclePath, cycle);
+                        ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+                    }
+                    catch (Exception ex)
+                    {
+                        ParserLog.Write(TrackerName, $"ParseLatest Error: {ex.Message}");
                     }
 
-                    PersistTaskParse();
-                    ParseAllCycleStore.SaveState(CyclePath, cycle);
-                    ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-                }
-                catch (Exception ex)
-                {
-                    ParserLog.Write(TrackerName, $"ParseLatest Error: {ex.Message}");
-                }
-
-                return log.ToString();
-            });
+                    return log.ToString();
+                });
+            }
+            finally
+            {
+                _cluster.End();
+            }
         }
 
         async Task<bool> parsePage(string cat, int page, string arg = null, CancellationToken cancellationToken = default)
@@ -435,16 +519,20 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return false;
             }
 
-            if (KinozalParser.IsStaleListingHtml(html))
+            for (int retry = 0; KinozalParser.IsStaleListingHtml(html) && retry < StaleMaxRetries; retry++)
             {
-                await Task.Delay(1500, cancellationToken);
+                await Task.Delay(StaleRetryDelayMs, cancellationToken);
                 html = await GetBrowseHtml(browseUrl, cancellationToken);
-                if (KinozalParser.IsStaleListingHtml(html) || KinozalParser.IsTransientBrowseFailure(html))
-                {
-                    ParserLog.Write(TrackerName, $"browse stale/empty shell: {browseUrl}");
-                    return false;
-                }
             }
+
+            if (KinozalParser.IsStaleListingHtml(html) || KinozalParser.IsTransientBrowseFailure(html))
+            {
+                ParserLog.Write(TrackerName, $"browse stale/empty shell: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
+                await NoteStaleBrowseAsync();
+                return false;
+            }
+
+            NoteValidBrowse();
 
             if (KinozalParser.IsLoginWall(html) || (KinozalParser.IsValidBrowsePage(html) && !KinozalParser.IsLoggedIn(html)))
             {
@@ -454,7 +542,11 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
                 html = await GetBrowseHtmlRetryingTransient(browseUrl, cancellationToken);
                 if (KinozalParser.IsTransientBrowseFailure(html) || KinozalParser.IsStaleListingHtml(html) || !KinozalParser.IsValidBrowsePage(html))
+                {
+                    if (KinozalParser.IsStaleListingHtml(html))
+                        await NoteStaleBrowseAsync();
                     return false;
+                }
             }
             else if (!KinozalParser.IsValidBrowsePage(html))
             {

@@ -13,7 +13,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */5 * * * *  /opt/jacred/Data/run-job.sh jsondb-save http://127.0.0.1:9117/jsondb/save 60
 
 # cloudflare-warmup keep-alive -> /cron/cloudflare/Warmup (max_time=300s)
-# every 20 min — keeps FlareSolverr session `jacred` warm (cf_clearance in browser)
+# every 20 min — keeps FlareSolverr session `jacred-rutracker_org` warm (cf_clearance in browser)
 5,25,45 * * * *  /opt/jacred/Data/run-job.sh cloudflare-keepalive http://127.0.0.1:9117/cron/cloudflare/Warmup 300
 
 # cloudflare-warmup -> /cron/cloudflare/Warmup (max_time=300s)
