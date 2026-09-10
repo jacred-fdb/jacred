@@ -42,6 +42,12 @@ public class RutrackerParserTitleTests
         "Укрытие",
         "Silo",
         2026)]
+    [InlineData(
+        "1669",
+        "Укрытие / Бункер / Silo / Сезон: 2 / Серии: 1-10 из 10 (Майкл Диннер, Арик Авелино) [2024, США, фантастика, драма, триллер, Dolby Vision, HDR10+, WEB-DL 2160p, 4k]",
+        "Укрытие",
+        "Silo",
+        2024)]
     public void Serial_ParsesNameOrigYear(string cat, string title, string name, string orig, int year)
     {
         var t = Assert.Single(RutrackerParser.ParseTorrentsFromPage(ForumRow(title), cat));

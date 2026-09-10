@@ -4,7 +4,7 @@
 # Covers:
 #   1) /cron/cloudflare/Warmup
 #   2) /cron/rutracker/parse            (one cat, maxTopics)
-#   3) /cron/rutracker/UpdateTasksParse (one cat — NOT all 211 forums)
+#   3) /cron/rutracker/UpdateTasksParse (one cat — NOT all 246 forums)
 #   4) /cron/rutracker/ParseAllTask     (one cat, maxPages — NOT full backlog)
 #
 # Background jobs are polled via /health/background-jobs (re-calling cron

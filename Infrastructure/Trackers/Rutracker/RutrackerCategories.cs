@@ -55,12 +55,15 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["718"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["1940"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["271"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["272"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
+            ["775"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["1543"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["101"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["100"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["572"] = new() { Types = new[] { "movie" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
 
             // 3D Мультфильмы / Мультфильмы
+            ["84"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["2343"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["930"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
             ["2365"] = new() { Types = new[] { "multfilm" }, TitleKind = RutrackerTitleKind.Movie, QuickParse = true },
@@ -75,6 +78,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["921"] = new() { Types = new[] { "multserial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["815"] = new() { Types = new[] { "multserial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["1460"] = new() { Types = new[] { "multserial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["498"] = new() { Types = new[] { "multserial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
 
             // Сериалы (зарубежные, русские, HD, LatAm, KR/JP)
             ["842"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
@@ -96,6 +100,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["193"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["1690"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["1459"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["1463"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["825"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["1248"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["1288"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
@@ -120,6 +125,22 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             ["920"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["911"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["2100"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+
+            // Географические UHD/HD-листы под 119 / 2100 / 2366 (добавлены 10.09.2026).
+            //
+            // Повод: Silo S2 UHD (t=6601495) уехала из 2366 в 1669 «Сериалы США и
+            // Канады (UHD Video)». Родитель 119 в карте был, но его viewforum
+            // не содержит тем детей. Jackett-имена для этих id устарели
+            // (переиспользование разделов) — подписи брать с живого сайта.
+            ["1669"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["2393"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["625"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["1949"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["173"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["820"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
+            ["1242"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
+            ["717"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
+            ["2412"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },
 
             // Аниме
             ["1105"] = new() { Types = new[] { "anime" }, TitleKind = RutrackerTitleKind.NonStandard, QuickParse = true },

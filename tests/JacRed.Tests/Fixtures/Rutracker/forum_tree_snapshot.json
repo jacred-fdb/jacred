@@ -1,0 +1,30 @@
+{
+  "captured": "2026-09-10",
+  "source": "rutracker.org viewforum BFS via FlareSolverr; not Jackett (forum ids were reused).",
+  "note": "Parent crawl does not list child topics. P0 must stay in RutrackerCategories QuickParse. P1 is deferred.",
+  "forums": [
+    {"id": "1669", "name": "Сериалы США и Канады (UHD Video)", "parent": "119", "pages": 18, "priority": "p0"},
+    {"id": "2393", "name": "Сериалы Великобритании и Ирландии (UHD Video)", "parent": "119", "pages": 2, "priority": "p0"},
+    {"id": "625", "name": "Европейские сериалы (UHD Video)", "parent": "119", "pages": 2, "priority": "p0"},
+    {"id": "1949", "name": "Сериалы Австралии и Новой Зеландии (UHD Video)", "parent": "119", "pages": 1, "priority": "p0"},
+    {"id": "173", "name": "Сериалы совместного производства нескольких стран (UHD Video)", "parent": "119", "pages": 5, "priority": "p0"},
+    {"id": "820", "name": "Азиатские сериалы (UHD Video)", "parent": "2100", "pages": 9, "priority": "p0"},
+    {"id": "1242", "name": "Корейские сериалы (HD Video)", "parent": "2100", "pages": 38, "priority": "p0"},
+    {"id": "717", "name": "Китайские сериалы", "parent": "2100", "pages": 24, "priority": "p0"},
+    {"id": "2412", "name": "Сериалы Таиланда, Индонезии, Сингапура", "parent": "2100", "pages": 6, "priority": "p0"},
+    {"id": "1463", "name": "Сериалы стран Африки, Ближнего и Среднего Востока (HD Video)", "parent": "2366", "pages": 1, "priority": "p0"},
+    {"id": "84", "name": "Мультфильмы (UHD Video)", "parent": "4", "pages": 8, "priority": "p0"},
+    {"id": "498", "name": "Мультсериалы (UHD Video)", "parent": "921", "pages": 1, "priority": "p0"},
+    {"id": "272", "name": "Азиатские фильмы (UHD Video)", "parent": "718", "pages": 2, "priority": "p0"},
+    {"id": "775", "name": "Классика мирового кинематографа (UHD Video)", "parent": "718", "pages": 3, "priority": "p0"},
+    {"id": "1171", "name": "Новинки и сериалы в стадии показа (UHD Video)", "parent": "119", "pages": 1, "priority": "mapped"},
+    {"id": "119", "name": "Зарубежные сериалы (UHD Video)", "parent": "189", "pages": 1, "priority": "mapped"},
+    {"id": "273", "name": "Для некондиционных раздач (UHD Video)", "parent": "119", "pages": 1, "priority": "p1"},
+    {"id": "2406", "name": "Архив Зарубежные сериалы (UHD Video)", "parent": "119", "pages": 1, "priority": "skip"},
+    {"id": "816", "name": "Мультсериалы (DVD Video)", "parent": "921", "pages": 16, "priority": "p1"},
+    {"id": "1900", "name": "Отечественные мультфильмы (DVD)", "parent": "4", "pages": 16, "priority": "p1"},
+    {"id": "594", "name": "Сериалы Венесуэлы", "parent": "911", "pages": 0, "priority": "p1"},
+    {"id": "1301", "name": "Сериалы Индии", "parent": "911", "pages": 0, "priority": "p1"},
+    {"id": "2198", "name": "HD Video", "parent": "7", "pages": 33, "priority": "skip"}
+  ]
+}

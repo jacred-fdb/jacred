@@ -2,10 +2,12 @@
 """
 Dry-run Rutracker forum listings vs JacRed category map + HTML field shape.
 
-Fetches a representative sample (not all ~211 forums):
+Fetches a representative sample (not the full map):
   Movie, Serial, NonStandard(anime), sport, doc, tvshow.
 
   python3 scripts/dry_run_rutracker_parser.py
+  python3 scripts/dry_run_rutracker_parser.py --check-snapshot
+  python3 scripts/dry_run_rutracker_parser.py --probe-tree
   python3 scripts/dry_run_rutracker_parser.py --refresh-fixtures
 
 Then:
@@ -30,6 +32,15 @@ from typing import Dict, List, Optional, Tuple
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CATEGORIES_CS = REPO_ROOT / "Infrastructure" / "Trackers" / "Rutracker" / "RutrackerCategories.cs"
 DEFAULT_FIXTURE_DIR = REPO_ROOT / "tests" / "JacRed.Tests" / "Fixtures" / "Rutracker"
+DEFAULT_SNAPSHOT = DEFAULT_FIXTURE_DIR / "forum_tree_snapshot.json"
+FS_URL = os.environ.get("FS_URL", "http://127.0.0.1:8191/v1")
+
+# Parent forums whose viewforum subforum table is the real leaf catalog.
+# index.php sf_title is incomplete (under 119 it only shows 1171).
+VIDEO_TREE_PARENTS = (
+    "119", "2366", "189", "2100", "911", "718", "4", "921", "7", "22",
+    "33", "9", "81", "812", "46", "314", "24", "255",
+)
 
 # Representative forums: one per TitleKind + sport + doc + tvshow
 SAMPLE_FORUMS: Dict[str, str] = {
@@ -67,6 +78,114 @@ def parse_map(path: Path) -> Dict[str, Tuple[List[str], str, bool]]:
         quick = m.group(4) == "true"
         out[fid] = (types, kind, quick)
     return out
+
+
+def flaresolverr_get(url: str, session: str, timeout: int = 180) -> str:
+    payload = json.dumps(
+        {"cmd": "request.get", "url": url, "session": session, "maxTimeout": 120000}
+    ).encode()
+    req = urllib.request.Request(
+        FS_URL, data=payload, headers={"Content-Type": "application/json"}, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode())
+    sol = data.get("solution") or {}
+    return sol.get("response") or ""
+
+
+def flaresolverr_session() -> str:
+    payload = json.dumps({"cmd": "sessions.create"}).encode()
+    req = urllib.request.Request(
+        FS_URL, data=payload, headers={"Content-Type": "application/json"}, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read().decode())
+    session = data.get("session")
+    if not session:
+        raise RuntimeError(f"FlareSolverr sessions.create failed: {data}")
+    return session
+
+
+FORUMLINK_RE = re.compile(
+    r'<h4 class="forumlink"><a href="viewforum\.php\?f=(\d+)">([^<]+)</a>',
+    re.I,
+)
+PAGE_OF_RE = re.compile(r"Страница <b>1</b> из <b>([0-9]+)</b>")
+
+
+def parse_children(html: str) -> List[Tuple[str, str]]:
+    return [(m.group(1), m.group(2).strip()) for m in FORUMLINK_RE.finditer(html)]
+
+
+def page_count(html: str) -> int:
+    m = PAGE_OF_RE.search(html)
+    return int(m.group(1)) if m else 1
+
+
+def check_snapshot(mp: Dict[str, Tuple[List[str], str, bool]], path: Path) -> bool:
+    if not path.is_file():
+        print(f"[FAIL] snapshot missing: {path}")
+        return False
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    forums = data.get("forums") or []
+    p0 = sorted({f["id"] for f in forums if f.get("priority") == "p0"})
+    print(f"=== snapshot {path.relative_to(REPO_ROOT)} p0={len(p0)} captured={data.get('captured')} ===")
+    ok = True
+    if len(p0) != 14:
+        print(f"[FAIL] expected 14 P0 forums, got {len(p0)}")
+        ok = False
+    for fid in p0:
+        if fid not in mp:
+            print(f"[FAIL] P0 f={fid} not in RutrackerCategories.Map")
+            ok = False
+            continue
+        _types, _kind, quick = mp[fid]
+        if not quick:
+            print(f"[FAIL] P0 f={fid} is in map but QuickParse=false")
+            ok = False
+        else:
+            print(f"[OK]   f={fid:<5} QuickParse types={mp[fid][0]}")
+    return ok
+
+
+def probe_tree(mp: Dict[str, Tuple[List[str], str, bool]], host: str) -> int:
+    print(f"=== live forum tree via FlareSolverr {FS_URL} ===")
+    session = flaresolverr_session()
+    missing_p0 = []
+    unknown = []
+    for parent in VIDEO_TREE_PARENTS:
+        url = f"{host}/forum/viewforum.php?f={parent}"
+        try:
+            html = flaresolverr_get(url, session)
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as ex:
+            print(f"[FAIL] parent f={parent} fetch: {ex}")
+            return 1
+        kids = parse_children(html)
+        pages = page_count(html)
+        in_map = parent in mp
+        print(f"parent f={parent:<5} inMap={in_map} pages={pages} children={len(kids)}")
+        for fid, name in kids:
+            mapped = fid in mp
+            mark = "IN" if mapped else "MISS"
+            print(f"  {mark:4} f={fid:<5} {name}")
+            if not mapped:
+                unknown.append((fid, name, parent))
+
+    p0_from_snapshot = []
+    snap = DEFAULT_SNAPSHOT
+    if snap.is_file():
+        data = json.loads(snap.read_text(encoding="utf-8"))
+        p0_from_snapshot = [f["id"] for f in data.get("forums") or [] if f.get("priority") == "p0"]
+        for fid in p0_from_snapshot:
+            if fid not in mp:
+                missing_p0.append(fid)
+
+    if missing_p0:
+        print(f"[FAIL] P0 still missing from map: {missing_p0}")
+        return 1
+    print(f"unknown children not in map: {len(unknown)} (P1/meta; not a P0 failure)")
+    return 0
 
 
 def fetch(url: str) -> str:
@@ -113,11 +232,30 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--refresh-fixtures", action="store_true")
     p.add_argument("--fixture-dir", default=str(DEFAULT_FIXTURE_DIR))
     p.add_argument("--json-out", default="")
+    p.add_argument(
+        "--check-snapshot",
+        action="store_true",
+        help="Offline: P0 forums in forum_tree_snapshot.json must be QuickParse in the C# map",
+    )
+    p.add_argument(
+        "--probe-tree",
+        action="store_true",
+        help="Live BFS of video parent viewforum pages via FlareSolverr (FS_URL)",
+    )
+    p.add_argument("--snapshot", default=str(DEFAULT_SNAPSHOT))
     args = p.parse_args(argv)
 
     mp = parse_map(CATEGORIES_CS)
     host = args.host.rstrip("/")
     fixture_dir = Path(args.fixture_dir)
+    snapshot = Path(args.snapshot)
+
+    if args.check_snapshot or args.probe_tree:
+        failed_snap = not check_snapshot(mp, snapshot)
+        if args.probe_tree:
+            rc = probe_tree(mp, host)
+            return 1 if failed_snap or rc else 0
+        return 1 if failed_snap else 0
 
     if args.refresh_fixtures:
         fixture_dir.mkdir(parents=True, exist_ok=True)
@@ -126,6 +264,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     report = []
     failed = False
+    if not check_snapshot(mp, snapshot):
+        failed = True
+    print()
     print(f"=== Rutracker parser dry-run ({len(SAMPLE_FORUMS)} sample forums) ===\n")
 
     for fid, label in SAMPLE_FORUMS.items():

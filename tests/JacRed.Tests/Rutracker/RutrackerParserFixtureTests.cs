@@ -17,7 +17,7 @@ public class RutrackerParserFixtureTests
 {
     readonly ITestOutputHelper _output;
 
-    // Representative sample (not full 211-forum map).
+    // Representative sample (not full 246-forum map).
     static readonly (string id, string file)[] SampleFixtures =
     {
         ("1950", "forum_1950.html"),

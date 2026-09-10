@@ -111,7 +111,8 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             if (createTime != default)
                 t.createTime = createTime;
 
-            string magnet = Regex.Match(fullNews, "href=\"(magnet:[^\"]+)\" class=\"(med )?magnet-link\"").Groups[1].Value;
+            string magnet = HttpUtility.HtmlDecode(
+                Regex.Match(fullNews, "href=\"(magnet:[^\"]+)\" class=\"(med )?magnet-link\"").Groups[1].Value);
             if (!string.IsNullOrWhiteSpace(magnet))
             {
                 t.magnet = magnet;
@@ -119,6 +120,58 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Skip the topic GET when listing title and size match a row that already
+        /// has a magnet written at or after the listing timestamp. Title-only skip
+        /// froze magnets when rutracker replaced the torrent in-place (Silo t=6601495).
+        /// </summary>
+        public static bool ShouldSkipTopicFetch(TorrentDetails cached, TorrentDetails listing)
+        {
+            if (cached == null || listing == null)
+                return false;
+
+            if (string.IsNullOrWhiteSpace(cached.magnet))
+                return false;
+
+            if (!string.Equals(cached.title, listing.title, StringComparison.Ordinal))
+                return false;
+
+            if (!SizeNamesEqual(cached.sizeName, listing.sizeName))
+                return false;
+
+            if (listing.createTime == default || cached.updateTime == default)
+                return false;
+
+            if (AsUtc(listing.createTime) > AsUtc(cached.updateTime))
+                return false;
+
+            return true;
+        }
+
+        static bool SizeNamesEqual(string left, string right)
+        {
+            return string.Equals(NormalizeSizeName(left), NormalizeSizeName(right), StringComparison.OrdinalIgnoreCase);
+        }
+
+        static string NormalizeSizeName(string sizeName)
+        {
+            if (string.IsNullOrWhiteSpace(sizeName))
+                return string.Empty;
+
+            string decoded = HttpUtility.HtmlDecode(sizeName).Replace('\u00a0', ' ').Trim();
+            return Regex.Replace(decoded, @"\s+", " ");
+        }
+
+        static DateTime AsUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
         }
 
         static string MatchRow(string row, string pattern, int index = 1)

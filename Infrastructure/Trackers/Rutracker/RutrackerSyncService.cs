@@ -361,7 +361,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 if (maxTopics > 0 && topicsDone >= maxTopics)
                     return true;
 
-                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && _tcache.title == t.title)
+                if (db.TryGetValue(t.url, out TorrentDetails _tcache) && RutrackerParser.ShouldSkipTopicFetch(_tcache, t))
                     return true;
 
                 for (int attempt = 1; attempt <= topicAttempts; attempt++)

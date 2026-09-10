@@ -65,7 +65,7 @@ Rutracker:
 */15 * * * *  /opt/jacred/Data/run-job.sh parseall-resume http://127.0.0.1:9117/cron/maintenance/ResumeParseAll 60
 ```
 
-Hourly `parse` — источник свежести. `ParseAllTask` обходит карту форумов (~13–16k страниц): одна GET листинга на страницу, `sid`/`pir` мержатся в FileDB. Topic GET (магнит) только если title сменился. Пустой magnet с форума не затирает сохранённый. Цикл живёт в `Data/temp/rutracker_parseAllCycle.json`. Стены по часам нет: обход идёт до pending=0, shutdown или 45 мин без прогресса. После обслуживания: `curl /cron/maintenance/ParseAllStatus` и `ResumeParseAll` (ещё срабатывает сам через ~45 с после старта процесса).
+Hourly `parse` — источник свежести. `ParseAllTask` обходит карту форумов (~13–16k страниц): одна GET листинга на страницу, `sid`/`pir` мержатся в FileDB. Topic GET (магнит) если сменились title или размер, или дата на форуме новее последней записи магнита. Пустой magnet с форума не затирает сохранённый. Обход родителя не заменяет детей: UHD-листы вроде `1669` должны быть в карте. Цикл живёт в `Data/temp/rutracker_parseAllCycle.json`. Стены по часам нет: обход идёт до pending=0, shutdown или 45 мин без прогресса. После обслуживания: `curl /cron/maintenance/ParseAllStatus` и `ResumeParseAll` (ещё срабатывает сам через ~45 с после старта процесса).
 
 ## Принцип работы с Cloudflare
 
