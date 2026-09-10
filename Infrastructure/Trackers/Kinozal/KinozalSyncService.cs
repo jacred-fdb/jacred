@@ -61,12 +61,6 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             _memoryCache = memoryCache;
         }
 
-        static bool IsValidBrowsePage(string html) =>
-            !string.IsNullOrWhiteSpace(html)
-            && html.Contains("t_peer")
-            && html.Contains("details.php?id=")
-            && (html.Contains("Кинозал.GURU</title>") || html.Contains("Кинозал.ТВ</title>") || html.Contains("::"));
-
         string CookieHeader()
         {
             if (!string.IsNullOrWhiteSpace(AppInit.conf.Kinozal.cookie))
@@ -309,7 +303,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
                         // Получаем html
                         string html = await GetBrowseHtml($"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&d={year}&t=1", ct);
-                        if (!IsValidBrowsePage(html))
+                        if (!KinozalParser.IsValidBrowsePage(html))
                             continue;
 
                         // Максимальное количиство страниц
@@ -441,22 +435,40 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return false;
             }
 
-            if (KinozalParser.IsLoginWall(html) || (IsValidBrowsePage(html) && !KinozalParser.IsLoggedIn(html)))
+            if (KinozalParser.IsStaleListingHtml(html))
+            {
+                await Task.Delay(1500, cancellationToken);
+                html = await GetBrowseHtml(browseUrl, cancellationToken);
+                if (KinozalParser.IsStaleListingHtml(html) || KinozalParser.IsTransientBrowseFailure(html))
+                {
+                    ParserLog.Write(TrackerName, $"browse stale/empty shell: {browseUrl}");
+                    return false;
+                }
+            }
+
+            if (KinozalParser.IsLoginWall(html) || (KinozalParser.IsValidBrowsePage(html) && !KinozalParser.IsLoggedIn(html)))
             {
                 _cookie = null;
                 if (!await TakeLogin())
                     return false;
 
                 html = await GetBrowseHtmlRetryingTransient(browseUrl, cancellationToken);
-                if (KinozalParser.IsTransientBrowseFailure(html) || !IsValidBrowsePage(html))
+                if (KinozalParser.IsTransientBrowseFailure(html) || KinozalParser.IsStaleListingHtml(html) || !KinozalParser.IsValidBrowsePage(html))
                     return false;
             }
-            else if (!IsValidBrowsePage(html))
+            else if (!KinozalParser.IsValidBrowsePage(html))
             {
                 return false;
             }
 
             var torrents = KinozalParser.ParseTorrentsFromPage(html, cat);
+            int listingHrefCount = KinozalParser.CountTorrentListingLinks(html);
+            if (listingHrefCount > 0 && torrents.Count == 0)
+            {
+                ParserLog.Write(TrackerName, $"parse yielded 0 from {listingHrefCount} listing hrefs: {browseUrl}");
+                return false;
+            }
+
             int resolved = 0;
 
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
@@ -487,7 +499,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return true;
             });
 
-            return KinozalParser.ShouldMarkPageDone(torrents.Count, resolved);
+            return KinozalParser.ShouldMarkPageDone(torrents.Count, resolved, listingHrefCount);
         }
     }
 }

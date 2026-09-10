@@ -16,6 +16,16 @@ public class KinozalParserSportTitleTests
         "<td class='s'>16.07.2024 в 12:00</td>" +
         "</tr>";
 
+    static string BrowseRowDoubleQuoted(string title) =>
+        "<tr class=\"bg\">" +
+        "<td class=\"nam\"><a href=\"/details.php?id=1\" class=\"r0\">" + title + "</a></td>" +
+        "<td class=\"s\">0</td>" +
+        "<td class=\"s\">1.5 ГБ</td>" +
+        "<td class=\"sl_s\">10</td>" +
+        "<td class=\"sl_p\">5</td>" +
+        "<td class=\"s\">16.07.2024 в 12:00</td>" +
+        "</tr>";
+
     [Theory]
     [InlineData(
         "Велоспорт. Тур де Франс 2026 (12-й этап) / 2026 / РУ / WEB-DL (1080p)",
@@ -35,6 +45,19 @@ public class KinozalParserSportTitleTests
         Assert.DoesNotContain("movie", torrents[0].types);
         Assert.Equal(expectedName, torrents[0].name);
         Assert.Equal(expectedYear, torrents[0].relased);
+    }
+
+    [Fact]
+    public void SportTitles_DoubleQuotedRow_ParsesAsSport()
+    {
+        const string title = "Велоспорт. Тур де Франс 2026 (12-й этап) / 2026 / РУ / WEB-DL (1080p)";
+        var torrents = KinozalParser.ParseTorrentsFromPage(
+            "<table>" + BrowseRowDoubleQuoted(title) + "</table>", "37");
+
+        Assert.Single(torrents);
+        Assert.Equal(new[] { "sport" }, torrents[0].types);
+        Assert.Equal("Велоспорт. Тур де Франс 2026 (12-й этап)", torrents[0].name);
+        Assert.Equal(2026, torrents[0].relased);
     }
 
     [Fact]

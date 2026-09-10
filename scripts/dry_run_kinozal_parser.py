@@ -55,7 +55,9 @@ OUR_CATEGORIES: Dict[str, str] = {
     "20": "anime",
 }
 
-ROW_SPLIT = re.compile(r"<tr class=(?:'first bg'|bg)>")
+ROW_SPLIT = re.compile(r"""<tr class=["']?(?:first )?bg["']?>""", re.I)
+ATTR_Q = r"""["']?"""
+TORRENT_HREF = re.compile(r"""href=["']/?details\.php\?id=\d+""", re.I)
 REL_DATE = re.compile(r"(сегодня|вчера) в ([0-9]{2}:[0-9]{2})", re.I)
 
 UA = (
@@ -129,12 +131,15 @@ def score_page(html: str) -> Tuple[int, int, List[str]]:
     ok = 0
     samples: List[str] = []
     for row in rows:
-        url = re.search(r'href="/(details\.php\?id=[0-9]+)"', row)
-        title = re.search(r'class="r[0-9]+">([^<]+)</a>', row)
-        sid = re.search(r"<td class='sl_s'>([0-9]+)</td>", row)
-        pir = re.search(r"<td class='sl_p'>([0-9]+)</td>", row)
-        size = re.search(r"<td class='s'>([0-9\.,]+ (?:МБ|ГБ|ТБ))</td>", row)
-        time = re.search(r"<td class='sl_p'>[0-9]+</td>\s*<td class='s'>([^<]+)</td>", row)
+        url = re.search(r"""href=["']/(details\.php\?id=[0-9]+)["']""", row)
+        title = re.search(rf"class={ATTR_Q}r[0-9]+{ATTR_Q}>([^<]+)</a>", row)
+        sid = re.search(rf"<td class={ATTR_Q}sl_s{ATTR_Q}>([0-9]+)</td>", row)
+        pir = re.search(rf"<td class={ATTR_Q}sl_p{ATTR_Q}>([0-9]+)</td>", row)
+        size = re.search(rf"<td class={ATTR_Q}s{ATTR_Q}>([0-9\.,]+ (?:МБ|ГБ|ТБ))</td>", row)
+        time = re.search(
+            rf"<td class={ATTR_Q}sl_p{ATTR_Q}>[0-9]+</td>\s*<td class={ATTR_Q}s{ATTR_Q}>([^<]+)</td>",
+            row,
+        )
         if all([url, title, sid, pir, size, time]):
             ok += 1
             if len(samples) < 2:
@@ -194,7 +199,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         html = decode_page(raw)
         rows, ok, samples = score_page(html)
         rate = round(ok / rows * 100, 1) if rows else 0.0
-        valid = "t_peer" in html and "details.php?id=" in html and rows > 0 and rate >= 90
+        valid = "t_peer" in html and bool(TORRENT_HREF.search(html)) and rows > 0 and rate >= 90
         if not valid:
             failed = True
         status = "OK" if valid else "FAIL"

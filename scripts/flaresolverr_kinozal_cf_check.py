@@ -86,7 +86,7 @@ def flags(body: str) -> dict[str, Any]:
         "cf_just_a_moment": "Just a moment" in body or "Один момент" in body,
         "cf_challenge": "challenge-platform" in body or "cf-browser-verification" in body,
         "cf_chl_opt": "_cf_chl_opt" in body,
-        "kinozal_rows": "first bg" in body or "class=bg" in body,
+        "kinozal_rows": "first bg" in body or "class=bg" in body or 'class="bg"' in body or "class='bg'" in body,
         "details.php": bool(TORRENT_HREF.search(body)),
         "logged_in": ">Выход</a>" in body,
         "login_wall": "take_login" in body or "login.php" in body,

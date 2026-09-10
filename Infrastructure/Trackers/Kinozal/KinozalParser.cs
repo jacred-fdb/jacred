@@ -12,6 +12,18 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
     {
         const string TrackerName = "kinozal";
 
+        // Chromium/FlareSolverr re-serializes class='first bg' / class=bg as class="first bg" / class="bg".
+        const string AttrQ = "[\"']?";
+        static readonly Regex RowSplit = new Regex(
+            $"<tr class={AttrQ}(?:first )?bg{AttrQ}>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex TorrentListingHref = new Regex(
+            @"href=[""']/?details\.php\?id=\d+",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex HtmlTitle = new Regex(
+            @"<title>([^<]+)</title>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         /// <summary>
         /// Parse browse-list date column (header «Залит»).
         /// Kinozal shows Обновлен when torrent was re-uploaded; otherwise shows Залит (upload only).
@@ -59,7 +71,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             if (!KinozalCategories.Map.TryGetValue(cat, out var meta))
                 return torrents;
 
-            foreach (string row in Regex.Split(tParse.ReplaceBadNames(html), "<tr class=(?:'first bg'|bg)>").Skip(1))
+            foreach (string row in RowSplit.Split(tParse.ReplaceBadNames(html)).Skip(1))
             {
                 #region Локальный метод - Match
                 string Match(string pattern, int index = 1)
@@ -74,7 +86,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     continue;
 
                 #region Дата создания
-                string listingTime = Match("<td class='sl_p'>[0-9]+</td>\\s*<td class='s'>([^<]+)</td>");
+                string listingTime = Match($"<td class={AttrQ}sl_p{AttrQ}>[0-9]+</td>\\s*<td class={AttrQ}s{AttrQ}>([^<]+)</td>");
                 DateTime createTime = ParseListingUpdateTime(listingTime);
 
                 if (createTime == default)
@@ -82,11 +94,11 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 #endregion
 
                 #region Данные раздачи
-                string url = Match("href=\"/(details.php\\?id=[0-9]+)\"");
-                string title = Match("class=\"r[0-9]+\">([^<]+)</a>");
-                string _sid = Match("<td class='sl_s'>([0-9]+)</td>");
-                string _pir = Match("<td class='sl_p'>([0-9]+)</td>");
-                string sizeName = Match("<td class='s'>([0-9\\.,]+ (МБ|ГБ|ТБ))</td>");
+                string url = Match("href=[\"']/(details.php\\?id=[0-9]+)[\"']");
+                string title = Match($"class={AttrQ}r[0-9]+{AttrQ}>([^<]+)</a>");
+                string _sid = Match($"<td class={AttrQ}sl_s{AttrQ}>([0-9]+)</td>");
+                string _pir = Match($"<td class={AttrQ}sl_p{AttrQ}>([0-9]+)</td>");
+                string sizeName = Match($"<td class={AttrQ}s{AttrQ}>([0-9\\.,]+ (МБ|ГБ|ТБ))</td>");
 
                 if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
                     continue;
@@ -329,11 +341,63 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 || html.Contains("name=\"username\"", StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Empty listing → done. Rows that still need a magnet → not done until every row is resolved.
-        /// </summary>
-        public static bool ShouldMarkPageDone(int parsedCount, int resolvedCount)
+        public static int CountTorrentListingLinks(string html)
         {
+            if (string.IsNullOrEmpty(html))
+                return 0;
+
+            return TorrentListingHref.Matches(html).Count;
+        }
+
+        public static bool HasTorrentListingLinks(string html) =>
+            CountTorrentListingLinks(html) > 0;
+
+        static bool HasKinozalTitle(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return false;
+
+            var title = HtmlTitle.Match(html);
+            if (title.Success && title.Groups[1].Value.Contains("Кинозал", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return html.Contains("Кинозал.GURU", StringComparison.Ordinal)
+                || html.Contains("Кинозал.ТВ", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Real browse table (header present). Does not require torrent rows — empty categories are valid.
+        /// Does not treat <c>userdetails.php?id=</c> as a listing.
+        /// </summary>
+        public static bool IsValidBrowsePage(string html) =>
+            !string.IsNullOrWhiteSpace(html)
+            && html.Contains("t_peer", StringComparison.Ordinal)
+            && HasKinozalTitle(html);
+
+        /// <summary>
+        /// Logged-in Kinozal chrome without a <c>t_peer</c> table — typical ~15 KB FlareSolverr empty tab.
+        /// Retry; do not TakeLogin and do not mark ParseAllTask done.
+        /// </summary>
+        public static bool IsStaleListingHtml(string html)
+        {
+            if (IsTransientBrowseFailure(html) || IsLoginWall(html))
+                return false;
+
+            if (html.Contains("t_peer", StringComparison.Ordinal))
+                return false;
+
+            return IsLoggedIn(html);
+        }
+
+        /// <summary>
+        /// Empty listing (no torrent hrefs) → done. Parser miss (hrefs but 0 rows) → not done.
+        /// Rows that still need a magnet → not done until every row is resolved.
+        /// </summary>
+        public static bool ShouldMarkPageDone(int parsedCount, int resolvedCount, int listingHrefCount)
+        {
+            if (listingHrefCount > 0 && parsedCount <= 0)
+                return false;
+
             if (parsedCount <= 0)
                 return true;
 

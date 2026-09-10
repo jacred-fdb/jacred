@@ -136,12 +136,75 @@ public class KinozalParserFixtureTests
     }
 
     [Fact]
+    public void ParseTorrentsFromPage_ChromiumDoubleQuotedRows_YieldsTorrents()
+    {
+        string html = FixtureLoader.Read("Kinozal/browse_chromium_quoted.html");
+        List<TorrentDetails> torrents = KinozalParser.ParseTorrentsFromPage(html, "8");
+
+        Assert.Equal(2, torrents.Count);
+        Assert.Contains(torrents, t => t.url.Contains("details.php?id=2153071", StringComparison.Ordinal));
+        Assert.Contains(torrents, t => t.url.Contains("details.php?id=2153065", StringComparison.Ordinal));
+        Assert.All(torrents, t =>
+        {
+            Assert.Equal("kinozal", t.trackerName);
+            Assert.Equal(new[] { "movie" }, t.types);
+            Assert.False(string.IsNullOrWhiteSpace(t.sizeName));
+            Assert.NotEqual(default, t.createTime);
+        });
+        Assert.Equal("Молодожены", torrents[0].name);
+        Assert.Equal("Just Married", torrents[0].originalname);
+        Assert.Equal(2003, torrents[0].relased);
+    }
+
+    [Fact]
+    public void HasTorrentListingLinks_IgnoresUserdetails()
+    {
+        Assert.False(KinozalParser.HasTorrentListingLinks(
+            "<a href=\"/userdetails.php?id=191355\">profile</a><a href=\"#\">Выход</a>"));
+        Assert.True(KinozalParser.HasTorrentListingLinks(
+            "<a href=\"/details.php?id=2153071\" class=\"r0\">title</a>"));
+        Assert.Equal(2, KinozalParser.CountTorrentListingLinks(
+            FixtureLoader.Read("Kinozal/browse_chromium_quoted.html")));
+        Assert.False(KinozalParser.HasTorrentListingLinks(null));
+    }
+
+    [Fact]
+    public void IsValidBrowsePage_RequiresTPeerAndKinozalTitle()
+    {
+        string listing = FixtureLoader.Read("Kinozal/browse_c8.html");
+        Assert.True(KinozalParser.IsValidBrowsePage(listing));
+        Assert.True(KinozalParser.IsValidBrowsePage(FixtureLoader.Read("Kinozal/browse_chromium_quoted.html")));
+        Assert.False(KinozalParser.IsValidBrowsePage(
+            "<title>RuTracker.org :: forum</title><a href=\"/userdetails.php?id=1\">x</a>"));
+        Assert.False(KinozalParser.IsValidBrowsePage(
+            "<title>Раздачи :: Кинозал.GURU</title><a href=\"#\">Выход</a>"));
+    }
+
+    [Fact]
+    public void IsStaleListingHtml_LoggedInShellWithoutTPeer()
+    {
+        const string shell =
+            "<title>Раздачи :: Кинозал.GURU</title>"
+            + "<a href=\"/userdetails.php?id=191355\">profile</a>"
+            + "<a href=\"#\">Выход</a>";
+
+        Assert.True(KinozalParser.IsLoggedIn(shell));
+        Assert.True(KinozalParser.IsStaleListingHtml(shell));
+        Assert.False(KinozalParser.IsValidBrowsePage(shell));
+        Assert.False(KinozalParser.IsLoginWall(shell));
+        Assert.False(KinozalParser.IsStaleListingHtml(FixtureLoader.Read("Kinozal/browse_c22.html")));
+        Assert.False(KinozalParser.IsStaleListingHtml("<title>Just a moment...</title>"));
+        Assert.False(KinozalParser.IsStaleListingHtml("<form action=\"/takelogin.php\"><input name=\"username\">"));
+    }
+
+    [Fact]
     public void ShouldMarkPageDone_EmptyOrFullyResolved()
     {
-        Assert.True(KinozalParser.ShouldMarkPageDone(0, 0));
-        Assert.True(KinozalParser.ShouldMarkPageDone(10, 10));
-        Assert.False(KinozalParser.ShouldMarkPageDone(10, 0));
-        Assert.False(KinozalParser.ShouldMarkPageDone(10, 9));
+        Assert.True(KinozalParser.ShouldMarkPageDone(0, 0, 0));
+        Assert.False(KinozalParser.ShouldMarkPageDone(0, 0, 50));
+        Assert.True(KinozalParser.ShouldMarkPageDone(10, 10, 10));
+        Assert.False(KinozalParser.ShouldMarkPageDone(10, 0, 10));
+        Assert.False(KinozalParser.ShouldMarkPageDone(10, 9, 10));
     }
 
     [Fact]
