@@ -164,7 +164,7 @@ namespace JacRed.Infrastructure.Networking
             // через challenge-ветку ниже (таймаут до 180 с).
             if (CloudflareClearance.IsGuarded(requestHost))
             {
-                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie, referer, addHeaders);
                 if (!string.IsNullOrWhiteSpace(viaBrowser))
                     return (viaBrowser, OkResponse(url));
 
@@ -221,7 +221,7 @@ namespace JacRed.Infrastructure.Networking
                                 if (CloudflareClearance.IsChallengeBody(okBody))
                                 {
                                     CloudflareClearance.MarkGuarded(requestHost);
-                                    string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                                    string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie, referer, addHeaders);
                                     if (!string.IsNullOrWhiteSpace(viaBrowser))
                                         return (viaBrowser, OkResponse(url));
                                     continue;
@@ -254,7 +254,7 @@ namespace JacRed.Infrastructure.Networking
                             {
                                 CloudflareClearance.MarkGuarded(requestHost);
 
-                                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie);
+                                string viaBrowser = await CloudflareClearance.FetchAsync(url, cookie, referer, addHeaders);
                                 if (!string.IsNullOrWhiteSpace(viaBrowser))
                                     return (viaBrowser, OkResponse(url));
                             }

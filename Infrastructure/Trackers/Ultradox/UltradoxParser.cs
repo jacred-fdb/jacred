@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 
 namespace JacRed.Infrastructure.Trackers.Ultradox
 {
@@ -47,6 +48,10 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         static readonly Regex PageNumRe = new(@"/page/([0-9]+)/", RegexOptions.Compiled);
+
+        static readonly Regex PagesBlockRe = new(
+            @"<div\s+class=""[^""]*\bpages\b[^""]*"">([\s\S]*?)</div>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         static readonly Regex TitleYearRe = new(@"\(([0-9]{4})\)", RegexOptions.Compiled);
 
@@ -99,14 +104,40 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
             return $"{host}/{sectionPath}/page/{page}/";
         }
 
-        /// <summary>Highest /page/N/ from listing HTML (at least 1).</summary>
-        public static int LastPageFromHtml(string body)
+        /// <summary>
+        /// Last listing page from DLE <c>div.pages</c>. Uses the last pager that matches
+        /// <c>/{section}/page/N/</c> (footer, not the in-table AJAX widget). A global
+        /// <c>/page/N/</c> scan inflates maps (webrips 2613 on master 2026-09-10).
+        /// </summary>
+        public static int LastPageFromHtml(string body, string sectionPath = null)
         {
-            int maxPage = 1;
             if (string.IsNullOrWhiteSpace(body))
-                return maxPage;
+                return 1;
 
-            foreach (Match m in PageNumRe.Matches(body))
+            string section = (sectionPath ?? "").Trim('/');
+            Regex pageRe = string.IsNullOrEmpty(section)
+                ? PageNumRe
+                : new Regex("/" + Regex.Escape(section) + @"/page/([0-9]+)/", RegexOptions.IgnoreCase);
+
+            var blocks = PagesBlockRe.Matches(body);
+            for (int i = blocks.Count - 1; i >= 0; i--)
+            {
+                int fromBlock = MaxPageIn(blocks[i].Groups[1].Value, pageRe);
+                if (fromBlock > 0)
+                    return fromBlock;
+            }
+
+            int fallback = MaxPageIn(body, pageRe);
+            return fallback > 0 ? fallback : 1;
+        }
+
+        static int MaxPageIn(string haystack, Regex pageRe)
+        {
+            int maxPage = 0;
+            if (string.IsNullOrEmpty(haystack) || pageRe == null)
+                return 0;
+
+            foreach (Match m in pageRe.Matches(haystack))
             {
                 if (int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
                     && n > maxPage)
@@ -116,6 +147,20 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
             }
 
             return maxPage;
+        }
+
+        /// <summary>Drop map slots past the live pager (ghost tails from a polluted maxPage).</summary>
+        public static int PrunePagesBeyondMax(List<TaskParse> tasks, int maxPage)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return 0;
+
+            if (maxPage < 1)
+                maxPage = 1;
+
+            int before = tasks.Count;
+            tasks.RemoveAll(t => t != null && t.page > maxPage);
+            return before - tasks.Count;
         }
 
         public static List<UltradoxListingItem> ParseListingHtml(string body)

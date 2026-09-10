@@ -75,6 +75,9 @@ DETAIL_YEAR_RE = re.compile(
     re.I | re.S,
 )
 PAGE_NUM_RE = re.compile(r"/page/([0-9]+)/")
+PAGES_BLOCK_RE = re.compile(
+    r'<div\s+class="[^"]*\bpages\b[^"]*">([\s\S]*?)</div>', re.I
+)
 QUALITY_RES_RE = re.compile(r"([0-9]{3,4})[pP]")
 STRIP_TAGS_RE = re.compile(r"<[^>]+>")
 SPACES_RE = re.compile(r"\s+")
@@ -205,9 +208,26 @@ def score_detail(html: str) -> Tuple[bool, int, List[str]]:
     return len(magnets) > 0, year, samples
 
 
-def last_page(html: str) -> int:
-    max_page = 1
-    for m in PAGE_NUM_RE.finditer(html or ""):
+def last_page(html: str, section: str | None = None) -> int:
+    if not html:
+        return 1
+    if section:
+        page_re = re.compile(
+            rf"/{re.escape(section.strip('/'))}/page/([0-9]+)/", re.I
+        )
+    else:
+        page_re = PAGE_NUM_RE
+    for block in reversed(list(PAGES_BLOCK_RE.finditer(html))):
+        n = _max_page_in(block.group(1), page_re)
+        if n > 0:
+            return n
+    n = _max_page_in(html, page_re)
+    return n if n > 0 else 1
+
+
+def _max_page_in(haystack: str, page_re: re.Pattern[str]) -> int:
+    max_page = 0
+    for m in page_re.finditer(haystack or ""):
         n = int(m.group(1))
         if n > max_page:
             max_page = n
@@ -311,7 +331,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 continue
 
             items = parse_listing(html)
-            lp = last_page(html)
+            lp = last_page(html, path)
             valid = len(items) > 0
             if valid:
                 live_ok = True

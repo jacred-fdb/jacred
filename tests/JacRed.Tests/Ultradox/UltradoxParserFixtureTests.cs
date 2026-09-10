@@ -267,6 +267,40 @@ public class UltradoxParserFixtureTests
     }
 
     [Fact]
+    public void LastPageFromHtml_Fixture_UsesFooterPager_NotAjaxWidget()
+    {
+        string html = FixtureLoader.Read("Ultradox/listing_serial-hd.html");
+        Assert.Equal(418, UltradoxParser.LastPageFromHtml(html));
+        Assert.Equal(418, UltradoxParser.LastPageFromHtml(html, "serial-hd"));
+        Assert.Equal(1, UltradoxParser.LastPageFromHtml(html, "webrips"));
+    }
+
+    [Fact]
+    public void LastPageFromHtml_IgnoresScriptPageNumbers_PrefersLastSectionPager()
+    {
+        const string html = """
+            <script>var junk="/page/2613/";</script>
+            <div class="pages ultrabold"><a href="https://x/webrips/page/2613/">2613</a></div>
+            <div class="pages ultrabold"><a href="https://x/webrips/page/12/">12</a></div>
+            """;
+
+        Assert.Equal(12, UltradoxParser.LastPageFromHtml(html, "webrips"));
+        Assert.Equal(12, UltradoxParser.LastPageFromHtml(html));
+        Assert.Equal(1, UltradoxParser.LastPageFromHtml(""));
+    }
+
+    [Fact]
+    public void PrunePagesBeyondMax_DropsGhostTail()
+    {
+        var tasks = Enumerable.Range(1, 20).Select(i => new JacRed.Models.tParse.TaskParse(i)).ToList();
+        Assert.Equal(8, UltradoxParser.PrunePagesBeyondMax(tasks, 12));
+        Assert.Equal(12, tasks.Count);
+        Assert.Equal(12, tasks[^1].page);
+        Assert.Equal(0, UltradoxParser.PrunePagesBeyondMax(tasks, 12));
+        Assert.Equal(0, UltradoxParser.PrunePagesBeyondMax(null, 5));
+    }
+
+    [Fact]
     public void ParseListingHtml_Empty_ReturnsEmpty()
     {
         Assert.Empty(UltradoxParser.ParseListingHtml(""));

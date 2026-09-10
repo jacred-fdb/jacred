@@ -56,6 +56,16 @@ def fetch(task):
     if agent:
         headers["User-Agent"] = agent
 
+    extra = task.get("headers")
+    if isinstance(extra, dict):
+        for key, value in extra.items():
+            if not key or value is None:
+                continue
+            name = str(key)
+            if name.lower() in ("cookie", "user-agent"):
+                continue
+            headers[name] = str(value)
+
     kwargs = {
         "headers": headers,
         "impersonate": task.get("impersonate") or DEFAULT_IMPERSONATE,

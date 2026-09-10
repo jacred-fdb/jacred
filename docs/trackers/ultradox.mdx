@@ -9,7 +9,7 @@ keywords: ["JacRed", "Ultradox", "трекер", "парсинг"]
 Ultradox, slug `ultradox`, работает без авторизации. Использует Rutor-стиль trio плюс `ParseLatest`. Сайт возвращает 503, если запрос приходит с Referer собственного домена; JacRed автоматически подставляет Referer, похожий на страницу поиска Google или Yandex.
 
 <Warning>
-  Не переопределяйте заголовок `Referer` в прокси или CDN на пути от JacRed к `ultradox.onl`. Собственный Referer вызовет ответ 503.
+  Не переопределяйте заголовок `Referer` в прокси или CDN на пути от JacRed к `ultradox.onl`. Собственный Referer вызовет ответ 503. После `MarkGuarded` страница идёт через cffetch / FlareSolverr — JacRed прокидывает туда тот же поисковый Referer. Без него listing пустой (`fetched=0`, `Listing fetch failed`), а пустой ответ раньше помечал страницу ParseAll как выполненную.
 </Warning>
 
 ## Конфигурация

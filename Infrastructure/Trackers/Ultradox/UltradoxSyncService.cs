@@ -115,7 +115,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                         if (AppInit.conf.Ultradox.parseDelay > 0)
                             await Task.Delay(AppInit.conf.Ultradox.parseDelay, cancellationToken);
 
-                        var (fetched, added, updated, skipped, failed) =
+                        var (fetched, added, updated, skipped, failed, _) =
                             await ParseSectionPageAsync(host, kv.Key, kv.Value.Types, page, cancellationToken);
 
                         totalFetched += fetched;
@@ -188,20 +188,10 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                         continue;
                     }
 
-                    int maxPage = UltradoxParser.LastPageFromHtml(html);
-                    if (!taskParse.ContainsKey(kv.Key))
-                        taskParse[kv.Key] = new List<TaskParse>();
-
-                    var val = taskParse[kv.Key];
-                    // Go tasks are 1..maxPage (root is covered by page/1 on this site).
-                    for (int page = 1; page <= maxPage; page++)
-                    {
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
-                    }
-
-                    taskParse[kv.Key] = val.OrderBy(x => x.page).ToList();
-                    ParserLog.Write(TrackerName, $"UpdateTasksParse {kv.Key}: maxPage={maxPage}, total={taskParse[kv.Key].Count}");
+                    int maxPage = UltradoxParser.LastPageFromHtml(html, kv.Key);
+                    int pruned = MergeSectionPages(kv.Key, maxPage);
+                    ParserLog.Write(TrackerName, $"UpdateTasksParse {kv.Key}: maxPage={maxPage}, total={taskParse[kv.Key].Count}"
+                        + (pruned > 0 ? $", pruned={pruned}" : ""));
                 }
 
                 PersistTaskParse();
@@ -246,8 +236,10 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
 
                         try
                         {
-                            await ParseSectionPageAsync(host, item.cat, types, item.val.page, ct);
-                            ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
+                            var (_, _, _, _, _, listingOk) =
+                                await ParseSectionPageAsync(host, item.cat, types, item.val.page, ct);
+                            if (listingOk)
+                                ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
                         }
                         catch (OperationCanceledException) when (ct.IsCancellationRequested)
                         {
@@ -310,9 +302,13 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
 
                             try
                             {
-                                await ParseSectionPageAsync(host, task.Key, meta.Types, val.page, cancellationToken);
-                                ParseAllCycleStore.MarkDoneInCycle(val, cycle);
-                                log.AppendLine($"{task.Key} - {val.page}");
+                                var (_, _, _, _, _, listingOk) =
+                                    await ParseSectionPageAsync(host, task.Key, meta.Types, val.page, cancellationToken);
+                                if (listingOk)
+                                {
+                                    ParseAllCycleStore.MarkDoneInCycle(val, cycle);
+                                    log.AppendLine($"{task.Key} - {val.page}");
+                                }
                             }
                             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                             {
@@ -349,24 +345,34 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                 if (string.IsNullOrEmpty(html))
                     continue;
 
-                int maxPage = UltradoxParser.LastPageFromHtml(html);
-                if (!taskParse.ContainsKey(kv.Key))
-                    taskParse[kv.Key] = new List<TaskParse>();
-
-                var val = taskParse[kv.Key];
-                for (int page = 1; page <= maxPage; page++)
-                {
-                    if (val.FirstOrDefault(i => i.page == page) == null)
-                        val.Add(new TaskParse(page));
-                }
-
-                taskParse[kv.Key] = val.OrderBy(x => x.page).ToList();
+                int maxPage = UltradoxParser.LastPageFromHtml(html, kv.Key);
+                MergeSectionPages(kv.Key, maxPage);
             }
 
             PersistTaskParse();
         }
 
-        async Task<(int fetched, int added, int updated, int skipped, int failed)> ParseSectionPageAsync(
+        static int MergeSectionPages(string section, int maxPage)
+        {
+            if (maxPage < 1)
+                maxPage = 1;
+
+            if (!taskParse.ContainsKey(section))
+                taskParse[section] = new List<TaskParse>();
+
+            var val = taskParse[section];
+            for (int page = 1; page <= maxPage; page++)
+            {
+                if (val.FirstOrDefault(i => i.page == page) == null)
+                    val.Add(new TaskParse(page));
+            }
+
+            int pruned = UltradoxParser.PrunePagesBeyondMax(val, maxPage);
+            taskParse[section] = val.OrderBy(x => x.page).ToList();
+            return pruned;
+        }
+
+        async Task<(int fetched, int added, int updated, int skipped, int failed, bool listingOk)> ParseSectionPageAsync(
             string host, string sectionPath, string[] types, int page, CancellationToken cancellationToken)
         {
             string listUrl = UltradoxParser.ListingUrl(host, sectionPath, page);
@@ -380,12 +386,12 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                     { "page", page },
                     { "url", listUrl }
                 });
-                return (0, 0, 0, 0, 0);
+                return (0, 0, 0, 0, 0, false);
             }
 
             var items = UltradoxParser.ParseListingHtml(listHtml);
             if (items.Count == 0)
-                return (0, 0, 0, 0, 0);
+                return (0, 0, 0, 0, 0, true);
 
             var torrents = new List<TorrentDetails>();
             foreach (var item in items)
@@ -414,7 +420,8 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                 }
             }
 
-            return await SaveTorrentsAsync(torrents);
+            var (fetched, added, updated, skipped, failed) = await SaveTorrentsAsync(torrents);
+            return (fetched, added, updated, skipped, failed, true);
         }
 
         async Task<(int fetched, int added, int updated, int skipped, int failed)> SaveTorrentsAsync(

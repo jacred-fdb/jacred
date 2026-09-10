@@ -224,7 +224,8 @@ namespace JacRed.Infrastructure.Networking
             return false;
         }
 
-        public static async Task<(int status, string body, bool cfMitigated)> GetAsync(string url, Clearance clearance)
+        public static async Task<(int status, string body, bool cfMitigated)> GetAsync(
+            string url, Clearance clearance, IReadOnlyDictionary<string, string> extraHeaders = null)
         {
             var conf = Conf;
             if (conf == null || clearance == null || string.IsNullOrWhiteSpace(url))
@@ -245,6 +246,9 @@ namespace JacRed.Infrastructure.Networking
 
                 if (!string.IsNullOrWhiteSpace(conf.proxy))
                     payload["proxy"] = conf.proxy;
+
+                if (extraHeaders != null && extraHeaders.Count > 0)
+                    payload["headers"] = extraHeaders;
 
                 using var client = new System.Net.Http.HttpClient
                 {
