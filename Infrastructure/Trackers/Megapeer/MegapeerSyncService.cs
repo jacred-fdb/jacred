@@ -129,16 +129,18 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
+                        await TrackerSyncHelpers.WaitWhileHourlyParseBusy(_parseLock, ct);
 
                         bool res = await MegapeerParser.ParsePageAsync(item.cat, item.val.page, ct);
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
                         if (res)
                         {
                             ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
-                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                         }
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
+                        ParseAllCycleStore.PersistAfterPageIfNeeded(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true, done, pending.Length);
                     }
                 }
                 finally
@@ -168,7 +170,9 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                         foreach (var val in pagesToParse)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
+                            await TrackerSyncHelpers.WaitWhileHourlyParseBusy(_parseLock, cancellationToken);
                             bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page, cancellationToken);
+                            TrackerSyncHelpers.NoteRequest(TrackerName);
                             if (res)
                             {
                                 ParseAllCycleStore.MarkDoneInCycle(val, cycle);

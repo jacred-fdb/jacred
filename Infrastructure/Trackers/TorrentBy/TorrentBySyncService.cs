@@ -151,17 +151,19 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
-                        await Task.Delay(AppInit.conf.TorrentBy.parseDelay, ct);
+                        await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                            _parseLock, TrackerName, AppInit.conf.TorrentBy.parseDelay, ct);
 
                         bool res = await TorrentByParser.ParsePageAsync(item.cat, item.val.page, ct);
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
                         if (res)
                         {
                             ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
-                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                         }
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
+                        ParseAllCycleStore.PersistAfterPageIfNeeded(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true, done, pending.Length);
                     }
                 }
                 finally
@@ -190,9 +192,11 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
 
                         foreach (var val in pagesToParse)
                         {
-                            await Task.Delay(AppInit.conf.TorrentBy.parseDelay, cancellationToken);
+                            await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                                _parseLock, TrackerName, AppInit.conf.TorrentBy.parseDelay, cancellationToken);
 
                             bool res = await TorrentByParser.ParsePageAsync(task.Key, val.page);
+                            TrackerSyncHelpers.NoteRequest(TrackerName);
                             if (res)
                             {
                                 ParseAllCycleStore.MarkDoneInCycle(val, cycle);

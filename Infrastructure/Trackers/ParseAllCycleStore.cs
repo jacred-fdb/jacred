@@ -200,6 +200,21 @@ namespace JacRed.Infrastructure.Trackers
                 SaveState(cyclePath, cycle);
         }
 
+        public static void PersistAfterPageIfNeeded(
+            string cyclePath,
+            ParseAllCycleState cycle,
+            string taskParsePath,
+            object taskParse,
+            bool persistCycle,
+            int completed,
+            int total)
+        {
+            if (!TrackerSyncHelpers.ShouldPersistCheckpoint(completed, total))
+                return;
+
+            PersistAfterPage(cyclePath, cycle, taskParsePath, taskParse, persistCycle);
+        }
+
         public static void PersistTaskParse(string taskParsePath, object taskParse)
             => WriteJsonAtomic(taskParsePath, taskParse);
 

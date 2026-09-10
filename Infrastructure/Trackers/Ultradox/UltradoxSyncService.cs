@@ -235,8 +235,8 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
-                        if (AppInit.conf.Ultradox.parseDelay > 0)
-                            await Task.Delay(AppInit.conf.Ultradox.parseDelay, ct);
+                        await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                            _parseLock, TrackerName, AppInit.conf.Ultradox.parseDelay, ct);
 
                         if (!UltradoxCategories.Map.TryGetValue(item.cat, out var meta))
                             continue;
@@ -246,7 +246,6 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                         {
                             await ParseSectionPageAsync(host, item.cat, types, item.val.page, ct);
                             ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
-                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                         }
                         catch (OperationCanceledException) when (ct.IsCancellationRequested)
                         {
@@ -257,8 +256,10 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                             ParserLog.Write(TrackerName, $"ParseAllTask {item.cat} page={item.val.page} error: {ex.Message}");
                         }
 
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
+                        ParseAllCycleStore.PersistAfterPageIfNeeded(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true, done, pending.Length);
                     }
                 }
                 finally
@@ -302,8 +303,8 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                         foreach (var val in pagesToParse)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
-                            if (AppInit.conf.Ultradox.parseDelay > 0)
-                                await Task.Delay(AppInit.conf.Ultradox.parseDelay, cancellationToken);
+                            await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                                _parseLock, TrackerName, AppInit.conf.Ultradox.parseDelay, cancellationToken);
 
                             try
                             {
@@ -319,6 +320,8 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                             {
                                 ParserLog.Write(TrackerName, $"ParseLatest f={task.Key} page={val.page} error: {ex.Message}");
                             }
+
+                            TrackerSyncHelpers.NoteRequest(TrackerName);
                         }
                     }
 
@@ -386,12 +389,13 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
             foreach (var item in items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (AppInit.conf.Ultradox.parseDelay > 0)
-                    await Task.Delay(AppInit.conf.Ultradox.parseDelay, cancellationToken);
 
                 string detailUrl = item.DetailUrl;
                 if (!detailUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     detailUrl = host + "/" + detailUrl.TrimStart('/');
+
+                if (AppInit.conf.Ultradox.parseDelay > 0)
+                    await Task.Delay(AppInit.conf.Ultradox.parseDelay, cancellationToken);
 
                 string detailHtml = await FetchPageAsync(detailUrl, cancellationToken);
                 if (string.IsNullOrEmpty(detailHtml)

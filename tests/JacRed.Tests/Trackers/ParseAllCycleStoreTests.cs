@@ -188,6 +188,21 @@ public class ParseAllCycleStoreTests : IDisposable
     }
 
     [Fact]
+    public void PersistAfterPageIfNeeded_WritesOnCadence()
+    {
+        var path = NewPath("taskParse.json");
+        var cyclePath = NewPath("cycle.json");
+        var cycle = ParseAllCycleStore.CreateCycle("abc", 50);
+
+        ParseAllCycleStore.PersistAfterPageIfNeeded(cyclePath, cycle, path, new { n = 1 }, persistCycle: true, completed: 24, total: 50);
+        Assert.False(File.Exists(path));
+
+        ParseAllCycleStore.PersistAfterPageIfNeeded(cyclePath, cycle, path, new { n = 2 }, persistCycle: true, completed: 25, total: 50);
+        Assert.True(File.Exists(path));
+        Assert.Contains("\"n\": 2", File.ReadAllText(path));
+    }
+
+    [Fact]
     public void WriteJsonAtomic_ReplacesExistingFile()
     {
         var path = NewPath("atomic.json");

@@ -80,16 +80,6 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             }
         }
 
-        static bool TryEnterCluster(string jobLabel)
-        {
-            if (_cluster.TryStart())
-                return true;
-
-            TrackerSyncHelpers.LogParseSkipped(TrackerName, TrackerSyncHelpers.WorkResult);
-            ParserLog.Write(TrackerName, $"{jobLabel} skipped: sibling job running");
-            return false;
-        }
-
         void NoteValidBrowse() => Interlocked.Exchange(ref _consecutiveStales, 0);
 
         async Task NoteStaleBrowseAsync()
@@ -303,41 +293,32 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         public async Task<string> ParseAsync(int page)
         {
-            if (!TryEnterCluster("parse"))
-                return TrackerSyncHelpers.WorkResult;
-
-            try
+            return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
-                return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
+                string log = "";
+
+                try
                 {
-                    string log = "";
-
-                    try
+                    var sw = Stopwatch.StartNew();
+                    string baseUrl = $"{AppInit.conf.Kinozal.host}/browse.php";
+                    ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
+                    foreach (string cat in KinozalCategories.Ids)
                     {
-                        var sw = Stopwatch.StartNew();
-                        string baseUrl = $"{AppInit.conf.Kinozal.host}/browse.php";
-                        ParserLog.Write(TrackerName, $"Starting parse page={page}, base: {baseUrl}");
-                        foreach (string cat in KinozalCategories.Ids)
-                        {
-                            string pageUrl = $"{baseUrl}?c={cat}&page={page}";
-                            ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
-                            await parsePage(cat, page);
-                            log += $"{cat} - {page}\n";
-                        }
-                        ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+                        string pageUrl = $"{baseUrl}?c={cat}&page={page}";
+                        ParserLog.Write(TrackerName, $"Category {cat}: {pageUrl}");
+                        await parsePage(cat, page);
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
+                        log += $"{cat} - {page}\n";
                     }
-                    catch (Exception ex)
-                    {
-                        ParserLog.Write(TrackerName, $"Error: {ex.Message}");
-                    }
+                    ParserLog.Write(TrackerName, $"Parse completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+                }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"Error: {ex.Message}");
+                }
 
-                    return string.IsNullOrWhiteSpace(log) ? "ok" : log;
-                });
-            }
-            finally
-            {
-                _cluster.End();
-            }
+                return string.IsNullOrWhiteSpace(log) ? "ok" : log;
+            });
         }
 
         public async Task<string> UpdateTasksParseAsync()
@@ -434,19 +415,21 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
-                        await Task.Delay(AppInit.conf.Kinozal.parseDelay, ct);
+                        await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                            _parseLock, TrackerName, AppInit.conf.Kinozal.parseDelay, ct);
 
                         bool res = await parsePage(item.cat, item.val.page, item.arg, ct);
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
                         if (res)
                         {
                             ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
-                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                             succeeded++;
                         }
 
                         attempted++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", attempted, pending.Length, item.cat, item.val.page);
-                        if (attempted == pending.Length || attempted % 25 == 0)
+                        ParseAllCycleStore.PersistAfterPageIfNeeded(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true, attempted, pending.Length);
+                        if (attempted == pending.Length || attempted % TrackerSyncHelpers.PersistEveryPages == 0)
                             ParserLog.Write(TrackerName, $"ParseAllTask ok={succeeded}/{attempted}");
                     }
                 }
@@ -459,58 +442,50 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
 
         public async Task<string> ParseLatestAsync(int pages = 5)
         {
-            if (!TryEnterCluster("ParseLatest"))
-                return TrackerSyncHelpers.WorkResult;
-
-            try
+            return await TrackerSyncHelpers.RunParseLatestAsync(TrackerName, _parseLatestLock, checkDisabled: false, async () =>
             {
-                return await TrackerSyncHelpers.RunParseLatestAsync(TrackerName, _parseLatestLock, checkDisabled: false, async () =>
+                var log = new StringBuilder();
+
+                try
                 {
-                    var log = new StringBuilder();
+                    var sw = Stopwatch.StartNew();
+                    ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
 
-                    try
+                    var cycle = ParseAllCycleStore.LoadNestedActiveCycle(TrackerName, taskParse);
+
+                    foreach (var cat in taskParse.ToArray())
                     {
-                        var sw = Stopwatch.StartNew();
-                        ParserLog.Write(TrackerName, $"Starting ParseLatest pages={pages}");
-
-                        var cycle = ParseAllCycleStore.LoadNestedActiveCycle(TrackerName, taskParse);
-
-                        foreach (var cat in taskParse.ToArray())
+                        foreach (var arg in cat.Value.ToArray())
                         {
-                            foreach (var arg in cat.Value.ToArray())
+                            var pagesToParse = arg.Value.OrderBy(x => x.page).Take(pages).ToArray();
+
+                            foreach (var val in pagesToParse)
                             {
-                                var pagesToParse = arg.Value.OrderBy(x => x.page).Take(pages).ToArray();
+                                await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                                    _parseLock, TrackerName, AppInit.conf.Kinozal.parseDelay);
 
-                                foreach (var val in pagesToParse)
+                                bool res = await parsePage(cat.Key, val.page, arg.Key);
+                                TrackerSyncHelpers.NoteRequest(TrackerName);
+                                if (res)
                                 {
-                                    await Task.Delay(AppInit.conf.Kinozal.parseDelay);
-
-                                    bool res = await parsePage(cat.Key, val.page, arg.Key);
-                                    if (res)
-                                    {
-                                        ParseAllCycleStore.MarkDoneInCycle(val, cycle);
-                                        log.AppendLine($"{cat.Key} - {arg.Key} - {val.page}");
-                                    }
+                                    ParseAllCycleStore.MarkDoneInCycle(val, cycle);
+                                    log.AppendLine($"{cat.Key} - {arg.Key} - {val.page}");
                                 }
                             }
                         }
-
-                        PersistTaskParse();
-                        ParseAllCycleStore.SaveState(CyclePath, cycle);
-                        ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
-                    }
-                    catch (Exception ex)
-                    {
-                        ParserLog.Write(TrackerName, $"ParseLatest Error: {ex.Message}");
                     }
 
-                    return log.ToString();
-                });
-            }
-            finally
-            {
-                _cluster.End();
-            }
+                    PersistTaskParse();
+                    ParseAllCycleStore.SaveState(CyclePath, cycle);
+                    ParserLog.Write(TrackerName, $"ParseLatest completed successfully (took {sw.Elapsed.TotalSeconds:F1}s)");
+                }
+                catch (Exception ex)
+                {
+                    ParserLog.Write(TrackerName, $"ParseLatest Error: {ex.Message}");
+                }
+
+                return log.ToString();
+            });
         }
 
         async Task<bool> parsePage(string cat, int page, string arg = null, CancellationToken cancellationToken = default)

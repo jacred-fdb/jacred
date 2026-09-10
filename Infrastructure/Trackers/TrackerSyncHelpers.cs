@@ -1,8 +1,9 @@
 // Tracker sync shared helpers — parse lock and cron guard patterns.
 //
-// ParseAsync: TrackerParseLock + RunParseAsync
-// ParseAllTask / UpdateTasksParse: TrackerWorkFlag + RunInBackground (HTTP returns immediately)
-// ParseLatest: TrackerLatestParseLock + RunParseLatestAsync
+// ParseAsync: TrackerParseLock + RunParseAsync (never blocked by ParseAll/UpdateTasks)
+// ParseAllTask / UpdateTasksParse: TrackerWorkFlag + per-tracker backfill mutex + RunInBackground
+// ParseLatest: TrackerLatestParseLock + backfill mutex + RunParseLatestAsync
+// ParseAll/ParseLatest yield to hourly parse between pages and throttle with remainder delay.
 
 using JacRed.Infrastructure.Logging;
 using System;
@@ -37,6 +38,15 @@ namespace JacRed.Infrastructure.Trackers
             lock (_lock)
             {
                 _workParse = false;
+            }
+        }
+
+        public bool IsBusy
+        {
+            get
+            {
+                lock (_lock)
+                    return _workParse;
             }
         }
     }
@@ -89,12 +99,29 @@ namespace JacRed.Infrastructure.Trackers
         /// <summary>Default wall-clock limit for background UpdateTasksParse jobs.</summary>
         public static readonly TimeSpan DefaultUpdateTasksMaxDuration = TimeSpan.FromMinutes(30);
 
-        const int ProgressLogEvery = 25;
+        public const int PersistEveryPages = 25;
+
+        const int ProgressLogEvery = PersistEveryPages;
+        const int HourlyParsePollMs = 250;
 
         static readonly ConcurrentDictionary<string, TrackerBackgroundJobInfo> ActiveJobs =
             new ConcurrentDictionary<string, TrackerBackgroundJobInfo>(StringComparer.OrdinalIgnoreCase);
 
+        static readonly ConcurrentDictionary<string, TrackerWorkFlag> BackfillGates =
+            new ConcurrentDictionary<string, TrackerWorkFlag>(StringComparer.OrdinalIgnoreCase);
+
+        static readonly ConcurrentDictionary<string, RateStamp> RateStamps =
+            new ConcurrentDictionary<string, RateStamp>(StringComparer.OrdinalIgnoreCase);
+
+        sealed class RateStamp
+        {
+            public long Ticks;
+        }
+
         static CancellationToken _applicationStopping = CancellationToken.None;
+
+        static TrackerWorkFlag BackfillGate(string trackerName)
+            => BackfillGates.GetOrAdd(trackerName, _ => new TrackerWorkFlag());
 
         /// <summary>Link background wall clocks to host shutdown (call once from Program).</summary>
         public static void ConfigureApplicationStopping(CancellationToken applicationStopping)
@@ -193,6 +220,68 @@ namespace JacRed.Infrastructure.Trackers
             JacRedLog.Debug(JacRedLogCategories.Trackers, $"{trackerName}: parse skipped ({reason})");
         }
 
+        /// <summary>Pause ParseAll/ParseLatest between pages while hourly parse holds <paramref name="parseLock"/>.</summary>
+        public static async Task WaitWhileHourlyParseBusy(TrackerParseLock parseLock, CancellationToken cancellationToken = default)
+        {
+            if (parseLock == null)
+                return;
+
+            while (parseLock.IsBusy)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Delay(HourlyParsePollMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>Sleep only the remainder of <paramref name="delayMs"/> since <see cref="NoteRequest"/>.</summary>
+        public static async Task ThrottleAsync(string trackerName, int delayMs, CancellationToken cancellationToken = default)
+        {
+            if (delayMs <= 0 || string.IsNullOrWhiteSpace(trackerName))
+                return;
+
+            var stamp = RateStamps.GetOrAdd(trackerName, _ => new RateStamp());
+            long last;
+            lock (stamp)
+                last = stamp.Ticks;
+
+            if (last <= 0)
+                return;
+
+            long elapsedMs = (DateTime.UtcNow.Ticks - last) / TimeSpan.TicksPerMillisecond;
+            long remain = delayMs - elapsedMs;
+            if (remain > 0)
+                await Task.Delay((int)Math.Min(remain, int.MaxValue), cancellationToken).ConfigureAwait(false);
+        }
+
+        public static void NoteRequest(string trackerName)
+        {
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return;
+
+            var stamp = RateStamps.GetOrAdd(trackerName, _ => new RateStamp());
+            lock (stamp)
+                stamp.Ticks = DateTime.UtcNow.Ticks;
+        }
+
+        public static async Task YieldToHourlyParseAndThrottleAsync(
+            TrackerParseLock parseLock,
+            string trackerName,
+            int delayMs,
+            CancellationToken cancellationToken = default)
+        {
+            await WaitWhileHourlyParseBusy(parseLock, cancellationToken).ConfigureAwait(false);
+            await ThrottleAsync(trackerName, delayMs, cancellationToken).ConfigureAwait(false);
+        }
+
+        public static bool ShouldPersistCheckpoint(int completed, int total, int every = PersistEveryPages)
+        {
+            if (completed <= 0)
+                return false;
+            if (total > 0 && completed >= total)
+                return true;
+            return every > 0 && completed % every == 0;
+        }
+
         public static async Task<string> RunParseAsync(
             string trackerName,
             TrackerParseLock parseLock,
@@ -248,6 +337,14 @@ namespace JacRed.Infrastructure.Trackers
                 return WorkResult;
             }
 
+            var backfill = BackfillGate(trackerName);
+            if (!backfill.TryStart())
+            {
+                workFlag.End();
+                LogParseSkipped(trackerName, WorkResult);
+                return WorkResult;
+            }
+
             var duration = maxDuration ?? DefaultParseAllMaxDuration;
             var key = JobKey(trackerName, jobLabel);
             var info = new TrackerBackgroundJobInfo
@@ -287,6 +384,7 @@ namespace JacRed.Infrastructure.Trackers
                 {
                     ActiveJobs.TryRemove(key, out _);
                     workFlag.End();
+                    backfill.End();
                 }
             });
 
@@ -331,6 +429,14 @@ namespace JacRed.Infrastructure.Trackers
                 return WorkResult;
             }
 
+            var backfill = BackfillGate(trackerName);
+            if (!backfill.TryStart())
+            {
+                workFlag.End();
+                LogParseSkipped(trackerName, WorkResult);
+                return WorkResult;
+            }
+
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -344,6 +450,7 @@ namespace JacRed.Infrastructure.Trackers
             finally
             {
                 workFlag.End();
+                backfill.End();
             }
 
             return OkResult;
@@ -362,8 +469,16 @@ namespace JacRed.Infrastructure.Trackers
                 return DisabledResult;
             }
 
+            var backfill = BackfillGate(trackerName);
+            if (!backfill.TryStart())
+            {
+                LogParseSkipped(trackerName, WorkResult);
+                return WorkResult;
+            }
+
             if (!await latestLock.TryEnterAsync(cancellationToken))
             {
+                backfill.End();
                 LogParseSkipped(trackerName, WorkResult);
                 return WorkResult;
             }
@@ -376,6 +491,7 @@ namespace JacRed.Infrastructure.Trackers
             finally
             {
                 latestLock.Exit();
+                backfill.End();
             }
         }
     }

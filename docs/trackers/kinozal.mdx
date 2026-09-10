@@ -62,7 +62,7 @@ FlareSolverr/Chromium отдаёт листинг с двойными кавыч
 
 Короткая ссылка джобов (`c=&page=&d=&t=1`) совпадает с пейджером сайта; полная форма `s=&g=0&v=0&w=0&f=0` не нужна. `t=1` — сортировка «Сидам», не фильтр «активные». Hourly `parse` без года: `c=&page=0`.
 
-`parse`, `UpdateTasksParse`, `ParseAllTask` и `ParseLatest` на Kinozal взаимоисключающие: второй job возвращает `work`. Не запускайте UpdateTasks и ParseAll вручную одновременно. В `/health/background-jobs` `percent` у ParseAll — это обойдённые страницы очереди, не число новых магнитов в FileDB; в `kinozal.log` смотрите `ParseAllTask ok=успех/попытки`.
+Hourly `parse` не блокируется фоновым ParseAll: свежие раздачи (`/browse.php?c=&page=0`) идут каждые 15 минут, а архивный обход по годам уступает между страницами. `UpdateTasksParse`, `ParseAllTask` и `ParseLatest` по-прежнему взаимоисключающие. Не запускайте UpdateTasks и ParseAll вручную одновременно. В `/health/background-jobs` `percent` у ParseAll — это обойдённые страницы очереди, не число новых магнитов в FileDB; в `kinozal.log` смотрите `ParseAllTask ok=успех/попытки`.
 
 Нужны cookie (или login) и `flaresolverr.enable: true`. Подробнее: [FlareSolverr](/configuration/flaresolverr).
 

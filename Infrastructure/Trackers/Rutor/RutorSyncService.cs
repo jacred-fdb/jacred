@@ -122,17 +122,19 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
-                        await Task.Delay(AppInit.conf.Rutor.parseDelay, ct);
+                        await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                            _parseLock, TrackerName, AppInit.conf.Rutor.parseDelay, ct);
 
                         bool res = await parsePage(item.cat, item.val.page, ct);
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
                         if (res)
                         {
                             ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
-                            ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                         }
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
+                        ParseAllCycleStore.PersistAfterPageIfNeeded(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true, done, pending.Length);
                     }
                 }
                 finally
@@ -161,9 +163,11 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
                         foreach (var val in pagesToParse)
                         {
-                            await Task.Delay(AppInit.conf.Rutor.parseDelay);
+                            await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                                _parseLock, TrackerName, AppInit.conf.Rutor.parseDelay);
 
                             bool res = await parsePage(task.Key, val.page);
+                            TrackerSyncHelpers.NoteRequest(TrackerName);
                             if (res)
                             {
                                 ParseAllCycleStore.MarkDoneInCycle(val, cycle);

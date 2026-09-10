@@ -246,15 +246,16 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
-                        await Task.Delay(AppInit.conf.Rutracker.parseDelay, ct);
+                        await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                            _parseLock, TrackerName, AppInit.conf.Rutracker.parseDelay, ct);
 
                         bool res = await parsePage(item.cat, item.val.page, ct);
+                        TrackerSyncHelpers.NoteRequest(TrackerName);
                         if (res)
                         {
                             if (fullRun)
                             {
                                 ParseAllCycleStore.MarkDoneInCycle(item.val, cycle);
-                                ParseAllCycleStore.PersistAfterPage(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true);
                             }
                             else
                             {
@@ -264,6 +265,8 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
                         done++;
                         TrackerSyncHelpers.ReportProgress(TrackerName, "ParseAllTask", done, pending.Length, item.cat, item.val.page);
+                        if (fullRun)
+                            ParseAllCycleStore.PersistAfterPageIfNeeded(CyclePath, cycle, TaskParsePath, taskParse, persistCycle: true, done, pending.Length);
                     }
 
                     ParserLog.Write(TrackerName, $"ParseAllTask done {done}/{pending.Length}");
@@ -308,9 +311,11 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
 
                         foreach (var val in pagesToParse)
                         {
-                            await Task.Delay(AppInit.conf.Rutracker.parseDelay);
+                            await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                                _parseLock, TrackerName, AppInit.conf.Rutracker.parseDelay);
 
                             bool res = await parsePage(task.Key, val.page);
+                            TrackerSyncHelpers.NoteRequest(TrackerName);
                             if (res)
                             {
                                 ParseAllCycleStore.MarkDoneInCycle(val, cycle);
