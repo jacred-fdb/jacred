@@ -62,11 +62,13 @@ namespace JacRed.Infrastructure.Persistence
                 return JacRed.Infrastructure.Trackers.SubsPlease.SubsPleaseParser.StableUrlId(ep);
             }
 
-            // Kinozal: .../details.php?id=2058877 (домен мог смениться .tv → .guru)
+            // Kinozal: .../details.php?id=2058877 (домен мог смениться .tv → .guru).
+            // Do not treat userdetails.php?id= (uploader profile) as a torrent id.
             if (string.Equals(trackerName, "kinozal", StringComparison.OrdinalIgnoreCase))
             {
-                var m = Regex.Match(url, @"details\.php\?id=(\d+)", RegexOptions.IgnoreCase);
-                return m.Success && int.TryParse(m.Groups[1].Value, out int id) ? id : 0;
+                return JacRed.Infrastructure.Trackers.Kinozal.KinozalParser.TryGetDetailsId(url, out int kzId)
+                    ? kzId
+                    : 0;
             }
 
             // NNMClub: .../forum/viewtopic.php?t=1882070

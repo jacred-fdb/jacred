@@ -57,7 +57,8 @@ public class KinozalParserFixtureTests
             Assert.False(string.IsNullOrWhiteSpace(t.title));
             Assert.False(string.IsNullOrWhiteSpace(t.url));
             Assert.StartsWith(AppInit.conf.Kinozal.host.TrimEnd('/') + "/", t.url, StringComparison.Ordinal);
-            Assert.Contains("details.php?id=", t.url, StringComparison.Ordinal);
+            Assert.Contains("/details.php?id=", t.url, StringComparison.Ordinal);
+            Assert.DoesNotContain("userdetails", t.url, StringComparison.OrdinalIgnoreCase);
             Assert.False(string.IsNullOrWhiteSpace(t.sizeName));
             Assert.NotEqual(default, t.createTime);
             Assert.True(t.sid >= 0);
@@ -142,8 +143,13 @@ public class KinozalParserFixtureTests
         List<TorrentDetails> torrents = KinozalParser.ParseTorrentsFromPage(html, "8");
 
         Assert.Equal(2, torrents.Count);
-        Assert.Contains(torrents, t => t.url.Contains("details.php?id=2153071", StringComparison.Ordinal));
-        Assert.Contains(torrents, t => t.url.Contains("details.php?id=2153065", StringComparison.Ordinal));
+        Assert.All(torrents, t =>
+        {
+            Assert.Contains("/details.php?id=", t.url, StringComparison.Ordinal);
+            Assert.DoesNotContain("userdetails", t.url, StringComparison.OrdinalIgnoreCase);
+        });
+        Assert.Equal($"{AppInit.conf.Kinozal.host.TrimEnd('/')}/details.php?id=2153071", torrents[0].url);
+        Assert.Equal($"{AppInit.conf.Kinozal.host.TrimEnd('/')}/details.php?id=2153065", torrents[1].url);
         Assert.All(torrents, t =>
         {
             Assert.Equal("kinozal", t.trackerName);
@@ -163,9 +169,50 @@ public class KinozalParserFixtureTests
             "<a href=\"/userdetails.php?id=191355\">profile</a><a href=\"#\">Выход</a>"));
         Assert.True(KinozalParser.HasTorrentListingLinks(
             "<a href=\"/details.php?id=2153071\" class=\"r0\">title</a>"));
+        Assert.False(KinozalParser.TryGetDetailsId("https://kinozal.guru/userdetails.php?id=191355", out _));
+        Assert.False(KinozalParser.TryGetDetailsId("https://kinozal.guru/userdetails.php?id=2153071", out _));
+        Assert.True(KinozalParser.TryGetDetailsId("https://kinozal.guru/details.php?id=2153071", out int detailsId));
+        Assert.Equal(2153071, detailsId);
         Assert.Equal(2, KinozalParser.CountTorrentListingLinks(
             FixtureLoader.Read("Kinozal/browse_chromium_quoted.html")));
         Assert.False(KinozalParser.HasTorrentListingLinks(null));
+    }
+
+    [Fact]
+    public void ParseTorrentsFromPage_UserdetailsFirstInRow_StoresDetailsUrl()
+    {
+        const string html =
+            "<title>Раздачи :: Кинозал.GURU</title>"
+            + "<table class=\"t_peer\"><tr class=\"bg\">"
+            + "<td class=\"sl\"><a href=\"/userdetails.php?id=191355\" class=\"u6\">uploader</a></td>"
+            + "<td class=\"nam\"><a href=\"/details.php?id=2153071\" class=\"r0\">"
+            + "Молодожены / Just Married / 2003 / ДБ / BDRip (720p)</a></td>"
+            + "<td class=\"s\">0</td>"
+            + "<td class=\"s\">7.11 ГБ</td>"
+            + "<td class=\"sl_s\">1</td>"
+            + "<td class=\"sl_p\">2</td>"
+            + "<td class=\"s\">16.07.2024 в 12:00</td>"
+            + "</tr></table>";
+
+        var torrents = KinozalParser.ParseTorrentsFromPage(html, "8");
+        Assert.Single(torrents);
+        Assert.Equal($"{AppInit.conf.Kinozal.host.TrimEnd('/')}/details.php?id=2153071", torrents[0].url);
+        Assert.DoesNotContain("userdetails", torrents[0].url, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Молодожены", torrents[0].name);
+    }
+
+    [Fact]
+    public void ParseTorrentsFromPage_UserdetailsOnlyRow_ReturnsEmpty()
+    {
+        const string html =
+            "<table class=\"t_peer\"><tr class=\"bg\">"
+            + "<td class=\"nam\"><a href=\"/userdetails.php?id=191355\" class=\"r0\">uploader</a></td>"
+            + "<td class=\"s\">0</td><td class=\"s\">7.11 ГБ</td>"
+            + "<td class=\"sl_s\">1</td><td class=\"sl_p\">2</td>"
+            + "<td class=\"s\">16.07.2024 в 12:00</td>"
+            + "</tr></table>";
+
+        Assert.Empty(KinozalParser.ParseTorrentsFromPage(html, "8"));
     }
 
     [Fact]

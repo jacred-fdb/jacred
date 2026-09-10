@@ -479,7 +479,9 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     return true;
                 }
 
-                string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
+                if (!KinozalParser.TryGetDetailsId(t.url, out int id))
+                    return false;
+
                 // GET: id/action already in the query. HttpClient.Get routes guarded
                 // Cloudflare hosts through FlareSolverr. request.post is flaky in the
                 // shared Chromium session (returns the previous browse tab).

@@ -76,7 +76,7 @@ def snippet(body: str) -> str:
 
 INFO_HASH = re.compile(r"Инфо хеш:\s*([A-Fa-f0-9]{40})")
 # href="/details.php?id=" — do not match userdetails.php?id= (logged-in profile).
-TORRENT_HREF = re.compile(r"""href=["']/?details\.php\?id=(\d+)["']""", re.I)
+TORRENT_HREF = re.compile(r"""href=["']/details\.php\?id=(\d+)["']""", re.I)
 
 
 def flags(body: str) -> dict[str, Any]:

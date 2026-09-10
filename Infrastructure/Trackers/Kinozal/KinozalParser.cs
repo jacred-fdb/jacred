@@ -17,8 +17,15 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static readonly Regex RowSplit = new Regex(
             $"<tr class={AttrQ}(?:first )?bg{AttrQ}>",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // `/details.php` only — `userdetails.php?id=` contains the substring `details.php?id=`.
         static readonly Regex TorrentListingHref = new Regex(
-            @"href=[""']/?details\.php\?id=\d+",
+            @"href=[""']/details\.php\?id=\d+",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex NamTorrentHref = new Regex(
+            $@"<td class={AttrQ}nam{AttrQ}>\s*<a href=[""']/details\.php\?id=(\d+)[""']",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex DetailsIdInUrl = new Regex(
+            @"/details\.php\?id=(\d+)",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex HtmlTitle = new Regex(
             @"<title>([^<]+)</title>",
@@ -94,16 +101,18 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 #endregion
 
                 #region Данные раздачи
-                string url = Match("href=[\"']/(details.php\\?id=[0-9]+)[\"']");
+                if (!TryGetDetailsIdFromRow(row, out int detailsId))
+                    continue;
+
                 string title = Match($"class={AttrQ}r[0-9]+{AttrQ}>([^<]+)</a>");
                 string _sid = Match($"<td class={AttrQ}sl_s{AttrQ}>([0-9]+)</td>");
                 string _pir = Match($"<td class={AttrQ}sl_p{AttrQ}>([0-9]+)</td>");
                 string sizeName = Match($"<td class={AttrQ}s{AttrQ}>([0-9\\.,]+ (МБ|ГБ|ТБ))</td>");
 
-                if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
+                if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(_sid) || string.IsNullOrWhiteSpace(_pir) || string.IsNullOrWhiteSpace(sizeName))
                     continue;
 
-                url = $"{AppInit.conf.Kinozal.host}/{url}";
+                string url = DetailsUrl(AppInit.conf.Kinozal.host, detailsId);
                 #endregion
 
                 #region Парсим раздачи
@@ -339,6 +348,39 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             return html.Contains("takelogin.php", StringComparison.OrdinalIgnoreCase)
                 || html.Contains("take_login", StringComparison.OrdinalIgnoreCase)
                 || html.Contains("name=\"username\"", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Torrent id from a details URL. Returns false for <c>userdetails.php</c> profile links.
+        /// </summary>
+        public static bool TryGetDetailsId(string url, out int id)
+        {
+            id = 0;
+            if (string.IsNullOrEmpty(url))
+                return false;
+
+            if (url.IndexOf("userdetails", StringComparison.OrdinalIgnoreCase) >= 0)
+                return false;
+
+            var match = DetailsIdInUrl.Match(url);
+            return match.Success && int.TryParse(match.Groups[1].Value, out id) && id > 0;
+        }
+
+        public static string DetailsUrl(string host, int id)
+        {
+            string baseHost = string.IsNullOrWhiteSpace(host) ? "https://kinozal.guru" : host.TrimEnd('/');
+            return $"{baseHost}/details.php?id={id}";
+        }
+
+        static bool TryGetDetailsIdFromRow(string row, out int id)
+        {
+            id = 0;
+            var nam = NamTorrentHref.Match(row);
+            if (nam.Success && int.TryParse(nam.Groups[1].Value, out id) && id > 0)
+                return true;
+
+            var href = TorrentListingHref.Match(row);
+            return href.Success && TryGetDetailsId(href.Value, out id);
         }
 
         public static int CountTorrentListingLinks(string html)

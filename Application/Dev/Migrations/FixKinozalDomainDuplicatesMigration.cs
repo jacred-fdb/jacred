@@ -16,7 +16,7 @@ namespace JacRed.Application.Dev.Migrations
     {
         public string Name => "fixKinozalDomainDuplicates";
 
-        static readonly Regex RxId = new Regex(@"details\.php\?id=(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex RxId = new Regex(@"/details\.php\?id=(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public object Run()
         {
@@ -29,6 +29,7 @@ namespace JacRed.Application.Dev.Migrations
                 using (var fdb = FileDB.OpenWrite(item.Key))
                 {
                     var groups = new Dictionary<int, List<KeyValuePair<string, TorrentDetails>>>();
+                    var toRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var kv in fdb.Database)
                     {
@@ -41,6 +42,13 @@ namespace JacRed.Application.Dev.Migrations
 
                         scanned++;
 
+                        if (kv.Key.IndexOf("userdetails", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            toRemove.Add(kv.Key);
+                            removed++;
+                            continue;
+                        }
+
                         var m = RxId.Match(kv.Key);
                         if (!m.Success || !int.TryParse(m.Groups[1].Value, out int id) || id <= 0)
                             continue;
@@ -51,7 +59,6 @@ namespace JacRed.Application.Dev.Migrations
                         list.Add(kv);
                     }
 
-                    var toRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     var toWrite = new Dictionary<string, TorrentDetails>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var pair in groups)

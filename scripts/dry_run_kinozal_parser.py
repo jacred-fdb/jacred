@@ -57,7 +57,7 @@ OUR_CATEGORIES: Dict[str, str] = {
 
 ROW_SPLIT = re.compile(r"""<tr class=["']?(?:first )?bg["']?>""", re.I)
 ATTR_Q = r"""["']?"""
-TORRENT_HREF = re.compile(r"""href=["']/?details\.php\?id=\d+""", re.I)
+TORRENT_HREF = re.compile(r"""href=["']/details\.php\?id=\d+""", re.I)
 REL_DATE = re.compile(r"(сегодня|вчера) в ([0-9]{2}:[0-9]{2})", re.I)
 
 UA = (
