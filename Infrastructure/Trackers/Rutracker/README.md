@@ -26,7 +26,6 @@ Rutracker:
   host: https://rutracker.org
   alias: ""          # optional Worker URL if flaresolverr.enable=false
   topicFetchAttempts: 5          # retry topic GET until magnet/details (per run)
-  parseAllMaxHours: 12           # one morning ParseAll; do not cron 11:40
   reqMinute: 30                  # 60 revokes cf_clearance
 ```
 
@@ -100,7 +99,7 @@ Category counts (from `RutrackerCategories`): **211** forums, **65** `QuickParse
 
 Primary freshness is **`Parse` page 0 of QuickParse**, not `ParseAllTask`.
 
-Repo [`Data/crontab`](../../../Data/crontab): one morning ParseAll kick. Wall is `Rutracker.parseAllMaxHours` (12). Cycle checkpoint survives cancel; next day continues pending. Hourly parse + listing sid/pir are freshness — not ParseAll.
+Repo [`Data/crontab`](../../../Data/crontab): morning ParseAll starts a **new** cycle only when pending is 0. Incomplete cycles continue after SIGTERM via startup resume and `*/15` `/cron/maintenance/ResumeParseAll`. No wall-clock: hang is a 45m stall watchdog. Hourly parse + listing sid/pir are freshness.
 
 ```cron
 # Keep FlareSolverr session warm (cf_clearance in Chromium)
@@ -115,14 +114,15 @@ Repo [`Data/crontab`](../../../Data/crontab): one morning ParseAll kick. Wall is
 # Rebuild page-task map once (211 GETs) — not every few hours
 20 3 * * *    /opt/jacred/Data/run-job.sh rutracker-UpdateTasksParse http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse 60
 
-# Deep crawl: one 12h morning slot (~16k listing pages). Do not add 11:40.
+# Deep crawl: new cycle at 04:40 if the last one finished; else continue. Restarts: ResumeParseAll.
 40 4 * * *    /opt/jacred/Data/run-job.sh rutracker-ParseAllTask http://127.0.0.1:9117/cron/rutracker/ParseAllTask 60
+*/15 * * * *  /opt/jacred/Data/run-job.sh parseall-resume http://127.0.0.1:9117/cron/maintenance/ResumeParseAll 60
 ```
 
 ### Avoid
 
-- Hourly `UpdateTasksParse` / `ParseAllTask` — over-requests; while a crawl runs cron only gets `work`. Prefer one morning ParseAll with `parseAllMaxHours: 12`.
-- A second ParseAll slot at 11:40 while the wall is 12h — that kick gets `work`.  
+- Hourly `UpdateTasksParse` / `ParseAllTask` — over-requests; while a crawl runs cron only gets `work`.
+- Calling ResumeParseAll when pending is 0 — that is idle by design; morning ParseAll is what rotates a finished cycle.  
 - Scheduling `ParseLatest?pages=5` for “light” refresh — with a full `taskParse` it is **heavier** than hourly `parse` (~211×N forum pages).
 - Skipping warmup when FlareSolverr is cold — first CF solve under CPU contention often times out.
 - Destroying the FlareSolverr session on every chromedriver hang — prefer soft fail + topic retries; recycle only after `recycleAfterTimeouts`.
@@ -134,7 +134,7 @@ Repo [`Data/crontab`](../../../Data/crontab): one morning ParseAll kick. Wall is
 | Fresher (~30 min) | `*/30 * * * *` → `parse` |
 | Quieter | `0 */2 * * *` → `parse` |
 | Slower deep crawl / gentler FS | lower `Rutracker.reqMinute` (longer `parseDelay`). Do not set 60 — CF revokes clearance |
-| Longer single ParseAll | `Rutracker.parseAllMaxHours` (default 6, rutracker 12) |
+| Longer ParseAll | runs until pending=0 or shutdown; stall watchdog 45m. Resume after restart: `/cron/maintenance/ResumeParseAll` |
 | Stickier topics | raise `Rutracker.topicFetchAttempts` |
 | Longer FS request window | raise `flaresolverr.maxTimeoutMs` (chromedriver still ~120s internally) |
 
@@ -148,7 +148,7 @@ Assumptions: 65 QuickParse, 211 forums, ~**40** pages/cat average for full crawl
 | ----------- | ------------ |
 | `parse` hourly | **1 560 / day** (65 × 24) |
 | `UpdateTasksParse` daily | **211 / day** |
-| `ParseAllTask` 1×/day (up to 12h) | listing GETs via cffetch for pending pages; a full ~16k map is one morning run when the fast path holds |
+| `ParseAllTask` 1×/day (until done) | listing GETs via cffetch for pending pages; a full ~16k map is one run when the fast path holds |
 | **Forum floor** | **~2–4 000 / day** amortized when ParseAll is still catching up; a finishing 12h day is ~16k listing GETs through cffetch |
 
 ### Totals including topic/magnet GETs (warm DB)

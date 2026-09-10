@@ -12,9 +12,10 @@ using Newtonsoft.Json;
 
 namespace JacRed.Infrastructure.Trackers.Megapeer
 {
-    public class MegapeerSyncService
+    public class MegapeerSyncService : IParseAllStarter
     {
         const string TrackerName = "megapeer";
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/megapeer_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

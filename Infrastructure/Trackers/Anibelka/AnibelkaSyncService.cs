@@ -18,9 +18,10 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
     /// <summary>
     /// Anibelka sync — anonymous only. Never login: passkeys must not enter magnets.
     /// </summary>
-    public class AnibelkaSyncService
+    public class AnibelkaSyncService : IParseAllStarter
     {
         const string TrackerName = AnibelkaParser.TrackerName;
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/anibelka_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

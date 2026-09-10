@@ -16,7 +16,9 @@ Cron API — HTTP-интерфейс для ручного или заплани
 | Полный перебор | `GET /cron/{slug}/ParseAllTask` | Полный обход всей базы трекера |
 | Warmup CF | `GET /cron/cloudflare/Warmup` | Прогревает FlareSolverr-сессию |
 | Сохранить FileDB | `GET /jsondb/save` | Сбрасывает FileDB на диск |
-| Проверка | `GET /cron/maintenance/Check` | Диагностика системы |
+| Проверка | `GET /cron/maintenance/Check` | Диагностика FileDB |
+| Resume ParseAll | `GET /cron/maintenance/ResumeParseAll` | Продолжить незавершённые циклы после рестарта |
+| ParseAll status | `GET /cron/maintenance/ParseAllStatus` | pending / running по trio |
 
 ## Примеры вызовов
 

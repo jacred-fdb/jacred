@@ -193,5 +193,4 @@ Rutracker:
   useproxy: false
   reqMinute: 30
   topicFetchAttempts: 5
-  parseAllMaxHours: 12
   log: true

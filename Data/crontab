@@ -24,6 +24,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Sunday 05:00
 0 5 * * 0  /opt/jacred/Data/run-job.sh maintenance-check http://127.0.0.1:9117/cron/maintenance/Check?mode=report 60
 
+# parseall-resume -> /cron/maintenance/ResumeParseAll (max_time=60s)
+# continue incomplete cycles after restart / hung cancel; idle if pending=0
+*/15 * * * *  /opt/jacred/Data/run-job.sh parseall-resume http://127.0.0.1:9117/cron/maintenance/ResumeParseAll 60
+
 # --- rutracker (~1.5M) ---
 # rutracker-parse -> /cron/rutracker/parse (max_time=3600s)
 # every hour at :00 (after cloudflare-warmup :55)
@@ -33,7 +37,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 20 3 * * *  /opt/jacred/Data/run-job.sh rutracker-UpdateTasksParse http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse 60
 
 # rutracker-ParseAllTask -> /cron/rutracker/ParseAllTask (max_time=60s)
-# one morning kick; wall parseAllMaxHours=12 (~16k pages). Do not add 11:40 — it would hit work.
+# morning kick starts a new cycle when the previous one finished; otherwise continues.
+# No wall-clock: runs until pending=0, shutdown, or 45m stall. ResumeParseAll covers restarts.
 40 4 * * *  /opt/jacred/Data/run-job.sh rutracker-ParseAllTask http://127.0.0.1:9117/cron/rutracker/ParseAllTask 60
 
 # --- kinozal (~550k) ---
@@ -44,7 +49,6 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 10 2 * * *  /opt/jacred/Data/run-job.sh kinozal-UpdateTasksParse http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse 60
 
 # kinozal-ParseAllTask -> /cron/kinozal/ParseAllTask (max_time=60s)
-# once daily at 04:35 (6h wall). Evening 16:xx would overlap rutracker 12h run.
 35 4 * * *  /opt/jacred/Data/run-job.sh kinozal-ParseAllTask http://127.0.0.1:9117/cron/kinozal/ParseAllTask 60
 
 # --- rutor (~550k) ---

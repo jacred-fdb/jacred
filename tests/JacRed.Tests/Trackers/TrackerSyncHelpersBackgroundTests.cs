@@ -339,17 +339,25 @@ public class TrackerSyncHelpersBackgroundTests
         info.PagesCompleted = 40;
         info.PagesTotal = 100;
 
-        var msg = TrackerSyncHelpers.FormatWallClockCancelMessage("solo-cancel", "ParseAllTask", info);
-        Assert.Contains("cancelled (wall-clock limit or shutdown)", msg);
+        var msg = TrackerSyncHelpers.FormatBackgroundCancelMessage("solo-cancel", "ParseAllTask", info, "shutdown");
+        Assert.Contains("cancelled (shutdown)", msg);
         Assert.Contains("pending left=60/100", msg);
     }
 
     [Fact]
-    public void ResolveParseAllMaxDuration_UnknownTrackerUsesDefault()
+    public void IsStalled_WhenLastActivityOlderThanTimeout()
     {
-        Assert.Equal(
-            TrackerSyncHelpers.DefaultParseAllMaxDuration,
-            TrackerSyncHelpers.ResolveParseAllMaxDuration("no-such-tracker-xyz"));
+        var info = new TrackerBackgroundJobInfo
+        {
+            Key = "stall:ParseAllTask",
+            Tracker = "stall",
+            JobLabel = "ParseAllTask",
+            StartedAtUtc = DateTime.UtcNow
+        };
+        info.LastActivityUtcTicks = DateTime.UtcNow.AddMinutes(-50).Ticks;
+        Assert.True(TrackerSyncHelpers.IsStalled(info, DateTime.UtcNow, TimeSpan.FromMinutes(45)));
+        info.LastActivityUtcTicks = DateTime.UtcNow.Ticks;
+        Assert.False(TrackerSyncHelpers.IsStalled(info, DateTime.UtcNow, TimeSpan.FromMinutes(45)));
     }
 
     static async Task<bool> WaitForFlagFreeAsync(TrackerWorkFlag flag, TimeSpan timeout)

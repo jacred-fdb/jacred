@@ -49,12 +49,6 @@ namespace JacRed.Models.AppConf
         /// </summary>
         public int topicFetchAttempts { get; set; } = 5;
 
-        /// <summary>
-        /// Wall-clock hours for background ParseAllTask. 0 or less → default 6.
-        /// Rutracker ~16k listing pages needs ~12 so one morning kick can finish.
-        /// </summary>
-        public int parseAllMaxHours { get; set; }
-
         public int parseDelay
         {
             get

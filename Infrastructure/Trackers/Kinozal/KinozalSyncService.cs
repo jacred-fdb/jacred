@@ -22,9 +22,10 @@ using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.Kinozal
 {
-    public class KinozalSyncService
+    public class KinozalSyncService : IParseAllStarter
     {
         const string TrackerName = "kinozal";
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/kinozal_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

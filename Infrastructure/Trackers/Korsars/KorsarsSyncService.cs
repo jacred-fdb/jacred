@@ -24,9 +24,10 @@ namespace JacRed.Infrastructure.Trackers.Korsars
     /// Tasks: UpdateTasksParse / ParseAllTask / ParseLatest (Rutor/Anibelka trio).
     /// Requests use rqHost/alias; FDB urls stay on host.
     /// </summary>
-    public class KorsarsSyncService
+    public class KorsarsSyncService : IParseAllStarter
     {
         const string TrackerName = KorsarsParser.TrackerName;
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/korsars_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
         const string CookieCacheKey = "cron:KorsarsController:Cookie";

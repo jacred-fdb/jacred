@@ -13,9 +13,10 @@ using Newtonsoft.Json;
 
 namespace JacRed.Infrastructure.Trackers.TorrentBy
 {
-    public class TorrentBySyncService
+    public class TorrentBySyncService : IParseAllStarter
     {
         const string TrackerName = "torrentby";
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/torrentby_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

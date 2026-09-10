@@ -17,9 +17,12 @@ using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.Rutracker
 {
-    public class RutrackerSyncService
+    public class RutrackerSyncService : IParseAllStarter
     {
         const string TrackerName = "rutracker";
+        string IParseAllStarter.TrackerName => TrackerName;
+
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/rutracker_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

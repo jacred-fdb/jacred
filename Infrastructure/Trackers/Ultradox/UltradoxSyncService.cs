@@ -19,9 +19,10 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
     /// Ultradox sync. Nginx returns 503 unless Referer looks like google/yandex search.
     /// Listing magnets are empty — each row needs a detail fetch for real btih variants.
     /// </summary>
-    public class UltradoxSyncService
+    public class UltradoxSyncService : IParseAllStarter
     {
         const string TrackerName = UltradoxParser.TrackerName;
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/ultradox_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

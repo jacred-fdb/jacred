@@ -179,7 +179,6 @@ namespace JacRed.Configuration.Schema
                     Field("useproxy", "bool", "Use proxy", null),
                     Field("reqMinute", "int", "Запросов/мин", "-1 — отключить", min: -1),
                     Field("topicFetchAttempts", "int", "Попыток topic GET", "Rutracker: ретраи magnet/details за прогон (дефолт 5)", min: 1),
-                    Field("parseAllMaxHours", "int", "ParseAll wall hours", "0 — default 6. rutracker: 12 (один утренний прогон)", min: 0, max: 24),
                     Field("log", "bool", "Лог парсера", "Data/log/{tracker}.log, default: true"),
                     Field("cookie", "password", "Cookie", "Статический cookie", sensitive: true),
                     Field("login.u", "password", "Login", null, sensitive: true),

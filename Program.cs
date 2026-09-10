@@ -126,6 +126,7 @@ namespace JacRed
             builder.Services.AddScoped<FixKinozalDomainDuplicatesMigration>();
             builder.Services.AddScoped<ITracksAdminService, TracksAdminService>();
             builder.Services.AddSingleton<IFdbMaintenanceService, FdbMaintenanceService>();
+            builder.Services.AddSingleton<ParseAllResumeService>();
 
             builder.Services.AddHostedService<FastDbRefreshWorker>();
             builder.Services.AddHostedService<SyncWorker>();
@@ -133,6 +134,7 @@ namespace JacRed
             builder.Services.AddHostedService<StatsWorker>();
             builder.Services.AddHostedService<FileDbWorker>();
             builder.Services.AddHostedService<TracksWorker>();
+            builder.Services.AddHostedService<ParseAllResumeWorker>();
 
             builder.Services.AddJacRedTrackers();
             builder.Services.AddJacRedSwagger();

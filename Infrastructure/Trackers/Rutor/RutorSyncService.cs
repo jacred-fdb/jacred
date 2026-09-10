@@ -15,9 +15,10 @@ using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.Rutor
 {
-    public class RutorSyncService
+    public class RutorSyncService : IParseAllStarter
     {
         const string TrackerName = "rutor";
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/rutor_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

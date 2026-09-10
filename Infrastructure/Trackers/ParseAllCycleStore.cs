@@ -1,5 +1,6 @@
 using JacRed.Models.tParse;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,7 +10,7 @@ using System.Text;
 
 namespace JacRed.Infrastructure.Trackers
 {
-    /// <summary>Persistent ParseAllTask cycle checkpoint (survives midnight and 6h cancels).</summary>
+    /// <summary>Persistent ParseAllTask cycle checkpoint (survives shutdown and stall cancel).</summary>
     public sealed class ParseAllCycleState
     {
         public string CycleId { get; set; }
@@ -226,6 +227,73 @@ namespace JacRed.Infrastructure.Trackers
             int map = cycle?.MapCount > 0 ? cycle.MapCount : total;
             var cyclePart = string.IsNullOrEmpty(cycle?.CycleId) ? "" : $" cycle={cycle.CycleId}";
             return $"pending left={pendingLeft}/{map}{cyclePart}";
+        }
+
+        public static string TaskParsePathForTracker(string trackerSlug)
+            => $"Data/temp/{trackerSlug}_taskParse.json";
+
+        public static IReadOnlyList<TaskParse> LoadTaskParsePages(string trackerSlug)
+        {
+            var path = TaskParsePathForTracker(trackerSlug);
+            try
+            {
+                if (!File.Exists(path))
+                    return Array.Empty<TaskParse>();
+
+                return FlattenTaskParseToken(JToken.Parse(File.ReadAllText(path)));
+            }
+            catch
+            {
+                return Array.Empty<TaskParse>();
+            }
+        }
+
+        public static (ParseAllCycleState cycle, int pending, int mapCount) ReadCycleProgress(string trackerSlug)
+        {
+            var pages = LoadTaskParsePages(trackerSlug);
+            var cycle = LoadState(CyclePathForTracker(trackerSlug));
+            int mapCount = cycle?.MapCount > 0 ? cycle.MapCount : pages.Count;
+            int pending = cycle == null ? pages.Count : CountPendingInCycle(pages, cycle);
+            return (cycle, pending, mapCount);
+        }
+
+        public static bool HasPendingWork(string trackerSlug)
+        {
+            var (cycle, pending, _) = ReadCycleProgress(trackerSlug);
+            return cycle != null && pending > 0;
+        }
+
+        internal static List<TaskParse> FlattenTaskParseToken(JToken token)
+        {
+            var list = new List<TaskParse>();
+            if (token is not JObject root)
+                return list;
+
+            foreach (var prop in root.Properties())
+            {
+                if (prop.Value is JArray arr)
+                    AddPages(list, arr);
+                else if (prop.Value is JObject nested)
+                {
+                    foreach (var inner in nested.Properties())
+                    {
+                        if (inner.Value is JArray innerArr)
+                            AddPages(list, innerArr);
+                    }
+                }
+            }
+
+            return list;
+        }
+
+        static void AddPages(List<TaskParse> list, JArray arr)
+        {
+            foreach (var item in arr)
+            {
+                var page = item.ToObject<TaskParse>();
+                if (page != null)
+                    list.Add(page);
+            }
         }
 
         public static (ParseAllCycleState cycle, int mapCount, int pendingCount) BeginFlatFullRun(

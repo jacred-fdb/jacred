@@ -5,7 +5,6 @@
 // ParseLatest: TrackerLatestParseLock + backfill mutex + RunParseLatestAsync
 // ParseAll/ParseLatest yield to hourly parse between pages and throttle with remainder delay.
 
-using JacRed.Configuration;
 using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Networking;
 using System;
@@ -85,6 +84,8 @@ namespace JacRed.Infrastructure.Trackers
         public DateTime StartedAtUtc { get; init; }
         public long PagesCompleted;
         public long PagesTotal;
+        public long LastActivityUtcTicks;
+        public string CancelReason;
         public string CurrentCategory;
         public int? CurrentPage;
     }
@@ -94,9 +95,10 @@ namespace JacRed.Infrastructure.Trackers
         public const string DisabledResult = "disabled";
         public const string WorkResult = "work";
         public const string OkResult = "ok";
+        public const string IdleResult = "idle";
 
-        /// <summary>Default wall-clock limit for background ParseAllTask jobs.</summary>
-        public static readonly TimeSpan DefaultParseAllMaxDuration = TimeSpan.FromHours(6);
+        /// <summary>Cancel ParseAll if no activity (progress / yield) for this long.</summary>
+        public static readonly TimeSpan ParseAllStallTimeout = TimeSpan.FromMinutes(45);
 
         /// <summary>Default wall-clock limit for background UpdateTasksParse jobs.</summary>
         public static readonly TimeSpan DefaultUpdateTasksMaxDuration = TimeSpan.FromMinutes(30);
@@ -141,6 +143,7 @@ namespace JacRed.Infrastructure.Trackers
                     StartedAtUtc = j.StartedAtUtc,
                     PagesCompleted = Interlocked.Read(ref j.PagesCompleted),
                     PagesTotal = Interlocked.Read(ref j.PagesTotal),
+                    LastActivityUtcTicks = Interlocked.Read(ref j.LastActivityUtcTicks),
                     CurrentCategory = j.CurrentCategory,
                     CurrentPage = j.CurrentPage
                 })
@@ -178,6 +181,7 @@ namespace JacRed.Infrastructure.Trackers
 
             Interlocked.Exchange(ref info.PagesCompleted, pagesCompleted);
             Interlocked.Exchange(ref info.PagesTotal, pagesTotal);
+            NoteJobActivity(info);
             if (category != null)
                 info.CurrentCategory = category;
             if (page != null)
@@ -223,7 +227,10 @@ namespace JacRed.Infrastructure.Trackers
         }
 
         /// <summary>Pause ParseAll/ParseLatest between pages while hourly parse holds <paramref name="parseLock"/>.</summary>
-        public static async Task WaitWhileHourlyParseBusy(TrackerParseLock parseLock, CancellationToken cancellationToken = default)
+        public static async Task WaitWhileHourlyParseBusy(
+            TrackerParseLock parseLock,
+            CancellationToken cancellationToken = default,
+            string trackerName = null)
         {
             if (parseLock == null)
                 return;
@@ -231,6 +238,7 @@ namespace JacRed.Infrastructure.Trackers
             while (parseLock.IsBusy)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                NoteJobActivity(trackerName);
                 await Task.Delay(HourlyParsePollMs, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -271,24 +279,59 @@ namespace JacRed.Infrastructure.Trackers
             int delayMs,
             CancellationToken cancellationToken = default)
         {
-            await WaitWhileHourlyParseBusy(parseLock, cancellationToken).ConfigureAwait(false);
+            await WaitWhileHourlyParseBusy(parseLock, cancellationToken, trackerName).ConfigureAwait(false);
             await ThrottleAsync(trackerName, delayMs, cancellationToken).ConfigureAwait(false);
         }
 
-        public static TimeSpan ResolveParseAllMaxDuration(string trackerName)
+        public static void NoteJobActivity(string trackerName, string jobLabel = "ParseAllTask")
         {
-            var settings = AppConfigurationProvider.GetTrackerSettings(AppInit.conf, trackerName);
-            if (settings == null || settings.parseAllMaxHours <= 0)
-                return DefaultParseAllMaxDuration;
+            if (string.IsNullOrWhiteSpace(trackerName))
+                return;
 
-            return TimeSpan.FromHours(settings.parseAllMaxHours);
+            var key = JobKey(trackerName, jobLabel);
+            if (ActiveJobs.TryGetValue(key, out var info))
+                NoteJobActivity(info);
         }
 
-        public static string FormatWallClockCancelMessage(
+        static void NoteJobActivity(TrackerBackgroundJobInfo info)
+        {
+            if (info == null)
+                return;
+
+            Interlocked.Exchange(ref info.LastActivityUtcTicks, DateTime.UtcNow.Ticks);
+        }
+
+        public static bool IsStalled(TrackerBackgroundJobInfo info, DateTime utcNow, TimeSpan timeout)
+        {
+            if (info == null || timeout <= TimeSpan.Zero)
+                return false;
+
+            long ticks = Interlocked.Read(ref info.LastActivityUtcTicks);
+            if (ticks <= 0)
+                return false;
+
+            var last = new DateTime(ticks, DateTimeKind.Utc);
+            return utcNow - last > timeout;
+        }
+
+        public static string FormatBackgroundCancelMessage(
             string trackerName,
             string jobLabel,
-            TrackerBackgroundJobInfo info)
+            TrackerBackgroundJobInfo info,
+            string reason = null)
         {
+            reason ??= info?.CancelReason;
+            if (string.IsNullOrWhiteSpace(reason))
+                reason = _applicationStopping.IsCancellationRequested ? "shutdown" : "cancelled";
+
+            string reasonText = reason switch
+            {
+                "stall" => "no progress (stall)",
+                "shutdown" => "shutdown",
+                "wall" => "wall-clock limit",
+                _ => reason
+            };
+
             long completed = info == null ? 0 : Interlocked.Read(ref info.PagesCompleted);
             long slotTotal = info == null ? 0 : Interlocked.Read(ref info.PagesTotal);
             int pendingLeft = (int)Math.Max(0, slotTotal - completed);
@@ -301,10 +344,11 @@ namespace JacRed.Infrastructure.Trackers
             }
 
             int total = cycle?.MapCount > 0 ? cycle.MapCount : (int)slotTotal;
+            var prefix = $"{trackerName}: {jobLabel} cancelled ({reasonText})";
             if (slotTotal <= 0 && (cycle == null || cycle.MapCount <= 0))
-                return $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown)";
+                return prefix;
 
-            return $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown); {ParseAllCycleStore.FormatCancelLog(cycle, pendingLeft, total)}";
+            return $"{prefix}; {ParseAllCycleStore.FormatCancelLog(cycle, pendingLeft, total)}";
         }
 
         public static bool ShouldPersistCheckpoint(int completed, int total, int every = PersistEveryPages)
@@ -349,7 +393,8 @@ namespace JacRed.Infrastructure.Trackers
         /// <summary>
         /// Starts work on a background task and returns immediately with ok/work/disabled.
         /// Releases <paramref name="workFlag"/> when the background work finishes.
-        /// Linked to application shutdown and an optional wall-clock limit.
+        /// Linked to application shutdown. Optional <paramref name="maxDuration"/> is a wall clock
+        /// (UpdateTasks). ParseAll omits it and uses a stall watchdog instead.
         /// </summary>
         public static string RunInBackground(
             string trackerName,
@@ -379,7 +424,6 @@ namespace JacRed.Infrastructure.Trackers
                 return WorkResult;
             }
 
-            var duration = maxDuration ?? DefaultParseAllMaxDuration;
             var key = JobKey(trackerName, jobLabel);
             var info = new TrackerBackgroundJobInfo
             {
@@ -388,6 +432,7 @@ namespace JacRed.Infrastructure.Trackers
                 JobLabel = jobLabel,
                 StartedAtUtc = DateTime.UtcNow
             };
+            NoteJobActivity(info);
             ActiveJobs[key] = info;
 
             _ = Task.Run(async () =>
@@ -395,13 +440,23 @@ namespace JacRed.Infrastructure.Trackers
                 using (CloudflareClearance.UseCrawlLane())
                 {
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
-                    cts.CancelAfter(duration);
+                    if (maxDuration is TimeSpan limit && limit > TimeSpan.Zero)
+                        cts.CancelAfter(limit);
                     var token = cts.Token;
+
+                    var stallWatch = string.Equals(jobLabel, "ParseAllTask", StringComparison.OrdinalIgnoreCase)
+                        && (maxDuration == null || maxDuration <= TimeSpan.Zero)
+                        ? WatchParseAllStallAsync(info, cts, token)
+                        : Task.CompletedTask;
+
+                    var limitLabel = maxDuration is TimeSpan d && d > TimeSpan.Zero
+                        ? $"limit={d.TotalSeconds:F0}s"
+                        : "no wall-clock; stall watchdog on";
 
                     try
                     {
                         JacRedLog.Information(JacRedLogCategories.Trackers,
-                            $"{trackerName}: {jobLabel} started (background, limit={duration.TotalSeconds:F0}s)");
+                            $"{trackerName}: {jobLabel} started (background, {limitLabel})");
                         await action(token).ConfigureAwait(false);
                         JacRedLog.Information(JacRedLogCategories.Trackers,
                             $"{trackerName}: {jobLabel} finished");
@@ -410,7 +465,7 @@ namespace JacRed.Infrastructure.Trackers
                     {
                         ActiveJobs.TryGetValue(key, out var job);
                         JacRedLog.Warning(JacRedLogCategories.Trackers,
-                            FormatWallClockCancelMessage(trackerName, jobLabel, job));
+                            FormatBackgroundCancelMessage(trackerName, jobLabel, job));
                     }
                     catch (Exception ex)
                     {
@@ -419,6 +474,8 @@ namespace JacRed.Infrastructure.Trackers
                     }
                     finally
                     {
+                        try { cts.Cancel(); } catch { }
+                        try { await stallWatch.ConfigureAwait(false); } catch { }
                         ActiveJobs.TryRemove(key, out _);
                         workFlag.End();
                         backfill.End();
@@ -429,14 +486,38 @@ namespace JacRed.Infrastructure.Trackers
             return OkResult;
         }
 
+        static async Task WatchParseAllStallAsync(
+            TrackerBackgroundJobInfo info,
+            CancellationTokenSource cts,
+            CancellationToken token)
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), token).ConfigureAwait(false);
+                    if (IsStalled(info, DateTime.UtcNow, ParseAllStallTimeout))
+                    {
+                        info.CancelReason = "stall";
+                        JacRedLog.Warning(JacRedLogCategories.Trackers,
+                            $"{info.Tracker}: ParseAllTask stall watchdog — no activity for {ParseAllStallTimeout.TotalMinutes:F0}m");
+                        try { cts.Cancel(); } catch { }
+                        return;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         public static string RunParseAllTaskInBackground(
             string trackerName,
             TrackerWorkFlag workFlag,
             bool checkDisabled,
             Func<CancellationToken, Task> action,
             TimeSpan? maxDuration = null)
-            => RunInBackground(trackerName, "ParseAllTask", workFlag, checkDisabled, action,
-                maxDuration ?? ResolveParseAllMaxDuration(trackerName));
+            => RunInBackground(trackerName, "ParseAllTask", workFlag, checkDisabled, action, maxDuration);
 
         public static string RunUpdateTasksParseInBackground(
             string trackerName,

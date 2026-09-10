@@ -35,28 +35,34 @@ namespace JacRed.Infrastructure.Trackers
             services.AddSingleton<AnimeLayerSyncService>();
             services.AddSingleton<AnilibertySyncService>();
             services.AddSingleton<LostfilmSyncService>();
-            services.AddSingleton<RutrackerSyncService>();
+            services.AddParseAllStarter<RutrackerSyncService>();
             services.AddSingleton<BitruApiSyncService>();
-            services.AddSingleton<TorrentBySyncService>();
-            services.AddSingleton<MegapeerSyncService>();
+            services.AddParseAllStarter<TorrentBySyncService>();
+            services.AddParseAllStarter<MegapeerSyncService>();
             services.AddSingleton<BaibakoSyncService>();
             services.AddSingleton<RudubSyncService>();
             services.AddSingleton<SubsPleaseSyncService>();
             services.AddSingleton<AnidubSyncService>();
             services.AddSingleton<AnistarSyncService>();
-            services.AddSingleton<AnibelkaSyncService>();
+            services.AddParseAllStarter<AnibelkaSyncService>();
             services.AddSingleton<AnifilmSyncService>();
             services.AddSingleton<LeproductionSyncService>();
             services.AddSingleton<ViruseprojectSyncService>();
-            services.AddSingleton<KorsarsSyncService>();
-            services.AddSingleton<UltradoxSyncService>();
+            services.AddParseAllStarter<KorsarsSyncService>();
+            services.AddParseAllStarter<UltradoxSyncService>();
             services.AddSingleton<SelezenSyncService>();
             services.AddSingleton<MazepaSyncService>();
-            services.AddSingleton<RutorSyncService>();
-            services.AddSingleton<NNMClubSyncService>();
-            services.AddSingleton<KinozalSyncService>();
-            services.AddSingleton<TolokaSyncService>();
+            services.AddParseAllStarter<RutorSyncService>();
+            services.AddParseAllStarter<NNMClubSyncService>();
+            services.AddParseAllStarter<KinozalSyncService>();
+            services.AddParseAllStarter<TolokaSyncService>();
             return services;
+        }
+
+        static void AddParseAllStarter<T>(this IServiceCollection services) where T : class, IParseAllStarter
+        {
+            services.AddSingleton<T>();
+            services.AddSingleton<IParseAllStarter>(sp => sp.GetRequiredService<T>());
         }
     }
 }

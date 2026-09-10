@@ -17,9 +17,10 @@ using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.Toloka
 {
-    public class TolokaSyncService
+    public class TolokaSyncService : IParseAllStarter
     {
         const string TrackerName = "toloka";
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/toloka_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

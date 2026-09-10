@@ -40,7 +40,6 @@ Rutracker:
   useproxy: false
   reqMinute: 30          # 60 отзывает cf_clearance; 8 слишком медленно для 16k страниц
   topicFetchAttempts: 5  # повторов на получение магнета
-  parseAllMaxHours: 12   # один утренний прогон; не ставить слот 11:40
   log: true
 ```
 
@@ -59,13 +58,14 @@ Rutracker:
 # Обновление очереди
 20 3 * * *  /opt/jacred/Data/run-job.sh rutracker-UpdateTasksParse http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse 60
 
-# Полный перебор — один утренний kick, стена 12 ч (~16k страниц)
+# Полный перебор — утром новый цикл, если предыдущий закончен
 40 4 * * *  /opt/jacred/Data/run-job.sh rutracker-ParseAllTask http://127.0.0.1:9117/cron/rutracker/ParseAllTask 60
+
+# После рестарта / зависания — продолжить pending (не начинает новый круг)
+*/15 * * * *  /opt/jacred/Data/run-job.sh parseall-resume http://127.0.0.1:9117/cron/maintenance/ResumeParseAll 60
 ```
 
-Hourly `parse` — источник свежести. `ParseAllTask` обходит карту форумов (~13–16k страниц): одна GET листинга на страницу, `sid`/`pir` мержатся в FileDB. Topic GET (магнит) только если title сменился. Пустой magnet с форума не затирает сохранённый. Цикл живёт в `Data/temp/rutracker_parseAllCycle.json`; отмена по стене пишет `pending left=N/M cycle=…`, следующий `04:40` продолжает.
-
-Не ставьте второй слот в 11:40 при `parseAllMaxHours: 12` — kick попадёт в идущий прогон и получит `work`. Другие trio ParseAll тоже раз в сутки в 04:xx, чтобы не пересечься с 12-часовым окном rutracker.
+Hourly `parse` — источник свежести. `ParseAllTask` обходит карту форумов (~13–16k страниц): одна GET листинга на страницу, `sid`/`pir` мержатся в FileDB. Topic GET (магнит) только если title сменился. Пустой magnet с форума не затирает сохранённый. Цикл живёт в `Data/temp/rutracker_parseAllCycle.json`. Стены по часам нет: обход идёт до pending=0, shutdown или 45 мин без прогресса. После обслуживания: `curl /cron/maintenance/ParseAllStatus` и `ResumeParseAll` (ещё срабатывает сам через ~45 с после старта процесса).
 
 ## Принцип работы с Cloudflare
 

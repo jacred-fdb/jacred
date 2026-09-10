@@ -169,7 +169,6 @@ Kinozal:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
-  parseAllMaxHours: 6
   log: true
   # Static session cookie (optional). If set, login.u/p are not required.
   # cookie: "uid=12345678; pass=XXXXXXXX;"
@@ -222,7 +221,6 @@ Rutracker:
   reqMinute: 30
   parseDelay: 2000
   topicFetchAttempts: 5
-  parseAllMaxHours: 12
   log: true
 
 Selezen:

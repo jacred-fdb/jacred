@@ -15,9 +15,10 @@ using IO = System.IO;
 
 namespace JacRed.Infrastructure.Trackers.NNMClub
 {
-    public class NNMClubSyncService
+    public class NNMClubSyncService : IParseAllStarter
     {
         const string TrackerName = "nnmclub";
+        string IParseAllStarter.TrackerName => TrackerName;
         const string TaskParsePath = "Data/temp/nnmclub_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 
