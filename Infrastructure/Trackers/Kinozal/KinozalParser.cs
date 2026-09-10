@@ -30,6 +30,10 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static readonly Regex HtmlTitle = new Regex(
             @"<title>([^<]+)</title>",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        /// <summary>Digit immediately before <c>rel="next"</c> — 1-based last listing page.</summary>
+        static readonly Regex PagerDigitBeforeNext = new Regex(
+            @">([0-9]+)</a></li><li><a rel=""next""",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Parse browse-list date column (header «Залит»).
@@ -417,6 +421,49 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
             && HasKinozalTitle(html);
 
         /// <summary>
+        /// Year filter / past last listing: logged-in chrome, no table,
+        /// «Нет активных раздач». Mark ParseAll done; do not recycle.
+        /// «уточните параметры поиска» also appears on listings over 5000 hits — do not use it alone.
+        /// </summary>
+        public static bool IsEmptySearchResult(string html)
+        {
+            if (IsTransientBrowseFailure(html) || IsLoginWall(html))
+                return false;
+
+            if (html.Contains("t_peer", StringComparison.Ordinal))
+                return false;
+
+            if (!IsLoggedIn(html) || !HasKinozalTitle(html))
+                return false;
+
+            return html.Contains("Нет активных раздач", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Digit before <c>rel="next"</c> is 1-based last listing page. URL <c>page</c> is 0-based.
+        /// No pager → one page (index 0). Loop <c>for (page = 0; page &lt; count; page++)</c>.
+        /// </summary>
+        public static int YearTaskPageCount(int pagerDigitBeforeNext)
+        {
+            if (pagerDigitBeforeNext <= 0)
+                return 1;
+
+            return pagerDigitBeforeNext;
+        }
+
+        public static int YearTaskPageCount(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return 1;
+
+            var match = PagerDigitBeforeNext.Match(html);
+            if (!match.Success || !int.TryParse(match.Groups[1].Value, out int digit))
+                return 1;
+
+            return YearTaskPageCount(digit);
+        }
+
+        /// <summary>
         /// Length / t_peer / title for stale logs. No cookies, no HTML body.
         /// </summary>
         public static string FormatBrowseDiag(string html)
@@ -441,10 +488,11 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         /// <summary>
         /// Logged-in Kinozal chrome without a <c>t_peer</c> table — typical ~15 KB FlareSolverr empty tab.
         /// Retry; do not TakeLogin and do not mark ParseAllTask done.
+        /// Empty search («Нет активных раздач») is not stale — see <see cref="IsEmptySearchResult"/>.
         /// </summary>
         public static bool IsStaleListingHtml(string html)
         {
-            if (IsTransientBrowseFailure(html) || IsLoginWall(html))
+            if (IsTransientBrowseFailure(html) || IsLoginWall(html) || IsEmptySearchResult(html))
                 return false;
 
             if (html.Contains("t_peer", StringComparison.Ordinal))

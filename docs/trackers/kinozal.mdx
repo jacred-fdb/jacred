@@ -51,7 +51,14 @@ Kinozal:
 
 `kinozal.guru` отдаёт `403` с `cf-mitigated: challenge`. Прямой HTTP из JacRed не проходит. Списки (`browse.php`) и info-hash (`get_srv_details.php`) идут через FlareSolverr **GET**. У Kinozal своя сессия Chromium (`jacred-kinozal_guru`), отдельно от rutracker и anibelka — иначе `request.get` отдаёт предыдущую вкладку.
 
-FlareSolverr/Chromium отдаёт листинг с двойными кавычками у атрибутов (`class="first bg"`, `class="s"`). Парсер принимает и этот HTML, и старый wire-формат (`class='first bg'`, `class=bg`). URL в FileDB — только `/details.php?id=…` (раздача), не `/userdetails.php?id=` (профиль раздающего). Пустая «залогиненная» оболочка без таблицы `t_peer` (~15 KB, есть `Выход`) — stale-вкладка: JacRed ретраит до четырёх GET с паузой 3 с и **не** помечает страницу ParseAllTask как пустую. После нескольких stale подряд сессия хоста пересоздаётся.
+FlareSolverr/Chromium отдаёт листинг с двойными кавычками у атрибутов (`class="first bg"`, `class="s"`). Парсер принимает и этот HTML, и старый wire-формат (`class='first bg'`, `class=bg`). URL в FileDB — только `/details.php?id=…` (раздача), не `/userdetails.php?id=` (профиль раздающего).
+
+Пустая «залогиненная» оболочка без таблицы `t_peer` (~15 KB, есть `Выход`) бывает двух видов:
+
+- **Stale-вкладка FlareSolverr** — нет фразы «Нет активных раздач». JacRed ретраит до четырёх GET с паузой 3 с, после серии stale пересоздаёт сессию хоста и **не** помечает страницу ParseAllTask как выполненную.
+- **Пустая выдача года** — тот же размер, но в HTML «Нет активных раздач». Это реальный ответ поиска (хвост `page=N` за последней страницей листинга). ParseAll помечает страницу done (`browse empty search`), recycle не нужен. Для `page=0` JacRed делает ещё два GET — пустой документ может быть предыдущей вкладкой FlareSolverr. Фраза «уточните параметры поиска» есть и на листингах с >5000 раздач — её одной недостаточно.
+
+Цифра в пейджере сразу перед `rel="next"` — 1-based номер последней страницы с раздачами. URL `page` 0-based: при цифре `15` в очередь идут `0..14`, а не `0..15`. Старый цикл `page <= digit` как у NNMClub здесь как раз добавлял пустой хвост.
 
 `parse`, `UpdateTasksParse`, `ParseAllTask` и `ParseLatest` на Kinozal взаимоисключающие: второй job возвращает `work`. Не запускайте UpdateTasks и ParseAll вручную одновременно. В `/health/background-jobs` `percent` у ParseAll — это обойдённые страницы очереди, не число новых магнитов в FileDB; в `kinozal.log` смотрите `ParseAllTask ok=успех/попытки`.
 
@@ -83,6 +90,9 @@ FlareSolverr/Chromium отдаёт листинг с двойными кавыч
 ```bash
 # Обход Cloudflare: listing + info-hash через FlareSolverr
 python3 scripts/flaresolverr_kinozal_cf_check.py
+
+# Хвосты года (~15269 байт) vs parsePage: empty search → done, stale → retry
+python3 scripts/kinozal_empty_tail_check.py
 
 # Ручной запуск парсинга
 curl "http://localhost:9117/cron/kinozal/parse"

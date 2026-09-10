@@ -272,6 +272,33 @@ public class KinozalParserFixtureTests
     }
 
     [Fact]
+    public void IsEmptySearchResult_NotStale_MarksPageDone()
+    {
+        string empty = FixtureLoader.Read("Kinozal/browse_empty_search.html");
+        Assert.True(KinozalParser.IsLoggedIn(empty));
+        Assert.True(KinozalParser.IsEmptySearchResult(empty));
+        Assert.False(KinozalParser.IsStaleListingHtml(empty));
+        Assert.False(KinozalParser.IsValidBrowsePage(empty));
+        Assert.False(KinozalParser.IsLoginWall(empty));
+        Assert.True(KinozalParser.ShouldMarkPageDone(0, 0, KinozalParser.CountTorrentListingLinks(empty)));
+        Assert.False(KinozalParser.IsEmptySearchResult(FixtureLoader.Read("Kinozal/browse_c22.html")));
+        Assert.False(KinozalParser.IsEmptySearchResult(
+            "<title>Раздачи :: Кинозал.GURU</title><a href=\"#\">Выход</a>"));
+    }
+
+    [Fact]
+    public void YearTaskPageCount_PagerDigitIsExclusiveUpperBound()
+    {
+        Assert.Equal(1, KinozalParser.YearTaskPageCount(0));
+        Assert.Equal(1, KinozalParser.YearTaskPageCount(-1));
+        Assert.Equal(15, KinozalParser.YearTaskPageCount(15));
+        Assert.Equal(1, KinozalParser.YearTaskPageCount(""));
+        Assert.Equal(15, KinozalParser.YearTaskPageCount(
+            "<li><a href=\"?c=45&amp;page=14\">15</a></li><li><a rel=\"next\" href=\"?page=15\">Вперед</a>"));
+        Assert.Equal(100, KinozalParser.YearTaskPageCount(FixtureLoader.Read("Kinozal/browse_c22.html")));
+    }
+
+    [Fact]
     public void ShouldMarkPageDone_EmptyOrFullyResolved()
     {
         Assert.True(KinozalParser.ShouldMarkPageDone(0, 0, 0));

@@ -78,7 +78,7 @@ journalctl -u jacred -n 100 --no-pager
     python3 scripts/flaresolverr_kinozal_cf_check.py
     ```
 
-    Прямой curl получит `403` / «Just a moment». В FlareSolverr нужны listing rows и `Инфо хеш` на шаге GET. См. [Kinozal](/trackers/kinozal).
+    Прямой curl получит `403` / «Just a moment». В FlareSolverr нужны listing rows и `Инфо хеш` на шаге GET. Страницы года с «Нет активных раздач» (~15 KB) — пустая выдача, не stale-вкладка; см. `scripts/kinozal_empty_tail_check.py`. См. [Kinozal](/trackers/kinozal).
   </Accordion>
 
   <Accordion title="Прокси или Tor не работает">
