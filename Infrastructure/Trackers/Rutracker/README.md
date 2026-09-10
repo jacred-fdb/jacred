@@ -6,8 +6,9 @@ JacRed sync for [rutracker.org](https://rutracker.org) via cron endpoints under 
 
 Rutracker sits behind Cloudflare (`403` / `cf-mitigated` / “Just a moment…”). Direct .NET `HttpClient` cannot reuse `cf_clearance` cookies (TLS fingerprint differs). Production path:
 
-1. **FlareSolverr** (primary) — persistent browser session; guarded hosts are fetched entirely through the browser (~80 s first page, then 2–3 s).
-2. **Worker `alias`** (optional fallback when FlareSolverr is disabled) — reverse-proxy so fetches go through CF edge.
+1. **FlareSolverr** — solve CF once per host session; fallback when cffetch is down or cookie is rejected.
+2. **cffetch** (host python on `:8192`, not a compose service) — Chrome TLS + jar. Master 2026-09-10: ~0.16 s vs ~0.9 s `request.get`. Same WARP SOCKS as `PROXY_URL`.
+3. **Worker `alias`** (optional when FlareSolverr is disabled) — reverse-proxy so fetches go through CF edge. Not an impersonate path.
 
 ```yaml
 flaresolverr:

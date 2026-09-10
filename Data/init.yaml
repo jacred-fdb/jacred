@@ -11,6 +11,14 @@ flaresolverr:
   recycleAfterTimeouts: 3
   guardedHours: 6
   recheckMinutes: 30
+cffetch:
+  enable: true
+  url: http://127.0.0.1:8192/fetch
+  impersonate: chrome136
+  timeoutSeconds: 25
+  maxConcurrent: 4
+  clearanceMinutes: 60
+  proxy: ""
 mergeduplicates: true
 mergenumduplicates: true
 openstats: true

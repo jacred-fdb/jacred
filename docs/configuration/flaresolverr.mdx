@@ -1,20 +1,24 @@
 ---
 title: "Настройка FlareSolverr"
 sidebarTitle: "FlareSolverr"
-description: "FlareSolverr обходит Cloudflare для Rutracker и Kinozal через постоянную браузерную сессию. Настройте блок flaresolverr в init.yaml и cron-прогрев сессии."
-keywords: ["JacRed", "конфигурация", "FlareSolverr", "init.yaml", "Rutracker", "Kinozal"]
+description: "FlareSolverr решает Cloudflare; cffetch на localhost забирает страницы с TLS Chrome. Настройте flaresolverr, cffetch и cron-прогрев."
+keywords: ["JacRed", "конфигурация", "FlareSolverr", "cffetch", "init.yaml", "Rutracker", "Kinozal"]
 ---
 
-Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium для получения clearance и передаёт HTML в JacRed.
+Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium, **решает** challenge и отдаёт cookie. Дальше страницы забирает **cffetch** — обычный HTTP с отпечатком Chrome (`curl_cffi`) на `127.0.0.1:8192`. Это не отдельный контейнер: процесс на хосте рядом с JacRed.
 
-У каждого guarded-хоста **своя** сессия FlareSolverr (`jacred-kinozal_guru`, `jacred-rutracker_org`, …). Одна общая вкладка `jacred` заставляла Kinozal получать HTML anibelka/rutracker или пустую оболочку без таблицы. Cron `/cron/cloudflare/Warmup` прогревает только сессию того URL, который передан (по умолчанию rutracker); Kinozal создаёт свою сессию при первом `browse.php`. RAM: один процесс Chromium на хост.
+Замер на master 10.09.2026: listing/hash ~**0.18 с** против **0.5–1.2 с** у `request.get` (page.goto). Тот же urllib с cookie даёт `403` + `cf-mitigated`. SOCKS cffetch должен совпадать с `PROXY_URL` FlareSolverr (WARP).
+
+У каждого guarded-хоста **своя** сессия FlareSolverr (`jacred-kinozal_guru`, `jacred-rutracker_org`, …). Cron `/cron/cloudflare/Warmup` прогревает сессию и наполняет jar для быстрого пути.
 
 ## Принцип работы
 
-1. JacRed отправляет запрос в FlareSolverr (`request.get`).
-2. FlareSolverr открывает страницу в Chromium, решает Cloudflare challenge (~11 секунд первый раз, ~0.5 секунды при активной сессии).
-3. FlareSolverr возвращает HTML с куками.
-4. JacRed парсит содержимое страницы.
+1. JacRed просит FlareSolverr (`request.get`) решить Cloudflare, если jar ещё нет.
+2. Из `solution` забираются cookie и User-Agent; cffetch проверяет их делом.
+3. Следующие GET идут в `POST http://127.0.0.1:8192/fetch` с TLS Chrome.
+4. `cf-mitigated` или страница «Just a moment…» — браузер снова, jar обновляется. Голый 403 трекера cookie не сбрасывает.
+
+Без запущенного cffetch JacRed остаётся на браузере (как раньше).
 
 ## Конфигурация
 
@@ -28,6 +32,15 @@ flaresolverr:
   recycleAfterTimeouts: 3          # пересоздать сессию после N таймаутов подряд
   guardedHours: 6
   recheckMinutes: 30
+
+cffetch:
+  enable: true
+  url: http://127.0.0.1:8192/fetch
+  impersonate: chrome136           # не старше Chromium FlareSolverr (на master — 148)
+  timeoutSeconds: 25
+  maxConcurrent: 4                 # иначе 429 трекера
+  clearanceMinutes: 60
+  proxy: socks5://127.0.0.1:20001  # тот же SOCKS, что PROXY_URL у FlareSolverr
 ```
 
 <ParamField path="enable" type="boolean">
@@ -49,6 +62,27 @@ flaresolverr:
 <ParamField path="recycleAfterTimeouts" type="number">
   Пересоздать сессию только после N последовательных таймаутов браузера. Значение 3 защищает от лишних пересозданий.
 </ParamField>
+
+<ParamField path="cffetch.enable" type="boolean">
+  Быстрый путь после solve. При `false` или если процесс на `:8192` не запущен, все GET идут через браузер.
+</ParamField>
+
+<ParamField path="cffetch.proxy" type="string">
+  SOCKS5 тот же, что `PROXY_URL` у FlareSolverr. Без совпадения IP cookie не проходит.
+</ParamField>
+
+## Запуск cffetch на хосте
+
+Не добавляйте сервис в compose. На той же машине, где JacRed и FlareSolverr слушают localhost:
+
+```bash
+python3 -m venv /opt/jacred/venv-cffetch
+/opt/jacred/venv-cffetch/bin/pip install 'curl_cffi>=0.7,<1.0'
+CFFETCH_PROXY=socks5://127.0.0.1:20001 CFFETCH_IMPERSONATE=chrome136 \
+  /opt/jacred/venv-cffetch/bin/python /opt/jacred/tools/cffetch/app.py
+```
+
+Проверка: `curl -sS http://127.0.0.1:8192/health`. Alpine-образ JacRed python не содержит — процесс живёт на хосте.
 
 ## Docker Compose с FlareSolverr
 

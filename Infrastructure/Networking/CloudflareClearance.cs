@@ -12,13 +12,11 @@ using Newtonsoft.Json.Linq;
 namespace JacRed.Infrastructure.Networking
 {
     /// <summary>
-    /// Ходит на хосты, закрытые проверкой Cloudflare, через FlareSolverr —
-    /// безголовый браузер, стоящий рядом в compose.
-    ///
-    /// Cookie <c>cf_clearance</c> нельзя переиспользовать в обычном .NET HttpClient:
-    /// Cloudflare сверяет TLS-отпечаток. Поэтому guarded-хосты обслуживает
-    /// браузер целиком. У каждого хоста своя сессия Chromium — иначе kinozal и
-    /// anibelka делят одну вкладку и <c>request.get</c> отдаёт предыдущий документ.
+    /// Хосты за Cloudflare: браузер FlareSolverr решает задачу и отдаёт
+    /// <c>cf_clearance</c>. Дальше страницы берёт <see cref="CfFetch"/>
+    /// (localhost cffetch, TLS Chrome). Обычный .NET HttpClient с той же
+    /// cookie получает 403. У каждого хоста своя сессия Chromium — иначе
+    /// kinozal и anibelka делят вкладку.
     /// </summary>
     public static class CloudflareClearance
     {
@@ -225,6 +223,23 @@ namespace JacRed.Infrastructure.Networking
             try { host = new Uri(url).Host; }
             catch (UriFormatException) { return null; }
 
+            for (int round = 0; round < 3; round++)
+            {
+                var (fast, fastHtml) = await TryFastAsync(host, url, cookie);
+
+                if (fast == FastOutcome.Ok)
+                    return fastHtml;
+
+                if (fast == FastOutcome.PageFailed)
+                    return null;
+
+                if (fast == FastOutcome.NotAvailable)
+                    break;
+
+                if (await ClearanceRenewedAsync(host))
+                    break;
+            }
+
             var session = SessionForHost(host);
             await session.Gate.WaitAsync();
             try
@@ -300,8 +315,172 @@ namespace JacRed.Infrastructure.Networking
             }
             finally
             {
+                ReleaseRenew(host);
                 session.Gate.Release();
             }
+        }
+
+        enum FastOutcome
+        {
+            NotAvailable,
+            Ok,
+            PageFailed,
+            ClearanceLost
+        }
+
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> _renewGates =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> _renewing =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        static readonly TimeSpan RenewWait = TimeSpan.FromSeconds(100);
+
+        static async Task<bool> ClearanceRenewedAsync(string host)
+        {
+            var gate = _renewGates.GetOrAdd(host, _ => new SemaphoreSlim(1, 1));
+
+            if (await gate.WaitAsync(0))
+            {
+                _renewing[host] = gate;
+                return true;
+            }
+
+            var deadline = DateTime.UtcNow + RenewWait;
+            while (DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(250);
+
+                if (CfFetch.For(host) != null)
+                    return false;
+            }
+
+            return false;
+        }
+
+        static void ReleaseRenew(string host)
+        {
+            if (_renewing.TryRemove(host, out var gate))
+                gate.Release();
+        }
+
+        static async Task<(FastOutcome outcome, string html)> TryFastAsync(string host, string url, string cookie)
+        {
+            var clearance = CfFetch.For(host);
+            if (clearance == null)
+                return (FastOutcome.NotAvailable, null);
+
+            var merged = MergeCookies(clearance.Cookies, cookie);
+
+            var (status, body, cfMitigated) = await CfFetch.GetAsync(url, new CfFetch.Clearance
+            {
+                Cookies = merged,
+                UserAgent = clearance.UserAgent,
+                At = clearance.At
+            });
+
+            if (status == 0)
+                return (FastOutcome.NotAvailable, null);
+
+            if (CfFetch.ClearanceLost(status, body, cfMitigated))
+            {
+                if (CfFetch.ShouldDropClearance(host))
+                {
+                    CfFetch.Forget(host);
+                    return (FastOutcome.ClearanceLost, null);
+                }
+
+                return (FastOutcome.NotAvailable, null);
+            }
+
+            if (status == 200 && !string.IsNullOrWhiteSpace(body))
+                return (FastOutcome.Ok, body);
+
+            return (FastOutcome.PageFailed, null);
+        }
+
+        static string MergeCookies(string fromBrowser, string fromCaller)
+        {
+            if (string.IsNullOrWhiteSpace(fromCaller))
+                return fromBrowser;
+
+            var jar = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var source in new[] { fromBrowser, fromCaller })
+            {
+                if (string.IsNullOrWhiteSpace(source))
+                    continue;
+
+                foreach (var part in source.Split(';'))
+                {
+                    int eq = part.IndexOf('=');
+                    if (eq <= 0)
+                        continue;
+
+                    string name = part.Substring(0, eq).Trim();
+                    if (name.Length > 0)
+                        jar[name] = part.Substring(eq + 1).Trim();
+                }
+            }
+
+            var sb = new StringBuilder();
+            foreach (var pair in jar)
+            {
+                if (sb.Length > 0)
+                    sb.Append("; ");
+
+                sb.Append(pair.Key).Append('=').Append(pair.Value);
+            }
+
+            return sb.ToString();
+        }
+
+        static async Task RememberClearance(string url, JObject solution)
+        {
+            if (!CfFetch.Enabled || solution == null)
+                return;
+
+            string host;
+            try { host = new Uri(url).Host; }
+            catch (UriFormatException) { return; }
+
+            if (CfFetch.For(host) != null)
+                return;
+
+            var jar = solution["cookies"] as JArray;
+            if (jar == null || jar.Count == 0)
+                return;
+
+            var sb = new StringBuilder();
+            foreach (var c in jar)
+            {
+                string name = c.Value<string>("name");
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                if (sb.Length > 0)
+                    sb.Append("; ");
+
+                sb.Append(name).Append('=').Append(c.Value<string>("value"));
+            }
+
+            var candidate = new CfFetch.Clearance
+            {
+                Cookies = sb.ToString(),
+                UserAgent = solution.Value<string>("userAgent"),
+                At = DateTime.UtcNow
+            };
+
+            if (string.IsNullOrWhiteSpace(candidate.Cookies))
+                return;
+
+            if (!await CfFetch.ValidateAsync(url, candidate))
+            {
+                CfFetch.BlockFastPath(host);
+                return;
+            }
+
+            CfFetch.Remember(host, candidate.Cookies, candidate.UserAgent);
         }
 
         /// <summary>
@@ -426,6 +605,7 @@ namespace JacRed.Infrastructure.Networking
                 && html.Contains("503 Service Temporarily Unavailable", StringComparison.OrdinalIgnoreCase))
                 return (FetchOutcome.PageFailed, null, "origin 503");
 
+            await RememberClearance(url, solution);
             return (FetchOutcome.Ok, html, null);
         }
 

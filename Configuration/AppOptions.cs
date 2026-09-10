@@ -174,6 +174,9 @@ namespace JacRed.Configuration
         /// <summary>Cloudflare bypass via FlareSolverr (persistent browser session).</summary>
         public FlareSolverrSettings flaresolverr = new FlareSolverrSettings();
 
+        /// <summary>Fast path after CF solve: curl_cffi on localhost :8192.</summary>
+        public CfFetchSettings cffetch = new CfFetchSettings();
+
         public ProxySettings proxy = new ProxySettings();
 
         public SearchSettings search = new SearchSettings();

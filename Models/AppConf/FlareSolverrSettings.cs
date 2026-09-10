@@ -4,13 +4,13 @@ namespace JacRed.Models.AppConf
     /// Прохождение проверки Cloudflare через FlareSolverr — безголовый браузер,
     /// который стоит рядом в compose и не публикуется наружу.
     ///
-    /// Дешёвый путь «забрать cookie и ходить дальше обычным клиентом» проверен
-    /// и не работает: с той же cookie и тем же User-Agent прилетает 403 —
-    /// Cloudflare сверяет ещё и отпечаток TLS. Поэтому такие хосты обслуживает
-    /// браузер целиком, в отдельной сессии на каждый guarded-хост.
+    /// Cookie <c>cf_clearance</c> нельзя отдать обычному .NET HttpClient (другой TLS).
+    /// После solve страницы забирает <c>cffetch</c> (curl_cffi). Браузер — fallback
+    /// и обновление jar. У каждого guarded-хоста своя сессия Chromium.
     ///
     /// Proxy для Chromium настраивается у контейнера FlareSolverr
     /// (<c>PROXY_URL</c> / <c>PROXY_USERNAME</c> / <c>PROXY_PASSWORD</c>), не здесь.
+    /// Тот же SOCKS нужно указать в <c>cffetch.proxy</c> / <c>CFFETCH_PROXY</c>.
     /// </summary>
     public class FlareSolverrSettings
     {

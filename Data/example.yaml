@@ -22,6 +22,17 @@ flaresolverr:
   guardedHours: 6
   recheckMinutes: 30
 
+# Fast path after FlareSolverr solve (host python, not a compose service).
+# Same WARP SOCKS as FlareSolverr PROXY_URL. Master 2026-09-10: ~0.18s vs ~0.5–1.2s goto.
+cffetch:
+  enable: true
+  url: http://127.0.0.1:8192/fetch
+  impersonate: chrome136
+  timeoutSeconds: 25
+  maxConcurrent: 4
+  clearanceMinutes: 60
+  proxy: socks5://127.0.0.1:20001
+
 mergeduplicates: true
 mergenumduplicates: true # Объединять дубликаты по номеру (серии и т.п.)
 openstats: true
