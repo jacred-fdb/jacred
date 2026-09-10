@@ -125,7 +125,7 @@ namespace JacRed.Infrastructure.Trackers.Leproduction
                 encoding: Encoding.UTF8,
                 useproxy: AppInit.conf.Leproduction.useproxy);
 
-            return LeproductionParser.DetectLastPage(html);
+            return LeproductionParser.DetectLastPage(html, cat);
         }
 
         async Task<(int fetched, int added, int updated, int skipped, int failed)> ParsePageAsync(

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -11,6 +12,29 @@ namespace JacRed.Infrastructure.Trackers.Rutor
     public static class RutorParser
     {
         const string TrackerName = "rutor";
+
+        static readonly Regex LastBrowseRe = new(
+            @"<a href=""/browse/([0-9]+)/[0-9]+/[0-9]+/[0-9]+""><b>[0-9]+&nbsp;-&nbsp;[0-9]+</b></a></p>",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// Last 0-based <c>/browse/N/</c> index from the top pager (range link immediately before <c>&lt;/p&gt;</c>).
+        /// </summary>
+        public static int LastPageFromHtml(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return 0;
+
+            var m = LastBrowseRe.Match(html);
+            if (!m.Success
+                || !int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+                || n < 0)
+            {
+                return 0;
+            }
+
+            return n;
+        }
 
         public static List<TorrentBaseDetails> ParseTorrentsFromPage(string html, string cat)
         {

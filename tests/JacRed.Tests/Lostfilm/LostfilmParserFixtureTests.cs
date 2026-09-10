@@ -59,6 +59,16 @@ public class LostfilmParserFixtureTests
     }
 
     [Fact]
+    public void ExtractTotalPagesFromNewPageHtml_CapsAt100()
+    {
+        string html = FixtureLoader.Read("Lostfilm/new_page1.html");
+        Assert.Equal(100, LostfilmParser.ExtractTotalPagesFromNewPageHtml(html));
+        Assert.Equal(1, LostfilmParser.ExtractTotalPagesFromNewPageHtml(""));
+        Assert.Equal(3, LostfilmParser.ExtractTotalPagesFromNewPageHtml(
+            "<html>LostFilm.TV <a href=\"/new/page_3\">3</a></html>"));
+    }
+
+    [Fact]
     public async Task SyntheticPage_MapsRuNameOntoEpisodeLink()
     {
         string html = FixtureLoader.Read("Lostfilm/new_page_synthetic.html");

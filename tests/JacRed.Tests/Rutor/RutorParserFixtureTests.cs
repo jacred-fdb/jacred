@@ -88,6 +88,15 @@ public class RutorParserFixtureTests
     }
 
     [Fact]
+    public void LastPageFromHtml_Browse10Fixture_Is72()
+    {
+        string html = FixtureLoader.Read("Rutor/browse_10.html");
+        Assert.Equal(72, RutorParser.LastPageFromHtml(html));
+        Assert.Equal(0, RutorParser.LastPageFromHtml(""));
+        Assert.Equal(0, RutorParser.LastPageFromHtml("<p>no pager</p>"));
+    }
+
+    [Fact]
     public void DryRun_AllFixtures_ReportParseRates()
     {
         foreach (object[] row in FixtureCases())

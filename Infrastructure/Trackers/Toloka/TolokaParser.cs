@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -11,6 +12,29 @@ namespace JacRed.Infrastructure.Trackers.Toloka
     public static class TolokaParser
     {
         const string TrackerName = "toloka";
+
+        static readonly Regex NextPagerRe = new(
+            @">([0-9]+)</a>&nbsp;&nbsp;<a href=""[^""]+"">наступна</a>",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// 1-based last page digit before «наступна». Task slots are 0..N-1 (<c>/f{cat}-{page*45}</c>).
+        /// </summary>
+        public static int LastPageFromHtml(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return 0;
+
+            var m = NextPagerRe.Match(html);
+            if (!m.Success
+                || !int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+                || n < 1)
+            {
+                return 0;
+            }
+
+            return n;
+        }
 
         public static List<TolokaDetails> ParseTorrentsFromPage(string html, string cat)
         {

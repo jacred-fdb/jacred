@@ -88,12 +88,11 @@ public class KorsarsParserFixtureTests
     }
 
     [Fact]
-    public void LastPageFromHtml_MovieFixture()
+    public void LastPageFromHtml_MovieFixture_Is14()
     {
         string html = FixtureLoader.Read("Korsars/listing_movie.html");
-        int last = KorsarsParser.LastPageFromHtml(html);
-        _output.WriteLine($"lastPage={last}");
-        Assert.True(last >= 1, $"expected last page >= 1, got {last}");
+        Assert.Equal(14, KorsarsParser.LastPageFromHtml(html));
+        Assert.Equal(0, KorsarsParser.LastPageFromHtml("<html>no pagination</html>"));
     }
 
     [Fact]

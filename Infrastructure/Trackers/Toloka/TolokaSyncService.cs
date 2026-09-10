@@ -192,11 +192,12 @@ namespace JacRed.Infrastructure.Trackers.Toloka
                     if (html == null)
                         continue;
 
-                    // Максимальное количиство страниц
-                    int.TryParse(Regex.Match(html, ">([0-9]+)</a>&nbsp;&nbsp;<a href=\"[^\"]+\">наступна</a>").Groups[1].Value, out int maxpages);
+                    int pageCount = TolokaParser.LastPageFromHtml(html);
+                    if (pageCount < 1)
+                        pageCount = 1;
 
                     // Загружаем список страниц в список задач
-                    for (int page = 0; page <= maxpages; page++)
+                    for (int page = 0; page < pageCount; page++)
                     {
                         try
                         {

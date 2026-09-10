@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using JacRed.Infrastructure.Persistence;
@@ -83,8 +82,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
                     if (html == null)
                         continue;
 
-                    // Максимальное количиство страниц
-                    int.TryParse(Regex.Match(html, "<a href=\"/browse/([0-9]+)/[0-9]+/[0-9]+/[0-9]+\"><b>[0-9]+&nbsp;-&nbsp;[0-9]+</b></a></p>").Groups[1].Value, out int maxpages);
+                    int maxpages = RutorParser.LastPageFromHtml(html);
 
                     // Загружаем список страниц в список задач
                     for (int page = 0; page <= maxpages; page++)

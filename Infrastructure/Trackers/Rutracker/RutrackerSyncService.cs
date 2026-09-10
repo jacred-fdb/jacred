@@ -180,28 +180,18 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                         if (html == null)
                             continue;
 
-                        int.TryParse(Regex.Match(html, "Страница <b>1</b> из <b>([0-9]+)</b>").Groups[1].Value, out int maxpages);
+                        int pageCount = RutrackerParser.LastPageFromHtml(html);
+                        if (pageCount < 1)
+                            pageCount = 1;
 
-                        if (maxpages > 0)
-                        {
-                            for (int page = 0; page <= maxpages; page++)
-                            {
-                                if (!taskParse.ContainsKey(c))
-                                    taskParse.Add(c, new List<TaskParse>());
-
-                                var val = taskParse[c];
-                                if (val.FirstOrDefault(i => i.page == page) == null)
-                                    val.Add(new TaskParse(page));
-                            }
-                        }
-                        else
+                        for (int page = 0; page < pageCount; page++)
                         {
                             if (!taskParse.ContainsKey(c))
                                 taskParse.Add(c, new List<TaskParse>());
 
                             var val = taskParse[c];
-                            if (val.FirstOrDefault(i => i.page == 1) == null)
-                                val.Add(new TaskParse(1));
+                            if (val.FirstOrDefault(i => i.page == page) == null)
+                                val.Add(new TaskParse(page));
                         }
                     }
                     catch { }

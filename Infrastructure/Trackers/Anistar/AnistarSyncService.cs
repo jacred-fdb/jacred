@@ -74,7 +74,7 @@ namespace JacRed.Infrastructure.Trackers.Anistar
                         if (lastPage <= 0)
                         {
                             string firstHtml = await HttpClient.Get($"{rqHost}/{catPath}/", encoding: PageEncoding, cookie: cookie, useproxy: AppInit.conf.Anistar.useproxy);
-                            lastPage = AnistarParser.DetectLastPage(firstHtml);
+                            lastPage = AnistarParser.DetectLastPage(firstHtml, catPath);
                         }
 
                         for (int page = 1; page <= lastPage; page++)

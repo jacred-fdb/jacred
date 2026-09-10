@@ -51,7 +51,7 @@ ROW_TOPIC_RE = re.compile(
     r'href="\./viewtopic\.php\?t=(\d+)[^"]*"\s+class="topictitle">(.*?)</a>',
     re.I | re.S,
 )
-PAGE_START_RE = re.compile(r"start=(\d+)")
+PAGE_START_RE = re.compile(r'viewforum\.php\?f=[0-9]+[^"\'\s>]*?start=([0-9]+)')
 TORRENT_LINK_RE = re.compile(
     r'href="\./download/file\.php\?id=(\d+)[^"]*"[^>]*tooltip="Скачать торрент"',
     re.I | re.S,

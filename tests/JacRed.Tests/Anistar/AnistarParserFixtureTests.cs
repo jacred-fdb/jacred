@@ -55,12 +55,24 @@ public class AnistarParserFixtureTests
     }
 
     [Fact]
-    public void DetectLastPage_ListingFixture_AtLeastOne()
+    public void DetectLastPage_ListingFixture_Is680()
     {
         string html = FixtureLoader.Read("Anistar/listing_anime.html");
-        int last = AnistarParser.DetectLastPage(html);
-        Assert.True(last >= 1);
-        _output.WriteLine($"lastPage={last}");
+        Assert.Equal(680, AnistarParser.DetectLastPage(html));
+        Assert.Equal(680, AnistarParser.DetectLastPage(html, "anime"));
+        Assert.Equal(1, AnistarParser.DetectLastPage(html, "dorama"));
+    }
+
+    [Fact]
+    public void DetectLastPage_IgnoresScriptPageNumbers()
+    {
+        const string html = """
+            <script>var junk="/page/2613/";</script>
+            <div class="pages"><a href="https://v30.astar.bz/anime/page/680/">680</a></div>
+            """;
+        Assert.Equal(680, AnistarParser.DetectLastPage(html, "anime"));
+        Assert.Equal(680, AnistarParser.DetectLastPage(html));
+        Assert.Equal(1, AnistarParser.DetectLastPage(""));
     }
 
     [Fact]

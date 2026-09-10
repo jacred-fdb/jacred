@@ -20,7 +20,9 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
             @"href=""\./viewtopic\.php\?t=(\d+)[^""]*""\s+class=""topictitle"">(.*?)</a>",
             RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-        static readonly Regex PageStartRe = new(@"start=(\d+)", RegexOptions.Compiled);
+        static readonly Regex PageStartRe = new(
+            @"viewforum\.php\?f=[0-9]+[^""'\s>]*?start=([0-9]+)",
+            RegexOptions.Compiled);
 
         static readonly Regex TorrentLinkRe = new(
             @"href=""\./download/file\.php\?id=(\d+)[^""]*""[^>]*tooltip=""Скачать торрент""",
@@ -81,7 +83,8 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
         }
 
         /// <summary>
-        /// Zero-based last page from the largest ?start=N link.
+        /// Zero-based last page from the largest viewforum.php?f=…&amp;start=N pager link.
+        /// Bare <c>start=N</c> (scripts, jumpto) is ignored so the map cannot inflate.
         /// </summary>
         public static int LastPageFromHtml(string body)
         {

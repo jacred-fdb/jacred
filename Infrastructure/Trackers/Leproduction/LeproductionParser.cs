@@ -23,6 +23,10 @@ namespace JacRed.Infrastructure.Trackers.Leproduction
             @"/page/([0-9]+)/",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        static readonly Regex NavToNextRe = new(
+            @"class=""navigation"">([\s\S]*?)<span\s+class=""pnext""",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         static readonly Regex NameRuRe = new(
             @"Русское\s+название:\s*</div>\s*<div[^>]*class=""info-desc""[^>]*>\s*([^<]+)\s*</div>",
             RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
@@ -92,16 +96,45 @@ namespace JacRed.Infrastructure.Trackers.Leproduction
             return true;
         }
 
-        public static int DetectLastPage(string html)
+        /// <summary>
+        /// Last listing page from <c>span.navigation</c> (before «Дальше»). Prefers
+        /// <c>/{section}/page/N/</c> so a stray <c>/page/N/</c> in scripts cannot inflate.
+        /// </summary>
+        public static int DetectLastPage(string html, string sectionPath = null)
         {
             if (string.IsNullOrEmpty(html))
                 return 1;
 
-            int maxPage = 1;
-            foreach (Match m in PageNumRe.Matches(html))
+            string section = (sectionPath ?? "").Trim('/');
+            Regex pageRe = string.IsNullOrEmpty(section)
+                ? PageNumRe
+                : new Regex("/" + Regex.Escape(section) + @"/page/([0-9]+)/", RegexOptions.IgnoreCase);
+
+            var blocks = NavToNextRe.Matches(html);
+            for (int i = blocks.Count - 1; i >= 0; i--)
             {
-                if (int.TryParse(m.Groups[1].Value, out int n) && n > maxPage)
+                int fromBlock = MaxPageIn(blocks[i].Groups[1].Value, pageRe);
+                if (fromBlock > 0)
+                    return fromBlock;
+            }
+
+            int fallback = MaxPageIn(html, pageRe);
+            return fallback > 0 ? fallback : 1;
+        }
+
+        static int MaxPageIn(string haystack, Regex pageRe)
+        {
+            int maxPage = 0;
+            if (string.IsNullOrEmpty(haystack) || pageRe == null)
+                return 0;
+
+            foreach (Match m in pageRe.Matches(haystack))
+            {
+                if (int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+                    && n > maxPage)
+                {
                     maxPage = n;
+                }
             }
 
             return maxPage;

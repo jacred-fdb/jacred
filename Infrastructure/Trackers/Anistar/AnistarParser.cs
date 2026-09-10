@@ -14,6 +14,9 @@ namespace JacRed.Infrastructure.Trackers.Anistar
         static readonly Regex PostUrlAbsRe = new Regex(@"https?://[^""'>]+/\d{2,}-[^""'>]+?\.html", RegexOptions.Compiled);
         static readonly Regex PostUrlRelRe = new Regex(@"/\d{2,}-[^""'>]+?\.html", RegexOptions.Compiled);
         static readonly Regex PageNumRe = new Regex(@"/page/([0-9]+)/", RegexOptions.Compiled);
+        static readonly Regex PagesBlockRe = new Regex(
+            @"<div\s+class=""[^""]*\bpages\b[^""]*"">([\s\S]*?)</div>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex H1Re = new Regex(@"<h1[^>]*>\s*(.*?)\s*</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
         static readonly Regex TorrentBlockRe = new Regex(@"<div id=""torrent_(\d+)_info""\s+class=""torrent""", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex InfoD1Re = new Regex(@"<div class=""info_d1"">\s*([^<]+?)\s*</div>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
@@ -25,17 +28,47 @@ namespace JacRed.Infrastructure.Trackers.Anistar
         static readonly Regex FilmRe = new Regex(@"^\s*фильм\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex CleanSpaceRe = new Regex(@"\s+", RegexOptions.Compiled);
 
-        public static int DetectLastPage(string listHtml)
+        /// <summary>
+        /// Last listing page from DLE <c>div.pages</c>. Prefers the last pager that
+        /// matches <c>/{section}/page/N/</c>. A global <c>/page/N/</c> scan can inflate.
+        /// </summary>
+        public static int DetectLastPage(string listHtml, string sectionPath = null)
         {
             if (string.IsNullOrWhiteSpace(listHtml))
                 return 1;
 
-            int maxPage = 1;
-            foreach (Match m in PageNumRe.Matches(listHtml))
+            string section = (sectionPath ?? "").Trim('/');
+            Regex pageRe = string.IsNullOrEmpty(section)
+                ? PageNumRe
+                : new Regex("/" + Regex.Escape(section) + @"/page/([0-9]+)/", RegexOptions.IgnoreCase);
+
+            var blocks = PagesBlockRe.Matches(listHtml);
+            for (int i = blocks.Count - 1; i >= 0; i--)
             {
-                if (int.TryParse(m.Groups[1].Value, out int n) && n > maxPage)
-                    maxPage = n;
+                int fromBlock = MaxPageIn(blocks[i].Groups[1].Value, pageRe);
+                if (fromBlock > 0)
+                    return fromBlock;
             }
+
+            int fallback = MaxPageIn(listHtml, pageRe);
+            return fallback > 0 ? fallback : 1;
+        }
+
+        static int MaxPageIn(string haystack, Regex pageRe)
+        {
+            int maxPage = 0;
+            if (string.IsNullOrEmpty(haystack) || pageRe == null)
+                return 0;
+
+            foreach (Match m in pageRe.Matches(haystack))
+            {
+                if (int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+                    && n > maxPage)
+                {
+                    maxPage = n;
+                }
+            }
+
             return maxPage;
         }
 

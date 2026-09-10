@@ -106,4 +106,13 @@ public class TolokaParserFixtureTests
         Assert.Empty(TolokaParser.ParseTorrentsFromPage("", "96"));
         Assert.Empty(TolokaParser.ParseTorrentsFromPage("<html lang=\"uk\"></html>", "96"));
     }
+
+    [Fact]
+    public void LastPageFromHtml_BrowseF96_Is293()
+    {
+        string html = FixtureLoader.Read("Toloka/browse_f96.html");
+        Assert.Equal(293, TolokaParser.LastPageFromHtml(html));
+        Assert.Equal(0, TolokaParser.LastPageFromHtml(""));
+        Assert.Equal(0, TolokaParser.LastPageFromHtml("<html>no pager</html>"));
+    }
 }

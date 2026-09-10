@@ -122,6 +122,14 @@ public class AnibelkaParserFixtureTests
     }
 
     [Fact]
+    public void LastPageFromHtml_IgnoresScriptStartNumbers()
+    {
+        string html = FixtureLoader.Read("Anibelka/forum_f33.html")
+            + "<script>var junk='?start=99999'; location='?start=88888';</script>";
+        Assert.Equal(40, AnibelkaParser.LastPageFromHtml(html));
+    }
+
+    [Fact]
     public void BuildTorrent_SetsAnimeFields()
     {
         var item = new AnibelkaListingItem
