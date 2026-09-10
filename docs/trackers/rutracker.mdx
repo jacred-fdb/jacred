@@ -102,6 +102,10 @@ curl "http://localhost:9117/cron/cloudflare/Warmup"
 # Запустить парсинг вручную
 curl "http://localhost:9117/cron/rutracker/parse"
 
+# После деплоя карты: очередь страниц и первая страница UHD США/Канада (Silo t=6601495)
+curl "http://localhost:9117/cron/rutracker/UpdateTasksParse?cat=1669"
+curl "http://localhost:9117/cron/rutracker/parse?page=0&cat=1669&maxTopics=20"
+
 # Проверить фоновые задачи
 curl "http://localhost:9117/health/background-jobs"
 

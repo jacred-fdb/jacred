@@ -17,12 +17,13 @@ public class RutrackerCategoriesTests
     }
 
     /// <summary>
-    /// Разделы, добавленные 15.08.2026, и почему их отсутствие било по выдаче.
+    /// Разделы, которых не было в карте, и почему обход родителя не спасает.
     ///
     /// У rutracker раздел может иметь и подразделы, и собственные темы, поэтому
-    /// обход родителя НЕ заменяет обход детей. Так «Дом дракона» S3 в 2160p
-    /// (t=6873874) не попадал в базу вовсе: он лежит в 1171, а в списке был
-    /// только родительский 119, где своих тем два десятка.
+    /// обход родителя НЕ заменяет обход детей. «Дом дракона» S3 в 2160p
+    /// (t=6873874) лежит в 1171, а в списке был только родитель 119.
+    /// Silo S2 UHD (t=6601495) уехала в 1669 «Сериалы США и Канады (UHD Video)»
+    /// при том же родителе 119.
     /// </summary>
     [Theory]
     [InlineData("1171")]   // Новинки и сериалы в стадии показа (UHD Video)
@@ -84,6 +85,7 @@ public class RutrackerCategoriesTests
     [InlineData("1105", "anime", RutrackerTitleKind.NonStandard, true)]
     [InlineData("709", "documovie", RutrackerTitleKind.Movie, false)]
     [InlineData("24", "tvshow", RutrackerTitleKind.NonStandard, false)]
+    [InlineData("915", "serial", RutrackerTitleKind.NonStandard, true)]
     [InlineData("1669", "serial", RutrackerTitleKind.Serial, true)]
     [InlineData("820", "serial", RutrackerTitleKind.NonStandard, true)]
     [InlineData("84", "multfilm", RutrackerTitleKind.Movie, true)]
