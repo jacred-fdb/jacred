@@ -370,12 +370,14 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             if (delayMs > 0)
                                 await Task.Delay(delayMs, ct);
 
-                            if (KinozalParser.IsStaleListingHtml(html))
+                            string yearArg = $"&d={year}&t=1";
+                            bool mismatch = KinozalParser.BrowseFiltersMismatch(html, cat, yearArg);
+                            if (KinozalParser.IsStaleListingHtml(html) || mismatch)
                                 await NoteStaleBrowseAsync();
                             else if (KinozalParser.IsValidBrowsePage(html))
                                 NoteValidBrowse();
 
-                            if (!KinozalParser.IsValidBrowsePage(html))
+                            if (mismatch || !KinozalParser.IsValidBrowsePage(html))
                                 continue;
 
                             // Digit before rel=next is 1-based last listing page (URL 0-based).
@@ -525,19 +527,23 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return false;
             }
 
-            if (KinozalParser.IsEmptySearchResult(html))
+            if (KinozalParser.IsEmptySearchResult(html) && !KinozalParser.BrowseFiltersMismatch(html, cat, arg))
             {
                 // page=0 can be a leftover empty-search tab; year tails are really empty.
                 if (page == 0)
                 {
-                    for (int retry = 0; KinozalParser.IsEmptySearchResult(html) && retry < 2; retry++)
+                    for (int retry = 0;
+                         KinozalParser.IsEmptySearchResult(html)
+                         && !KinozalParser.BrowseFiltersMismatch(html, cat, arg)
+                         && retry < 2;
+                         retry++)
                     {
                         await Task.Delay(StaleRetryDelayMs, cancellationToken);
                         html = await GetBrowseHtml(browseUrl, cancellationToken);
                     }
                 }
 
-                if (KinozalParser.IsEmptySearchResult(html))
+                if (KinozalParser.IsEmptySearchResult(html) && !KinozalParser.BrowseFiltersMismatch(html, cat, arg))
                 {
                     ParserLog.Write(TrackerName, $"browse empty search: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
                     NoteValidBrowse();
@@ -545,7 +551,10 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 }
             }
 
-            for (int retry = 0; KinozalParser.IsStaleListingHtml(html) && retry < StaleMaxRetries; retry++)
+            for (int retry = 0;
+                 (KinozalParser.IsStaleListingHtml(html) || KinozalParser.BrowseFiltersMismatch(html, cat, arg))
+                 && retry < StaleMaxRetries;
+                 retry++)
             {
                 await Task.Delay(StaleRetryDelayMs, cancellationToken);
                 html = await GetBrowseHtml(browseUrl, cancellationToken);
@@ -558,6 +567,20 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return false;
             }
 
+            if (KinozalParser.BrowseFiltersMismatch(html, cat, arg))
+            {
+                ParserLog.Write(TrackerName, $"browse filter mismatch: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
+                await NoteStaleBrowseAsync();
+                return false;
+            }
+
+            if (KinozalParser.IsEmptySearchResult(html))
+            {
+                ParserLog.Write(TrackerName, $"browse empty search: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
+                NoteValidBrowse();
+                return true;
+            }
+
             NoteValidBrowse();
 
             if (KinozalParser.IsLoginWall(html) || (KinozalParser.IsValidBrowsePage(html) && !KinozalParser.IsLoggedIn(html)))
@@ -567,6 +590,13 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                     return false;
 
                 html = await GetBrowseHtmlRetryingTransient(browseUrl, cancellationToken);
+                if (KinozalParser.BrowseFiltersMismatch(html, cat, arg))
+                {
+                    ParserLog.Write(TrackerName, $"browse filter mismatch: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
+                    await NoteStaleBrowseAsync();
+                    return false;
+                }
+
                 if (KinozalParser.IsEmptySearchResult(html))
                 {
                     ParserLog.Write(TrackerName, $"browse empty search: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
@@ -580,12 +610,6 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                         await NoteStaleBrowseAsync();
                     return false;
                 }
-            }
-            else if (KinozalParser.IsEmptySearchResult(html))
-            {
-                ParserLog.Write(TrackerName, $"browse empty search: {browseUrl} {KinozalParser.FormatBrowseDiag(html)}");
-                NoteValidBrowse();
-                return true;
             }
             else if (!KinozalParser.IsValidBrowsePage(html))
             {

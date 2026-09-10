@@ -288,6 +288,28 @@ public class KinozalParserFixtureTests
     }
 
     [Fact]
+    public void BrowseFiltersMismatch_SelectedCatAndYear()
+    {
+        string listing = FixtureLoader.Read("Kinozal/browse_c22.html");
+        Assert.True(KinozalParser.TryGetSelectedBrowseFilter(listing, "c", out string cat) && cat == "22");
+        Assert.False(KinozalParser.BrowseFiltersMismatch(listing, "22", null));
+        Assert.True(KinozalParser.BrowseFiltersMismatch(listing, "13", null));
+        Assert.False(KinozalParser.BrowseFiltersMismatch(listing, "22", "&d=2020&t=1"));
+
+        string empty = FixtureLoader.Read("Kinozal/browse_empty_search.html");
+        Assert.False(KinozalParser.BrowseFiltersMismatch(empty, "13", "&d=2020&t=1"));
+        Assert.True(KinozalParser.BrowseFiltersMismatch(empty, "15", "&d=2020&t=1"));
+        Assert.True(KinozalParser.BrowseFiltersMismatch(empty, "13", "&d=2021&t=1"));
+        Assert.False(KinozalParser.BrowseFiltersMismatch(
+            "<title>Кинозал.GURU</title><a href=\"#\">Выход</a>", "13", "&d=2020&t=1"));
+
+        const string allYears =
+            "<select name=\"d\"><option selected=selected value=0>все года</option></select>"
+            + "<select name=\"c\"><option selected=selected value=13>x</option></select>";
+        Assert.False(KinozalParser.BrowseFiltersMismatch(allYears, "13", "&d=2020&t=1"));
+    }
+
+    [Fact]
     public void YearTaskPageCount_PagerDigitIsExclusiveUpperBound()
     {
         Assert.Equal(1, KinozalParser.YearTaskPageCount(0));

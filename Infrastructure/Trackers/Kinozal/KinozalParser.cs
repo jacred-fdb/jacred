@@ -35,6 +35,18 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         static readonly Regex PagerDigitBeforeNext = new Regex(
             @">([0-9]+)</a></li><li><a rel=""next""",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex BrowseSelect = new Regex(
+            @"<select\s+name=[""']?(c|d)[""']?[^>]*>(.*?)</select>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+        static readonly Regex BrowseOption = new Regex(
+            @"<option([^>]*)>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex BrowseOptionValue = new Regex(
+            @"value=[""']?(\d+)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex ArgYear = new Regex(
+            @"(?:^|[?&])d=(\d{4})(?:&|$)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Parse browse-list date column (header «Залит»).
@@ -438,6 +450,75 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return false;
 
             return html.Contains("Нет активных раздач", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Selected option of browse <c>select name=c|d</c>. No form → false (not a leftover tab).
+        /// </summary>
+        public static bool TryGetSelectedBrowseFilter(string html, string name, out string value)
+        {
+            value = null;
+            if (string.IsNullOrEmpty(html) || string.IsNullOrEmpty(name))
+                return false;
+
+            foreach (Match select in BrowseSelect.Matches(html))
+            {
+                if (!string.Equals(select.Groups[1].Value, name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (Match option in BrowseOption.Matches(select.Groups[2].Value))
+                {
+                    string attrs = option.Groups[1].Value;
+                    if (attrs.IndexOf("selected", StringComparison.OrdinalIgnoreCase) < 0)
+                        continue;
+
+                    var val = BrowseOptionValue.Match(attrs);
+                    if (!val.Success)
+                        return false;
+
+                    value = val.Groups[1].Value;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TryGetRequestedYear(string arg, out string year)
+        {
+            year = null;
+            if (string.IsNullOrEmpty(arg))
+                return false;
+
+            var match = ArgYear.Match(arg);
+            if (!match.Success)
+                return false;
+
+            year = match.Groups[1].Value;
+            return true;
+        }
+
+        /// <summary>
+        /// FlareSolverr leftover tab: listing/empty HTML for another category or year.
+        /// No form fields → not a mismatch (transient/stale). Selected year 0 (все года) is not a mismatch.
+        /// Hourly parse (<paramref name="arg"/> null) checks category only.
+        /// </summary>
+        public static bool BrowseFiltersMismatch(string html, string cat, string arg)
+        {
+            if (string.IsNullOrWhiteSpace(html) || string.IsNullOrWhiteSpace(cat))
+                return false;
+
+            if (TryGetSelectedBrowseFilter(html, "c", out string selectedCat)
+                && !string.Equals(selectedCat, cat, StringComparison.Ordinal))
+                return true;
+
+            if (TryGetRequestedYear(arg, out string year)
+                && TryGetSelectedBrowseFilter(html, "d", out string selectedYear)
+                && selectedYear != "0"
+                && !string.Equals(selectedYear, year, StringComparison.Ordinal))
+                return true;
+
+            return false;
         }
 
         /// <summary>
