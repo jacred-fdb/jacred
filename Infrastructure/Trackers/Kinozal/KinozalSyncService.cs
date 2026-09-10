@@ -359,6 +359,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 async ct =>
                 {
                     int delayMs = KinozalParser.UpdateTasksParseDelayMs(AppInit.conf.Kinozal.parseDelay);
+                    int pruned = 0;
                     foreach (string cat in KinozalCategories.Ids)
                     {
                         for (int year = DateTime.Today.Year; year >= 1990; year--)
@@ -380,28 +381,32 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             // Digit before rel=next is 1-based last listing page (URL 0-based).
                             // page <= digit enqueued an empty year tail (~15 KB, «Нет активных раздач»).
                             int pageCount = KinozalParser.YearTaskPageCount(html);
-                            for (int page = 0; page < pageCount; page++)
+                            try
                             {
-                                try
+                                if (!taskParse.ContainsKey(cat))
+                                    taskParse.Add(cat, new Dictionary<string, List<TaskParse>>());
+
+                                string arg = $"&d={year}&t=1";
+                                var catVal = taskParse[cat];
+                                if (!catVal.ContainsKey(arg))
+                                    catVal.Add(arg, new List<TaskParse>());
+
+                                var val = catVal[arg];
+                                for (int page = 0; page < pageCount; page++)
                                 {
-                                    if (!taskParse.ContainsKey(cat))
-                                        taskParse.Add(cat, new Dictionary<string, List<TaskParse>>());
-
-                                    string arg = $"&d={year}&t=1";
-                                    var catVal = taskParse[cat];
-                                    if (!catVal.ContainsKey(arg))
-                                        catVal.Add(arg, new List<TaskParse>());
-
-                                    var val = catVal[arg];
                                     if (val.FirstOrDefault(i => i.page == page) == null)
                                         val.Add(new TaskParse(page));
                                 }
-                                catch { }
+
+                                pruned += KinozalParser.PrunePagesBeyondYearCount(val, pageCount);
                             }
+                            catch { }
                         }
                     }
 
                     PersistTaskParse();
+                    if (pruned > 0)
+                        ParserLog.Write(TrackerName, $"UpdateTasksParse pruned {pruned} empty year-tail pages");
                 },
                 TimeSpan.FromHours(2));
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JacRed.Infrastructure.Trackers.Kinozal;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -296,6 +297,16 @@ public class KinozalParserFixtureTests
         Assert.Equal(15, KinozalParser.YearTaskPageCount(
             "<li><a href=\"?c=45&amp;page=14\">15</a></li><li><a rel=\"next\" href=\"?page=15\">Вперед</a>"));
         Assert.Equal(100, KinozalParser.YearTaskPageCount(FixtureLoader.Read("Kinozal/browse_c22.html")));
+    }
+
+    [Fact]
+    public void PrunePagesBeyondYearCount_DropsInclusiveTail()
+    {
+        var pages = new List<TaskParse> { new(0), new(8), new(9), new(10) };
+        Assert.Equal(2, KinozalParser.PrunePagesBeyondYearCount(pages, 9));
+        Assert.Equal(new[] { 0, 8 }, pages.Select(p => p.page).ToArray());
+        Assert.Equal(0, KinozalParser.PrunePagesBeyondYearCount(pages, 9));
+        Assert.Equal(0, KinozalParser.PrunePagesBeyondYearCount(null, 9));
     }
 
     [Fact]

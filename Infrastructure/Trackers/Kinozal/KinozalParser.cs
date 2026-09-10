@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Web;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 
 namespace JacRed.Infrastructure.Trackers.Kinozal
 {
@@ -461,6 +462,22 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return 1;
 
             return YearTaskPageCount(digit);
+        }
+
+        /// <summary>
+        /// Drop URL pages at or past the last listing page (old inclusive <c>page &lt;= digit</c> tails).
+        /// </summary>
+        public static int PrunePagesBeyondYearCount(List<TaskParse> tasks, int pageCount)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return 0;
+
+            if (pageCount < 1)
+                pageCount = 1;
+
+            int before = tasks.Count;
+            tasks.RemoveAll(t => t != null && t.page >= pageCount);
+            return before - tasks.Count;
         }
 
         /// <summary>
