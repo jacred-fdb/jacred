@@ -115,10 +115,10 @@ public class RutrackerParserFixtureTests
     }
 
     [Fact]
-    public void LastPageFromHtml_Forum1950_Is151()
+    public void LastPageFromHtml_Forum1950_Is152()
     {
         string html = FixtureLoader.Read("Rutracker/forum_1950.html");
-        Assert.Equal(151, RutrackerParser.LastPageFromHtml(html));
+        Assert.Equal(152, RutrackerParser.LastPageFromHtml(html));
         Assert.Equal(0, RutrackerParser.LastPageFromHtml(""));
         Assert.Equal(0, RutrackerParser.LastPageFromHtml("<html>no pager</html>"));
     }

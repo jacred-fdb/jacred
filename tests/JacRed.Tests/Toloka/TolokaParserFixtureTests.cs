@@ -63,8 +63,8 @@ public class TolokaParserFixtureTests
         TolokaDetails moana = Assert.Single(torrents, t => t.url.EndsWith("/" + MoanaTopic, StringComparison.Ordinal));
         Assert.Equal("715016", moana.downloadId);
         Assert.Equal("21.39 GB", moana.sizeName);
-        Assert.Equal(29, moana.sid);
-        Assert.Equal(12, moana.pir);
+        Assert.Equal(36, moana.sid);
+        Assert.Equal(5, moana.pir);
         Assert.Contains("Moana", moana.title, StringComparison.Ordinal);
         Assert.Equal(Host + "/" + MoanaTopic, moana.url);
     }

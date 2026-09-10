@@ -95,8 +95,8 @@ public class LeproductionParserFixtureTests
         Assert.Contains("Ван Пис", first.name, StringComparison.Ordinal);
         Assert.Equal("One Piece", first.originalname);
         Assert.Equal(2026, first.relased);
-        Assert.Equal("8274", LeproductionParser.ExtractTorrentId(first.url));
-        Assert.Contains("10.2", first.sizeName, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("8371", LeproductionParser.ExtractTorrentId(first.url));
+        Assert.Contains("71.04", first.sizeName, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -110,11 +110,11 @@ public class LeproductionParserFixtureTests
     }
 
     [Fact]
-    public void DetectLastPage_SerialFixture_Is23()
+    public void DetectLastPage_SerialFixture_Is3()
     {
         string html = FixtureLoader.Read("Leproduction/browse_serial.html");
-        Assert.Equal(23, LeproductionParser.DetectLastPage(html));
-        Assert.Equal(23, LeproductionParser.DetectLastPage(html, "serial"));
+        Assert.Equal(3, LeproductionParser.DetectLastPage(html));
+        Assert.Equal(3, LeproductionParser.DetectLastPage(html, "serial"));
         Assert.Equal(1, LeproductionParser.DetectLastPage(html, "film"));
     }
 

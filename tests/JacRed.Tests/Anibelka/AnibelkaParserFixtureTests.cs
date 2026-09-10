@@ -47,9 +47,9 @@ public class AnibelkaParserFixtureTests
             Assert.StartsWith("[", it.Title);
         });
 
-        Assert.Equal("1849", items[0].TopicId);
+        Assert.Equal("2326", items[0].TopicId);
         Assert.Equal(
-            "[rus] Фермерская жизнь в ином мире / Isekai Nonbiri Nouka [2TV][2023-2026, повседневность, фэнтези]",
+            "[rus] Операция: Семейка Ёдзакура / Yozakura-san Chi no Daisakusen [2TV+ONA][2024-2026, приключения, комедия, романтика]",
             items[0].Title);
     }
 

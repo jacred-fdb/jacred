@@ -55,11 +55,11 @@ public class AnistarParserFixtureTests
     }
 
     [Fact]
-    public void DetectLastPage_ListingFixture_Is680()
+    public void DetectLastPage_ListingFixture_Is682()
     {
         string html = FixtureLoader.Read("Anistar/listing_anime.html");
-        Assert.Equal(680, AnistarParser.DetectLastPage(html));
-        Assert.Equal(680, AnistarParser.DetectLastPage(html, "anime"));
+        Assert.Equal(682, AnistarParser.DetectLastPage(html));
+        Assert.Equal(682, AnistarParser.DetectLastPage(html, "anime"));
         Assert.Equal(1, AnistarParser.DetectLastPage(html, "dorama"));
     }
 

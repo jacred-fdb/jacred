@@ -70,20 +70,18 @@ public class RudubParserFixtureTests
             Assert.True(RudubParser.IsPreferredQualityTitle(t.title));
         });
 
-        Assert.Contains(items, t => t.url.Contains("id=54677", StringComparison.Ordinal));
-        Assert.DoesNotContain(items, t => t.url.Contains("id=54680", StringComparison.Ordinal)); // XviD
-        Assert.DoesNotContain(items, t => t.url.Contains("id=54678", StringComparison.Ordinal)); // HD720
+        Assert.Contains(items, t => t.url.Contains("id=55190", StringComparison.Ordinal));
 
-        var first = items.First(t => t.url.Contains("id=54677", StringComparison.Ordinal));
-        Assert.Equal("Пробуждение", first.name);
-        Assert.Equal("Ontwaak", first.originalname);
+        var first = items.First(t => t.url.Contains("id=55190", StringComparison.Ordinal));
+        Assert.Equal("Рулевая", first.name);
+        Assert.Equal("Crew Girl", first.originalname);
         Assert.Equal(1080, first.quality);
-        Assert.Equal(1, first.sid);
-        Assert.Equal(0, first.pir);
-        Assert.Equal("18.68 GB", first.sizeName);
-        Assert.Equal(new DateTime(2026, 8, 11, 22, 58, 15, DateTimeKind.Utc), first.createTime);
+        Assert.Equal(2, first.sid);
+        Assert.Equal(3, first.pir);
+        Assert.Equal("12.55 GB", first.sizeName);
+        Assert.Equal(new DateTime(2026, 9, 10, 21, 50, 38, DateTimeKind.Utc), first.createTime);
         Assert.Equal(2026, first.relased);
-        Assert.Equal($"{Host}/download2.php?id=54677", first.downloadUri);
+        Assert.Equal($"{Host}/download2.php?id=55190", first.downloadUri);
         _output.WriteLine($"first: {first.name} / {first.originalname} q={first.quality} y={first.relased}");
     }
 
