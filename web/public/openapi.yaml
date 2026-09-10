@@ -45,6 +45,12 @@ info:
     [`Data/crontab`](https://github.com/jacred-fdb/jacred/blob/main/Data/crontab), and the
     [access matrix](https://docs.jacred.stream/operations/access-matrix).
 
+    ParseAll cycle checkpoints live on disk (`Data/temp/{slug}_parseAllCycle.json` + `{slug}_taskParse.json`).
+    After restart, incomplete cycles continue via `GET /cron/maintenance/ResumeParseAll` (startup worker ~45s
+    and cron `*/15`). `GET /cron/maintenance/ParseAllStatus` reports pending vs running.
+    `GET /health/background-jobs` is in-process only (empty after restart until a job is started).
+    Operator guide: [Cron API](https://docs.jacred.stream/api-reference/cron).
+
     Полная матрица: [docs.jacred.stream/operations/access-matrix](https://docs.jacred.stream/operations/access-matrix).
 
     ## Config files
@@ -98,7 +104,8 @@ paths:
       summary: In-process background ParseAll / UpdateTasks jobs
       description: |
         Local ops status for active tracker sync jobs started via `/cron/{slug}/…`.
-        Public (no apikey). Empty `jobs` array when nothing is running.
+        Public (no apikey). Empty `jobs` array when nothing is running (including right after
+        process restart — disk pending is `GET /cron/maintenance/ParseAllStatus`, DevAdmin).
       operationId: healthBackgroundJobs
       security: []
       responses:

@@ -33,6 +33,10 @@ Megapeer:
 45 4 * * *  /opt/jacred/Data/run-job.sh megapeer-ParseAllTask http://127.0.0.1:9117/cron/megapeer/ParseAllTask 60
 ```
 
+<Note>
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+</Note>
+
 ## Особенности
 
 - **Кодировка cp1251**: JacRed конвертирует названия и описания в UTF-8 автоматически.

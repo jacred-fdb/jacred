@@ -31,7 +31,8 @@ export interface paths {
         /**
          * In-process background ParseAll / UpdateTasks jobs
          * @description Local ops status for active tracker sync jobs started via `/cron/{slug}/…`.
-         *     Public (no apikey). Empty `jobs` array when nothing is running.
+         *     Public (no apikey). Empty `jobs` array when nothing is running (including right after
+         *     process restart — disk pending is `GET /cron/maintenance/ParseAllStatus`, DevAdmin).
          */
         get: operations["healthBackgroundJobs"];
         put?: never;

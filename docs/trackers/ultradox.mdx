@@ -39,6 +39,10 @@ Ultradox:
 20 7 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseLatest http://127.0.0.1:9117/cron/ultradox/ParseLatest 900
 ```
 
+<Note>
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+</Note>
+
 ## Диагностика
 
 ```bash

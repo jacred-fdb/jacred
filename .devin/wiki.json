@@ -97,7 +97,7 @@
     },
     {
       "title": "Background Jobs",
-      "purpose": "In-process workers vs external cron hitting /cron/{slug}. /health/background-jobs, /jsondb/save, maintenance Check. Docker has no in-container cron.",
+      "purpose": "In-process workers vs external cron hitting /cron/{slug}. ParseAllResumeWorker (~45s) and */15 ResumeParseAll continue disk checkpoints; /health/background-jobs is in-memory only. /jsondb/save, maintenance Check. Docker has no in-container cron.",
       "parent": "Architecture",
       "page_notes": [
         {
@@ -127,7 +127,7 @@
     },
     {
       "title": "Trio Cluster",
-      "purpose": "Code map for rutracker, kinozal, rutor, nnmclub, megapeer, toloka, torrentby: parse + UpdateTasksParse + ParseAllTask, Data/temp checkpoints. Rutracker FlareSolverr.",
+      "purpose": "Code map for rutracker, kinozal, rutor, nnmclub, megapeer, toloka, torrentby, anibelka, korsars, ultradox: parse + UpdateTasksParse + ParseAllTask, Data/temp cycle checkpoints, ResumeParseAll after restart. Rutracker FlareSolverr crawlUrl lane.",
       "parent": "Trackers Overview",
       "page_notes": [
         {

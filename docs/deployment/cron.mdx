@@ -55,6 +55,9 @@ crontab -l
 
 # Сохранение FileDB каждые 5 минут
 */5 * * * *  /opt/jacred/Data/run-job.sh jsondb-save http://127.0.0.1:9117/jsondb/save 60
+
+# Продолжить ParseAll после рестарта (idle, если pending=0)
+*/15 * * * *  /opt/jacred/Data/run-job.sh parseall-resume http://127.0.0.1:9117/cron/maintenance/ResumeParseAll 60
 ```
 
 ## run-job.sh

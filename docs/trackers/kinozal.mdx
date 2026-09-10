@@ -79,6 +79,10 @@ Hourly `parse` не блокируется фоновым ParseAll: свежие
 35 4 * * *  /opt/jacred/Data/run-job.sh kinozal-ParseAllTask http://127.0.0.1:9117/cron/kinozal/ParseAllTask 60
 ```
 
+<Note>
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+</Note>
+
 ## Домен и зеркала
 
 В релизе 3.9.3 домен по умолчанию — `kinozal.guru`. Обновляйте `host`, если рабочее зеркало изменилось.

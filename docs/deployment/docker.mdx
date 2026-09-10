@@ -95,6 +95,7 @@ services:
       - TZ=Europe/Moscow
     depends_on:
       - flaresolverr
+      - flaresolverr-crawl
       - cffetch
 
   flaresolverr:
@@ -104,6 +105,17 @@ services:
     network_mode: host
     environment:
       - TZ=Europe/Moscow
+      - LOG_LEVEL=info
+      - DISABLE_MEDIA=true
+
+  flaresolverr-crawl:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr-crawl
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Europe/Moscow
+      - PORT=8193
       - LOG_LEVEL=info
       - DISABLE_MEDIA=true
 
@@ -122,6 +134,7 @@ FlareSolverr и cffetch в `network_mode: host` не видны в DNS compose. 
 flaresolverr:
   enable: true
   url: http://host.docker.internal:8191/v1
+  crawlUrl: http://host.docker.internal:8193/v1  # ParseAll / UpdateTasks; пусто — тот же url
 
 cffetch:
   enable: true
@@ -142,6 +155,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - flaresolverr
+      - flaresolverr-crawl
       - cffetch
     ports:
       - "9117:9117"
@@ -153,6 +167,14 @@ services:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     network_mode: host
     environment:
+      - PROXY_URL=socks5://127.0.0.1:20001
+      - DISABLE_MEDIA=true
+
+  flaresolverr-crawl:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    network_mode: host
+    environment:
+      - PORT=8193
       - PROXY_URL=socks5://127.0.0.1:20001
       - DISABLE_MEDIA=true
 

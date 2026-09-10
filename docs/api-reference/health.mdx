@@ -100,7 +100,7 @@ GET /api/v1.0/conf?apikey=YOUR_KEY
 GET /health/background-jobs
 ```
 
-Возвращает список активных `ParseAllTask` и `UpdateTasksParse` задач. Используйте для проверки, что парсер не завис.
+Возвращает список активных `ParseAllTask` и `UpdateTasksParse` задач. Используйте для проверки, что парсер не завис. Список в памяти процесса: после рестарта он пуст, пока задача снова не стартует. Pending цикла на диске смотрите в `GET /cron/maintenance/ParseAllStatus`.
 
 `pagesCompleted` и `pagesTotal` — это страницы листинга текущего цикла ParseAll, не раздачи. `currentCategory` — id или slug раздела, `currentPage` — номер страницы в этом разделе, а не дробь «текущее/всего».
 

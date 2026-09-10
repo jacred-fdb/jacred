@@ -41,7 +41,7 @@ Rutor не требует учётных данных. Не добавляйте
 | `/cron/rutor/ParseAllTask` | Продолжить фоновый полный обход карты |
 | `/cron/rutor/ParseLatest?pages=5` | Разобрать первые страницы каждой категории |
 
-`ParseAllTask` хранит состояние цикла в `Data/temp/rutor_parseAllCycle.json`. Следующий запуск продолжает незавершённый цикл.
+`ParseAllTask` хранит состояние цикла в `Data/temp/rutor_parseAllCycle.json`. После рестарта его поднимает `ResumeParseAll`; утренний kick продолжает тот же цикл, пока pending > 0, и начинает новый только когда pending = 0.
 
 ## Расписание
 
@@ -52,6 +52,10 @@ Rutor не требует учётных данных. Не добавляйте
 5 2 * * * /opt/jacred/Data/run-job.sh rutor-UpdateTasksParse http://127.0.0.1:9117/cron/rutor/UpdateTasksParse 60
 30 4 * * * /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
 ```
+
+<Note>
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+</Note>
 
 <Note>
   `UpdateTasksParse` и `ParseAllTask` запускают работу в фоне, поэтому runner ждёт только подтверждение старта. Следите за задачей через `/health/background-jobs`.
