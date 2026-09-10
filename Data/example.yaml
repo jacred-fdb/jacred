@@ -10,6 +10,7 @@ devkey: "" # Ключ для доступа к /dev/, /cron/, /jsondb за ту�
 # Cloudflare bypass via FlareSolverr (required for Rutracker when no Worker alias).
 # Host-run / host-network FS: 127.0.0.1. JacRed on compose bridge + FS host network:
 # http://host.docker.internal:8191/v1 (extra_hosts host.docker.internal:host-gateway).
+# crawlUrl: second FlareSolverr (PORT=8193) for ParseAll/UpdateTasks. Empty = same as url.
 # Bridge-only FS (no WARP): http://flaresolverr:8191/v1
 # VPS/datacenter: set PROXY_URL on the FlareSolverr container (not in this block).
 flaresolverr:

@@ -149,7 +149,7 @@ Assumptions: 65 QuickParse, 211 forums, ~**40** pages/cat average for full crawl
 | `parse` hourly | **1 560 / day** (65 × 24) |
 | `UpdateTasksParse` daily | **211 / day** |
 | `ParseAllTask` 1×/day (up to 12h) | listing GETs via cffetch for pending pages; a full ~16k map is one morning run when the fast path holds |
-| **Forum floor** | **~2–4 000 / day** (parse + Update + partial ParseAll) |
+| **Forum floor** | **~2–4 000 / day** amortized when ParseAll is still catching up; a finishing 12h day is ~16k listing GETs through cffetch |
 
 ### Totals including topic/magnet GETs (warm DB)
 
