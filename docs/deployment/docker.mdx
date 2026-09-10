@@ -76,7 +76,7 @@ docker compose up -d
 docker compose logs -f jacred
 ```
 
-## С FlareSolverr (для Rutracker)
+## С FlareSolverr и cffetch (для Rutracker / Kinozal)
 
 ```yaml docker-compose.yml
 services:
@@ -86,6 +86,8 @@ services:
     restart: unless-stopped
     ports:
       - "9117:9117"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./config:/app/config
       - ./data:/app/Data
@@ -93,34 +95,54 @@ services:
       - TZ=Europe/Moscow
     depends_on:
       - flaresolverr
+      - cffetch
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
     restart: unless-stopped
+    network_mode: host
     environment:
       - TZ=Europe/Moscow
       - LOG_LEVEL=info
+      - DISABLE_MEDIA=true
+
+  cffetch:
+    image: ghcr.io/jacred-fdb/cffetch:latest
+    container_name: cffetch
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - CFFETCH_IMPERSONATE=chrome136
 ```
 
-В `config/init.yaml` укажите:
+FlareSolverr и cffetch в `network_mode: host` не видны в DNS compose. В `config/init.yaml`:
 
 ```yaml
 flaresolverr:
   enable: true
-  url: http://flaresolverr:8191/v1
+  url: http://host.docker.internal:8191/v1
+
+cffetch:
+  enable: true
+  url: http://host.docker.internal:8192/fetch
 ```
+
+`http://flaresolverr:8191/v1` — только если FlareSolverr в той же bridge-сети (без host network). Образ cffetch: amd64 и arm64 (`ghcr.io/jacred-fdb/cffetch`).
 
 ## С WARP для VPS (датацентровой IP)
 
-На VPS без residential-IP Cloudflare блокирует FlareSolverr. Добавьте WARP-контейнер:
+На VPS без residential-IP Cloudflare блокирует FlareSolverr. Добавьте WARP-контейнер. cffetch должен использовать тот же SOCKS (`CFFETCH_PROXY`), иначе `cf_clearance` не пройдёт по IP.
 
 ```yaml docker-compose.yml
 services:
   jacred:
     image: ghcr.io/jacred-fdb/jacred:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - flaresolverr
+      - cffetch
     ports:
       - "9117:9117"
     volumes:
@@ -133,6 +155,13 @@ services:
     environment:
       - PROXY_URL=socks5://127.0.0.1:20001
       - DISABLE_MEDIA=true
+
+  cffetch:
+    image: ghcr.io/jacred-fdb/cffetch:latest
+    network_mode: host
+    environment:
+      - CFFETCH_PROXY=socks5://127.0.0.1:20001
+      - CFFETCH_IMPERSONATE=chrome136
 
   warp:
     image: caomingjun/warp

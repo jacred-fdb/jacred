@@ -149,7 +149,7 @@ namespace JacRed.Configuration.Schema
                         Field("flaresolverr.guardedHours", "int", "Guarded hours", "Сколько помнить CF на хосте", min: 1),
                         Field("flaresolverr.recheckMinutes", "int", "Recheck (мин)", "Как часто пробовать обычный GET", min: 1)
                     }),
-                    Group("cffetch", "cffetch", "Быстрый путь после CF: curl_cffi на localhost :8192, тот же SOCKS что у FlareSolverr", new[]
+                    Group("cffetch", "cffetch", "Быстрый путь после CF: ghcr.io/jacred-fdb/cffetch на :8192, тот же SOCKS что у FlareSolverr", new[]
                     {
                         Field("cffetch.enable", "bool", "Включить", "После solve ходить без page.goto"),
                         Field("cffetch.url", "string", "URL", "http://127.0.0.1:8192/fetch"),

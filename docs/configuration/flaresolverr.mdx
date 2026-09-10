@@ -1,11 +1,11 @@
 ---
 title: "Настройка FlareSolverr"
 sidebarTitle: "FlareSolverr"
-description: "FlareSolverr решает Cloudflare; cffetch на localhost забирает страницы с TLS Chrome. Настройте flaresolverr, cffetch и cron-прогрев."
+description: "FlareSolverr решает Cloudflare; cffetch забирает страницы с TLS Chrome. Настройте flaresolverr, cffetch и cron-прогрев."
 keywords: ["JacRed", "конфигурация", "FlareSolverr", "cffetch", "init.yaml", "Rutracker", "Kinozal"]
 ---
 
-Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium, **решает** challenge и отдаёт cookie. Дальше страницы забирает **cffetch** — обычный HTTP с отпечатком Chrome (`curl_cffi`) на `127.0.0.1:8192`. Это не отдельный контейнер: процесс на хосте рядом с JacRed.
+Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium, **решает** challenge и отдаёт cookie. Дальше страницы забирает **cffetch** — HTTP с отпечатком Chrome (`curl_cffi`) на `:8192` (`ghcr.io/jacred-fdb/cffetch`, host network рядом с FlareSolverr).
 
 Замер на master 10.09.2026: listing/hash ~**0.18 с** против **0.5–1.2 с** у `request.get` (page.goto). Тот же urllib с cookie даёт `403` + `cf-mitigated`. SOCKS cffetch должен совпадать с `PROXY_URL` FlareSolverr (WARP).
 
@@ -25,7 +25,7 @@ Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не
 ```yaml
 flaresolverr:
   enable: true
-  url: http://127.0.0.1:8191/v1   # или http://flaresolverr:8191/v1 в docker-compose
+  url: http://127.0.0.1:8191/v1   # compose (JacRed на bridge): http://host.docker.internal:8191/v1
   maxTimeoutMs: 300000             # 5 минут на решение challenge
   sessionIdleMinutes: 120          # держать сессию Chromium живой
   browserTimeoutRetries: 1         # повторить в той же сессии
@@ -35,7 +35,7 @@ flaresolverr:
 
 cffetch:
   enable: true
-  url: http://127.0.0.1:8192/fetch
+  url: http://127.0.0.1:8192/fetch # compose (JacRed на bridge): http://host.docker.internal:8192/fetch
   impersonate: chrome136           # не старше Chromium FlareSolverr (на master — 148)
   timeoutSeconds: 25
   maxConcurrent: 4                 # иначе 429 трекера
@@ -48,7 +48,7 @@ cffetch:
 </ParamField>
 
 <ParamField path="url" type="string">
-  URL FlareSolverr API. По умолчанию `http://127.0.0.1:8191/v1`.
+  URL FlareSolverr API. По умолчанию `http://127.0.0.1:8191/v1`. JacRed в compose на bridge при host-network FlareSolverr: `http://host.docker.internal:8191/v1`.
 </ParamField>
 
 <ParamField path="maxTimeoutMs" type="number">
@@ -64,51 +64,74 @@ cffetch:
 </ParamField>
 
 <ParamField path="cffetch.enable" type="boolean">
-  Быстрый путь после solve. При `false` или если процесс на `:8192` не запущен, все GET идут через браузер.
+  Быстрый путь после solve. При `false` или если cffetch на `:8192` не запущен, все GET идут через браузер.
 </ParamField>
 
 <ParamField path="cffetch.proxy" type="string">
   SOCKS5 тот же, что `PROXY_URL` у FlareSolverr. Без совпадения IP cookie не проходит.
 </ParamField>
 
-## Запуск cffetch на хосте
+## Docker Compose: cffetch + FlareSolverr
 
-Не добавляйте сервис в compose. На той же машине, где JacRed и FlareSolverr слушают localhost:
+Образ `ghcr.io/jacred-fdb/cffetch` (amd64, arm64). Host network, как у FlareSolverr: тот же WARP SOCKS и тот же выходной IP. Не публикуйте `:8192` наружу.
+
+```yaml
+services:
+  jacred:
+    image: ghcr.io/jacred-fdb/jacred:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - flaresolverr
+      - cffetch
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Europe/Moscow
+      - LOG_LEVEL=info
+      - PROXY_URL=socks5://127.0.0.1:20001
+      - DISABLE_MEDIA=true
+
+  cffetch:
+    image: ghcr.io/jacred-fdb/cffetch:latest
+    container_name: cffetch
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - CFFETCH_PROXY=socks5://127.0.0.1:20001
+      - CFFETCH_IMPERSONATE=chrome136
+```
+
+В `init.yaml` (JacRed на bridge, cffetch/FlareSolverr на host network):
+
+```yaml
+flaresolverr:
+  enable: true
+  url: http://host.docker.internal:8191/v1
+
+cffetch:
+  enable: true
+  url: http://host.docker.internal:8192/fetch
+  proxy: socks5://127.0.0.1:20001
+```
+
+Host-run JacRed оставляет `http://127.0.0.1:8191/v1` и `http://127.0.0.1:8192/fetch`. `http://flaresolverr:8191/v1` работает только если FlareSolverr в той же compose-сети (без `network_mode: host`).
+
+Проверка: `curl -sS http://127.0.0.1:8192/health`. Alpine-образ JacRed python не содержит — cffetch отдельный контейнер.
+
+После первого push пакет `ghcr.io/jacred-fdb/cffetch` в GitHub Packages может быть private; выставьте visibility public, как у `jacred`.
+
+## Fallback: venv на хосте
 
 ```bash
 python3 -m venv /opt/jacred/venv-cffetch
 /opt/jacred/venv-cffetch/bin/pip install 'curl_cffi>=0.7,<1.0'
 CFFETCH_PROXY=socks5://127.0.0.1:20001 CFFETCH_IMPERSONATE=chrome136 \
   /opt/jacred/venv-cffetch/bin/python /opt/jacred/tools/cffetch/app.py
-```
-
-Проверка: `curl -sS http://127.0.0.1:8192/health`. Alpine-образ JacRed python не содержит — процесс живёт на хосте.
-
-## Docker Compose с FlareSolverr
-
-```yaml
-services:
-  jacred:
-    image: ghcr.io/jacred-fdb/jacred:latest
-    ...
-    depends_on:
-      - flaresolverr
-
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: flaresolverr
-    restart: unless-stopped
-    environment:
-      - TZ=Europe/Moscow
-      - LOG_LEVEL=info
-```
-
-В `init.yaml` укажите:
-
-```yaml
-flaresolverr:
-  enable: true
-  url: http://flaresolverr:8191/v1
 ```
 
 ## VPS с датацентровым IP: WARP
@@ -132,6 +155,13 @@ services:
     environment:
       - PROXY_URL=socks5://127.0.0.1:20001
       - DISABLE_MEDIA=true
+
+  cffetch:
+    image: ghcr.io/jacred-fdb/cffetch:latest
+    network_mode: host
+    environment:
+      - CFFETCH_PROXY=socks5://127.0.0.1:20001
+      - CFFETCH_IMPERSONATE=chrome136
 
 volumes:
   warp-data:

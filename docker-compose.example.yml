@@ -13,8 +13,11 @@ services:
     environment:
       - TZ=Europe/London
       - UMASK=0027
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - flaresolverr
+      - cffetch
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "--max-time", "10", "http://127.0.0.1:9117/health"]
       interval: 30s
@@ -56,7 +59,9 @@ services:
   # Cloudflare bypass for Rutracker (~1 GiB RAM).
   # With WARP: one Challenge solved after sessions.create (~11s), then
   # Challenge not detected (~0.5s) while the same FlareSolverr session lives.
-  # Do not publish 8191 externally. Host-run JacRed: flaresolverr.url http://127.0.0.1:8191/v1
+  # Do not publish 8191 externally.
+  # JacRed in this compose (bridge): flaresolverr.url http://host.docker.internal:8191/v1
+  # Host-run JacRed: flaresolverr.url http://127.0.0.1:8191/v1
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
@@ -75,6 +80,28 @@ services:
         limits:
           memory: 1024M
           cpus: "2"
+
+  # Chrome TLS fast path after FlareSolverr solve (curl_cffi). Host network so
+  # SOCKS hits the same WARP IP as PROXY_URL — cf_clearance is IP-bound.
+  # Binds 127.0.0.1:8192; do not publish. JacRed (bridge):
+  #   cffetch.url http://host.docker.internal:8192/fetch
+  # Host-run JacRed: http://127.0.0.1:8192/fetch
+  cffetch:
+    image: ghcr.io/jacred-fdb/cffetch:latest
+    container_name: cffetch
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - warp
+    environment:
+      - TZ=Europe/London
+      - CFFETCH_PROXY=socks5://127.0.0.1:20001
+      - CFFETCH_IMPERSONATE=chrome136
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "1"
 
 volumes:
   jacred-config:

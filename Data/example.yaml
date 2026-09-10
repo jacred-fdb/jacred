@@ -8,10 +8,10 @@ apikey: "" # Ключ авторизации API (пусто — без пров
 devkey: "" # Ключ для доступа к /dev/, /cron/, /jsondb за туннелем/прокси (пусто — только локальная сеть)
 
 # Cloudflare bypass via FlareSolverr (required for Rutracker when no Worker alias).
-# Local debug: 127.0.0.1; in docker-compose use http://flaresolverr:8191/v1
-# VPS/datacenter: CF often times out without residential/ISP egress —
-# set PROXY_URL / PROXY_USERNAME / PROXY_PASSWORD on the FlareSolverr container
-# (not in this block). network_mode: host does not change public IP.
+# Host-run / host-network FS: 127.0.0.1. JacRed on compose bridge + FS host network:
+# http://host.docker.internal:8191/v1 (extra_hosts host.docker.internal:host-gateway).
+# Bridge-only FS (no WARP): http://flaresolverr:8191/v1
+# VPS/datacenter: set PROXY_URL on the FlareSolverr container (not in this block).
 flaresolverr:
   enable: true
   url: http://127.0.0.1:8191/v1
@@ -22,7 +22,8 @@ flaresolverr:
   guardedHours: 6
   recheckMinutes: 30
 
-# Fast path after FlareSolverr solve (host python, not a compose service).
+# Fast path after FlareSolverr solve: ghcr.io/jacred-fdb/cffetch (host network).
+# Compose JacRed on bridge: http://host.docker.internal:8192/fetch
 # Same WARP SOCKS as FlareSolverr PROXY_URL. Master 2026-09-10: ~0.18s vs ~0.5–1.2s goto.
 cffetch:
   enable: true

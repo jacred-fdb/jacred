@@ -5,7 +5,7 @@ cffetch — HTTP с TLS-отпечатком Chrome (curl_cffi).
 FlareSolverr решает Cloudflare один раз и отдаёт cookie. Дальше страницы
 ходят сюда. .NET HttpClient с той же cookie получает 403.
 
-Не отдельный compose-сервис: host-run на 127.0.0.1:8192 рядом с JacRed.
+Образ ghcr.io/jacred-fdb/cffetch, network_mode: host, bind 127.0.0.1:8192.
 SOCKS должен совпадать с PROXY_URL FlareSolverr (WARP), иначе IP-binding.
 
   CFFETCH_PROXY=socks5://127.0.0.1:20001 python3 tools/cffetch/app.py
@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from curl_cffi import requests
 
 PORT = int(os.environ.get("CFFETCH_PORT", "8192"))
+BIND = os.environ.get("CFFETCH_BIND", "127.0.0.1").strip() or "127.0.0.1"
 DEFAULT_IMPERSONATE = os.environ.get("CFFETCH_IMPERSONATE", "chrome136")
 DEFAULT_PROXY = os.environ.get("CFFETCH_PROXY", "").strip()
 MAX_BODY = 8 * 1024 * 1024
@@ -126,9 +127,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    server = ThreadingHTTPServer((BIND, PORT), Handler)
     sys.stderr.write(
-        "cffetch слушает 127.0.0.1:%d, отпечаток %s, proxy=%s\n"
-        % (PORT, DEFAULT_IMPERSONATE, DEFAULT_PROXY or "off")
+        "cffetch слушает %s:%d, отпечаток %s, proxy=%s\n"
+        % (BIND, PORT, DEFAULT_IMPERSONATE, DEFAULT_PROXY or "off")
     )
     server.serve_forever()

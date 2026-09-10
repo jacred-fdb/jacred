@@ -93,6 +93,12 @@ on:
         required: false
         default: ""
 
+      description:
+        description: "OCI image description label"
+        type: string
+        required: false
+        default: "Jacred - Torrent tracker aggregator"
+
     outputs:
       tags:
         value: ${{ jobs.build-docker.outputs.tags }}
@@ -152,12 +158,12 @@ jobs:
             ${{ inputs.extra_raw_tags }}
           labels: |
             org.opencontainers.image.title=${{ inputs.image }}
-            org.opencontainers.image.description=Jacred - Torrent tracker aggregator
+            org.opencontainers.image.description=${{ inputs.description }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           annotations: |
             org.opencontainers.image.title=${{ inputs.image }}
-            org.opencontainers.image.description=Jacred - Torrent tracker aggregator
+            org.opencontainers.image.description=${{ inputs.description }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
@@ -173,8 +179,8 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: |
             JACRED_VERSION=${{ inputs.version != '' && inputs.version || 'dev' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ inputs.image }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.image }}
           sbom: ${{ inputs.sbom }}
           provenance: ${{ inputs.provenance }}
 
@@ -188,7 +194,7 @@ jobs:
       - if: ${{ inputs.generate_syft_sbom && inputs.push }}
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: sbom-${{ github.sha }}
+          name: sbom-${{ inputs.image }}-${{ github.sha }}
           path: sbom.${{ inputs.syft_format == 'spdx-json' && 'spdx.json' || 'json' }}
           retention-days: ${{ inputs.sbom_artifact_retention_days }}
 

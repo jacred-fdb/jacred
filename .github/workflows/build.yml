@@ -121,6 +121,34 @@ jobs:
       sbom_artifact_retention_days: ${{ (inputs.tag != '' || startsWith(github.ref, 'refs/tags/')) && 30 || 7 }}
     secrets: inherit
 
+  build-docker-cffetch:
+    name: Build and push cffetch image
+    needs: extract-version
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    uses: ./.github/workflows/reusable-docker-build.yml
+    with:
+      image: cffetch
+      context: tools/cffetch
+      file: tools/cffetch/Dockerfile
+      platforms: linux/amd64,linux/arm64
+      description: "cffetch — Chrome TLS HTTP helper for JacRed Cloudflare fast path"
+      version: ${{ needs.extract-version.outputs.version }}
+      tag_latest: ${{ needs.extract-version.outputs.tag_latest }}
+      checkout_ref: ${{ needs.extract-version.outputs.checkout_ref }}
+      push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
+      attest_github: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
+      sbom: true
+      provenance: "mode=max"
+      generate_syft_sbom: true
+      sbom_artifact_retention_days: ${{ (inputs.tag != '' || startsWith(github.ref, 'refs/tags/')) && 30 || 7 }}
+    secrets: inherit
+
   upload-release-assets:
     name: Attach artifacts to release
     permissions:

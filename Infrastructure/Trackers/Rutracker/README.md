@@ -7,13 +7,13 @@ JacRed sync for [rutracker.org](https://rutracker.org) via cron endpoints under 
 Rutracker sits behind Cloudflare (`403` / `cf-mitigated` / “Just a moment…”). Direct .NET `HttpClient` cannot reuse `cf_clearance` cookies (TLS fingerprint differs). Production path:
 
 1. **FlareSolverr** — solve CF once per host session; fallback when cffetch is down or cookie is rejected.
-2. **cffetch** (host python on `:8192`, not a compose service) — Chrome TLS + jar. Master 2026-09-10: ~0.16 s vs ~0.9 s `request.get`. Same WARP SOCKS as `PROXY_URL`.
+2. **cffetch** (`ghcr.io/jacred-fdb/cffetch`, host network on `:8192`) — Chrome TLS + jar. Master 2026-09-10: ~0.16 s vs ~0.9 s `request.get`. Same WARP SOCKS as `PROXY_URL`.
 3. **Worker `alias`** (optional when FlareSolverr is disabled) — reverse-proxy so fetches go through CF edge. Not an impersonate path.
 
 ```yaml
 flaresolverr:
   enable: true
-  url: http://127.0.0.1:8191/v1   # compose: http://127.0.0.1:8191/v1 with host network
+  url: http://127.0.0.1:8191/v1   # JacRed на bridge + FS host network: http://host.docker.internal:8191/v1
   maxTimeoutMs: 300000            # 5 min per FS request.get (challenge + retries)
   sessionIdleMinutes: 120         # keep Chromium session across cron gaps
   browserTimeoutRetries: 1        # same-session retry before counting a soft fail

@@ -49,7 +49,7 @@ Kinozal:
 
 ## Cloudflare
 
-`kinozal.guru` отдаёт `403` с `cf-mitigated: challenge`. Прямой HTTP из JacRed не проходит. Списки (`browse.php`) и info-hash (`get_srv_details.php`) после solve идут через **cffetch** (TLS Chrome); браузер FlareSolverr — первая страница и fallback. У Kinozal своя сессия Chromium (`jacred-kinozal_guru`). Замер master 10.09.2026: hash GET ~0.18 с и без stale-вкладки, тогда как `request.get` иногда возвращал предыдущий browse.
+`kinozal.guru` отдаёт `403` с `cf-mitigated: challenge`. Прямой HTTP из JacRed не проходит. Списки (`browse.php`) и info-hash (`get_srv_details.php`) после solve идут через **cffetch** (`ghcr.io/jacred-fdb/cffetch`, TLS Chrome); браузер FlareSolverr — первая страница и fallback. У Kinozal своя сессия Chromium (`jacred-kinozal_guru`). Замер master 10.09.2026: hash GET ~0.18 с и без stale-вкладки, тогда как `request.get` иногда возвращал предыдущий browse.
 
 FlareSolverr/Chromium отдаёт листинг с двойными кавычками у атрибутов (`class="first bg"`, `class="s"`). Парсер принимает и этот HTML, и старый wire-формат (`class='first bg'`, `class=bg`). URL в FileDB — только `/details.php?id=…` (раздача), не `/userdetails.php?id=` (профиль раздающего).
 

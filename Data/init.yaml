@@ -11,6 +11,7 @@ flaresolverr:
   recycleAfterTimeouts: 3
   guardedHours: 6
   recheckMinutes: 30
+# Compose JacRed on bridge: http://host.docker.internal:8192/fetch (+ extra_hosts)
 cffetch:
   enable: true
   url: http://127.0.0.1:8192/fetch

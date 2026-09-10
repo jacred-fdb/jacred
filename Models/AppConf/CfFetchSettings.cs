@@ -3,14 +3,18 @@ namespace JacRed.Models.AppConf
     /// <summary>
     /// Быстрый путь к CF-хостам: cookie от FlareSolverr + TLS Chrome (curl_cffi).
     /// .NET HttpClient с той же cookie даёт 403 — другой отпечаток.
-    /// Процесс на 127.0.0.1:8192, не отдельный compose-сервис.
+    /// Образ <c>ghcr.io/jacred-fdb/cffetch</c>, host network, :8192.
     /// Замер master 2026-09-10: ~0.18 с vs ~0.5–1.2 с через page.goto.
     /// </summary>
     public class CfFetchSettings
     {
         public bool enable { get; set; } = true;
 
-        /// <summary>Host-run рядом с JacRed и FlareSolverr.</summary>
+        /// <summary>
+        /// Host-run JacRed: <c>http://127.0.0.1:8192/fetch</c>.
+        /// Compose (JacRed на bridge, cffetch host network):
+        /// <c>http://host.docker.internal:8192/fetch</c>.
+        /// </summary>
         public string url { get; set; } = "http://127.0.0.1:8192/fetch";
 
         /// <summary>
