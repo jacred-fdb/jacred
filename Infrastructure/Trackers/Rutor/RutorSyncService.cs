@@ -84,20 +84,19 @@ namespace JacRed.Infrastructure.Trackers.Rutor
 
                     int maxpages = RutorParser.LastPageFromHtml(html);
 
-                    // Загружаем список страниц в список задач
+                    if (!taskParse.ContainsKey(cat))
+                        taskParse.Add(cat, new List<TaskParse>());
+
+                    var val = taskParse[cat];
                     for (int page = 0; page <= maxpages; page++)
                     {
-                        try
-                        {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
-
-                            var val = taskParse[cat];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
-                        }
-                        catch { }
+                        if (val.FirstOrDefault(i => i.page == page) == null)
+                            val.Add(new TaskParse(page));
                     }
+
+                    int pruned = RutorParser.PrunePagesBeyondMax(val, maxpages);
+                    if (pruned > 0)
+                        ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: maxPage={maxpages}, pruned={pruned}, total={val.Count}");
                 }
 
                 PersistTaskParse();

@@ -188,7 +188,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.refresh_fixtures:
         fixture_dir.mkdir(parents=True, exist_ok=True)
         # Drop stale fixture names from older naming schemes.
-        for stale in fixture_dir.glob("browse_c*.html"):
+        for stale in fixture_dir.glob("browse_c[0-9]*.html"):
             stale.unlink()
 
     report = []

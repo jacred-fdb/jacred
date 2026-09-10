@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using JacRed.Infrastructure.Trackers.Anibelka;
+using JacRed.Models.tParse;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -127,6 +129,17 @@ public class AnibelkaParserFixtureTests
         string html = FixtureLoader.Read("Anibelka/forum_f33.html")
             + "<script>var junk='?start=99999'; location='?start=88888';</script>";
         Assert.Equal(40, AnibelkaParser.LastPageFromHtml(html));
+    }
+
+    [Fact]
+    public void PrunePagesBeyondMax_DropsGhostTail()
+    {
+        var tasks = Enumerable.Range(0, 20).Select(i => new TaskParse(i)).ToList();
+        Assert.Equal(8, AnibelkaParser.PrunePagesBeyondMax(tasks, 11));
+        Assert.Equal(12, tasks.Count);
+        Assert.Equal(11, tasks[^1].page);
+        Assert.Equal(0, AnibelkaParser.PrunePagesBeyondMax(tasks, 11));
+        Assert.Equal(0, AnibelkaParser.PrunePagesBeyondMax(null, 5));
     }
 
     [Fact]

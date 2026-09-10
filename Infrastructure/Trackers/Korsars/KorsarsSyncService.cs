@@ -315,18 +315,9 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                     }
 
                     int maxPage = KorsarsParser.LastPageFromHtml(html);
-                    if (!taskParse.ContainsKey(cat))
-                        taskParse[cat] = new List<TaskParse>();
-
-                    var val = taskParse[cat];
-                    for (int page = 0; page <= maxPage; page++)
-                    {
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
-                    }
-
-                    taskParse[cat] = val.OrderBy(x => x.page).ToList();
-                    ParserLog.Write(TrackerName, $"UpdateTasksParse f={cat}: maxPage={maxPage}, total={taskParse[cat].Count}");
+                    int pruned = MergeForumPages(cat, maxPage);
+                    ParserLog.Write(TrackerName, $"UpdateTasksParse f={cat}: maxPage={maxPage}, total={taskParse[cat].Count}"
+                        + (pruned > 0 ? $", pruned={pruned}" : ""));
                 }
 
                 PersistTaskParse();
@@ -470,6 +461,26 @@ namespace JacRed.Infrastructure.Trackers.Korsars
             }, cancellationToken);
         }
 
+        static int MergeForumPages(string cat, int maxPage)
+        {
+            if (maxPage < 0)
+                maxPage = 0;
+
+            if (!taskParse.ContainsKey(cat))
+                taskParse[cat] = new List<TaskParse>();
+
+            var val = taskParse[cat];
+            for (int page = 0; page <= maxPage; page++)
+            {
+                if (val.FirstOrDefault(i => i.page == page) == null)
+                    val.Add(new TaskParse(page));
+            }
+
+            int pruned = KorsarsParser.PrunePagesBeyondMax(val, maxPage);
+            taskParse[cat] = val.OrderBy(x => x.page).ToList();
+            return pruned;
+        }
+
         async Task RebuildTasksAsync(string rqHost, CancellationToken ct)
         {
             if (!await EnsureLoginAsync(ct))
@@ -489,17 +500,7 @@ namespace JacRed.Infrastructure.Trackers.Korsars
                     continue;
 
                 int maxPage = KorsarsParser.LastPageFromHtml(html);
-                if (!taskParse.ContainsKey(cat))
-                    taskParse[cat] = new List<TaskParse>();
-
-                var val = taskParse[cat];
-                for (int page = 0; page <= maxPage; page++)
-                {
-                    if (val.FirstOrDefault(i => i.page == page) == null)
-                        val.Add(new TaskParse(page));
-                }
-
-                taskParse[cat] = val.OrderBy(x => x.page).ToList();
+                MergeForumPages(cat, maxPage);
             }
 
             PersistTaskParse();

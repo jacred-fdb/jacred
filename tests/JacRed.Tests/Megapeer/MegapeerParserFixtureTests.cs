@@ -1,5 +1,7 @@
+using System.Linq;
 using JacRed.Infrastructure.Trackers.Megapeer;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -80,5 +82,26 @@ public class MegapeerParserFixtureTests
     {
         Assert.Empty(MegapeerParser.ParseTorrentsFromPage("", "79"));
         Assert.Empty(MegapeerParser.ParseTorrentsFromPage("<html></html>", "79"));
+    }
+
+    [Fact]
+    public void LastPageFromHtml_Browse79_CapsAt10()
+    {
+        string html = FixtureLoader.Read("Megapeer/browse_79.html");
+        Assert.Equal(10, MegapeerParser.LastPageFromHtml(html));
+        Assert.Equal(0, MegapeerParser.LastPageFromHtml(""));
+        Assert.Equal(3, MegapeerParser.LastPageFromHtml(">Всего: 199"));
+        Assert.Equal(10, MegapeerParser.LastPageFromHtml(">Всего: 8134"));
+    }
+
+    [Fact]
+    public void PrunePagesBeyondMax_DropsGhostTail()
+    {
+        var tasks = Enumerable.Range(0, 20).Select(i => new TaskParse(i)).ToList();
+        Assert.Equal(9, MegapeerParser.PrunePagesBeyondMax(tasks, 10));
+        Assert.Equal(11, tasks.Count);
+        Assert.Equal(10, tasks[^1].page);
+        Assert.Equal(0, MegapeerParser.PrunePagesBeyondMax(tasks, 10));
+        Assert.Equal(0, MegapeerParser.PrunePagesBeyondMax(null, 5));
     }
 }

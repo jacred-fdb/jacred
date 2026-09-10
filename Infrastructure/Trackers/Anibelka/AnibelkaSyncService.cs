@@ -167,18 +167,9 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
                     }
 
                     int maxPage = AnibelkaParser.LastPageFromHtml(html);
-                    if (!taskParse.ContainsKey(kv.Key))
-                        taskParse[kv.Key] = new List<TaskParse>();
-
-                    var val = taskParse[kv.Key];
-                    for (int page = 0; page <= maxPage; page++)
-                    {
-                        if (val.FirstOrDefault(i => i.page == page) == null)
-                            val.Add(new TaskParse(page));
-                    }
-
-                    taskParse[kv.Key] = val.OrderBy(x => x.page).ToList();
-                    ParserLog.Write(TrackerName, $"UpdateTasksParse f={kv.Key}: maxPage={maxPage}, total={taskParse[kv.Key].Count}");
+                    int pruned = MergeForumPages(kv.Key, maxPage);
+                    ParserLog.Write(TrackerName, $"UpdateTasksParse f={kv.Key}: maxPage={maxPage}, total={taskParse[kv.Key].Count}"
+                        + (pruned > 0 ? $", pruned={pruned}" : ""));
                 }
 
                 PersistTaskParse();
@@ -311,6 +302,26 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
             }, cancellationToken);
         }
 
+        static int MergeForumPages(string sectionId, int maxPage)
+        {
+            if (maxPage < 0)
+                maxPage = 0;
+
+            if (!taskParse.ContainsKey(sectionId))
+                taskParse[sectionId] = new List<TaskParse>();
+
+            var val = taskParse[sectionId];
+            for (int page = 0; page <= maxPage; page++)
+            {
+                if (val.FirstOrDefault(i => i.page == page) == null)
+                    val.Add(new TaskParse(page));
+            }
+
+            int pruned = AnibelkaParser.PrunePagesBeyondMax(val, maxPage);
+            taskParse[sectionId] = val.OrderBy(x => x.page).ToList();
+            return pruned;
+        }
+
         async Task RebuildTasksAsync(string host, CancellationToken ct)
         {
             foreach (var kv in AnibelkaCategories.Map)
@@ -326,17 +337,7 @@ namespace JacRed.Infrastructure.Trackers.Anibelka
                     continue;
 
                 int maxPage = AnibelkaParser.LastPageFromHtml(html);
-                if (!taskParse.ContainsKey(kv.Key))
-                    taskParse[kv.Key] = new List<TaskParse>();
-
-                var val = taskParse[kv.Key];
-                for (int page = 0; page <= maxPage; page++)
-                {
-                    if (val.FirstOrDefault(i => i.page == page) == null)
-                        val.Add(new TaskParse(page));
-                }
-
-                taskParse[kv.Key] = val.OrderBy(x => x.page).ToList();
+                MergeForumPages(kv.Key, maxPage);
             }
 
             PersistTaskParse();

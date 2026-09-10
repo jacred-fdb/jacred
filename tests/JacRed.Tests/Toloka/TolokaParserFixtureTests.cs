@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using JacRed.Infrastructure.Trackers.Toloka;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -114,5 +116,15 @@ public class TolokaParserFixtureTests
         Assert.Equal(293, TolokaParser.LastPageFromHtml(html));
         Assert.Equal(0, TolokaParser.LastPageFromHtml(""));
         Assert.Equal(0, TolokaParser.LastPageFromHtml("<html>no pager</html>"));
+    }
+
+    [Fact]
+    public void PrunePagesBeyondPageCount_DropsExclusiveTail()
+    {
+        var pages = new List<TaskParse> { new(0), new(8), new(9), new(10) };
+        Assert.Equal(2, TolokaParser.PrunePagesBeyondPageCount(pages, 9));
+        Assert.Equal(new[] { 0, 8 }, pages.Select(p => p.page).ToArray());
+        Assert.Equal(0, TolokaParser.PrunePagesBeyondPageCount(pages, 9));
+        Assert.Equal(0, TolokaParser.PrunePagesBeyondPageCount(null, 9));
     }
 }

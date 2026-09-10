@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using JacRed.Models.tParse;
 
 namespace JacRed.Infrastructure.Trackers.TorrentBy
 {
@@ -118,5 +120,19 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
             HasTrailingEllipsis = false,
             EllipsisJumpPage = null
         };
+
+        /// <summary>Drop map slots past the discovered 0-based last index (inclusive <c>page &lt;= maxPage</c>).</summary>
+        public static int PrunePagesBeyondMax(List<TaskParse> tasks, int maxPage)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return 0;
+
+            if (maxPage < 0)
+                maxPage = 0;
+
+            int before = tasks.Count;
+            tasks.RemoveAll(t => t != null && t.page > maxPage);
+            return before - tasks.Count;
+        }
     }
 }

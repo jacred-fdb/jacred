@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,16 +11,56 @@ using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Networking;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 
 namespace JacRed.Infrastructure.Trackers.Megapeer
 {
     public static class MegapeerParser
     {
         const string BrowsePageValidMarker = "id=\"logo\"";
+        public const int MaxTaskPages = 10;
+
+        static readonly Regex TotalCountRe = new(@">Всего: ([0-9]+)", RegexOptions.Compiled);
 
         static readonly int[] ParseDelayCycleMs = { 30_000, 60_000, 90_000 };
         static int _parseDelayIndex;
         static readonly SemaphoreSlim _browseLock = new SemaphoreSlim(1, 1);
+
+        /// <summary>
+        /// 0-based last browse index from «Всего: N» / 50, capped at <see cref="MaxTaskPages"/>.
+        /// </summary>
+        public static int LastPageFromHtml(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return 0;
+
+            var m = TotalCountRe.Match(html);
+            if (!m.Success
+                || !int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int total)
+                || total < 0)
+            {
+                return 0;
+            }
+
+            int maxpages = total / 50;
+            if (maxpages > MaxTaskPages)
+                maxpages = MaxTaskPages;
+            return maxpages;
+        }
+
+        /// <summary>Drop map slots past the live 0-based last index (inclusive, capped).</summary>
+        public static int PrunePagesBeyondMax(List<TaskParse> tasks, int maxPage)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return 0;
+
+            if (maxPage < 0)
+                maxPage = 0;
+
+            int before = tasks.Count;
+            tasks.RemoveAll(t => t != null && t.page > maxPage);
+            return before - tasks.Count;
+        }
 
         static int GetNextParseDelayMs()
         {

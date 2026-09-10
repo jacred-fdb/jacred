@@ -184,15 +184,19 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                         if (pageCount < 1)
                             pageCount = 1;
 
+                        if (!taskParse.ContainsKey(c))
+                            taskParse.Add(c, new List<TaskParse>());
+
+                        var val = taskParse[c];
                         for (int page = 0; page < pageCount; page++)
                         {
-                            if (!taskParse.ContainsKey(c))
-                                taskParse.Add(c, new List<TaskParse>());
-
-                            var val = taskParse[c];
                             if (val.FirstOrDefault(i => i.page == page) == null)
                                 val.Add(new TaskParse(page));
                         }
+
+                        int pruned = RutrackerParser.PrunePagesBeyondPageCount(val, pageCount);
+                        if (pruned > 0)
+                            ParserLog.Write(TrackerName, $"UpdateTasksParse cat={c}: pageCount={pageCount}, pruned={pruned}, total={val.Count}");
                     }
                     catch { }
                 }

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Web;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 
 namespace JacRed.Infrastructure.Trackers.Rutracker
 {
@@ -34,6 +35,20 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             }
 
             return n;
+        }
+
+        /// <summary>Drop map slots at or past the live page count (exclusive <c>page &lt; pageCount</c>).</summary>
+        public static int PrunePagesBeyondPageCount(List<TaskParse> tasks, int pageCount)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return 0;
+
+            if (pageCount < 1)
+                pageCount = 1;
+
+            int before = tasks.Count;
+            tasks.RemoveAll(t => t != null && t.page >= pageCount);
+            return before - tasks.Count;
         }
 
         public static List<TorrentDetails> ParseTorrentsFromPage(string html, string cat)

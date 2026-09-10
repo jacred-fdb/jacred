@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JacRed.Infrastructure.Trackers.Rutor;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -94,6 +95,17 @@ public class RutorParserFixtureTests
         Assert.Equal(72, RutorParser.LastPageFromHtml(html));
         Assert.Equal(0, RutorParser.LastPageFromHtml(""));
         Assert.Equal(0, RutorParser.LastPageFromHtml("<p>no pager</p>"));
+    }
+
+    [Fact]
+    public void PrunePagesBeyondMax_DropsGhostTail()
+    {
+        var tasks = Enumerable.Range(0, 20).Select(i => new TaskParse(i)).ToList();
+        Assert.Equal(8, RutorParser.PrunePagesBeyondMax(tasks, 11));
+        Assert.Equal(12, tasks.Count);
+        Assert.Equal(11, tasks[^1].page);
+        Assert.Equal(0, RutorParser.PrunePagesBeyondMax(tasks, 11));
+        Assert.Equal(0, RutorParser.PrunePagesBeyondMax(null, 5));
     }
 
     [Fact]

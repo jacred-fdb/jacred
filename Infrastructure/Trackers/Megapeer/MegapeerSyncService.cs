@@ -88,25 +88,21 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     if (html == null)
                         continue;
 
-                    int.TryParse(System.Text.RegularExpressions.Regex.Match(html, ">Всего: ([0-9]+)").Groups[1].Value, out int maxpages);
-                    maxpages = maxpages / 50;
+                    int maxpages = MegapeerParser.LastPageFromHtml(html);
 
-                    if (maxpages > 10)
-                        maxpages = 10;
+                    if (!taskParse.ContainsKey(cat))
+                        taskParse.Add(cat, new List<TaskParse>());
 
+                    var val = taskParse[cat];
                     for (int page = 0; page <= maxpages; page++)
                     {
-                        try
-                        {
-                            if (!taskParse.ContainsKey(cat))
-                                taskParse.Add(cat, new List<TaskParse>());
-
-                            var val = taskParse[cat];
-                            if (val.FirstOrDefault(i => i.page == page) == null)
-                                val.Add(new TaskParse(page));
-                        }
-                        catch { }
+                        if (val.FirstOrDefault(i => i.page == page) == null)
+                            val.Add(new TaskParse(page));
                     }
+
+                    int pruned = MegapeerParser.PrunePagesBeyondMax(val, maxpages);
+                    if (pruned > 0)
+                        ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: maxPage={maxpages}, pruned={pruned}, total={val.Count}");
                 }
 
                 PersistTaskParse();

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Web;
 using JacRed.Infrastructure.Parsing;
 using JacRed.Models.Details;
+using JacRed.Models.tParse;
 
 namespace JacRed.Infrastructure.Trackers.Rutor
 {
@@ -34,6 +35,20 @@ namespace JacRed.Infrastructure.Trackers.Rutor
             }
 
             return n;
+        }
+
+        /// <summary>Drop map slots past the live 0-based last index (inclusive <c>page &lt;= maxPage</c>).</summary>
+        public static int PrunePagesBeyondMax(List<TaskParse> tasks, int maxPage)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return 0;
+
+            if (maxPage < 0)
+                maxPage = 0;
+
+            int before = tasks.Count;
+            tasks.RemoveAll(t => t != null && t.page > maxPage);
+            return before - tasks.Count;
         }
 
         public static List<TorrentBaseDetails> ParseTorrentsFromPage(string html, string cat)

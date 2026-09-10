@@ -85,7 +85,13 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    int last = await DiscoverLastPageAsync(host, cat, ct);
+                    var (last, ok) = await DiscoverLastPageAsync(host, cat, ct);
+                    if (!ok)
+                    {
+                        ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: empty response");
+                        continue;
+                    }
+
                     if (!taskParse.ContainsKey(cat))
                         taskParse[cat] = new List<TaskParse>();
 
@@ -96,17 +102,20 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                             val.Add(new TaskParse(page));
                     }
 
+                    int pruned = TorrentByPagination.PrunePagesBeyondMax(val, last);
                     taskParse[cat] = val.OrderBy(x => x.page).ToList();
-                    ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: maxPage={last}, total={taskParse[cat].Count}");
+                    ParserLog.Write(TrackerName, $"UpdateTasksParse cat={cat}: maxPage={last}, total={taskParse[cat].Count}"
+                        + (pruned > 0 ? $", pruned={pruned}" : ""));
                 }
 
                 PersistTaskParse();
             }));
         }
 
-        static async Task<int> DiscoverLastPageAsync(string host, string cat, CancellationToken ct)
+        static async Task<(int last, bool ok)> DiscoverLastPageAsync(string host, string cat, CancellationToken ct)
         {
             int last = 0;
+            bool ok = false;
             int page = 0;
             for (int hop = 0; hop <= TorrentByPagination.MaxEllipsisHops; hop++)
             {
@@ -119,6 +128,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                 if (html == null)
                     break;
 
+                ok = true;
                 var pager = TorrentByPagination.ParsePager(html);
                 if (pager.MaxPageIndex > last)
                     last = pager.MaxPageIndex;
@@ -132,7 +142,7 @@ namespace JacRed.Infrastructure.Trackers.TorrentBy
                 page = jump;
             }
 
-            return last;
+            return (last, ok);
         }
 
         public Task<string> ParseAllTaskAsync(CancellationToken cancellationToken = default)
