@@ -19,6 +19,7 @@ namespace JacRed.Infrastructure.Trackers.Rutor
     {
         const string TrackerName = "rutor";
         string IParseAllStarter.TrackerName => TrackerName;
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/rutor_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

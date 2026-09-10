@@ -26,6 +26,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
     {
         const string TrackerName = "kinozal";
         string IParseAllStarter.TrackerName => TrackerName;
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/kinozal_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

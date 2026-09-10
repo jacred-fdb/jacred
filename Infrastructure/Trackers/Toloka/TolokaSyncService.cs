@@ -21,6 +21,7 @@ namespace JacRed.Infrastructure.Trackers.Toloka
     {
         const string TrackerName = "toloka";
         string IParseAllStarter.TrackerName => TrackerName;
+        Task<string> IParseAllStarter.ParseAllTaskAsync() => ParseAllTaskAsync();
         const string TaskParsePath = "Data/temp/toloka_taskParse.json";
         static string CyclePath => ParseAllCycleStore.CyclePathForTracker(TrackerName);
 

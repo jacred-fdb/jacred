@@ -131,7 +131,8 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                     foreach (var item in pending)
                     {
                         ct.ThrowIfCancellationRequested();
-                        await TrackerSyncHelpers.WaitWhileHourlyParseBusy(_parseLock, ct);
+                        await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                            _parseLock, TrackerName, delayMs: 0, ct);
 
                         bool res = await MegapeerParser.ParsePageAsync(item.cat, item.val.page, ct);
                         TrackerSyncHelpers.NoteRequest(TrackerName);
@@ -172,7 +173,8 @@ namespace JacRed.Infrastructure.Trackers.Megapeer
                         foreach (var val in pagesToParse)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
-                            await TrackerSyncHelpers.WaitWhileHourlyParseBusy(_parseLock, cancellationToken);
+                            await TrackerSyncHelpers.YieldToHourlyParseAndThrottleAsync(
+                                _parseLock, TrackerName, delayMs: 0, cancellationToken);
                             bool res = await MegapeerParser.ParsePageAsync(task.Key, val.page, cancellationToken);
                             TrackerSyncHelpers.NoteRequest(TrackerName);
                             if (res)
