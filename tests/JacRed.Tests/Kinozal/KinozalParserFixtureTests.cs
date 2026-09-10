@@ -91,6 +91,60 @@ public class KinozalParserFixtureTests
     }
 
     [Fact]
+    public void ParseInfoHash_FlareSolverrFragment_ReturnsLabeledHash()
+    {
+        const string html = "<html><head></head><body><ul><li>Инфо хеш: 7C4FCE77B05BC2711C8445C0B1E47011CF4214CE</li>"
+            + "<li>Размер части торрента: 1 МБ</li></ul></body></html>";
+
+        Assert.Equal("7C4FCE77B05BC2711C8445C0B1E47011CF4214CE", KinozalParser.ParseInfoHash(html));
+    }
+
+    [Fact]
+    public void ParseInfoHash_BrowseSizedHtml_DoesNotUseLooseHex()
+    {
+        string html = new string('x', 9000) + "0123456789abcdef0123456789abcdef01234567";
+        Assert.Null(KinozalParser.ParseInfoHash(html));
+    }
+
+    [Fact]
+    public void ParseInfoHash_NullOrEmpty_ReturnsNull()
+    {
+        Assert.Null(KinozalParser.ParseInfoHash(null));
+        Assert.Null(KinozalParser.ParseInfoHash(""));
+        Assert.Null(KinozalParser.ParseInfoHash("Торрент файл не найден."));
+    }
+
+    [Fact]
+    public void IsTransientBrowseFailure_NullAndNginx503()
+    {
+        Assert.True(KinozalParser.IsTransientBrowseFailure(null));
+        Assert.True(KinozalParser.IsTransientBrowseFailure(""));
+        Assert.True(KinozalParser.IsTransientBrowseFailure(
+            "<html><head><title>503 Service Temporarily Unavailable</title></head></html>"));
+        Assert.True(KinozalParser.IsTransientBrowseFailure("<title>Just a moment...</title>"));
+        Assert.False(KinozalParser.IsTransientBrowseFailure(FixtureLoader.Read("Kinozal/browse_c22.html")));
+    }
+
+    [Fact]
+    public void IsLoginWall_AndLoggedIn_FromFixture()
+    {
+        string listing = FixtureLoader.Read("Kinozal/browse_c22.html");
+        Assert.True(KinozalParser.IsLoggedIn(listing));
+        Assert.False(KinozalParser.IsLoginWall(listing));
+        Assert.True(KinozalParser.IsLoginWall("<form action=\"/takelogin.php\"><input name=\"username\">"));
+        Assert.False(KinozalParser.IsLoginWall("<title>503 Service Temporarily Unavailable</title>"));
+    }
+
+    [Fact]
+    public void ShouldMarkPageDone_EmptyOrFullyResolved()
+    {
+        Assert.True(KinozalParser.ShouldMarkPageDone(0, 0));
+        Assert.True(KinozalParser.ShouldMarkPageDone(10, 10));
+        Assert.False(KinozalParser.ShouldMarkPageDone(10, 0));
+        Assert.False(KinozalParser.ShouldMarkPageDone(10, 9));
+    }
+
+    [Fact]
     public void DryRun_AllFixtures_ReportParseRates()
     {
         foreach (object[] row in FixtureCases())

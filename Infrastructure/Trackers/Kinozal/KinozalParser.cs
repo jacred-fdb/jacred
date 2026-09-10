@@ -280,6 +280,67 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
         }
 
         /// <summary>
+        /// Info hash from <c>get_srv_details.php?id=&amp;action=2</c>.
+        /// FlareSolverr GET returns a short UTF-8 fragment with «Инфо хеш».
+        /// Ignore browse-sized HTML (stale Chromium tab) so we do not mint a fake magnet.
+        /// </summary>
+        public static string ParseInfoHash(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return null;
+
+            var labeled = Regex.Match(html, "<ul><li>Инфо хеш:\\s*([A-Fa-f0-9]{40})</li>");
+            if (labeled.Success)
+                return labeled.Groups[1].Value;
+
+            if (html.Length > 8000)
+                return null;
+
+            var loose = Regex.Match(html, "([A-Fa-f0-9]{40})");
+            return loose.Success ? loose.Groups[1].Value : null;
+        }
+
+        public static bool IsLoggedIn(string html) =>
+            !string.IsNullOrEmpty(html) && html.Contains(">Выход</a>");
+
+        /// <summary>
+        /// Null, nginx 503 behind Cloudflare, or a CF interstitial — retry, do not TakeLogin.
+        /// </summary>
+        public static bool IsTransientBrowseFailure(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return true;
+
+            if (html.Contains("Just a moment", StringComparison.OrdinalIgnoreCase)
+                || html.Contains("Один момент", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return html.Length < 2000
+                && html.Contains("503 Service Temporarily Unavailable", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsLoginWall(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html) || IsTransientBrowseFailure(html) || IsLoggedIn(html))
+                return false;
+
+            return html.Contains("takelogin.php", StringComparison.OrdinalIgnoreCase)
+                || html.Contains("take_login", StringComparison.OrdinalIgnoreCase)
+                || html.Contains("name=\"username\"", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Empty listing → done. Rows that still need a magnet → not done until every row is resolved.
+        /// </summary>
+        public static bool ShouldMarkPageDone(int parsedCount, int resolvedCount)
+        {
+            if (parsedCount <= 0)
+                return true;
+
+            return resolvedCount >= parsedCount;
+        }
+
+        /// <summary>
         /// Кинозал при добавлении серий/озвучек перехеширует .torrent (новый info hash),
         /// но title в списке часто не меняется — раньше hash не перезапрашивался.
         /// createTime = date from browse «Залит» column: Обновлен if present on details,

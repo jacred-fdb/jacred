@@ -349,6 +349,11 @@ namespace JacRed.Infrastructure.Networking
             if (IsChallengeBody(html))
                 return (FetchOutcome.PageFailed, null, "challenge html in solution");
 
+            // Origin nginx 503 behind CF: FS still reports solution.status=200.
+            if (html.Length < 2000
+                && html.Contains("503 Service Temporarily Unavailable", StringComparison.OrdinalIgnoreCase))
+                return (FetchOutcome.PageFailed, null, "origin 503");
+
             return (FetchOutcome.Ok, html, null);
         }
 

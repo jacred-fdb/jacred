@@ -1,11 +1,11 @@
 ---
-title: "Настройка FlareSolverr для Rutracker"
+title: "Настройка FlareSolverr"
 sidebarTitle: "FlareSolverr"
-description: "FlareSolverr обходит Cloudflare-защиту Rutracker через постоянную браузерную сессию. Настройте блок flaresolverr в init.yaml и cron-прогрев сессии."
-keywords: ["JacRed", "конфигурация", "FlareSolverr", "init.yaml"]
+description: "FlareSolverr обходит Cloudflare для Rutracker и Kinozal через постоянную браузерную сессию. Настройте блок flaresolverr в init.yaml и cron-прогрев сессии."
+keywords: ["JacRed", "конфигурация", "FlareSolverr", "init.yaml", "Rutracker", "Kinozal"]
 ---
 
-Rutracker защищён Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium для получения clearance и передаёт его JacRed.
+Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не может обойти `cf_clearance` cookie (отличается TLS fingerprint). FlareSolverr запускает реальный браузер Chromium для получения clearance и передаёт HTML в JacRed.
 
 ## Принцип работы
 

@@ -71,6 +71,16 @@ journalctl -u jacred -n 100 --no-pager
     Первый warmup может выполняться несколько минут. На VPS с датацентровым IP challenge может потребовать residential/ISP-прокси для FlareSolverr. См. [настройку Rutracker](/trackers/rutracker).
   </Accordion>
 
+  <Accordion title="Kinozal парсится, но новых раздач нет">
+    `kinozal.guru` за Cloudflare. Списки и info-hash идут через FlareSolverr GET. Проверьте:
+
+    ```bash
+    python3 scripts/flaresolverr_kinozal_cf_check.py
+    ```
+
+    Прямой curl получит `403` / «Just a moment». В FlareSolverr нужны listing rows и `Инфо хеш` на шаге GET. См. [Kinozal](/trackers/kinozal).
+  </Accordion>
+
   <Accordion title="Прокси или Tor не работает">
     Проверьте порт Tor, URI прокси и регулярное выражение `globalproxy.pattern`:
 

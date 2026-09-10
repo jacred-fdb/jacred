@@ -2,7 +2,7 @@
 title: "Настройка трекера Kinozal"
 sidebarTitle: "Kinozal"
 icon: "/images/trackers/kinozal.ico"
-description: "Kinozal требует авторизации. Настройте cookie или login/password в блоке Kinozal в init.yaml. Кодировка cp1251. Trio-кластер, ~550k раздач."
+description: "Kinozal требует cookie или login и FlareSolverr: kinozal.guru за Cloudflare. Кодировка cp1251. Trio-кластер, ~550k раздач."
 keywords: ["JacRed", "Kinozal", "трекер", "парсинг"]
 ---
 
@@ -47,6 +47,12 @@ Kinozal:
   Cookie протухает при явном выходе из аккаунта или смене пароля. При пустых результатах парсинга проверьте актуальность cookie.
 </Warning>
 
+## Cloudflare
+
+`kinozal.guru` отдаёт `403` с `cf-mitigated: challenge`. Прямой HTTP из JacRed не проходит. Списки (`browse.php`) и info-hash (`get_srv_details.php`) идут через FlareSolverr **GET** — тот же путь, что у Rutracker. `request.post` в общей сессии `jacred` часто возвращает предыдущую вкладку, а не хеш.
+
+Нужны cookie (или login) и `flaresolverr.enable: true`. Подробнее: [FlareSolverr](/configuration/flaresolverr).
+
 ## Расписание cron
 
 ```crontab
@@ -65,12 +71,15 @@ Kinozal:
 В релизе 3.9.3 домен по умолчанию — `kinozal.guru`. Обновляйте `host`, если рабочее зеркало изменилось.
 
 <Note>
-  Магниты извлекаются из страниц топиков через hash-to-magnet конвертацию, а не из страницы списка. Это занимает больше времени, чем у трекеров с магнитами в списке.
+Магниты берутся из `get_srv_details.php` (hash-to-magnet), а не из списка. Запрос — GET через FlareSolverr, поэтому полный проход медленнее, чем у трекеров с магнитом в листинге.
 </Note>
 
 ## Диагностика
 
 ```bash
+# Обход Cloudflare: listing + info-hash через FlareSolverr
+python3 scripts/flaresolverr_kinozal_cf_check.py
+
 # Ручной запуск парсинга
 curl "http://localhost:9117/cron/kinozal/parse"
 

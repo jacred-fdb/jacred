@@ -213,7 +213,7 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                             {
                                 _cookie = cookieHeader;
                                 _lastLoginError = null;
-                                ParserLog.Write(TrackerName, $"TakeLogin OK {_cookie}");
+                                ParserLog.Write(TrackerName, "TakeLogin OK");
                                 return true;
                             }
 
@@ -253,6 +253,16 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 referer: $"{AppInit.conf.Kinozal.host}/",
                 useproxy: AppInit.conf.Kinozal.useproxy,
                 cancellationToken: cancellationToken);
+        }
+
+        async Task<string> GetBrowseHtmlRetryingTransient(string browseUrl, CancellationToken cancellationToken)
+        {
+            string html = await GetBrowseHtml(browseUrl, cancellationToken);
+            if (!KinozalParser.IsTransientBrowseFailure(html))
+                return html;
+
+            await Task.Delay(1500, cancellationToken);
+            return await GetBrowseHtml(browseUrl, cancellationToken);
         }
 
         public async Task<string> ParseAsync(int page)
@@ -423,44 +433,61 @@ namespace JacRed.Infrastructure.Trackers.Kinozal
                 return false;
 
             string browseUrl = $"{AppInit.conf.Kinozal.host}/browse.php?c={cat}&page={page}" + arg;
-            string html = await GetBrowseHtml(browseUrl, cancellationToken);
-            if (!IsValidBrowsePage(html) || !html.Contains(">Выход</a>"))
+            string html = await GetBrowseHtmlRetryingTransient(browseUrl, cancellationToken);
+
+            if (KinozalParser.IsTransientBrowseFailure(html))
+            {
+                ParserLog.Write(TrackerName, $"browse transient failure, skip login: {browseUrl}");
+                return false;
+            }
+
+            if (KinozalParser.IsLoginWall(html) || (IsValidBrowsePage(html) && !KinozalParser.IsLoggedIn(html)))
             {
                 _cookie = null;
                 if (!await TakeLogin())
                     return false;
 
-                html = await GetBrowseHtml(browseUrl, cancellationToken);
-                if (!IsValidBrowsePage(html))
+                html = await GetBrowseHtmlRetryingTransient(browseUrl, cancellationToken);
+                if (KinozalParser.IsTransientBrowseFailure(html) || !IsValidBrowsePage(html))
                     return false;
+            }
+            else if (!IsValidBrowsePage(html))
+            {
+                return false;
             }
 
             var torrents = KinozalParser.ParseTorrentsFromPage(html, cat);
+            int resolved = 0;
 
             await FileDB.AddOrUpdate(torrents, async (t, db) =>
             {
                 if (db.TryGetValue(t.url, out TorrentDetails cached) && KinozalParser.ShouldSkipHashFetch(cached, t))
-                    return true;
-
-                string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
-                string srv_details = await HttpClient.Post($"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2", $"id={id}&action=2", CookieHeader(), useproxy: AppInit.conf.Kinozal.useproxy, cancellationToken: cancellationToken);
-                if (srv_details != null)
                 {
-                    string torrentHash = new Regex("<ul><li>Инфо хеш:\\s*([A-Fa-f0-9]{40})</li>").Match(srv_details).Groups[1].Value;
-                    if (string.IsNullOrWhiteSpace(torrentHash))
-                        torrentHash = new Regex("([A-Fa-f0-9]{40})").Match(srv_details).Groups[1].Value;
-
-                    if (!string.IsNullOrWhiteSpace(torrentHash))
-                    {
-                        t.magnet = $"magnet:?xt=urn:btih:{torrentHash.ToUpperInvariant()}";
-                        return true;
-                    }
+                    resolved++;
+                    return true;
                 }
 
-                return false;
+                string id = Regex.Match(t.url, "\\?id=([0-9]+)").Groups[1].Value;
+                // GET: id/action already in the query. HttpClient.Get routes guarded
+                // Cloudflare hosts through FlareSolverr. request.post is flaky in the
+                // shared Chromium session (returns the previous browse tab).
+                string srv_details = await HttpClient.Get(
+                    $"{AppInit.conf.Kinozal.host}/get_srv_details.php?id={id}&action=2",
+                    encoding: PageEncoding,
+                    cookie: CookieHeader(),
+                    useproxy: AppInit.conf.Kinozal.useproxy,
+                    cancellationToken: cancellationToken);
+
+                string torrentHash = KinozalParser.ParseInfoHash(srv_details);
+                if (string.IsNullOrWhiteSpace(torrentHash))
+                    return false;
+
+                t.magnet = $"magnet:?xt=urn:btih:{torrentHash.ToUpperInvariant()}";
+                resolved++;
+                return true;
             });
 
-            return torrents.Count > 0;
+            return KinozalParser.ShouldMarkPageDone(torrents.Count, resolved);
         }
     }
 }

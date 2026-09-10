@@ -16,7 +16,7 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 
 | Auth | Slugs | Gotcha |
 |------|-------|--------|
-| CF + FlareSolverr | rutracker | Warmup ~5m before parse; not for Anistar |
+| CF + FlareSolverr | rutracker, kinozal | Warmup ~5m before parse; not for Anistar |
 | Public anon HTML | anistar (`host` + `alias`) | FDB on `host`; fetch via `alias` mirror |
 | Login and/or cookie | kinozal, baibako, rudub, animelayer, anifilm, korsars (`bb_data`), selezen, toloka, mazepa, lostfilm | Prefer config cookie when set |
 | Anon only | anibelka | Never login — passkeys in torrents |
@@ -39,7 +39,7 @@ Read this when choosing a clone target or auth/magnet policy. Keep SKILL.md for 
 
 - **rutracker** — CF Flare · trio · magnet · warmup + `alias`
 - **rutor** — anon · trio · magnet list · classic template
-- **kinozal** — login/cookie · trio · hash→magnet · cp1251, domain churn
+- **kinozal** — login/cookie · trio · hash→magnet via GET `get_srv_details` · cp1251 · CF FlareSolverr
 - **nnmclub** — anon (+onion alias) · trio · magnet · cp1251
 - **megapeer** — anon · trio · t→M · cp1251 + cat Referer
 - **bitru** — anon API · parse+backfill · t→M · cursor files
