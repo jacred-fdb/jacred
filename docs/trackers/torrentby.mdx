@@ -34,7 +34,7 @@ TorrentBy:
 25 2 * * *  /opt/jacred/Data/run-job.sh torrentby-UpdateTasksParse http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse 60
 
 # Полный перебор
-50 4,16 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
+50 4 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
 ```
 
 `ParseAllTask` обходит только страницы из `Data/temp/torrentby_taskParse.json`. Карту собирает `UpdateTasksParse`: читает пейджер `circle_page` и переходит по ссылкам `...`, пока не найдёт последнюю страницу. После обновления JacRed один раз вызовите:

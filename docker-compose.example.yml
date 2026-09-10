@@ -17,6 +17,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - flaresolverr
+      - flaresolverr-crawl
       - cffetch
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "--max-time", "10", "http://127.0.0.1:9117/health"]
@@ -80,6 +81,30 @@ services:
         limits:
           memory: 1024M
           cpus: "2"
+
+  # Second FlareSolverr for ParseAll / UpdateTasks / ParseLatest (host :8193).
+  # One instance serializes; a second instance is what actually adds throughput.
+  # Hourly parse stays on :8191. JacRed: flaresolverr.crawlUrl
+  #   host-run  http://127.0.0.1:8193/v1
+  #   compose   http://host.docker.internal:8193/v1
+  flaresolverr-crawl:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr-crawl
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - warp
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/London
+      - PORT=8193
+      - PROXY_URL=socks5://127.0.0.1:20001
+      - DISABLE_MEDIA=true
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.5"
 
   # Chrome TLS fast path after FlareSolverr solve (curl_cffi). Host network so
   # SOCKS hits the same WARP IP as PROXY_URL — cf_clearance is IP-bound.

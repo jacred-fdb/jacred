@@ -326,6 +326,32 @@ public class TrackerSyncHelpersBackgroundTests
         }));
     }
 
+    [Fact]
+    public void FormatWallClockCancelMessage_UsesJobProgress()
+    {
+        var info = new TrackerBackgroundJobInfo
+        {
+            Key = "solo-cancel:ParseAllTask",
+            Tracker = "solo-cancel",
+            JobLabel = "ParseAllTask",
+            StartedAtUtc = DateTime.UtcNow
+        };
+        info.PagesCompleted = 40;
+        info.PagesTotal = 100;
+
+        var msg = TrackerSyncHelpers.FormatWallClockCancelMessage("solo-cancel", "ParseAllTask", info);
+        Assert.Contains("cancelled (wall-clock limit or shutdown)", msg);
+        Assert.Contains("pending left=60/100", msg);
+    }
+
+    [Fact]
+    public void ResolveParseAllMaxDuration_UnknownTrackerUsesDefault()
+    {
+        Assert.Equal(
+            TrackerSyncHelpers.DefaultParseAllMaxDuration,
+            TrackerSyncHelpers.ResolveParseAllMaxDuration("no-such-tracker-xyz"));
+    }
+
     static async Task<bool> WaitForFlagFreeAsync(TrackerWorkFlag flag, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;

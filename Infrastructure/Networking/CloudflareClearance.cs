@@ -33,18 +33,43 @@ namespace JacRed.Infrastructure.Networking
         sealed class BrowserSession
         {
             public readonly string Name;
+            public readonly string SolverUrl;
             public readonly SemaphoreSlim Gate = new(1, 1);
             public bool Alive;
             public DateTime LastUse = DateTime.MinValue;
             public int ConsecutiveBrowserTimeouts;
 
-            public BrowserSession(string name) => Name = name;
+            public BrowserSession(string name, string solverUrl)
+            {
+                Name = name;
+                SolverUrl = solverUrl ?? "";
+            }
         }
 
         static readonly ConcurrentDictionary<string, GuardState> _guarded = new(StringComparer.OrdinalIgnoreCase);
         static readonly ConcurrentDictionary<string, BrowserSession> _sessions = new(StringComparer.Ordinal);
 
+        static readonly AsyncLocal<bool> _crawlLane = new();
+
         static Timer _idleTimer;
+
+        /// <summary>
+        /// Route FlareSolverr calls to <c>flaresolverr.crawlUrl</c> (ParseAll / UpdateTasks / ParseLatest).
+        /// No-op when crawlUrl is empty. Must wrap background Task.Run — HTTP middleware
+        /// is gone by the time ParseAll actually fetches.
+        /// </summary>
+        public static IDisposable UseCrawlLane()
+        {
+            _crawlLane.Value = true;
+            return new LaneScope();
+        }
+
+        public static bool IsCrawlLane => _crawlLane.Value;
+
+        sealed class LaneScope : IDisposable
+        {
+            public void Dispose() => _crawlLane.Value = false;
+        }
 
         static FlareSolverrSettingsView Conf
         {
@@ -54,7 +79,7 @@ namespace JacRed.Infrastructure.Networking
 
                 return c == null || !c.enable || string.IsNullOrWhiteSpace(c.url)
                     ? default
-                    : new FlareSolverrSettingsView(c);
+                    : new FlareSolverrSettingsView(c, _crawlLane.Value);
             }
         }
 
@@ -68,9 +93,14 @@ namespace JacRed.Infrastructure.Networking
             public readonly int GuardedHours;
             public readonly int RecheckMinutes;
 
-            public FlareSolverrSettingsView(Models.AppConf.FlareSolverrSettings c)
+            public FlareSolverrSettingsView(Models.AppConf.FlareSolverrSettings c, bool crawl = false)
+                : this(c, crawl && !string.IsNullOrWhiteSpace(c.crawlUrl) ? c.crawlUrl : c.url)
             {
-                Url = c.url;
+            }
+
+            public FlareSolverrSettingsView(Models.AppConf.FlareSolverrSettings c, string url)
+            {
+                Url = url;
                 MaxTimeoutMs = c.maxTimeoutMs;
                 SessionIdleMinutes = c.sessionIdleMinutes;
                 BrowserTimeoutRetries = Math.Max(0, c.browserTimeoutRetries);
@@ -103,10 +133,14 @@ namespace JacRed.Infrastructure.Networking
             return sb.ToString();
         }
 
+        static string SessionKey(string solverUrl, string sessionName)
+            => (solverUrl ?? "") + "\n" + sessionName;
+
         static BrowserSession SessionForHost(string host)
         {
             string name = SessionNameFor(host);
-            return _sessions.GetOrAdd(name, static n => new BrowserSession(n));
+            string url = Conf.Url ?? "";
+            return _sessions.GetOrAdd(SessionKey(url, name), _ => new BrowserSession(name, url));
         }
 
         #region признак «хост за проверкой»
@@ -701,8 +735,9 @@ namespace JacRed.Infrastructure.Networking
 
         static void CloseIfIdle()
         {
-            var conf = Conf;
-            if (conf.Url == null || conf.SessionIdleMinutes <= 0)
+            var settings = AppInit.conf?.flaresolverr;
+            if (settings == null || !settings.enable || string.IsNullOrWhiteSpace(settings.url)
+                || settings.sessionIdleMinutes <= 0)
                 return;
 
             foreach (var session in _sessions.Values)
@@ -710,7 +745,7 @@ namespace JacRed.Infrastructure.Networking
                 if (!session.Alive)
                     continue;
 
-                if (DateTime.UtcNow < session.LastUse.AddMinutes(conf.SessionIdleMinutes))
+                if (DateTime.UtcNow < session.LastUse.AddMinutes(settings.sessionIdleMinutes))
                     continue;
 
                 if (!session.Gate.Wait(0))
@@ -718,7 +753,13 @@ namespace JacRed.Infrastructure.Networking
 
                 try
                 {
-                    CallAsync(conf, new Dictionary<string, object>
+                    var sessionConf = string.IsNullOrWhiteSpace(session.SolverUrl)
+                        ? default
+                        : new FlareSolverrSettingsView(settings, session.SolverUrl);
+                    if (sessionConf.Url == null)
+                        continue;
+
+                    CallAsync(sessionConf, new Dictionary<string, object>
                     {
                         ["cmd"] = "sessions.destroy",
                         ["session"] = session.Name

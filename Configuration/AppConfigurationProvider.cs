@@ -6,6 +6,8 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using JacRed.Models.AppConf;
 
 namespace JacRed.Configuration
 {
@@ -98,6 +100,21 @@ namespace JacRed.Configuration
                 case "ultradox": return config.Ultradox.log;
                 default: return parserLogEnabled;
             }
+        }
+
+        public static TrackerSettings GetTrackerSettings(AppOptions config, string trackerName)
+        {
+            if (config == null || string.IsNullOrWhiteSpace(trackerName))
+                return null;
+
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase;
+            var type = config.GetType();
+            var field = type.GetField(trackerName, flags);
+            if (field?.GetValue(config) is TrackerSettings fromField)
+                return fromField;
+
+            var prop = type.GetProperty(trackerName, flags);
+            return prop?.GetValue(config) as TrackerSettings;
         }
 
         public void RefreshIfChanged(string forceLogLabel = null)

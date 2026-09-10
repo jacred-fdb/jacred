@@ -15,6 +15,7 @@ devkey: "" # Ключ для доступа к /dev/, /cron/, /jsondb за ту�
 flaresolverr:
   enable: true
   url: http://127.0.0.1:8191/v1
+  crawlUrl: http://127.0.0.1:8193/v1
   maxTimeoutMs: 300000
   sessionIdleMinutes: 120
   browserTimeoutRetries: 1
@@ -167,6 +168,7 @@ Kinozal:
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
+  parseAllMaxHours: 6
   log: true
   # Static session cookie (optional). If set, login.u/p are not required.
   # cookie: "uid=12345678; pass=XXXXXXXX;"
@@ -216,9 +218,10 @@ Rutracker:
   host: https://rutracker.org
   alias: "" # optional Worker/onion when flaresolverr.enable=false; FDB urls stay on host
   useproxy: false
-  reqMinute: 8
-  parseDelay: 7000
+  reqMinute: 30
+  parseDelay: 2000
   topicFetchAttempts: 5
+  parseAllMaxHours: 12
   log: true
 
 Selezen:

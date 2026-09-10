@@ -34,7 +34,7 @@ Anibelka:
 40 2 * * *  /opt/jacred/Data/run-job.sh anibelka-UpdateTasksParse http://127.0.0.1:9117/cron/anibelka/UpdateTasksParse 60
 
 # Полный перебор
-48 4,16 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseAllTask http://127.0.0.1:9117/cron/anibelka/ParseAllTask 60
+48 4 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseAllTask http://127.0.0.1:9117/cron/anibelka/ParseAllTask 60
 
 # Свежие релизы раз в сутки
 10 7 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseLatest http://127.0.0.1:9117/cron/anibelka/ParseLatest 900

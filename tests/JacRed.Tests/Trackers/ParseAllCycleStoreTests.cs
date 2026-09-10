@@ -213,4 +213,18 @@ public class ParseAllCycleStoreTests : IDisposable
         Assert.Contains("\"v\": 2", text);
         Assert.DoesNotContain("\"v\": 1", text);
     }
+
+    [Fact]
+    public void FormatCancelLog_IncludesPendingAndCycle()
+    {
+        var cycle = ParseAllCycleStore.CreateCycle("abc", 15695);
+        var text = ParseAllCycleStore.FormatCancelLog(cycle, 4200, 8000);
+        Assert.Equal($"pending left=4200/15695 cycle={cycle.CycleId}", text);
+    }
+
+    [Fact]
+    public void FormatCancelLog_WithoutCycle_UsesSlotTotal()
+    {
+        Assert.Equal("pending left=3/10", ParseAllCycleStore.FormatCancelLog(null, 3, 10));
+    }
 }

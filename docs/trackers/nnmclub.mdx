@@ -33,8 +33,8 @@ NNMClub:
 # Обновление очереди раз в сутки
 15 2 * * *  /opt/jacred/Data/run-job.sh nnmclub-UpdateTasksParse http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse 60
 
-# Полный перебор дважды в сутки
-42 4,16 * * *  /opt/jacred/Data/run-job.sh nnmclub-ParseAllTask http://127.0.0.1:9117/cron/nnmclub/ParseAllTask 60
+# Полный перебор раз в сутки утром
+42 4 * * *  /opt/jacred/Data/run-job.sh nnmclub-ParseAllTask http://127.0.0.1:9117/cron/nnmclub/ParseAllTask 60
 ```
 
 ## Особенности

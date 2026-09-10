@@ -31,7 +31,7 @@ crontab -l
 | --- | --- | --- |
 | `parse` | `GET /cron/{slug}/parse` | Парсинг новых страниц (частый) |
 | `UpdateTasksParse` | `GET /cron/{slug}/UpdateTasksParse` | Обновление очереди (раз в сутки) |
-| `ParseAllTask` | `GET /cron/{slug}/ParseAllTask` | Полный перебор базы (1-2 раза в сутки) |
+| `ParseAllTask` | `GET /cron/{slug}/ParseAllTask` | Полный перебор базы (раз в сутки утром) |
 | `jsondb-save` | `GET /jsondb/save` | Сброс FileDB на диск |
 | `cloudflare-warmup` | `GET /cron/cloudflare/Warmup` | Прогрев FlareSolverr-сессии |
 

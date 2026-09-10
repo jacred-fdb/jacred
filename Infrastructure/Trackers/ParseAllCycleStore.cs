@@ -221,6 +221,13 @@ namespace JacRed.Infrastructure.Trackers
         public static string FormatStartLog(ParseAllCycleState cycle, int pending, int total)
             => $"cycle={cycle.CycleId} pending={pending}/{total} started={cycle.StartedAtUtc:yyyy-MM-dd HH:mm:ss}Z fingerprint={cycle.MapFingerprint?[..Math.Min(12, cycle.MapFingerprint?.Length ?? 0)]}";
 
+        public static string FormatCancelLog(ParseAllCycleState cycle, int pendingLeft, int total)
+        {
+            int map = cycle?.MapCount > 0 ? cycle.MapCount : total;
+            var cyclePart = string.IsNullOrEmpty(cycle?.CycleId) ? "" : $" cycle={cycle.CycleId}";
+            return $"pending left={pendingLeft}/{map}{cyclePart}";
+        }
+
         public static (ParseAllCycleState cycle, int mapCount, int pendingCount) BeginFlatFullRun(
             string trackerSlug,
             IReadOnlyDictionary<string, List<TaskParse>> taskParse)

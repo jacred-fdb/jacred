@@ -34,4 +34,13 @@ public class CloudflareClearanceSessionTests
         Assert.StartsWith("jacred-", name);
         Assert.Matches("^[A-Za-z0-9_-]+$", name);
     }
+
+    [Fact]
+    public void UseCrawlLane_SetsAndClearsFlag()
+    {
+        Assert.False(CloudflareClearance.IsCrawlLane);
+        using (CloudflareClearance.UseCrawlLane())
+            Assert.True(CloudflareClearance.IsCrawlLane);
+        Assert.False(CloudflareClearance.IsCrawlLane);
+    }
 }

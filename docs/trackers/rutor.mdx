@@ -50,7 +50,7 @@ Rutor не требует учётных данных. Не добавляйте
 ```crontab
 1,16,31,46 * * * * /opt/jacred/Data/run-job.sh rutor-parse http://127.0.0.1:9117/cron/rutor/parse 900
 5 2 * * * /opt/jacred/Data/run-job.sh rutor-UpdateTasksParse http://127.0.0.1:9117/cron/rutor/UpdateTasksParse 60
-30 4,16 * * * /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
+30 4 * * * /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
 ```
 
 <Note>

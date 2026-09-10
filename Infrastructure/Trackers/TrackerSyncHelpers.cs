@@ -5,7 +5,9 @@
 // ParseLatest: TrackerLatestParseLock + backfill mutex + RunParseLatestAsync
 // ParseAll/ParseLatest yield to hourly parse between pages and throttle with remainder delay.
 
+using JacRed.Configuration;
 using JacRed.Infrastructure.Logging;
+using JacRed.Infrastructure.Networking;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -273,6 +275,38 @@ namespace JacRed.Infrastructure.Trackers
             await ThrottleAsync(trackerName, delayMs, cancellationToken).ConfigureAwait(false);
         }
 
+        public static TimeSpan ResolveParseAllMaxDuration(string trackerName)
+        {
+            var settings = AppConfigurationProvider.GetTrackerSettings(AppInit.conf, trackerName);
+            if (settings == null || settings.parseAllMaxHours <= 0)
+                return DefaultParseAllMaxDuration;
+
+            return TimeSpan.FromHours(settings.parseAllMaxHours);
+        }
+
+        public static string FormatWallClockCancelMessage(
+            string trackerName,
+            string jobLabel,
+            TrackerBackgroundJobInfo info)
+        {
+            long completed = info == null ? 0 : Interlocked.Read(ref info.PagesCompleted);
+            long slotTotal = info == null ? 0 : Interlocked.Read(ref info.PagesTotal);
+            int pendingLeft = (int)Math.Max(0, slotTotal - completed);
+
+            ParseAllCycleState cycle = null;
+            if (string.Equals(jobLabel, "ParseAllTask", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(trackerName))
+            {
+                cycle = ParseAllCycleStore.LoadState(ParseAllCycleStore.CyclePathForTracker(trackerName));
+            }
+
+            int total = cycle?.MapCount > 0 ? cycle.MapCount : (int)slotTotal;
+            if (slotTotal <= 0 && (cycle == null || cycle.MapCount <= 0))
+                return $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown)";
+
+            return $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown); {ParseAllCycleStore.FormatCancelLog(cycle, pendingLeft, total)}";
+        }
+
         public static bool ShouldPersistCheckpoint(int completed, int total, int every = PersistEveryPages)
         {
             if (completed <= 0)
@@ -358,33 +392,37 @@ namespace JacRed.Infrastructure.Trackers
 
             _ = Task.Run(async () =>
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
-                cts.CancelAfter(duration);
-                var token = cts.Token;
+                using (CloudflareClearance.UseCrawlLane())
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(_applicationStopping);
+                    cts.CancelAfter(duration);
+                    var token = cts.Token;
 
-                try
-                {
-                    JacRedLog.Information(JacRedLogCategories.Trackers,
-                        $"{trackerName}: {jobLabel} started (background, limit={duration.TotalSeconds:F0}s)");
-                    await action(token).ConfigureAwait(false);
-                    JacRedLog.Information(JacRedLogCategories.Trackers,
-                        $"{trackerName}: {jobLabel} finished");
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    JacRedLog.Warning(JacRedLogCategories.Trackers,
-                        $"{trackerName}: {jobLabel} cancelled (wall-clock limit or shutdown)");
-                }
-                catch (Exception ex)
-                {
-                    JacRedLog.Error(JacRedLogCategories.Trackers,
-                        $"{trackerName}: {jobLabel} error: {ex.Message}");
-                }
-                finally
-                {
-                    ActiveJobs.TryRemove(key, out _);
-                    workFlag.End();
-                    backfill.End();
+                    try
+                    {
+                        JacRedLog.Information(JacRedLogCategories.Trackers,
+                            $"{trackerName}: {jobLabel} started (background, limit={duration.TotalSeconds:F0}s)");
+                        await action(token).ConfigureAwait(false);
+                        JacRedLog.Information(JacRedLogCategories.Trackers,
+                            $"{trackerName}: {jobLabel} finished");
+                    }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested)
+                    {
+                        ActiveJobs.TryGetValue(key, out var job);
+                        JacRedLog.Warning(JacRedLogCategories.Trackers,
+                            FormatWallClockCancelMessage(trackerName, jobLabel, job));
+                    }
+                    catch (Exception ex)
+                    {
+                        JacRedLog.Error(JacRedLogCategories.Trackers,
+                            $"{trackerName}: {jobLabel} error: {ex.Message}");
+                    }
+                    finally
+                    {
+                        ActiveJobs.TryRemove(key, out _);
+                        workFlag.End();
+                        backfill.End();
+                    }
                 }
             });
 
@@ -398,7 +436,7 @@ namespace JacRed.Infrastructure.Trackers
             Func<CancellationToken, Task> action,
             TimeSpan? maxDuration = null)
             => RunInBackground(trackerName, "ParseAllTask", workFlag, checkDisabled, action,
-                maxDuration ?? DefaultParseAllMaxDuration);
+                maxDuration ?? ResolveParseAllMaxDuration(trackerName));
 
         public static string RunUpdateTasksParseInBackground(
             string trackerName,
@@ -440,7 +478,8 @@ namespace JacRed.Infrastructure.Trackers
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await action();
+                using (CloudflareClearance.UseCrawlLane())
+                    await action();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -485,8 +524,11 @@ namespace JacRed.Infrastructure.Trackers
 
             try
             {
-                var logText = await buildLogAsync();
-                return string.IsNullOrWhiteSpace(logText) ? OkResult : logText;
+                using (CloudflareClearance.UseCrawlLane())
+                {
+                    var logText = await buildLogAsync();
+                    return string.IsNullOrWhiteSpace(logText) ? OkResult : logText;
+                }
             }
             finally
             {

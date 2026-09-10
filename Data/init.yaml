@@ -5,6 +5,7 @@ devkey: ""
 flaresolverr:
   enable: true
   url: http://127.0.0.1:8191/v1
+  crawlUrl: http://127.0.0.1:8193/v1
   maxTimeoutMs: 300000
   sessionIdleMinutes: 120
   browserTimeoutRetries: 1
@@ -184,4 +185,13 @@ SubsPlease:
   useproxy: false
   reqMinute: 30
   parseDelay: 1000
+  log: true
+
+Rutracker:
+  host: https://rutracker.org
+  alias: ""
+  useproxy: false
+  reqMinute: 30
+  topicFetchAttempts: 5
+  parseAllMaxHours: 12
   log: true

@@ -26,6 +26,7 @@ Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не
 flaresolverr:
   enable: true
   url: http://127.0.0.1:8191/v1   # compose (JacRed на bridge): http://host.docker.internal:8191/v1
+  crawlUrl: http://127.0.0.1:8193/v1  # второй экземпляр для ParseAll; пусто — тот же url
   maxTimeoutMs: 300000             # 5 минут на решение challenge
   sessionIdleMinutes: 120          # держать сессию Chromium живой
   browserTimeoutRetries: 1         # повторить в той же сессии
@@ -48,7 +49,11 @@ cffetch:
 </ParamField>
 
 <ParamField path="url" type="string">
-  URL FlareSolverr API. По умолчанию `http://127.0.0.1:8191/v1`. JacRed в compose на bridge при host-network FlareSolverr: `http://host.docker.internal:8191/v1`.
+  URL FlareSolverr API. По умолчанию `http://127.0.0.1:8191/v1`. JacRed в compose на bridge при host-network FlareSolverr: `http://host.docker.internal:8191/v1`. Hourly parse и поиск ходят сюда.
+</ParamField>
+
+<ParamField path="crawlUrl" type="string">
+  Второй FlareSolverr (`PORT=8193`) для фоновых `ParseAllTask` / `UpdateTasksParse` / `ParseLatest`. Пусто — тот же `url`. Несколько сессий в одном экземпляре почти не ускоряют; два экземпляра — да.
 </ParamField>
 
 <ParamField path="maxTimeoutMs" type="number">

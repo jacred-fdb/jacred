@@ -24,6 +24,14 @@ namespace JacRed.Models.AppConf
         public string url { get; set; } = "http://127.0.0.1:8191/v1";
 
         /// <summary>
+        /// Separate FlareSolverr for ParseAll / UpdateTasks / ParseLatest.
+        /// Empty — same instance as <see cref="url"/>. Host-run crawl: :8193.
+        /// Several sessions in one FlareSolverr do not add throughput; two
+        /// instances do. Hourly parse stays on <see cref="url"/>.
+        /// </summary>
+        public string crawlUrl { get; set; } = "";
+
+        /// <summary>
         /// Сколько ждать ответа браузера, мс. Первое обращение долгое — там
         /// решается задача: на rutracker замерено около 80 секунд.
         /// </summary>
