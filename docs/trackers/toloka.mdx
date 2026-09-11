@@ -45,7 +45,7 @@ Toloka:
 ## Расписание cron
 
 ```crontab
-14,54 * * * *  /opt/jacred/Data/run-job.sh toloka-parse http://127.0.0.1:9117/cron/toloka/parse 900
+14,29,44,59 * * * *  /opt/jacred/Data/run-job.sh toloka-parse http://127.0.0.1:9117/cron/toloka/parse 900
 30 2 * * *  /opt/jacred/Data/run-job.sh toloka-UpdateTasksParse http://127.0.0.1:9117/cron/toloka/UpdateTasksParse 60
 55 5,13,21 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
 ```

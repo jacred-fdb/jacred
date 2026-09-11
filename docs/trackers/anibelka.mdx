@@ -27,8 +27,8 @@ Anibelka:
 ## Расписание cron
 
 ```crontab
-# Основной parse каждые 15 минут
-29,44,59 * * * *  /opt/jacred/Data/run-job.sh anibelka-parse http://127.0.0.1:9117/cron/anibelka/parse 900
+# Основной parse каждые 30 минут
+29,59 * * * *  /opt/jacred/Data/run-job.sh anibelka-parse http://127.0.0.1:9117/cron/anibelka/parse 900
 
 # Обновление очереди
 40 2 * * *  /opt/jacred/Data/run-job.sh anibelka-UpdateTasksParse http://127.0.0.1:9117/cron/anibelka/UpdateTasksParse 60

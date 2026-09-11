@@ -59,8 +59,10 @@ Mazepa:
 Стандартный `Data/crontab` использует:
 
 ```crontab
-25 * * * *  /opt/jacred/Data/run-job.sh mazepa-parse http://127.0.0.1:9117/cron/mazepa/parse 900
+25 */2 * * *  /opt/jacred/Data/run-job.sh mazepa-parse http://127.0.0.1:9117/cron/mazepa/parse 2400
 ```
+
+`parse` обходит все форумы (~27 мин). `max_time` 2400 с, чтобы curl не оборвал прогон. Kick каждые 2 часа.
 
 ## Диагностика
 

@@ -113,8 +113,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 50 5,11,17,23 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
 
 # --- toloka (~58k) ---
-# toloka-parse -> /cron/toloka/parse (max_time=900s)
-14,54 * * * *  /opt/jacred/Data/run-job.sh toloka-parse http://127.0.0.1:9117/cron/toloka/parse 900
+# toloka-parse -> /cron/toloka/parse (max_time=900s) — ~3s, same cadence as other cheap trio
+14,29,44,59 * * * *  /opt/jacred/Data/run-job.sh toloka-parse http://127.0.0.1:9117/cron/toloka/parse 900
 
 # toloka-UpdateTasksParse -> /cron/toloka/UpdateTasksParse (max_time=60s)
 30 2 * * *  /opt/jacred/Data/run-job.sh toloka-UpdateTasksParse http://127.0.0.1:9117/cron/toloka/UpdateTasksParse 60
@@ -124,8 +124,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 55 5,13,21 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
 
 # --- mazepa (~51k) ---
-# mazepa-parse -> /cron/mazepa/parse (max_time=900s)
-25 * * * *  /opt/jacred/Data/run-job.sh mazepa-parse http://127.0.0.1:9117/cron/mazepa/parse 900
+# mazepa-parse -> /cron/mazepa/parse (max_time=2400s)
+# full forum walk ~27 min; every 2h (hourly was overlapping itself vs curl --max-time 900)
+25 */2 * * *  /opt/jacred/Data/run-job.sh mazepa-parse http://127.0.0.1:9117/cron/mazepa/parse 2400
 
 # --- lostfilm (~18k) ---
 # lostfilm-parse -> /cron/lostfilm/parse (max_time=900s)
@@ -146,7 +147,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # --- rudub (ex-BaibaKoTV; HD 1080/2160 only; login/cookie) ---
 # rudub-parse -> /cron/rudub/parse?limit_page=10 (max_time=1800s) — pages 0..9 × vf 4+5
 # Initial FDB fill: ?limit_page=50 (or parseFrom/parseTo). Cap is 100.
-# minute :40 — free of other hourly page parsers (avoid ultradox 13/28/43/58 and rutor 1/16/31/46)
+# minute :40 — free of other hourly page parsers (avoid ultradox 13/43 and rutor 1/16/31/46)
 40 * * * *  /opt/jacred/Data/run-job.sh rudub-parse "http://127.0.0.1:9117/cron/rudub/parse?limit_page=10" 1800
 
 # --- subsplease (public API; 1080p magnets; Batches via ParseShows) ---
@@ -180,9 +181,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 55 6 * * *  /opt/jacred/Data/run-job.sh anifilm-parse http://127.0.0.1:9117/cron/anifilm/parse 1800
 
 # --- anibelka (anonymous only; Rutor-style task trio) ---
-# minutes 29/44/59 — avoid selezen :09,:24,:39,:54 and torrentby UpdateTasks :25
+# minutes 29/59 — every 30 min (parse ~5 min; was 15 min)
 # anibelka-parse -> /cron/anibelka/parse (max_time=900s)
-29,44,59 * * * *  /opt/jacred/Data/run-job.sh anibelka-parse http://127.0.0.1:9117/cron/anibelka/parse 900
+29,59 * * * *  /opt/jacred/Data/run-job.sh anibelka-parse http://127.0.0.1:9117/cron/anibelka/parse 900
 
 # anibelka-UpdateTasksParse -> /cron/anibelka/UpdateTasksParse (max_time=60s)
 40 2 * * *  /opt/jacred/Data/run-job.sh anibelka-UpdateTasksParse http://127.0.0.1:9117/cron/anibelka/UpdateTasksParse 60
@@ -211,7 +212,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # --- ultradox (search-like Referer; Rutor-style) ---
 # ultradox-parse -> /cron/ultradox/parse (max_time=900s)
-13,28,43,58 * * * *  /opt/jacred/Data/run-job.sh ultradox-parse http://127.0.0.1:9117/cron/ultradox/parse 900
+# every 30 min :13,:43 — avoid rutor 1/16/31/46; parse ~5 min
+13,43 * * * *  /opt/jacred/Data/run-job.sh ultradox-parse http://127.0.0.1:9117/cron/ultradox/parse 900
 
 # ultradox-UpdateTasksParse -> /cron/ultradox/UpdateTasksParse (max_time=60s)
 50 2 * * *  /opt/jacred/Data/run-job.sh ultradox-UpdateTasksParse http://127.0.0.1:9117/cron/ultradox/UpdateTasksParse 60

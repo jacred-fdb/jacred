@@ -26,8 +26,8 @@ Ultradox:
 ## Расписание cron
 
 ```crontab
-# Основной parse
-13,28,43,58 * * * *  /opt/jacred/Data/run-job.sh ultradox-parse http://127.0.0.1:9117/cron/ultradox/parse 900
+# Основной parse каждые 30 минут
+13,43 * * * *  /opt/jacred/Data/run-job.sh ultradox-parse http://127.0.0.1:9117/cron/ultradox/parse 900
 
 # Обновление очереди
 50 2 * * *  /opt/jacred/Data/run-job.sh ultradox-UpdateTasksParse http://127.0.0.1:9117/cron/ultradox/UpdateTasksParse 60
