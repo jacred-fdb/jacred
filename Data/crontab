@@ -109,8 +109,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 25 2 * * *  /opt/jacred/Data/run-job.sh torrentby-UpdateTasksParse http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse 60
 
 # torrentby-ParseAllTask -> /cron/torrentby/ParseAllTask (max_time=60s)
-# Small map; 05:xx and 17:xx. New round only when pending=0.
-50 5,17 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
+# ~197 pages, minutes per cycle; every 6h. New round only when pending=0.
+50 5,11,17,23 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
 
 # --- toloka (~58k) ---
 # toloka-parse -> /cron/toloka/parse (max_time=900s)
@@ -120,8 +120,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 30 2 * * *  /opt/jacred/Data/run-job.sh toloka-UpdateTasksParse http://127.0.0.1:9117/cron/toloka/UpdateTasksParse 60
 
 # toloka-ParseAllTask -> /cron/toloka/ParseAllTask (max_time=60s)
-# 05:xx and 17:xx. New round only when pending=0.
-55 5,17 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
+# ~783 pages, ~1–2h; three kicks with megapeer. New round only when pending=0.
+55 5,13,21 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
 
 # --- mazepa (~51k) ---
 # mazepa-parse -> /cron/mazepa/parse (max_time=900s)

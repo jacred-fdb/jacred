@@ -1,82 +1,132 @@
 ---
 title: "Cron-задачи парсеров JacRed"
 sidebarTitle: "Cron"
-description: "Крон-задачи JacRed запускают HTTP-запросы к /cron/{slug}/parse по расписанию. Используйте Data/crontab и run-job.sh для установки расписания парсинга."
-keywords: ["JacRed cron", "Data/crontab", "run-job.sh", "cron API", "парсеры трекеров"]
+description: "Типы крон-задач JacRed, как они взаимодействуют и актуальное расписание parse / UpdateTasksParse / ParseAllTask из Data/crontab."
+keywords: ["JacRed cron", "Data/crontab", "run-job.sh", "ParseAllTask", "UpdateTasksParse", "parse", "расписание парсеров"]
 ---
 
-JacRed не запускает парсеры самостоятельно. Вместо этого он предоставляет HTTP-эндпоинты, которые вызываются системным cron через скрипт `Data/run-job.sh`. Это позволяет гибко управлять расписанием и избегать параллельного запуска одного парсера.
-
-## Принцип работы
+JacRed не запускает парсеры самостоятельно. Системный cron вызывает HTTP-эндпоинты через `Data/run-job.sh`. Источник истины для минут и часов — файл `Data/crontab` в репозитории. На страницах [трекеров](/trackers/overview) те же команды по одному slug.
 
 ```text
 crontab → run-job.sh → curl GET → /cron/{slug}/{action}
 ```
 
-`run-job.sh` использует `flock` для блокировки: если предыдущий запуск парсера ещё не завершился, новый пропускается.
+`run-job.sh` берёт `flock` по имени задачи: если предыдущий curl ещё не вернулся, новый пропускается. Для `ParseAllTask` и `UpdateTasksParse` HTTP сразу отвечает `ok` и работа идёт в фоне — `max_time=60` у runner это только ack, не длина обхода.
+
+## Типы задач
+
+| Тип | Эндпоинт | Зачем | Kick | Пока уже идёт |
+| --- | --- | --- | --- | --- |
+| `parse` | `GET /cron/{slug}/parse` | Свежие раздачи (обычно первые страницы) | Часто: 15 мин, 20 мин или раз в час | `flock` / parse-lock, повтор пропускается |
+| `UpdateTasksParse` | `GET /cron/{slug}/UpdateTasksParse` | Пересчитать карту страниц в `Data/temp/{slug}_taskParse.json` | Раз в сутки ночью (02:xx–03:20) | Exclusive с ParseAll и ParseLatest |
+| `ParseAllTask` | `GET /cron/{slug}/ParseAllTask` | Полный обход текущей карты | См. [таблицу ParseAll](#parsealltask) | Ответ `work`; новый круг только при pending = 0 |
+| `ParseLatest` | `GET /cron/{slug}/ParseLatest` | Первые страницы каждой категории | Раз в сутки утром (07:xx) | Exclusive с ParseAll и UpdateTasks |
+| `backfill` | `GET /cron/{slug}/backfill` | Архив API по checkpoint | Каждый час | Состояние на диске (`Data/temp/`) |
+| `ParseShows` | `GET /cron/subsplease/ParseShows` | Сезон-паки SubsPlease | Раз в сутки 05:25 | — |
+| `ResumeParseAll` | `GET /cron/maintenance/ResumeParseAll` | Продолжить цикл после рестарта | Каждые 15 мин и ~45 с после старта процесса | `work`, если задача жива; `idle`, если pending = 0 |
+| `jsondb-save` | `GET /jsondb/save` | Сброс FileDB на диск | Каждые 5 мин | — |
+| `cloudflare-warmup` | `GET /cron/cloudflare/Warmup` | Держать `cf_clearance` | Keepalive каждые 20 мин, warmup в :55 перед rutracker-parse | — |
+| `maintenance Check` | `GET /cron/maintenance/Check?mode=report` | Отчёт по FileDB | Воскресенье 05:00 | — |
+
+<Note>
+  Hourly `parse` не ждёт ParseAll: между страницами архивного обхода ParseAll уступает свежести. Не запускайте вручную `UpdateTasksParse` и `ParseAllTask` одного трекера одновременно.
+</Note>
+
+## Служебные задачи
+
+| Имя в crontab | Расписание | `max_time` |
+| --- | --- | --- |
+| `jsondb-save` | `*/5 * * * *` | 60 с |
+| `cloudflare-keepalive` | `5,25,45 * * * *` | 300 с |
+| `cloudflare-warmup` | `55 * * * *` | 300 с |
+| `parseall-resume` | `*/15 * * * *` | 60 с |
+| `maintenance-check` | `0 5 * * 0` | 60 с |
+
+## ParseAllTask
+
+Kick — это не «убить и начать заново». Если цикл ещё идёт, cron получает `work`. Если `pending = 0`, kick начинает **новый** круг. Стены по часам нет: обход идёт до pending = 0, shutdown или 45 мин без прогресса. Частота kick = как часто стартовать новый круг у тех, кто успевает закончить.
+
+| Трекер | Карта | Круг | Kick | Почему так |
+| --- | --- | --- | --- | --- |
+| [`rutracker`](/trackers/rutracker) | ~16k стр. | сутки+ | `40 4 * * *` | Не учащать: цикл и FlareSolverr и так непрерывные |
+| [`ultradox`](/trackers/ultradox) | ~3.6k | ~9 ч | `58 12 * * *` | После утренней волны, один круг до UpdateTasks |
+| [`nnmclub`](/trackers/nnmclub) | ~5k | ~7 ч | `42 12 * * *` | Как ultradox, не вместе с 05:xx |
+| [`kinozal`](/trackers/kinozal) | ~6k | ~4 ч | `35 5,17 * * *` | Два круга; третий наложится на FlareSolverr rutracker |
+| [`rutor`](/trackers/rutor) | ~4k | ~3.5 ч | `30 5,17 * * *` | Два круга влезают до ночного UpdateTasks |
+| [`korsars`](/trackers/korsars) | ~1.7k | ~3.6 ч | `53 5,17 * * *` | Как rutor |
+| [`anibelka`](/trackers/anibelka) | ~154 | ~3.7 ч | `48 5,17 * * *` | Мало страниц, но каждая тянет топик |
+| [`megapeer`](/trackers/megapeer) | ~77 | ~1.3 ч | `45 5,13,21 * * *` | `reqMinute: 5`, три круга без наложений |
+| [`toloka`](/trackers/toloka) | ~783 | ~1–2 ч | `55 5,13,21 * * *` | Средняя карта, те же окна что megapeer |
+| [`torrentby`](/trackers/torrentby) | ~197 | минуты | `50 5,11,17,23 * * *` | Самый короткий trio-цикл, каждые 6 ч |
+
+## Расписание по трекерам
+
+Минуты `parse` разведены, чтобы не бить в одну секунду rutor (`1,16,31,46`) и ultradox (`13,28,43,58`).
+
+<Tabs>
+  <Tab title="Trio">
+    | Трекер | parse | UpdateTasks | ParseAll | ParseLatest |
+    | --- | --- | --- | --- | --- |
+    | rutracker | каждый час `:00` (`max_time` 3600) | `20 3 * * *` | `40 4 * * *` | — |
+    | kinozal | каждые 15 мин `:03,:18,:33,:48` | `10 2 * * *` | `35 5,17 * * *` | — |
+    | rutor | каждые 15 мин `:01,:16,:31,:46` | `5 2 * * *` | `30 5,17 * * *` | — |
+    | nnmclub | каждые 15 мин `:05,:20,:35,:50` | `15 2 * * *` | `42 12 * * *` | — |
+    | megapeer | каждый час `:08` | `20 2 * * *` | `45 5,13,21 * * *` | — |
+    | torrentby | каждые 15 мин `:07,:22,:37,:52` | `25 2 * * *` | `50 5,11,17,23 * * *` | — |
+    | toloka | каждые ~40 мин `:14,:54` | `30 2 * * *` | `55 5,13,21 * * *` | — |
+    | anibelka | каждые 15 мин `:29,:44,:59` | `40 2 * * *` | `48 5,17 * * *` | `10 7 * * *` |
+    | korsars | каждые ~15 мин `:15,:27,:45,:57` | `45 2 * * *` | `53 5,17 * * *` | `15 7 * * *` |
+    | ultradox | каждые 15 мин `:13,:28,:43,:58` | `50 2 * * *` | `58 12 * * *` | `20 7 * * *` |
+  </Tab>
+  <Tab title="API">
+    | Трекер | parse | Архив / шоу |
+    | --- | --- | --- |
+    | bitru | каждые 20 мин `:10,:30,:50` (только свежая страница) | `backfill?pages=20` каждый час `:40` |
+    | knaben | каждые 20 мин `:12,:32,:52` | `backfill?pages=10` каждый час `:42` |
+    | subsplease | каждый час `:35` (`?pages=2`) | `ParseShows` `25 5 * * *` |
+  </Tab>
+  <Tab title="Page-range">
+    | Трекер | parse | Замечание |
+    | --- | --- | --- |
+    | lostfilm | каждые 15 мин `:11,:26,:41,:56` | `/new/` + паки в том же parse |
+    | selezen | каждые 15 мин `:09,:24,:39,:54` | |
+    | animelayer | каждые 15 мин `:02,:17,:32,:47` | |
+    | anidub | каждые 15 мин `:04,:19,:34,:49` | |
+    | aniliberty | каждые 15 мин `:06,:21,:36,:51` | JSON API |
+    | baibako | каждые 15 мин `:08,:23,:38,:53` | Низкий churn, те же минуты что megapeer-parse |
+    | rudub | каждый час `:40` (`limit_page=10`) | `max_time` 1800 с |
+    | mazepa | каждый час `:25` | Полный обход форумов в parse |
+    | anistar | `40 6 * * *` (`limit_page=3`) | Раз в сутки |
+    | leproduction | `45 6 * * *` (`limit_page=3`) | Раз в сутки |
+    | viruseproject | `50 6 * * *` (`limit_page=3`) | Раз в сутки |
+    | anifilm | `55 6 * * *` | Раз в сутки, `max_time` 1800 с |
+  </Tab>
+</Tabs>
+
+`max_time` у `parse` по умолчанию 900 с, кроме rutracker (3600), rudub и anifilm (1800).
 
 ## Установка crontab
 
 ```bash
-# Установить расписание из файла
 crontab /opt/jacred/Data/crontab
-
-# Проверить текущее расписание
 crontab -l
-```
-
-## Типы крон-задач
-
-| Задача | Эндпоинт | Описание |
-| --- | --- | --- |
-| `parse` | `GET /cron/{slug}/parse` | Парсинг новых страниц (частый) |
-| `UpdateTasksParse` | `GET /cron/{slug}/UpdateTasksParse` | Обновление очереди (раз в сутки) |
-| `ParseAllTask` | `GET /cron/{slug}/ParseAllTask` | Полный перебор базы (новый круг, если предыдущий закончен) |
-| `parseall-resume` | `GET /cron/maintenance/ResumeParseAll` | Продолжить незавершённый цикл после рестарта |
-| `jsondb-save` | `GET /jsondb/save` | Сброс FileDB на диск |
-| `cloudflare-warmup` | `GET /cron/cloudflare/Warmup` | Прогрев FlareSolverr-сессии |
-
-## Актуальное расписание
-
-Полное расписание меняется вместе с парсерами. Используйте файл [`Data/crontab` из релиза 3.9.3](https://github.com/jacred-fdb/jacred/blob/3.9.3/Data/crontab) как источник истины. На страницах отдельных [трекеров](/trackers/overview) приведены только связанные с ними команды.
-
-## Пример записей crontab
-
-```crontab
-# Cron для Rutracker (FlareSolverr warmup за 5 минут до parse)
-55 * * * *  /opt/jacred/Data/run-job.sh cloudflare-warmup http://127.0.0.1:9117/cron/cloudflare/Warmup 300
-0 * * * *   /opt/jacred/Data/run-job.sh rutracker-parse http://127.0.0.1:9117/cron/rutracker/parse 3600
-
-# Kinozal каждые 15 минут
-3,18,33,48 * * * *  /opt/jacred/Data/run-job.sh kinozal-parse http://127.0.0.1:9117/cron/kinozal/parse 900
-
-# Rutor каждые 15 минут
-1,16,31,46 * * * *  /opt/jacred/Data/run-job.sh rutor-parse http://127.0.0.1:9117/cron/rutor/parse 900
-
-# Сохранение FileDB каждые 5 минут
-*/5 * * * *  /opt/jacred/Data/run-job.sh jsondb-save http://127.0.0.1:9117/jsondb/save 60
-
-# Продолжить ParseAll после рестарта (idle, если pending=0)
-*/15 * * * *  /opt/jacred/Data/run-job.sh parseall-resume http://127.0.0.1:9117/cron/maintenance/ResumeParseAll 60
 ```
 
 ## run-job.sh
 
-Скрипт принимает три аргумента: `имя_задачи`, `URL`, `max_time_сек`:
+Три аргумента: имя задачи, URL, `max_time` в секундах.
 
 ```bash
 /opt/jacred/Data/run-job.sh kinozal-parse http://127.0.0.1:9117/cron/kinozal/parse 900
 ```
 
-Если запрос идёт не напрямую из LAN, добавьте `devkey` к URL:
+Если запрос идёт не из LAN, добавьте `devkey`:
 
 ```bash
 http://127.0.0.1:9117/cron/kinozal/parse?devkey=YOUR_DEV_KEY
 ```
 
-## Авторизация cron-эндпоинтов
-
-Эндпоинты `/cron/*` требуют прямого LAN-доступа или `devkey`. Через reverse proxy ключ нужен и в локальной сети. Подробнее см. [Аутентификация](/authentication).
+Эндпоинты `/cron/*` требуют прямого LAN-доступа или `devkey`. Через reverse proxy ключ нужен и в локальной сети. Подробнее: [аутентификация](/authentication) и [Cron API](/api-reference/cron).
 
 <Warning>
   Не запускайте два `ParseAllTask` одного трекера одновременно. Это приведёт к конкурентной записи в FileDB.
