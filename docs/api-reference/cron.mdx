@@ -103,7 +103,7 @@ GET /cron/maintenance/ResumeParseAll
 GET /cron/maintenance/ParseAllStatus
 ```
 
-`ResumeParseAll` поднимает незавершённые циклы trio-трекеров (`pending > 0`). Если pending = 0, ответ `idle` — новый круг начинает утренний `ParseAllTask`. Если задача уже идёт, ответ `work`. После старта процесса worker вызывает resume сам через ~45 с; cron `*/15` — запасной путь.
+`ResumeParseAll` поднимает незавершённые циклы trio-трекеров (`pending > 0`). Если pending = 0, ответ `idle` — новый круг начинает cron `ParseAllTask`. Если задача уже идёт, ответ `work`. После старта процесса worker вызывает resume сам через ~45 с; cron `*/15` — запасной путь.
 
 ```bash
 curl "http://localhost:9117/cron/maintenance/ParseAllStatus"

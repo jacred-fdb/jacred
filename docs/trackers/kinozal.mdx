@@ -75,12 +75,12 @@ Hourly `parse` не блокируется фоновым ParseAll: свежие
 # Обновление очереди
 10 2 * * *  /opt/jacred/Data/run-job.sh kinozal-UpdateTasksParse http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse 60
 
-# Полный перебор раз в сутки утром
-35 4 * * *  /opt/jacred/Data/run-job.sh kinozal-ParseAllTask http://127.0.0.1:9117/cron/kinozal/ParseAllTask 60
+# Полный перебор дважды в сутки (~4 ч)
+35 5,17 * * *  /opt/jacred/Data/run-job.sh kinozal-ParseAllTask http://127.0.0.1:9117/cron/kinozal/ParseAllTask 60
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 ## Домен и зеркала

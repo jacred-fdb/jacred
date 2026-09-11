@@ -73,6 +73,7 @@ Often missing: anidub, aniliberty, animelayer, baibako, knaben, mazepa, megapeer
 
 - Source of truth: `Data/crontab` + `Data/run-job.sh`
 - Avoid stacking on rutor `1,16,31,46` and ultradox `13,28,43,58`
+- ParseAll: fast trackers 05:xx+17:xx (megapeer also 13/21); nnmclub/ultradox `12:xx`; rutracker `40 4 * * *` only
 - CF warmup before rutracker; long crawls → `max_time` 900–1800s
 
 ## Docs touch list

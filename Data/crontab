@@ -37,8 +37,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 20 3 * * *  /opt/jacred/Data/run-job.sh rutracker-UpdateTasksParse http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse 60
 
 # rutracker-ParseAllTask -> /cron/rutracker/ParseAllTask (max_time=60s)
-# morning kick starts a new cycle when the previous one finished; otherwise continues.
-# No wall-clock: runs until pending=0, shutdown, or 45m stall. ResumeParseAll covers restarts.
+# Multi-day cycle (~16k pages). Daily kick starts a new round only when pending=0;
+# while running cron returns work. ResumeParseAll covers restarts. Do not add extra kicks.
 40 4 * * *  /opt/jacred/Data/run-job.sh rutracker-ParseAllTask http://127.0.0.1:9117/cron/rutracker/ParseAllTask 60
 
 # --- kinozal (~550k) ---
@@ -49,7 +49,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 10 2 * * *  /opt/jacred/Data/run-job.sh kinozal-UpdateTasksParse http://127.0.0.1:9117/cron/kinozal/UpdateTasksParse 60
 
 # kinozal-ParseAllTask -> /cron/kinozal/ParseAllTask (max_time=60s)
-35 4 * * *  /opt/jacred/Data/run-job.sh kinozal-ParseAllTask http://127.0.0.1:9117/cron/kinozal/ParseAllTask 60
+# ~4h cycle; 05:xx and 17:xx. New round only when pending=0.
+35 5,17 * * *  /opt/jacred/Data/run-job.sh kinozal-ParseAllTask http://127.0.0.1:9117/cron/kinozal/ParseAllTask 60
 
 # --- rutor (~550k) ---
 # rutor-parse -> /cron/rutor/parse (max_time=900s)
@@ -59,7 +60,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 5 2 * * *  /opt/jacred/Data/run-job.sh rutor-UpdateTasksParse http://127.0.0.1:9117/cron/rutor/UpdateTasksParse 60
 
 # rutor-ParseAllTask -> /cron/rutor/ParseAllTask (max_time=60s)
-30 4 * * *  /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
+# ~3.5h cycle; 05:xx and 17:xx. New round only when pending=0.
+30 5,17 * * *  /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
 
 # --- bitru (~175k; high update churn — parse + archive backfill) ---
 # bitru-parse -> /cron/bitru/parse (max_time=900s) — newest page only
@@ -77,7 +79,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 15 2 * * *  /opt/jacred/Data/run-job.sh nnmclub-UpdateTasksParse http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse 60
 
 # nnmclub-ParseAllTask -> /cron/nnmclub/ParseAllTask (max_time=60s)
-42 4 * * *  /opt/jacred/Data/run-job.sh nnmclub-ParseAllTask http://127.0.0.1:9117/cron/nnmclub/ParseAllTask 60
+# ~7h cycle; once after the morning fast wave (not stacked with 05:xx).
+42 12 * * *  /opt/jacred/Data/run-job.sh nnmclub-ParseAllTask http://127.0.0.1:9117/cron/nnmclub/ParseAllTask 60
 
 # --- megapeer (~113k) ---
 # megapeer-parse -> /cron/megapeer/parse (max_time=900s)
@@ -87,7 +90,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 20 2 * * *  /opt/jacred/Data/run-job.sh megapeer-UpdateTasksParse http://127.0.0.1:9117/cron/megapeer/UpdateTasksParse 60
 
 # megapeer-ParseAllTask -> /cron/megapeer/ParseAllTask (max_time=60s)
-45 4 * * *  /opt/jacred/Data/run-job.sh megapeer-ParseAllTask http://127.0.0.1:9117/cron/megapeer/ParseAllTask 60
+# ~77 pages, reqMinute 5 (~1.3h); three kicks. New round only when pending=0.
+45 5,13,21 * * *  /opt/jacred/Data/run-job.sh megapeer-ParseAllTask http://127.0.0.1:9117/cron/megapeer/ParseAllTask 60
 
 # --- knaben (~106k; API aggregate) ---
 # knaben-parse -> /cron/knaben/parse (max_time=900s)
@@ -105,7 +109,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 25 2 * * *  /opt/jacred/Data/run-job.sh torrentby-UpdateTasksParse http://127.0.0.1:9117/cron/torrentby/UpdateTasksParse 60
 
 # torrentby-ParseAllTask -> /cron/torrentby/ParseAllTask (max_time=60s)
-50 4 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
+# Small map; 05:xx and 17:xx. New round only when pending=0.
+50 5,17 * * *  /opt/jacred/Data/run-job.sh torrentby-ParseAllTask http://127.0.0.1:9117/cron/torrentby/ParseAllTask 60
 
 # --- toloka (~58k) ---
 # toloka-parse -> /cron/toloka/parse (max_time=900s)
@@ -115,7 +120,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 30 2 * * *  /opt/jacred/Data/run-job.sh toloka-UpdateTasksParse http://127.0.0.1:9117/cron/toloka/UpdateTasksParse 60
 
 # toloka-ParseAllTask -> /cron/toloka/ParseAllTask (max_time=60s)
-55 4 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
+# 05:xx and 17:xx. New round only when pending=0.
+55 5,17 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
 
 # --- mazepa (~51k) ---
 # mazepa-parse -> /cron/mazepa/parse (max_time=900s)
@@ -182,7 +188,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 40 2 * * *  /opt/jacred/Data/run-job.sh anibelka-UpdateTasksParse http://127.0.0.1:9117/cron/anibelka/UpdateTasksParse 60
 
 # anibelka-ParseAllTask -> /cron/anibelka/ParseAllTask (max_time=60s)
-48 4 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseAllTask http://127.0.0.1:9117/cron/anibelka/ParseAllTask 60
+# ~3.7h cycle; 05:xx and 17:xx. New round only when pending=0.
+48 5,17 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseAllTask http://127.0.0.1:9117/cron/anibelka/ParseAllTask 60
 
 # anibelka-ParseLatest -> /cron/anibelka/ParseLatest (max_time=900s)
 10 7 * * *  /opt/jacred/Data/run-job.sh anibelka-ParseLatest http://127.0.0.1:9117/cron/anibelka/ParseLatest 900
@@ -196,7 +203,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 45 2 * * *  /opt/jacred/Data/run-job.sh korsars-UpdateTasksParse http://127.0.0.1:9117/cron/korsars/UpdateTasksParse 60
 
 # korsars-ParseAllTask -> /cron/korsars/ParseAllTask (max_time=60s)
-53 4 * * *  /opt/jacred/Data/run-job.sh korsars-ParseAllTask http://127.0.0.1:9117/cron/korsars/ParseAllTask 60
+# ~3.6h cycle; 05:xx and 17:xx. New round only when pending=0.
+53 5,17 * * *  /opt/jacred/Data/run-job.sh korsars-ParseAllTask http://127.0.0.1:9117/cron/korsars/ParseAllTask 60
 
 # korsars-ParseLatest -> /cron/korsars/ParseLatest (max_time=900s)
 15 7 * * *  /opt/jacred/Data/run-job.sh korsars-ParseLatest http://127.0.0.1:9117/cron/korsars/ParseLatest 900
@@ -209,7 +217,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 50 2 * * *  /opt/jacred/Data/run-job.sh ultradox-UpdateTasksParse http://127.0.0.1:9117/cron/ultradox/UpdateTasksParse 60
 
 # ultradox-ParseAllTask -> /cron/ultradox/ParseAllTask (max_time=60s)
-58 4 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseAllTask http://127.0.0.1:9117/cron/ultradox/ParseAllTask 60
+# ~9h cycle; once with nnmclub after the morning fast wave.
+58 12 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseAllTask http://127.0.0.1:9117/cron/ultradox/ParseAllTask 60
 
 # ultradox-ParseLatest -> /cron/ultradox/ParseLatest (max_time=900s)
 20 7 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseLatest http://127.0.0.1:9117/cron/ultradox/ParseLatest 900

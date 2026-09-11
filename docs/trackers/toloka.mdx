@@ -47,11 +47,11 @@ Toloka:
 ```crontab
 14,54 * * * *  /opt/jacred/Data/run-job.sh toloka-parse http://127.0.0.1:9117/cron/toloka/parse 900
 30 2 * * *  /opt/jacred/Data/run-job.sh toloka-UpdateTasksParse http://127.0.0.1:9117/cron/toloka/UpdateTasksParse 60
-55 4 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
+55 5,17 * * *  /opt/jacred/Data/run-job.sh toloka-ParseAllTask http://127.0.0.1:9117/cron/toloka/ParseAllTask 60
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 <Note>

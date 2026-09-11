@@ -15,10 +15,12 @@ Megapeer:
   host: http://megapeer.vip
   alias: ""
   useproxy: false
-  reqMinute: 8
-  parseDelay: 7000
+  reqMinute: 5
+  parseDelay: 12000
   log: true
 ```
+
+`reqMinute: 5` — на каждую раздачу парсер качает `.torrent`. `parseDelay` в YAML не задаёт паузу: её считает `reqMinute` (12 с).
 
 ## Расписание cron
 
@@ -29,12 +31,12 @@ Megapeer:
 # Обновление очереди раз в сутки
 20 2 * * *  /opt/jacred/Data/run-job.sh megapeer-UpdateTasksParse http://127.0.0.1:9117/cron/megapeer/UpdateTasksParse 60
 
-# Полный перебор раз в сутки утром
-45 4 * * *  /opt/jacred/Data/run-job.sh megapeer-ParseAllTask http://127.0.0.1:9117/cron/megapeer/ParseAllTask 60
+# Полный перебор трижды в сутки (~77 страниц, ~1.3 ч)
+45 5,13,21 * * *  /opt/jacred/Data/run-job.sh megapeer-ParseAllTask http://127.0.0.1:9117/cron/megapeer/ParseAllTask 60
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 <Note>

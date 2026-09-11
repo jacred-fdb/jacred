@@ -33,12 +33,12 @@ NNMClub:
 # Обновление очереди раз в сутки
 15 2 * * *  /opt/jacred/Data/run-job.sh nnmclub-UpdateTasksParse http://127.0.0.1:9117/cron/nnmclub/UpdateTasksParse 60
 
-# Полный перебор раз в сутки утром
-42 4 * * *  /opt/jacred/Data/run-job.sh nnmclub-ParseAllTask http://127.0.0.1:9117/cron/nnmclub/ParseAllTask 60
+# Полный перебор раз в сутки после утренней волны (~7 ч)
+42 12 * * *  /opt/jacred/Data/run-job.sh nnmclub-ParseAllTask http://127.0.0.1:9117/cron/nnmclub/ParseAllTask 60
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 ## Особенности

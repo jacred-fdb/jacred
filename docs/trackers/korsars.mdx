@@ -51,15 +51,15 @@ Korsars:
 # Обновление очереди
 45 2 * * *  /opt/jacred/Data/run-job.sh korsars-UpdateTasksParse http://127.0.0.1:9117/cron/korsars/UpdateTasksParse 60
 
-# Полный перебор
-53 4 * * *  /opt/jacred/Data/run-job.sh korsars-ParseAllTask http://127.0.0.1:9117/cron/korsars/ParseAllTask 60
+# Полный перебор дважды в сутки (~3.6 ч)
+53 5,17 * * *  /opt/jacred/Data/run-job.sh korsars-ParseAllTask http://127.0.0.1:9117/cron/korsars/ParseAllTask 60
 
 # Свежие релизы раз в сутки
 15 7 * * *  /opt/jacred/Data/run-job.sh korsars-ParseLatest http://127.0.0.1:9117/cron/korsars/ParseLatest 900
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 <Note>

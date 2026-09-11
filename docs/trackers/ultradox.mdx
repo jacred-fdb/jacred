@@ -32,15 +32,15 @@ Ultradox:
 # Обновление очереди
 50 2 * * *  /opt/jacred/Data/run-job.sh ultradox-UpdateTasksParse http://127.0.0.1:9117/cron/ultradox/UpdateTasksParse 60
 
-# Полный перебор
-58 4 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseAllTask http://127.0.0.1:9117/cron/ultradox/ParseAllTask 60
+# Полный перебор раз в сутки после утренней волны (~9 ч)
+58 12 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseAllTask http://127.0.0.1:9117/cron/ultradox/ParseAllTask 60
 
 # Свежие релизы раз в сутки
 20 7 * * *  /opt/jacred/Data/run-job.sh ultradox-ParseLatest http://127.0.0.1:9117/cron/ultradox/ParseLatest 900
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 <Note>

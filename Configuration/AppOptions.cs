@@ -120,7 +120,7 @@ namespace JacRed.Configuration
 
         public TrackerSettings Rutor = new TrackerSettings("http://rutor.info");
 
-        public TrackerSettings Megapeer = new TrackerSettings("http://megapeer.vip");
+        public TrackerSettings Megapeer = new TrackerSettings("http://megapeer.vip", reqMinute: 5);
 
         public TrackerSettings TorrentBy = new TrackerSettings("https://torrent.by");
 

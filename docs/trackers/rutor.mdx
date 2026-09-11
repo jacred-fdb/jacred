@@ -41,7 +41,7 @@ Rutor не требует учётных данных. Не добавляйте
 | `/cron/rutor/ParseAllTask` | Продолжить фоновый полный обход карты |
 | `/cron/rutor/ParseLatest?pages=5` | Разобрать первые страницы каждой категории |
 
-`ParseAllTask` хранит состояние цикла в `Data/temp/rutor_parseAllCycle.json`. После рестарта его поднимает `ResumeParseAll`; утренний kick продолжает тот же цикл, пока pending > 0, и начинает новый только когда pending = 0. `UpdateTasksParse` читает верхний пейджер `/browse/N/` и удаляет слоты за последней страницей. Пустой ответ карту не обнуляет.
+`ParseAllTask` хранит состояние цикла в `Data/temp/rutor_parseAllCycle.json`. После рестарта его поднимает `ResumeParseAll`; cron-kick продолжает тот же цикл, пока pending > 0, и начинает новый только когда pending = 0. `UpdateTasksParse` читает верхний пейджер `/browse/N/` и удаляет слоты за последней страницей. Пустой ответ карту не обнуляет.
 
 ## Расписание
 
@@ -50,11 +50,11 @@ Rutor не требует учётных данных. Не добавляйте
 ```crontab
 1,16,31,46 * * * * /opt/jacred/Data/run-job.sh rutor-parse http://127.0.0.1:9117/cron/rutor/parse 900
 5 2 * * * /opt/jacred/Data/run-job.sh rutor-UpdateTasksParse http://127.0.0.1:9117/cron/rutor/UpdateTasksParse 60
-30 4 * * * /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
+30 5,17 * * * /opt/jacred/Data/run-job.sh rutor-ParseAllTask http://127.0.0.1:9117/cron/rutor/ParseAllTask 60
 ```
 
 <Note>
-  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Утренний `ParseAllTask` начинает новый круг только когда pending = 0.
+  После рестарта незавершённый цикл продолжает `GET /cron/maintenance/ResumeParseAll` (~45 с после старта и cron `*/15`). Cron `ParseAllTask` начинает новый круг только когда pending = 0.
 </Note>
 
 <Note>
