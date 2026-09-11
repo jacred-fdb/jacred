@@ -246,8 +246,8 @@ namespace JacRed.Infrastructure.Networking
         /// Забирает страницу через браузер. Возвращает готовый HTML либо null.
         /// Browser timeout: сначала retry той же сессии, destroy только после
         /// <c>recycleAfterTimeouts</c> подряд (или сразу при явной ошибке session).
-        /// <paramref name="referer"/> и <paramref name="extraHeaders"/> уходят в cffetch
-        /// и FlareSolverr <c>request.get</c> (nginx Ultradox без поискового Referer → 503).
+        /// <paramref name="referer"/> и <paramref name="extraHeaders"/> уходят только в cffetch.
+        /// FlareSolverr v2 дропает <c>headers</c> (warning в логе, заголовок не ставится).
         /// </summary>
         public static async Task<string> FetchAsync(
             string url,
@@ -288,7 +288,7 @@ namespace JacRed.Infrastructure.Networking
                     return null;
 
                 var (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(
-                    conf, session, url, cookie, referer, extraHeaders);
+                    conf, session, url, cookie);
 
                 if (outcome == FetchOutcome.Ok)
                 {
@@ -334,7 +334,7 @@ namespace JacRed.Infrastructure.Networking
                     return null;
 
                 (outcome, html, failMessage) = await RequestWithTimeoutRetriesAsync(
-                    conf, session, url, cookie, referer, extraHeaders);
+                    conf, session, url, cookie);
 
                 if (outcome == FetchOutcome.Ok)
                 {
@@ -441,7 +441,7 @@ namespace JacRed.Infrastructure.Networking
                 return (FastOutcome.Ok, body);
 
             // Old cffetch ignores JSON `headers`; Ultradox nginx 503s without Referer.
-            // Do not PageFailed — fall through to FlareSolverr request.get with Referer.
+            // Do not PageFailed — fall through to FlareSolverr (v2 still cannot set Referer).
             if (ShouldSkipFastPathForOrigin503(status, body, referer))
                 return (FastOutcome.NotAvailable, null);
 
@@ -496,8 +496,8 @@ namespace JacRed.Infrastructure.Networking
         }
 
         /// <summary>
-        /// Referer + extra GET headers for cffetch / FlareSolverr. Cookie and User-Agent
-        /// stay on their own fields so the browser/TLS path is not overwritten.
+        /// Referer + extra GET headers for cffetch. Cookie and User-Agent
+        /// stay on their own fields so the TLS path is not overwritten.
         /// </summary>
         internal static Dictionary<string, string> ExtraBrowserHeaders(
             string referer, IReadOnlyList<(string name, string val)> extraHeaders)
@@ -621,8 +621,7 @@ namespace JacRed.Infrastructure.Networking
 
         /// <summary>Same-session retries on browser timeout before escalating.</summary>
         static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestWithTimeoutRetriesAsync(
-            FlareSolverrSettingsView conf, BrowserSession session, string url, string cookie,
-            string referer, List<(string name, string val)> extraHeaders)
+            FlareSolverrSettingsView conf, BrowserSession session, string url, string cookie)
         {
             int attempts = 1 + conf.BrowserTimeoutRetries;
             FetchOutcome outcome = FetchOutcome.BrowserFailed;
@@ -634,7 +633,7 @@ namespace JacRed.Infrastructure.Networking
                 if (i > 0)
                     await Task.Delay(1500);
 
-                (outcome, html, failMessage) = await RequestAsync(conf, session, url, cookie, referer, extraHeaders);
+                (outcome, html, failMessage) = await RequestAsync(conf, session, url, cookie);
 
                 if (outcome != FetchOutcome.BrowserFailed)
                     return (outcome, html, failMessage);
@@ -658,8 +657,7 @@ namespace JacRed.Infrastructure.Networking
         }
 
         static async Task<(FetchOutcome outcome, string html, string failMessage)> RequestAsync(
-            FlareSolverrSettingsView conf, BrowserSession session, string url, string cookie,
-            string referer, List<(string name, string val)> extraHeaders)
+            FlareSolverrSettingsView conf, BrowserSession session, string url, string cookie)
         {
             var payload = new Dictionary<string, object>
             {
@@ -673,9 +671,8 @@ namespace JacRed.Infrastructure.Networking
             if (jar.Count > 0)
                 payload["cookies"] = jar;
 
-            var headers = ExtraBrowserHeaders(referer, extraHeaders);
-            if (headers.Count > 0)
-                payload["headers"] = headers;
+            // FlareSolverr v2 removed `headers` (logs a warning and ignores them).
+            // Referer / Accept stay on the cffetch fast path only.
 
             // Proxy только через PROXY_* у контейнера FlareSolverr — в body не шлём
             // (при session FlareSolverr всё равно игнорирует request proxy).

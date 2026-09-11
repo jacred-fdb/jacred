@@ -15,7 +15,7 @@ Rutracker и Kinozal защищены Cloudflare. Прямой `HttpClient` не
 
 1. JacRed просит FlareSolverr (`request.get`) решить Cloudflare, если jar ещё нет.
 2. Из `solution` забираются cookie и User-Agent; cffetch проверяет их делом.
-3. Следующие GET идут в `POST http://127.0.0.1:8192/fetch` с TLS Chrome. Заголовки `Referer` / `Accept` / `Accept-Language` с исходного `HttpClient.Get` прокидываются в cffetch и в FlareSolverr `request.get` (нужно Ultradox: без поискового Referer origin отвечает 503).
+3. Следующие GET идут в `POST http://127.0.0.1:8192/fetch` с TLS Chrome. Заголовки `Referer` / `Accept` / `Accept-Language` с исходного `HttpClient.Get` прокидываются только в cffetch (нужно Ultradox: без поискового Referer origin отвечает 503). FlareSolverr v2 параметр `headers` игнорирует.
 4. `cf-mitigated` или страница «Just a moment…» — браузер снова, jar обновляется. Голый 403 трекера cookie не сбрасывает.
 
 Без запущенного cffetch JacRed остаётся на браузере (как раньше).
