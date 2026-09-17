@@ -32,8 +32,9 @@ namespace JacRed.Infrastructure.Logging
             _factory.CreateLogger("JacRed." + category).Log(level, "{Line}", line);
         }
 
-        static string FormatLine(string category, string message)
+        internal static string FormatLine(string category, string message)
         {
+            message = message.Replace("\r", "").Replace("\n", "");
             if (JacRedLogSettings.ConsoleTimestamp && !message.StartsWith("[", StringComparison.Ordinal))
                 return $"{category}: [{DateTime.Now:HH:mm:ss}] {message}";
             return $"{category}: {message}";
