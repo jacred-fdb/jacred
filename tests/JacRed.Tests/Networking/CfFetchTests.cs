@@ -58,6 +58,52 @@ public class CfFetchTests
     }
 
     [Fact]
+    public void ForUncleared_ReturnsClearanceWithoutCookie()
+    {
+        const string host = "uncleared.test";
+        CfFetch.Forget(host);
+
+        // обычный путь без cookie ничего не даёт...
+        Assert.Null(CfFetch.For(host));
+
+        // ...но blind-путь (только TLS-impersonate) доступен
+        var got = CfFetch.ForUncleared(host);
+        Assert.NotNull(got);
+        Assert.Null(got.Cookies);
+    }
+
+    [Fact]
+    public void ForUncleared_NullWhenCffetchDisabled()
+    {
+        const string host = "uncleared-disabled.test";
+        bool previous = AppInit.conf.cffetch.enable;
+        try
+        {
+            AppInit.conf.cffetch.enable = false;
+            Assert.Null(CfFetch.ForUncleared(host));
+        }
+        finally
+        {
+            AppInit.conf.cffetch.enable = previous;
+        }
+    }
+
+    [Fact]
+    public void ForUncleared_NullWhenFastPathBlocked()
+    {
+        const string host = "uncleared-blocked.test";
+        CfFetch.BlockFastPath(host);
+        try
+        {
+            Assert.Null(CfFetch.ForUncleared(host));
+        }
+        finally
+        {
+            CfFetch.Reset();
+        }
+    }
+
+    [Fact]
     public void Forget_RemovesHost()
     {
         const string host = "fast-forget.test";

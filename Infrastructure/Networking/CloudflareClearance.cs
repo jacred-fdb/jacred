@@ -409,7 +409,10 @@ namespace JacRed.Infrastructure.Networking
         static async Task<(FastOutcome outcome, string html)> TryFastAsync(
             string host, string url, string cookie, string referer, List<(string name, string val)> extraHeaders)
         {
-            var clearance = CfFetch.For(host);
+            // Сначала пробуем cffetch вообще без cookie (TLS-импersonate):
+            // часть хостов отбивает обычный .NET-клиент, но challenge не отдаёт,
+            // и раньше такие уходили в браузер на полный таймаут.
+            var clearance = CfFetch.For(host) ?? CfFetch.ForUncleared(host);
             if (clearance == null)
                 return (FastOutcome.NotAvailable, null);
 

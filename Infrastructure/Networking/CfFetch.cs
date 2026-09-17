@@ -141,6 +141,21 @@ namespace JacRed.Infrastructure.Networking
             return c;
         }
 
+        /// <summary>
+        /// Clearance без cookie — только TLS-импersonate. Нужен хостам, которые
+        /// отбивают обычный .NET-клиент (403/503/challenge), но cf_clearance
+        /// у нас ещё нет: без этого мы шли бы сразу в браузер и платили полный
+        /// таймаут FlareSolverr впустую, хотя cffetch отдаёт страницу за доли
+        /// секунды. Уважает enable/url (через <see cref="Conf"/>) и блок-лист.
+        /// </summary>
+        public static Clearance ForUncleared(string host)
+        {
+            if (Conf == null || string.IsNullOrWhiteSpace(host) || FastPathBlocked(host))
+                return null;
+
+            return new Clearance { Cookies = null, UserAgent = null, At = DateTime.UtcNow };
+        }
+
         public static void Forget(string host)
         {
             if (!string.IsNullOrWhiteSpace(host) && _clearance.TryRemove(host, out _))
