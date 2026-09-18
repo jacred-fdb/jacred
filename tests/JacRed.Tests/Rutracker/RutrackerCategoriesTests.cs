@@ -10,7 +10,7 @@ public class RutrackerCategoriesTests
     [Fact]
     public void Map_HasExpectedCounts()
     {
-        Assert.Equal(246, RutrackerCategories.Map.Count);
+        Assert.Equal(242, RutrackerCategories.Map.Count);
         Assert.Equal(98, RutrackerCategories.QuickParseIds.Count());
         Assert.Equal(RutrackerCategories.Map.Count, RutrackerCategories.Ids.Distinct().Count());
         Assert.True(RutrackerCategories.QuickParseIds.All(id => RutrackerCategories.Map.ContainsKey(id)));
@@ -129,11 +129,21 @@ public class RutrackerCategoriesTests
         });
     }
 
+    [Theory]
+    [InlineData("261")]
+    [InlineData("1609")]
+    [InlineData("1999")]
+    [InlineData("2000")]
+    public void EmptiedSportArchives_AreNotInMap(string id)
+    {
+        Assert.False(RutrackerCategories.Map.ContainsKey(id));
+    }
+
     [Fact]
     public void Sport_IsNeverInQuickParse()
     {
         var sports = RutrackerCategories.Map.Where(kv => kv.Value.Types.SequenceEqual(new[] { "sport" })).ToList();
-        Assert.True(sports.Count >= 95);
+        Assert.Equal(95, sports.Count);
         Assert.All(sports, kv =>
         {
             Assert.False(kv.Value.QuickParse);

@@ -17,7 +17,7 @@ public class RutrackerParserFixtureTests
 {
     readonly ITestOutputHelper _output;
 
-    // Representative sample (not full 246-forum map).
+    // Representative sample (not full 242-forum map).
     static readonly (string id, string file)[] SampleFixtures =
     {
         ("1950", "forum_1950.html"),
@@ -121,6 +121,27 @@ public class RutrackerParserFixtureTests
         Assert.Equal(152, RutrackerParser.LastPageFromHtml(html));
         Assert.Equal(0, RutrackerParser.LastPageFromHtml(""));
         Assert.Equal(0, RutrackerParser.LastPageFromHtml("<html>no pager</html>"));
+        Assert.True(RutrackerParser.LooksLikeForumListing(html));
+        Assert.Equal(152, RutrackerParser.EffectivePageCount(html));
+    }
+
+    [Fact]
+    public void EffectivePageCount_EmptyArchivePager_IsOnePage()
+    {
+        const string html = """
+            <title>Архив (Спорт) [стр. 1] :: Спорт :: RuTracker.org</title>
+            <p style="float: left">Страница <b>1</b> из <b>475</b></p>
+            <table class="forumline forum"></table>
+            """;
+
+        Assert.Equal(475, RutrackerParser.LastPageFromHtml(html));
+        Assert.Equal(0, RutrackerParser.TopicRowCount(html));
+        Assert.True(RutrackerParser.LooksLikeForumListing(html));
+        Assert.Equal(1, RutrackerParser.EffectivePageCount(html));
+        Assert.False(RutrackerParser.LooksLikeForumListing(""));
+        Assert.False(RutrackerParser.LooksLikeForumListing("<html>Just a moment...</html>"));
+        Assert.Equal(0, RutrackerParser.EffectivePageCount(""));
+        Assert.Equal(0, RutrackerParser.EffectivePageCount("<html>Just a moment...</html>"));
     }
 
     [Fact]

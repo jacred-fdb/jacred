@@ -167,7 +167,8 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
         {
             return Task.FromResult(TrackerSyncHelpers.RunUpdateTasksParseInBackground(TrackerName, _updateTasksWork, checkDisabled: false, async ct =>
             {
-                var cats = ResolveCatFilter(cat) ?? RutrackerCategories.Ids.ToArray();
+                var catFilter = ResolveCatFilter(cat);
+                var cats = catFilter ?? RutrackerCategories.Ids.ToArray();
                 ParserLog.Write(TrackerName, $"UpdateTasksParse start cats={cats.Length}");
 
                 foreach (string c in cats)
@@ -180,9 +181,9 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                         if (html == null)
                             continue;
 
-                        int pageCount = RutrackerParser.LastPageFromHtml(html);
+                        int pageCount = RutrackerParser.EffectivePageCount(html);
                         if (pageCount < 1)
-                            pageCount = 1;
+                            continue;
 
                         if (!taskParse.ContainsKey(c))
                             taskParse.Add(c, new List<TaskParse>());
@@ -199,6 +200,12 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                             ParserLog.Write(TrackerName, $"UpdateTasksParse cat={c}: pageCount={pageCount}, pruned={pruned}, total={val.Count}");
                     }
                     catch { }
+                }
+
+                if (catFilter == null)
+                {
+                    foreach (string stale in taskParse.Keys.Except(RutrackerCategories.Ids).ToArray())
+                        taskParse.Remove(stale);
                 }
 
                 PersistTaskParse();
@@ -345,7 +352,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             #endregion
 
             string html = await HttpClient.Get($"{AppInit.conf.Rutracker.rqHost()}/forum/viewforum.php?f={cat}{(page == 0 ? "" : $"&start={page * 50}")}", /*cookie: Cookie, */useproxy: AppInit.conf.Rutracker.useproxy, cancellationToken: cancellationToken);
-            if (html == null /*|| !html.Contains("id=\"logged-in-username\"")*/)
+            if (html == null || !RutrackerParser.LooksLikeForumListing(html))
                 return false;
 
             var torrents = RutrackerParser.ParseTorrentsFromPage(html, cat);
@@ -384,7 +391,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
                 return false;
             });
 
-            return torrents.Count > 0;
+            return true;
         }
     }
 }

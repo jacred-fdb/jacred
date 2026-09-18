@@ -94,7 +94,7 @@ curl 'http://127.0.0.1:9117/cron/rutracker/parse?page=0&cat=1669&maxTopics=20'
 | -------- | ----------- | -------------- |
 | `Warmup` | `/cron/cloudflare/Warmup` | FlareSolverr session warm (default `tracker.php?nm=`) |
 | `Parse` | `ParseAsync` | First page (`page=0` by default) of each **QuickParse** forum (~**98**); optional `cat`, `maxTopics` for smoke |
-| `UpdateTasksParse` | `UpdateTasksParseAsync` | Hits forums to learn page counts → `Data/temp/rutracker_taskParse.json`; optional `cat` (smoke: one forum, not all ~246) |
+| `UpdateTasksParse` | `UpdateTasksParseAsync` | Hits forums to learn page counts → `Data/temp/rutracker_taskParse.json`; optional `cat` (smoke: one forum, not all ~242) |
 | `ParseLatest` | `ParseLatestAsync` | First *N* pages of **every** cat in `taskParse` (heavy once the map is full) |
 | `ParseAllTask` | `ParseAllTaskAsync` | Full backlog of every page in `taskParse` (multi-hour); optional `cat`, `maxPages` for smoke |
 
@@ -105,7 +105,7 @@ curl 'http://127.0.0.1:9117/cron/rutracker/parse?page=0&cat=1669&maxTopics=20'
 
 `parseDelay` / `reqMinute` also apply between pages in `ParseLatest` / `ParseAllTask`. Topic-level delay/retry always runs inside `parsePage` (including hourly `Parse`).
 
-Category counts (from `RutrackerCategories`): **246** forums, **98** `QuickParse = true`. Parent `viewforum` does **not** list child-forum topics — geographic UHD leaves such as `1669` must be in the map (see `forum_tree_snapshot.json`).
+Category counts (from `RutrackerCategories`): **242** forums, **98** `QuickParse = true`. Emptied sport archives (`261`, `1609`, `1999`, `2000`) are not in the map. Parent `viewforum` does **not** list child-forum topics — geographic UHD leaves such as `1669` must be in the map (see `forum_tree_snapshot.json`).
 
 ## Recommended cron (minimize requests, keep useful freshness)
 
@@ -123,7 +123,7 @@ Repo [`Data/crontab`](../../../Data/crontab): morning ParseAll starts a **new** 
 # Fresh releases: 98 quick forums, first page only (browser path + topic retries — up to 1h wall)
 0 * * * *     /opt/jacred/Data/run-job.sh rutracker-parse http://127.0.0.1:9117/cron/rutracker/parse 3600
 
-# Rebuild page-task map once (246 GETs) — not every few hours
+# Rebuild page-task map once (242 GETs) — not every few hours
 20 3 * * *    /opt/jacred/Data/run-job.sh rutracker-UpdateTasksParse http://127.0.0.1:9117/cron/rutracker/UpdateTasksParse 60
 
 # Deep crawl: new cycle at 04:40 if the last one finished; else continue. Restarts: ResumeParseAll.
@@ -135,7 +135,7 @@ Repo [`Data/crontab`](../../../Data/crontab): morning ParseAll starts a **new** 
 
 - Hourly `UpdateTasksParse` / `ParseAllTask` — over-requests; while a crawl runs cron only gets `work`.
 - Calling ResumeParseAll when pending is 0 — that is idle by design; morning ParseAll is what rotates a finished cycle.  
-- Scheduling `ParseLatest?pages=5` for “light” refresh — with a full `taskParse` it is **heavier** than hourly `parse` (~246×N forum pages).
+- Scheduling `ParseLatest?pages=5` for “light” refresh — with a full `taskParse` it is **heavier** than hourly `parse` (~242×N forum pages).
 - Skipping warmup when FlareSolverr is cold — first CF solve under CPU contention often times out.
 - Destroying the FlareSolverr session on every chromedriver hang — prefer soft fail + topic retries; recycle only after `recycleAfterTimeouts`.
 
@@ -152,14 +152,14 @@ Repo [`Data/crontab`](../../../Data/crontab): morning ParseAll starts a **new** 
 
 ## FlareSolverr / Worker requests / day (recommended cron)
 
-Assumptions: 98 QuickParse, 246 forums, ~**40** pages/cat average for full crawl; topic GETs when title/size changed or the listing timestamp is newer than the last magnet write. With FlareSolverr each GET is a browser navigation (serialized).
+Assumptions: 98 QuickParse, 242 forums, ~**40** pages/cat average for full crawl; topic GETs when title/size changed or the listing timestamp is newer than the last magnet write. With FlareSolverr each GET is a browser navigation (serialized).
 
 ### Fixed forum GETs
 
 | Component | Forum GETs |
 | ----------- | ------------ |
 | `parse` hourly | **2 352 / day** (98 × 24) |
-| `UpdateTasksParse` daily | **246 / day** |
+| `UpdateTasksParse` daily | **242 / day** |
 | `ParseAllTask` 1×/day (until done) | listing GETs via cffetch for pending pages; a full ~16k map is one run when the fast path holds |
 | **Forum floor** | **~2–4 000 / day** amortized when ParseAll is still catching up; a finishing day is ~16k listing GETs through cffetch |
 

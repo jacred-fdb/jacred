@@ -37,6 +37,48 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             return n;
         }
 
+        const string TorTopicClass = "class=\"torTopic\"";
+
+        /// <summary>Real viewforum HTML (topics or phpBB pager), not a CF interstitial / empty fetch.</summary>
+        public static bool LooksLikeForumListing(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return false;
+            return html.Contains(TorTopicClass, StringComparison.Ordinal)
+                || PageOfRe.IsMatch(html);
+        }
+
+        public static int TopicRowCount(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return 0;
+
+            int n = 0, i = 0;
+            while ((i = html.IndexOf(TorTopicClass, i, StringComparison.Ordinal)) >= 0)
+            {
+                n++;
+                i += TorTopicClass.Length;
+            }
+
+            return n;
+        }
+
+        /// <summary>
+        /// Live page count for UpdateTasksParse. 0 = failed fetch (do not prune).
+        /// Emptied archives still advertise «из 475» with zero rows — treat as 1 page.
+        /// </summary>
+        public static int EffectivePageCount(string html)
+        {
+            if (!LooksLikeForumListing(html))
+                return 0;
+
+            if (TopicRowCount(html) == 0)
+                return 1;
+
+            int n = LastPageFromHtml(html);
+            return n < 1 ? 1 : n;
+        }
+
         /// <summary>Drop map slots at or past the live page count (exclusive <c>page &lt; pageCount</c>).</summary>
         public static int PrunePagesBeyondPageCount(List<TaskParse> tasks, int pageCount)
         {
