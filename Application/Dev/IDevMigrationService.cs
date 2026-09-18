@@ -12,5 +12,6 @@ namespace JacRed.Application.Dev
         object RemoveDuplicateAniliberty();
         object FixAnimelayerDuplicates();
         object FixKinozalDomainDuplicates();
+        object FixUltradoxDomainDuplicates();
     }
 }

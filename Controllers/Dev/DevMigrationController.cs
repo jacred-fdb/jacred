@@ -33,5 +33,7 @@ namespace JacRed.Controllers.Dev
         public JsonResult FixAnimelayerDuplicates() => Json(_migrationService.FixAnimelayerDuplicates());
 
         public JsonResult FixKinozalDomainDuplicates() => Json(_migrationService.FixKinozalDomainDuplicates());
+
+        public JsonResult FixUltradoxDomainDuplicates() => Json(_migrationService.FixUltradoxDomainDuplicates());
     }
 }

@@ -74,7 +74,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
 
         /// <summary>
         /// GET with google Referer (+ browser navigate headers). Own-origin Referer → 503.
-        /// HttpClient follows redirects (ultradox.onl → numbered mirror).
+        /// HttpClient follows redirects (ultradox.vip → numbered 00N.ultradox.vip).
         /// </summary>
         static ValueTask<string> FetchPageAsync(string url, CancellationToken cancellationToken) =>
             HttpClient.Get(

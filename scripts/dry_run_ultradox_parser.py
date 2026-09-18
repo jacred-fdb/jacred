@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dry-run ultradox.onl listing/detail HTML vs JacRed Go-compatible regexes.
+Dry-run ultradox.vip listing/detail HTML vs JacRed Go-compatible regexes.
 
 CRITICAL: Referer must look like google/yandex search — own origin returns 503.
 
@@ -217,10 +217,14 @@ def last_page(html: str, section: str | None = None) -> int:
         )
     else:
         page_re = PAGE_NUM_RE
-    for block in reversed(list(PAGES_BLOCK_RE.finditer(html))):
+    chosen = 0
+    for block in PAGES_BLOCK_RE.finditer(html):
         n = _max_page_in(block.group(1), page_re)
-        if n > 0:
-            return n
+        if n <= 0:
+            continue
+        chosen = n if chosen == 0 else min(chosen, n)
+    if chosen > 0:
+        return chosen
     n = _max_page_in(html, page_re)
     return n if n > 0 else 1
 
@@ -249,8 +253,8 @@ def seed_from_go(fixture_dir: Path) -> bool:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Dry-run ultradox.onl HTML vs JacRed (google Referer)")
-    p.add_argument("--host", default=os.environ.get("ULTRADOX_HOST", "https://ultradox.onl"))
+    p = argparse.ArgumentParser(description="Dry-run ultradox.vip HTML vs JacRed (google Referer)")
+    p.add_argument("--host", default=os.environ.get("ULTRADOX_HOST", "https://ultradox.vip"))
     p.add_argument("--refresh-fixtures", action="store_true")
     p.add_argument("--fixture-dir", default=str(DEFAULT_FIXTURE_DIR))
     p.add_argument("--json-out", default="")

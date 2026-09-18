@@ -158,7 +158,7 @@ namespace JacRed.Configuration
 
         public TrackerSettings Korsars = new TrackerSettings("https://korsars.pro");
 
-        public TrackerSettings Ultradox = new TrackerSettings("https://ultradox.onl");
+        public TrackerSettings Ultradox = new TrackerSettings("https://ultradox.vip");
 
         public TrackerSettings Knaben = new TrackerSettings("https://api.knaben.org");
 

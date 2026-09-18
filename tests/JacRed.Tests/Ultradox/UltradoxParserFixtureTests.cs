@@ -8,14 +8,14 @@ using Xunit.Abstractions;
 namespace JacRed.Tests.Ultradox;
 
 /// <summary>
-/// Regression against Go testdata from ultradox.onl (2026 domain move).
+/// Regression against Go testdata from ultradox (2026 domain move onl → vip).
 /// Seed: temp/jacred-go/cron/ultradox/testdata/
 /// Refresh: python3 scripts/dry_run_ultradox_parser.py --refresh-fixtures
 /// </summary>
 public class UltradoxParserFixtureTests
 {
     readonly ITestOutputHelper _output;
-    const string Host = "https://ultradox.onl";
+    const string Host = "https://ultradox.vip";
 
     public UltradoxParserFixtureTests(ITestOutputHelper output)
     {
@@ -266,16 +266,16 @@ public class UltradoxParserFixtureTests
     }
 
     [Fact]
-    public void LastPageFromHtml_Fixture_UsesFooterPager_NotAjaxWidget()
+    public void LastPageFromHtml_Fixture_UsesInContentPager_NotInflatedFooter()
     {
         string html = FixtureLoader.Read("Ultradox/listing_serial-hd.html");
-        Assert.Equal(426, UltradoxParser.LastPageFromHtml(html));
-        Assert.Equal(426, UltradoxParser.LastPageFromHtml(html, "serial-hd"));
+        Assert.Equal(317, UltradoxParser.LastPageFromHtml(html));
+        Assert.Equal(317, UltradoxParser.LastPageFromHtml(html, "serial-hd"));
         Assert.Equal(1, UltradoxParser.LastPageFromHtml(html, "webrips"));
     }
 
     [Fact]
-    public void LastPageFromHtml_IgnoresScriptPageNumbers_PrefersLastSectionPager()
+    public void LastPageFromHtml_IgnoresScriptPageNumbers_TakesMinSectionPager()
     {
         const string html = """
             <script>var junk="/page/2613/";</script>
@@ -289,11 +289,22 @@ public class UltradoxParserFixtureTests
     }
 
     [Fact]
-    public void LastPageFromHtml_WebripsFixture_UsesFooterPager_NotAjaxWidget()
+    public void LastPageFromHtml_LiveShapedFooterInflation_TakesInContent()
+    {
+        const string html = """
+            <div class="pages ultrabold"><a href="/serial-hd/page/320/">320</a></div>
+            <div class="pages ultrabold"><a href="/serial-hd/page/429/">429</a></div>
+            """;
+
+        Assert.Equal(320, UltradoxParser.LastPageFromHtml(html, "serial-hd"));
+    }
+
+    [Fact]
+    public void LastPageFromHtml_WebripsFixture_UsesInContentPager_NotInflatedFooter()
     {
         string html = FixtureLoader.Read("Ultradox/listing_webrips.html");
-        Assert.Equal(2614, UltradoxParser.LastPageFromHtml(html, "webrips"));
-        Assert.Equal(2614, UltradoxParser.LastPageFromHtml(html));
+        Assert.Equal(2323, UltradoxParser.LastPageFromHtml(html, "webrips"));
+        Assert.Equal(2323, UltradoxParser.LastPageFromHtml(html));
         Assert.Equal(1, UltradoxParser.LastPageFromHtml(html, "serial-hd"));
     }
 
@@ -313,5 +324,62 @@ public class UltradoxParserFixtureTests
     {
         Assert.Empty(UltradoxParser.ParseListingHtml(""));
         Assert.Empty(UltradoxParser.ParseListingHtml("<html></html>"));
+    }
+
+    [Fact]
+    public void AbsoluteOnHost_RewritesNumberedMirrorOntoConfiguredHost()
+    {
+        Assert.Equal(
+            "https://ultradox.vip/serial-hd/57542-x.html",
+            UltradoxParser.AbsoluteOnHost("https://ultradox.vip", "https://002.ultradox.vip/serial-hd/57542-x.html"));
+        Assert.Equal(
+            "https://ultradox.vip/nerufilm/57686-x.html",
+            UltradoxParser.AbsoluteOnHost("https://ultradox.vip/", "/nerufilm/57686-x.html"));
+    }
+
+    [Fact]
+    public void CanonicalPathAndFragment_IsHostIndependent_KeepsHashQuality()
+    {
+        const string path = "/serial-hd/57542-oskolki-pravdy-1-sezon.html#h=a1b2c3d4";
+        Assert.Equal(
+            path,
+            UltradoxParser.CanonicalPathAndFragment("https://ultradox.onl" + path));
+        Assert.Equal(
+            path,
+            UltradoxParser.CanonicalPathAndFragment("https://001.ultradox.vip" + path));
+        Assert.Equal(
+            path,
+            UltradoxParser.CanonicalPathAndFragment("https://002.ultradox.vip" + path));
+        Assert.Equal(
+            "https://ultradox.vip" + path,
+            UltradoxParser.CanonicalTorrentUrl("https://ultradox.vip", "https://ultradox.onl" + path));
+
+        string a = UltradoxParser.CanonicalPathAndFragment("https://ultradox.onl/serial-hd/x.html#h=aaaa1111");
+        string b = UltradoxParser.CanonicalPathAndFragment("https://ultradox.vip/serial-hd/x.html#h=bbbb2222");
+        Assert.NotEqual(a, b);
+    }
+
+    [Fact]
+    public void BuildTorrent_AbsoluteMirrorHref_StoresConfiguredHost()
+    {
+        var item = new UltradoxListingItem
+        {
+            Title = "Тест (2026)",
+            DetailUrl = "https://002.ultradox.vip/serial-hd/57542-x.html",
+            CreateTime = DateTime.UtcNow
+        };
+        var rec = UltradoxParser.BuildTorrent(
+            Host, "serial-hd", new[] { "serial" }, item,
+            new UltradoxMagnetVariant
+            {
+                Hash = "abcdef0123456789",
+                Magnet = "magnet:?xt=urn:btih:abcdef0123456789",
+                Bytes = 1,
+                Dn = "x.1080p.torrent",
+                Quality = "1080p"
+            },
+            new UltradoxDetailInfo { Year = 2026 });
+
+        Assert.Equal("https://ultradox.vip/serial-hd/57542-x.html#h=abcdef01", rec.url);
     }
 }

@@ -77,6 +77,7 @@ GET /dev/UpdateSearchName
 | `GET /dev/RemoveDuplicateAniliberty` | Удалить дубликаты Aniliberty после миграции URL |
 | `GET /dev/FixAnimelayerDuplicates` | Слить дубликаты AnimeLayer |
 | `GET /dev/FixKinozalDomainDuplicates` | Слить дубликаты Kinozal по разным доменам |
+| `GET /dev/FixUltradoxDomainDuplicates` | Переписать URL Ultradox на `ultradox.vip` и слить дубли по `path+#h=` |
 
 <Warning>
   Миграции изменяют FileDB. Сделайте резервную копию каталога `Data/fdb/` перед запуском.

@@ -2,26 +2,32 @@
 title: "Ultradox: трекер с обязательным поисковым Referer"
 sidebarTitle: "Ultradox"
 icon: "/images/trackers/ultradox.ico"
-description: "Ultradox (ultradox.onl) работает без авторизации, но требует Referer, похожий на поисковую выдачу Google или Yandex. Rutor-стиль trio + ParseLatest."
+description: "Ultradox (ultradox.vip) работает без авторизации, но требует Referer, похожий на поисковую выдачу Google или Yandex. Rutor-стиль trio + ParseLatest."
 keywords: ["JacRed", "Ultradox", "трекер", "парсинг"]
 ---
 
-Ultradox, slug `ultradox`, работает без авторизации. Использует Rutor-стиль trio плюс `ParseLatest`. Сайт возвращает 503, если запрос приходит с Referer собственного домена; JacRed автоматически подставляет Referer, похожий на страницу поиска Google или Yandex.
+Ultradox, slug `ultradox`, работает без авторизации. Использует Rutor-стиль trio плюс `ParseLatest`. Канонический хост — `https://ultradox.vip` (307 на номерное зеркало `00N.ultradox.vip`). URL в FileDB остаются на `ultradox.vip`, не на зеркале. Сайт может вернуть 503, если запрос приходит с Referer собственного домена; JacRed подставляет Referer, похожий на страницу поиска Google или Yandex.
 
 <Warning>
-  Не переопределяйте заголовок `Referer` в прокси или CDN на пути от JacRed к `ultradox.onl`. Собственный Referer вызовет ответ 503. После `MarkGuarded` страница идёт через cffetch / FlareSolverr — JacRed прокидывает туда тот же поисковый Referer. Без него listing пустой (`fetched=0`, `Listing fetch failed`), а пустой ответ раньше помечал страницу ParseAll как выполненную.
+  Не переопределяйте заголовок `Referer` в прокси или CDN на пути от JacRed к `ultradox.vip`. Собственный Referer вызовет ответ 503. После `MarkGuarded` страница идёт через cffetch / FlareSolverr — JacRed прокидывает туда тот же поисковый Referer. Без него listing пустой (`fetched=0`, `Listing fetch failed`), а пустой ответ раньше помечал страницу ParseAll как выполненную.
 </Warning>
+
+<Note>
+  Не задавайте `alias` на конкретное `002.ultradox.vip` — номерное зеркало меняется. `HttpClient` следует за 307.
+</Note>
 
 ## Конфигурация
 
 ```yaml
 Ultradox:
-  host: https://ultradox.onl
+  host: https://ultradox.vip
   useproxy: false
   reqMinute: 8
   parseDelay: 7000
   log: true
 ```
+
+Runtime читает `./init.yaml` из CWD, не шаблон `Data/init.yaml`. После смены хоста на уже заполненной базе: бэкап `Data/fdb/`, затем `GET /dev/FixUltradoxDomainDuplicates` — переписывает `ultradox.onl` и `00N.ultradox.vip` на канонический хост и сливает дубли по `path+#h=`.
 
 ## Расписание cron
 
@@ -44,7 +50,7 @@ Ultradox:
 </Note>
 
 <Note>
-  `UpdateTasksParse` читает футер-пейджер раздела (не ajax-виджет и не числа из `<script>`) и удаляет слоты за последней страницей. Пустой HTML карту не обнуляет.
+  `UpdateTasksParse` берёт **меньшую** последнюю страницу среди пейджеров раздела: футер на DLE завышен (пустые страницы), ajax-виджет завышает в другую сторону. Числа из `<script>` не считаются. Слоты за живым хвостом удаляются. Пустой HTML карту не обнуляет.
 </Note>
 
 ## Диагностика

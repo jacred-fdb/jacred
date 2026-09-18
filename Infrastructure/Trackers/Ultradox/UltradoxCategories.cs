@@ -8,7 +8,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
     }
 
     /// <summary>
-    /// Single source of truth for ultradox.onl section paths and JacRed types.
+    /// Single source of truth for ultradox.vip section paths and JacRed types.
     /// Keep dry_run_ultradox_parser.py in sync.
     /// </summary>
     static class UltradoxCategories

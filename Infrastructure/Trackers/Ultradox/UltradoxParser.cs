@@ -9,8 +9,9 @@ using JacRed.Models.tParse;
 namespace JacRed.Infrastructure.Trackers.Ultradox
 {
     /// <summary>
-    /// Parses ultradox.onl (redirects to numbered ultadox.space mirrors).
+    /// Parses ultradox.vip (307 → numbered 00N.ultradox.vip mirrors).
     /// Listing magnets have empty btih — real magnets live on detail pages.
+    /// FileDB urls stay on the configured host, not the numbered mirror.
     /// </summary>
     public static class UltradoxParser
     {
@@ -105,9 +106,11 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
         }
 
         /// <summary>
-        /// Last listing page from DLE <c>div.pages</c>. Uses the last pager that matches
-        /// <c>/{section}/page/N/</c> (footer, not the in-table AJAX widget). A global
-        /// <c>/page/N/</c> scan inflates maps (webrips 2613 on master 2026-09-10).
+        /// Last listing page from DLE <c>div.pages</c>. Takes the <b>smallest</b>
+        /// last-page among section-matching pagers: footer is inflated (live
+        /// webrips 2621 vs real 2329, 0 rows on footer-last, master 2026-09-18)
+        /// and in-table AJAX widgets inflate the other way. A global
+        /// <c>/page/N/</c> scan also inflates maps.
         /// </summary>
         public static int LastPageFromHtml(string body, string sectionPath = null)
         {
@@ -119,13 +122,18 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                 ? PageNumRe
                 : new Regex("/" + Regex.Escape(section) + @"/page/([0-9]+)/", RegexOptions.IgnoreCase);
 
+            int chosen = 0;
             var blocks = PagesBlockRe.Matches(body);
-            for (int i = blocks.Count - 1; i >= 0; i--)
+            for (int i = 0; i < blocks.Count; i++)
             {
                 int fromBlock = MaxPageIn(blocks[i].Groups[1].Value, pageRe);
-                if (fromBlock > 0)
-                    return fromBlock;
+                if (fromBlock <= 0)
+                    continue;
+                chosen = chosen == 0 ? fromBlock : Math.Min(chosen, fromBlock);
             }
+
+            if (chosen > 0)
+                return chosen;
 
             int fallback = MaxPageIn(body, pageRe);
             return fallback > 0 ? fallback : 1;
@@ -442,9 +450,7 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
                 return null;
 
             host = (host ?? "").TrimEnd('/');
-            string detailUrl = item.DetailUrl ?? "";
-            if (!detailUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                detailUrl = host + "/" + detailUrl.TrimStart('/');
+            string detailUrl = AbsoluteOnHost(host, item.DetailUrl);
 
             string hashPrefix = variant.Hash.Length <= 8 ? variant.Hash : variant.Hash[..8];
             string uniqueUrl = detailUrl + "#h=" + hashPrefix;
@@ -490,6 +496,55 @@ namespace JacRed.Infrastructure.Trackers.Ultradox
 
         public static bool ListingMagnetsArePlaceholders(string body) =>
             (body ?? "").Contains("magnet:?xt=urn:btih:&", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Put a listing/detail href on <paramref name="host"/> so FileDB keys
+        /// stay on ultradox.vip, not 00N.ultradox.vip after a 307.
+        /// </summary>
+        public static string AbsoluteOnHost(string host, string href)
+        {
+            host = (host ?? "").TrimEnd('/');
+            href = (href ?? "").Trim();
+            if (href.Length == 0)
+                return host;
+
+            if (Uri.TryCreate(href, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                return host + uri.AbsolutePath + uri.Query + uri.Fragment;
+            }
+
+            return host + "/" + href.TrimStart('/');
+        }
+
+        /// <summary>Host-independent path + fragment, lowercase. Identity for domain rewrites.</summary>
+        public static string CanonicalPathAndFragment(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return "";
+
+            url = url.Trim();
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                return (uri.AbsolutePath + uri.Query + uri.Fragment).ToLowerInvariant();
+            }
+
+            if (!url.StartsWith('/'))
+                url = "/" + url;
+            return url.ToLowerInvariant();
+        }
+
+        public static string CanonicalTorrentUrl(string host, string url)
+        {
+            host = (host ?? "").TrimEnd('/');
+            string path = CanonicalPathAndFragment(url);
+            if (path.Length == 0)
+                return "";
+            if (!path.StartsWith('/'))
+                path = "/" + path;
+            return host + path;
+        }
 
         static string FlattenTitle(string raw)
         {

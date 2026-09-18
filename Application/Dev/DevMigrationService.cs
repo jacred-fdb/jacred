@@ -12,6 +12,7 @@ namespace JacRed.Application.Dev
         readonly RemoveDuplicateAnilibertyMigration _removeDuplicateAniliberty;
         readonly FixAnimelayerDuplicatesMigration _fixAnimelayerDuplicates;
         readonly FixKinozalDomainDuplicatesMigration _fixKinozalDomainDuplicates;
+        readonly FixUltradoxDomainDuplicatesMigration _fixUltradoxDomainDuplicates;
 
         public DevMigrationService(
             FixKnabenNamesMigration fixKnabenNames,
@@ -21,7 +22,8 @@ namespace JacRed.Application.Dev
             FixAnilibertyUrlsMigration fixAnilibertyUrls,
             RemoveDuplicateAnilibertyMigration removeDuplicateAniliberty,
             FixAnimelayerDuplicatesMigration fixAnimelayerDuplicates,
-            FixKinozalDomainDuplicatesMigration fixKinozalDomainDuplicates)
+            FixKinozalDomainDuplicatesMigration fixKinozalDomainDuplicates,
+            FixUltradoxDomainDuplicatesMigration fixUltradoxDomainDuplicates)
         {
             _fixKnabenNames = fixKnabenNames;
             _fixBitruNames = fixBitruNames;
@@ -31,6 +33,7 @@ namespace JacRed.Application.Dev
             _removeDuplicateAniliberty = removeDuplicateAniliberty;
             _fixAnimelayerDuplicates = fixAnimelayerDuplicates;
             _fixKinozalDomainDuplicates = fixKinozalDomainDuplicates;
+            _fixUltradoxDomainDuplicates = fixUltradoxDomainDuplicates;
         }
 
         public object FixKnabenNames() => _fixKnabenNames.Run();
@@ -53,5 +56,7 @@ namespace JacRed.Application.Dev
         public object FixAnimelayerDuplicates() => _fixAnimelayerDuplicates.Run();
 
         public object FixKinozalDomainDuplicates() => _fixKinozalDomainDuplicates.Run();
+
+        public object FixUltradoxDomainDuplicates() => _fixUltradoxDomainDuplicates.Run();
     }
 }
