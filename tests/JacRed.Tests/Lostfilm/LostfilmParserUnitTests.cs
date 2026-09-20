@@ -151,3 +151,19 @@ public class LostfilmParserHelperTests
         Assert.All(links, x => Assert.True(LostfilmParser.IsPreferredQuality(x.quality)));
     }
 }
+
+public class LostfilmAuthCookieTests
+{
+    // lostfilm отдаёт magnet-ссылки только авторизованным: без cookie страница V
+    // приходит пустой. Проверка должна ловить это до обхода эпизодов.
+    [Theory]
+    [InlineData("lf_loyal_person=0; lf_session=S; lf_udv=U; PHPSESSID=P", true)]
+    [InlineData("PHPSESSID=abc", true)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    [InlineData(null, false)]
+    public void DetectsMissingCookie(string cookie, bool expected)
+    {
+        Assert.Equal(expected, LostfilmParser.HasAuthCookie(cookie));
+    }
+}

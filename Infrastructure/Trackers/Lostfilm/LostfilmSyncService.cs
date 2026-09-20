@@ -22,6 +22,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         public async Task<string> ParseAsync()
         {
             if (!EnsureConfig()) return "conf";
+            if (!EnsureAuth()) return "auth";
 
             return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
@@ -48,6 +49,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         public async Task<string> ParsePagesAsync(int pageFrom = 1, int pageTo = 1)
         {
             if (!EnsureConfig()) return "conf";
+            if (!EnsureAuth()) return "auth";
 
             return await TrackerSyncHelpers.RunParseAsync(TrackerName, _parseLock, checkDisabled: false, async () =>
             {
@@ -92,6 +94,7 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         public async Task<string> ParseSeasonPacksAsync(string series)
         {
             if (!EnsureConfig()) return "conf";
+            if (!EnsureAuth()) return "auth";
             if (string.IsNullOrWhiteSpace(series))
                 return "series required";
 
@@ -275,6 +278,20 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
         }
 
         static bool EnsureConfig() => AppInit.conf != null && AppInit.conf.Lostfilm != null;
+
+        /// <summary>
+        /// Без cookie парс не даёт результата: раздачи находятся, но магнит-ссылки
+        /// недоступны, и на каждой серии пишется ошибка разворачивания. Сообщаем
+        /// причину один раз — как это делают Baibako и Rudub.
+        /// </summary>
+        static bool EnsureAuth()
+        {
+            if (LostfilmParser.HasAuthCookie(AppInit.conf?.Lostfilm?.cookie))
+                return true;
+
+            ParserLog.Write(TrackerName, "No cookie or login credentials available — lostfilm requires lf_loyal_person/lf_session/lf_udv/PHPSESSID (see docs/trackers/lostfilm.mdx)");
+            return false;
+        }
 
         /// <param name="host">Базовый URL LostFilm (например https://www.lostfilm.tv)</param>
         /// <param name="cookie">Cookie для авторизованных запросов</param>
@@ -637,12 +654,17 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
                 ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: episodeId={episodeId}");
 
                 string searchHtml = await FetchVPageHtml(host, cookie, null, episodeId);
-                if (string.IsNullOrEmpty(searchHtml) || !searchHtml.Contains("inner-box--link"))
+                if (string.IsNullOrEmpty(searchHtml))
                 {
-                    if (!string.IsNullOrWhiteSpace(cookie))
-                        ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no inner-box--link (auth?) for {episodeUrl}");
+                    ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: empty V-page response for {episodeUrl} (no authorization?)");
+                    return new List<(string, string, string)>();
+                }
+                if (!searchHtml.Contains("inner-box--link"))
+                {
+                    if (LostfilmParser.HasAuthCookie(cookie))
+                        ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no inner-box--link (cookie expired?) for {episodeUrl}");
                     else
-                        ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no inner-box--link after V page");
+                        ParserLog.Write(TrackerName, $"      GetMagnetsForEpisode: no inner-box--link after V page (cookie is not configured — see docs/trackers/lostfilm.mdx)");
                     return new List<(string, string, string)>();
                 }
                 return await ParseVPageQualityLinks(host, cookie, searchHtml);

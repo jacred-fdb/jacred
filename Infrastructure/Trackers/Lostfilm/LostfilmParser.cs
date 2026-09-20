@@ -84,6 +84,14 @@ namespace JacRed.Infrastructure.Trackers.Lostfilm
             return (year, russianName);
         }
 
+        /// <summary>
+        /// Lostfilm отдаёт magnet-ссылки только авторизованным: анонимно страница V
+        /// (v_search.php) приходит пустой, inner-box--link в ответе нет, и обход эпизодов
+        /// заканчивается ошибкой разворачивания на каждой серии. Cookie задаётся в init.yaml:
+        /// lf_loyal_person, lf_session, lf_udv, PHPSESSID (docs/trackers/lostfilm.mdx).
+        /// </summary>
+        public static bool HasAuthCookie(string cookie) => !string.IsNullOrWhiteSpace(cookie);
+
         /// <summary>Store 1080p and 2160p from V-pages (episodes, movies, season packs).</summary>
         public static readonly string[] PreferredQualities = { "1080p", "2160p" };
 
