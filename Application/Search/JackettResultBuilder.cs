@@ -75,6 +75,13 @@ namespace JacRed.Application.Search
 
             return categoryIds;
         }
+
+        internal static HashSet<int> CategoryIds(TorrentDetails t)
+        {
+            if (t?.types == null || t.types.Length == 0)
+                return new HashSet<int>();
+            return GetCategoryIds(t, out _);
+        }
         #endregion
 
         #region Объединить дубликаты

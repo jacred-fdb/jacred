@@ -49,7 +49,7 @@ Search Feed Prowlarr принимает те же параметры, что и 
 </ParamField>
 
 <ParamField path="query.q" type="string">
-  Поисковый запрос.
+  Поисковый запрос. Если `q`, `imdbid` и названия пустые, возвращаются последние раздачи.
 </ParamField>
 
 <ParamField path="query.title" type="string">
@@ -133,6 +133,13 @@ curl "http://localhost:9117/torznab/api?t=indexers&configured=true&apikey=KEY"
 curl "http://localhost:9117/torznab/api?t=search&q=матрица&apikey=KEY"
 ```
 
+```bash RSS без запроса
+curl -G "http://localhost:9117/torznab/api" \
+  --data-urlencode "apikey=KEY" \
+  --data-urlencode "t=search" \
+  --data-urlencode "cat=2000,5000"
+```
+
 ```bash Поиск сериала по сезону
 curl "http://localhost:9117/torznab/api?t=tvsearch&q=breaking+bad&season=1&ep=1&apikey=KEY"
 ```
@@ -152,6 +159,8 @@ curl "http://localhost:9117/api/v1/indexer"
 </CodeGroup>
 
 <Note>
+  Запрос без `q`, `imdbid`, `title` и `title_original` возвращает последние раздачи по дате добавления. Учитываются `cat` и `limit`. Для `t=tvsearch` берутся сериалы (`5000`), для `t=movie` — фильмы (`2000`). Так Prowlarr, Sonarr и Radarr проходят проверку индексера и синхронизируют RSS.
+
   Запросы только с `tvdbid` (без `q` или `imdbid`) возвращают пустой результат, так как JacRed не поддерживает TVDB ID.
 </Note>
 

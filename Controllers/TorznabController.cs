@@ -60,7 +60,10 @@ namespace JacRed.Controllers
             string title = query["title"].ToString();
             string titleOriginal = query["title_original"].ToString();
             if (string.IsNullOrWhiteSpace(resolvedQuery) && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(titleOriginal))
-                return XmlSearchResult(new List<Result>(), t, query, origin, torznabApiUrl);
+            {
+                var recent = TorznabRecentFeed.Latest(query, indexer, t, apikey);
+                return XmlSearchResult(recent, t, query, origin, torznabApiUrl);
+            }
 
             var req = IndexerSearchHelper.BuildRequest(query, apikey, rqnum: false, boundQuery: resolvedQuery);
             TrackerNameMatching.ApplyIndexerPathFilter(req, indexer);
