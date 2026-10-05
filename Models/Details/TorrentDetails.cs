@@ -18,7 +18,17 @@ namespace JacRed.Models.Details
 
         public object Clone()
         {
-            return MemberwiseClone();
+            var clone = (TorrentDetails)MemberwiseClone();
+
+            // The source may be a live FileDB cache record: give the clone its own sets,
+            // so merging duplicates into the clone does not mutate the cached ones.
+            if (voices != null)
+                clone.voices = new HashSet<string>(voices);
+
+            if (languages != null)
+                clone.languages = new HashSet<string>(languages);
+
+            return clone;
         }
     }
 }

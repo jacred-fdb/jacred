@@ -174,7 +174,7 @@ namespace JacRed.Application.Search
                         {
                             if (t.torrent.voices == null)
                             {
-                                t.torrent.voices = torrent.voices;
+                                t.torrent.voices = new HashSet<string>(torrent.voices);
                             }
                             else
                             {
@@ -288,7 +288,8 @@ namespace JacRed.Application.Search
                         relased = i.relased,
                         videotype = i.videotype,
                         quality = i.quality,
-                        voices = i.voices,
+                        // MergeAndSort adds into info.voices; i may be a FileDB cache record.
+                        voices = i.voices != null ? new HashSet<string>(i.voices) : null,
                         seasons = i.seasons != null && i.seasons.Count > 0 ? i.seasons : null,
                         types = i.types
                     }
