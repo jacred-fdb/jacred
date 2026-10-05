@@ -28,7 +28,9 @@ namespace JacRed.Infrastructure.Indexers
 
                     if (!map.TryGetValue(key, out var existing))
                     {
-                        map[key] = item;
+                        // Inputs may be shared with other requests (FileDB cache records,
+                        // IMemoryCache result lists): merge into a copy, never into the input.
+                        map[key] = item.Clone();
                         continue;
                     }
 
@@ -52,7 +54,7 @@ namespace JacRed.Infrastructure.Indexers
                         existing.languages = item.languages;
 
                     if (existing.info == null && item.info != null)
-                        existing.info = item.info;
+                        existing.info = item.info.Clone();
                 }
             }
 

@@ -174,7 +174,7 @@ namespace JacRed.Application.Search
                         {
                             if (t.torrent.voices == null)
                             {
-                                t.torrent.voices = torrent.voices;
+                                t.torrent.voices = new HashSet<string>(torrent.voices);
                             }
                             else
                             {
