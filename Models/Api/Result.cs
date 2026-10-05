@@ -31,5 +31,13 @@ namespace JacRed.Models.Api
         public HashSet<string> languages { get; set; }
 
         public TorrentInfo info { get; set; }
+
+
+        public Result Clone()
+        {
+            var clone = (Result)MemberwiseClone();
+            clone.info = info?.Clone();
+            return clone;
+        }
     }
 }

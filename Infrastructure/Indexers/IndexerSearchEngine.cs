@@ -292,8 +292,7 @@ namespace JacRed.Infrastructure.Indexers
                     originalname = i.originalname,
                     relased = i.relased,
                     sizeName = i.sizeName,
-                    // MergeAndSort adds into info.voices; i is a FileDB cache record.
-                    voices = i.voices != null ? new HashSet<string>(i.voices) : null,
+                    voices = i.voices,
                     seasons = i.seasons,
                     types = i.types
                 }

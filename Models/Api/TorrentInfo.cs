@@ -21,5 +21,16 @@ namespace JacRed.Models.Api
         public string originalname { get; set; }
 
         public int relased { get; set; }
+
+
+        public TorrentInfo Clone()
+        {
+            var clone = (TorrentInfo)MemberwiseClone();
+
+            if (voices != null)
+                clone.voices = new HashSet<string>(voices);
+
+            return clone;
+        }
     }
 }

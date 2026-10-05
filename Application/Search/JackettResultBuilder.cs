@@ -288,8 +288,7 @@ namespace JacRed.Application.Search
                         relased = i.relased,
                         videotype = i.videotype,
                         quality = i.quality,
-                        // MergeAndSort adds into info.voices; i may be a FileDB cache record.
-                        voices = i.voices != null ? new HashSet<string>(i.voices) : null,
+                        voices = i.voices,
                         seasons = i.seasons != null && i.seasons.Count > 0 ? i.seasons : null,
                         types = i.types
                     }

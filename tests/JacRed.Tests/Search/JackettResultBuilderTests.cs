@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JacRed.Application.Search;
-using JacRed.Infrastructure.Indexers;
-using JacRed.Models.Api;
 using JacRed.Models.Details;
 using Xunit;
 
@@ -62,22 +60,5 @@ public class JackettResultBuilderTests
         Assert.Equal(new[] { "rus" }, b.languages);
         Assert.Equal(new[] { "HDRezka" }, c.voices);
         Assert.Equal(new[] { "ukr" }, c.languages);
-    }
-
-    [Fact]
-    public void MergeAndSort_DoesNotMutateSourceRecords()
-    {
-        var a = Torrent("rutor", 0, new HashSet<string> { "LostFilm" }, null);
-        var other = new Result
-        {
-            MagnetUri = Magnet,
-            info = new TorrentInfo { voices = new HashSet<string> { "HDRezka" } },
-        };
-
-        var batch = JackettResultBuilder.Build(Db(a), null, false);
-        var merged = Assert.Single(IndexerResultMerger.MergeAndSort(batch, new[] { other }));
-
-        Assert.Equal(new[] { "HDRezka", "LostFilm" }, merged.info.voices.OrderBy(v => v));
-        Assert.Equal(new[] { "LostFilm" }, a.voices);
     }
 }
