@@ -350,11 +350,12 @@ public class FileDBVoicesTests : IDisposable
     [Theory]
     [InlineData("ТеТ")]
     [InlineData("ТЕТ")]
+    [InlineData("TET")]
     public void UpdateFullDetails_ExactNameWithSeveralWrittenForms_MatchesEach(string written)
     {
         var t = Update($"Друзья / Friends (1994) WEB-DL 1080p | {written}");
 
-        Assert.Equivalent(new[] { "ТеТ" }, t.voices, strict: true);
+        Assert.Equivalent(new[] { "ТЕТ" }, t.voices, strict: true);
         Assert.Contains("ukr", t.languages);
     }
 
@@ -456,6 +457,51 @@ public class FileDBVoicesTests : IDisposable
     public void UpdateFullDetails_SourceOfTheFile_IsNeverAVoice(string track)
     {
         Assert.Empty(UpdateWithTracks(track).voices);
+    }
+
+    [Theory]
+    [InlineData("AVO V.Popov", "А. Попов")]
+    [InlineData("AVO Алексей Попов", "А. Попов")]
+    [InlineData("VO Егор Хрусталёв", "М. Латышев")]
+    [InlineData("VO Solod", "Е. Солодухин")]
+    [InlineData("MVO Neoclassica", "Неоклассика")]
+    [InlineData("VO Петербуржец", "В. Козлов")]
+    [InlineData("VO Владимир Козлов", "В. Козлов")]
+    [InlineData("VO Сергей Козлов", "С. Козлов")]
+    [InlineData("VO Козлов", "Козлов")]
+    public void UpdateFullDetails_PersonOrStudioUnderOtherName_IsShownUnderOneName(string track, string name)
+    {
+        Assert.Equivalent(new[] { name }, UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_TwoPeopleOfOneTrack_AreBothFound()
+    {
+        Assert.Equivalent(new[] { "П. Гланц", "И. Королёва" }, UpdateWithTracks("DVO, Гланц и Королёва").voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("MVO СТС со вставками В. Котова")]
+    [InlineData("Dub, BD CEE")]
+    [InlineData("BD USA Paramount Pictures")]
+    [InlineData("MVO FocusStudio (Михаил Хрусталев, Анна Ветрова)")]
+    public void UpdateFullDetails_SourceOrListedActor_IsNoVoice(string track)
+    {
+        var voices = UpdateWithTracks(track).voices;
+
+        Assert.DoesNotContain("BD CEE", voices);
+        Assert.DoesNotContain("Paramount Pictures", voices);
+        Assert.DoesNotContain("Котова", voices);
+        Assert.DoesNotContain("М. Латышев", voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioOfSeveralLanguages_IsNotRussian()
+    {
+        var t = UpdateWithTracks("Dub | Cinema Tone Production");
+
+        Assert.Equivalent(new[] { "Cinema Tone Production" }, t.voices, strict: true);
+        Assert.Empty(t.languages);
     }
 
     [Theory]
