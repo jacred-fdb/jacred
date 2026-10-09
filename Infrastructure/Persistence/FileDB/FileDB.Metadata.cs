@@ -104,7 +104,8 @@ namespace JacRed.Infrastructure.Persistence
                 catch { }
             }
 
-            var streams = TracksDB.Get(t.magnet, t.types);
+            // ffprobe of the record (a synced instance has no tracks DB of its own), else the local tracks DB
+            var streams = t.ffprobe is { Count: > 0 } ? t.ffprobe : TracksDB.Get(t.magnet, t.types);
             if (streams != null)
             {
                 foreach (var s in streams.Where(s => !string.IsNullOrEmpty(s.tags?.title) && s.codec_type == "audio"))

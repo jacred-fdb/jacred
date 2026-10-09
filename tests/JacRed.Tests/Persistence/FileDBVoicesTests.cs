@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Models.Details;
@@ -120,5 +122,75 @@ public class FileDBVoicesTests : IDisposable
         Assert.Contains("Интерфильм", t.voices);
         Assert.DoesNotContain("Интер", t.voices);
         Assert.DoesNotContain("ukr", t.languages);
+    }
+
+    static List<ffStream> AudioTracks(params string[] titles) =>
+        titles.Select(x => new ffStream { codec_type = "audio", tags = new ffTags { title = x } }).ToList();
+
+    [Fact]
+    public void UpdateFullDetails_RecordFfprobe_TrackTitleVoiceIsDetected()
+    {
+        // A synced instance has the tracks in the record, not in its own tracks DB
+        var t = Details("Дюна / Dune: Part One (2021) BDRip 1080p");
+        t.ffprobe = AudioTracks("Dub | Пифагор", "Original");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Contains("Пифагор", t.voices);
+        Assert.Contains("rus", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_EmptyRecordFfprobe_FallsBackToTracksDb()
+    {
+        TracksAnalyzer.Database[InfoHash] = new FfprobeModel { streams = AudioTracks("Dub | Пифагор") };
+        var t = Details("Дюна / Dune: Part One (2021) BDRip 1080p");
+        t.ffprobe = new List<ffStream>();
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Contains("Пифагор", t.voices);
+    }
+
+    const string FdbName = "Дюна ffprobe тест", FdbOriginalName = "Dune Ffprobe Test";
+
+    static TorrentDetails FdbRecord()
+    {
+        var t = Details($"{FdbName} / {FdbOriginalName} (2021) BDRip 1080p");
+        t.name = FdbName;
+        t.originalname = FdbOriginalName;
+        return t;
+    }
+
+    [Fact]
+    public void AddOrUpdate_FfprobeArrivesLater_VoicesAreRecomputed()
+    {
+        string key = FileDB.KeyForTorrent(FdbName, FdbOriginalName);
+        string path = FileDB.PathForKey(key);
+        try
+        {
+            using var fdb = FileDB.OpenWrite(key);
+            fdb.AddOrUpdate(FdbRecord());
+            Assert.Empty(fdb.Database[FdbRecord().url].voices);
+
+            var later = FdbRecord();
+            later.ffprobe = AudioTracks("Dub | Пифагор");
+            fdb.AddOrUpdate(later);
+
+            Assert.Contains("Пифагор", fdb.Database[later.url].voices);
+            Assert.Contains("rus", fdb.Database[later.url].languages);
+        }
+        finally
+        {
+            using (var fdb = FileDB.OpenWrite(key))
+            {
+                fdb.Database.Clear();
+                fdb.savechanges = true;
+            }
+
+            FileDB.RemoveKeyFromMasterDb(key);
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 }

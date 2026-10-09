@@ -234,7 +234,8 @@ namespace JacRed.Infrastructure.Persistence
                 if (torrent.ffprobe != null && t.ffprobe == null)
                 {
                     t.ffprobe = torrent.ffprobe;
-                    upt();
+                    // audio track titles name voices
+                    upt(uptfull: true);
                 }
 
                 if (updateFull)
