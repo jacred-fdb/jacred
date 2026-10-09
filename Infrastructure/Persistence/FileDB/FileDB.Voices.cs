@@ -217,6 +217,17 @@ namespace JacRed.Infrastructure.Persistence
                         Hidden[key] = shown.GetValueOrDefault(x, x);
                 }
 
+                // a key is hidden if any of its spellings is a stop word ("ДІМ" as "Дім"), whichever came first
+                foreach (string raw in voiceStopWords)
+                {
+                    string key = VoiceKey(raw);
+                    if (key != null && Names.TryGetValue(key, out string name) && name != string.Empty)
+                    {
+                        Hidden[key] = name;
+                        Names[key] = string.Empty;
+                    }
+                }
+
                 foreach (string key in Names.Keys)
                 {
                     string[] w = key.Split(' ', '+');
@@ -274,7 +285,8 @@ namespace JacRed.Infrastructure.Persistence
         static readonly HashSet<string> voiceStopWords = new HashSet<string>
         {
             "Levelin", "DeMon", "Discovery", "Description", "Gemini", "Shaman", "Lupin", "Macross", "Elysium",
-            "Ворон", "Карусель", "Пятница", "Перец", "Альянс", "Домашний", "Россия", "Советский", "Акцент",
+            "Ворон", "Карусель", "Karusel", "Пятница", "Перец", "Альянс", "Домашний", "Domashniy", "Россия",
+            "Советский", "Акцент",
             "Оверлорд", "Twister", "VendettA", "madrid", "Sengoku", "Kobayashi", "Акира", "Rumble",
             "Tycoon", "Good People", "Пирамида", "Гризли", "Superbit", "Супербит", "Мосфильм", "Ленфильм",
             "Союзмультфильм", "Paradox", "Живаго", "Сокуров", "Ракурс", "Парадиз", "ELEKTRI4KA", "Ultradox",

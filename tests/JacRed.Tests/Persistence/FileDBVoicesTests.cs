@@ -452,6 +452,27 @@ public class FileDBVoicesTests : IDisposable
     }
 
     [Theory]
+    [InlineData("Ну, погоди! (1969) DVDRip | Karusel")]
+    [InlineData("Сваты (2008) DVDRip | Domashniy")]
+    public void UpdateFullDetails_LatinSpellingOfChannelInReleaseTitle_IsNoVoice(string title)
+    {
+        Assert.Empty(Update(title).voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_LatinSpellingOfChannelInTrackTitle_IsTheStudio()
+    {
+        Assert.Equivalent(new[] { "Карусель" }, UpdateWithTracks("MVO Karusel").voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioOfAWordInReleaseTitle_IsTheVoiceWhenSpelledOut()
+    {
+        // only the bare word "Нота" is hidden in a release title; "Студия Нота" is the studio
+        Assert.Equivalent(new[] { "Нота" }, Update("Друзья / Friends (1994) DVDRip | MVO (Студия Нота)").voices, strict: true);
+    }
+
+    [Theory]
     [InlineData("DUB (iTunes)")]
     [InlineData("Dub Netflix")]
     public void UpdateFullDetails_SourceOfTheFile_IsNeverAVoice(string track)
