@@ -111,4 +111,4 @@ curl "http://localhost:9117/dev/ExportTracks"
 tracks: false
 ```
 
-Native API продолжит работать, но поля `ffprobe` и `languages` будут отсутствовать. Torznab XML и Jackett JSON не используют эти поля.
+Native API продолжит работать, но поля `ffprobe` и `languages` будут отсутствовать. Torznab XML и Jackett JSON по-прежнему получают языки из метаданных раздачи и уже сохранённых дорожек.

@@ -1,6 +1,7 @@
 using JacRed.Application.Search;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Tracks;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Api;
 using JacRed.Models.AppConf;
@@ -255,7 +256,7 @@ namespace JacRed.Infrastructure.Indexers
             return (resolved.Search, resolved.AltName);
         }
 
-        static Result MapV1(TorrentDetails i, bool rqnum)
+        internal static Result MapV1(TorrentDetails i, bool rqnum)
         {
             var cats = new HashSet<int>();
             string catDesc = null;
@@ -285,7 +286,8 @@ namespace JacRed.Infrastructure.Indexers
                 Peers = i.pir,
                 MagnetUri = i.magnet,
                 ffprobe = rqnum || !AppInit.conf.tracks ? null : i.ffprobe,
-                languages = i.languages,
+                // Stored languages come from metadata only; add the audio tracks, as JackettResultBuilder does.
+                languages = TracksDB.Languages(i, i.ffprobe),
                 info = rqnum ? null : new TorrentInfo
                 {
                     name = i.name,
