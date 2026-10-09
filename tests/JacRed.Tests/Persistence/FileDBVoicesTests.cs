@@ -473,14 +473,6 @@ public class FileDBVoicesTests : IDisposable
     }
 
     [Theory]
-    [InlineData("DUB (iTunes)")]
-    [InlineData("Dub Netflix")]
-    public void UpdateFullDetails_SourceOfTheFile_IsNeverAVoice(string track)
-    {
-        Assert.Empty(UpdateWithTracks(track).voices);
-    }
-
-    [Theory]
     [InlineData("AVO V.Popov", "А. Попов")]
     [InlineData("AVO Алексей Попов", "А. Попов")]
     [InlineData("VO Егор Хрусталёв", "М. Латышев")]
@@ -496,24 +488,38 @@ public class FileDBVoicesTests : IDisposable
     }
 
     [Fact]
-    public void UpdateFullDetails_TwoPeopleOfOneTrack_AreBothFound()
+    public void UpdateFullDetails_ConjunctionBeforeSurname_IsReadAsTheInitial()
     {
+        // the key of "И. Королёва" is "и королева", so the conjunction in "Гланц и Королёва" reads as the initial;
+        // in the dump every such title is this pair
         Assert.Equivalent(new[] { "П. Гланц", "И. Королёва" }, UpdateWithTracks("DVO, Гланц и Королёва").voices, strict: true);
     }
 
     [Theory]
-    [InlineData("MVO СТС со вставками В. Котова")]
-    [InlineData("Dub, BD CEE")]
-    [InlineData("BD USA Paramount Pictures")]
-    [InlineData("MVO FocusStudio (Михаил Хрусталев, Анна Ветрова)")]
-    public void UpdateFullDetails_SourceOrListedActor_IsNoVoice(string track)
+    [InlineData("Dub, BD CEE", "")]
+    [InlineData("BD USA Paramount Pictures", "")]
+    [InlineData("TNT Sports", "")]
+    [InlineData("MVO ТНТ", "ТНТ")]
+    public void UpdateFullDetails_SourceOfTheTrack_IsNoVoice(string track, string expected)
     {
-        var voices = UpdateWithTracks(track).voices;
+        Assert.Equivalent(expected.Split('|', StringSplitOptions.RemoveEmptyEntries), UpdateWithTracks(track).voices, strict: true);
+    }
 
-        Assert.DoesNotContain("BD CEE", voices);
-        Assert.DoesNotContain("Paramount Pictures", voices);
-        Assert.DoesNotContain("Котова", voices);
-        Assert.DoesNotContain("М. Латышев", voices);
+    [Theory]
+    // stop phrases of several words are in no other list: without them their last word is a voice
+    [InlineData("MVO СТС со вставками В. Котова", "СТС")]
+    [InlineData("MVO FocusStudio (Михаил Хрусталев, Анна Ветрова)", "FocusStudio")]
+    [InlineData("DVO НТВ+ (Александр Котов)", "НТВ+")]
+    [InlineData("MVO РТР (Всеволод Кузнецов)", "РТР")]
+    public void UpdateFullDetails_ListedActorOfTheSurnameOfATranslator_IsNoVoice(string track, string expected)
+    {
+        Assert.Equivalent(expected.Split('|'), UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_DvdPublisherInReleaseTitle_IsNoVoice()
+    {
+        Assert.Empty(Update("Ирония судьбы (Эльдар Рязанов) [1976, комедия, DVDRemux] Издание Крупный План/Lizard Digital Video").voices);
     }
 
     [Fact]

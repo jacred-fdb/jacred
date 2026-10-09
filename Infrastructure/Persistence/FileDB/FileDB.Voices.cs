@@ -190,7 +190,7 @@ namespace JacRed.Infrastructure.Persistence
                         shown[s] = a.Key;
                 }
 
-                // voiceStopWords last: sources such as "Netflix" are in no other list
+                // voiceStopWords last: stop phrases such as "Александр Котов" are in no other list
                 foreach (string raw in voiceAliases.Keys.Concat(allVoices).Concat(voiceAliases.Values.SelectMany(s => s)).Concat(voiceStopWords))
                 {
                     string x = WebUtility.HtmlDecode(raw).Normalize(NormalizationForm.FormC);
@@ -291,7 +291,7 @@ namespace JacRed.Infrastructure.Persistence
             "Tycoon", "Good People", "Пирамида", "Гризли", "Superbit", "Супербит", "Мосфильм", "Ленфильм",
             "Союзмультфильм", "Paradox", "Живаго", "Сокуров", "Ракурс", "Парадиз", "ELEKTRI4KA", "Ultradox",
             "National Geographic", "RG.Paravozik", "Україна", "Украина", "Ukraina",
-            "Русский дубляж", "BD CEE", "Paramount Pictures",
+            "Русский дубляж", "BD CEE", "Paramount Pictures", "TNT Sports", "Lizard Digital Video",
             "Медіа Дім Рава", // a studio, not the channel Дім
             // actors listed after the studio, namesakes of translators, "со вставками В. Котова"
             "Александр Котов", "А. Котов", "Всеволод Кузнецов", "Михаил Хрусталев", "В. Котова",
@@ -301,7 +301,7 @@ namespace JacRed.Infrastructure.Persistence
             // online cinemas: in a release title the source of the rip, like NF or AMZN
             "Кинопоиск", "Kinopoisk", "Kinopoisk HD", "KP HD", "КинопоискHD", "Кинопоиск HD", "IVI", "Okko", "Окко",
             "KION", "Кион", "Megogo", "Мегого", "MGG", "Freedom Media",
-            // sources of the file, never a voice
+            // sources of the file, not voices (no other list has them)
             "Netflix", "iTunes"
         };
 
