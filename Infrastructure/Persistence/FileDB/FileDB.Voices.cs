@@ -22,6 +22,9 @@ namespace JacRed.Infrastructure.Persistence
             if (string.IsNullOrWhiteSpace(text))
                 yield break;
 
+            // some titles write "й" as "и" + U+0306
+            text = text.Normalize(NormalizationForm.FormC);
+
             var words = new List<string>();
             var low = new List<string>();
             var seps = new List<string>();
@@ -49,11 +52,13 @@ namespace JacRed.Infrastructure.Persistence
             }
             int lead = text.Length - text.TrimStart().Length;
             int leadEnd = isTitle && text[lead] == '[' ? text.IndexOf(']', lead) : -1;
+            // "Original AC3 (IVI)": the online cinema is the source of the original track, not its studio
+            bool original = !isTitle && n > 0 && low[0] is "original" or "оригинал" or "оригінал";
 
             for (int i = 0; i < n;)
             {
                 string key = low[i];
-                string hit = VoiceDictionary.Names.ContainsKey(key) && (!VoiceDictionary.Exact.TryGetValue(key, out string written) || written == words[i]) ? key : null;
+                string hit = VoiceDictionary.Names.ContainsKey(key) && (!VoiceDictionary.Exact.TryGetValue(key, out var written) || written.Contains(words[i])) ? key : null;
                 // "НТВ+": a "+" right after a word is no word of its own
                 if (seps[i].StartsWith('+') && VoiceDictionary.Names.ContainsKey(key + " плюс"))
                     hit = key + " плюс";
@@ -91,7 +96,7 @@ namespace JacRed.Infrastructure.Persistence
                     {
                         // in an audio track title some of them are the studio: "MVO (Карусель)", "Дубляж IVI"
                         name = VoiceDictionary.Hidden[hit];
-                        yield return (name, !isTitle && voiceTrackStudios.Contains(name));
+                        yield return (name, !isTitle && !original && voiceTrackStudios.Contains(name));
                     }
                 }
 
@@ -128,7 +133,7 @@ namespace JacRed.Infrastructure.Persistence
         static readonly char[] VoiceGroupEnd = "|/\\,;()[]{}@+".ToCharArray();
 
         /// <summary>
-        /// Dictionary key of a voice name: lower case, ё -> е, words joined by a space ("+" between two words stays,
+        /// Dictionary key of a voice name: NFC, lower case, ё -> е, words joined by a space ("+" between two words stays,
         /// "+" at the end is " плюс": "НТВ+"); null if the name holds a group end and so can never match.
         /// </summary>
         static string VoiceKey(string name)
@@ -136,7 +141,7 @@ namespace JacRed.Infrastructure.Persistence
             if (string.IsNullOrWhiteSpace(name))
                 return null;
 
-            string s = name.Replace('ё', 'е').Replace('Ё', 'Е').ToLowerInvariant();
+            string s = name.Normalize(NormalizationForm.FormC).Replace('ё', 'е').Replace('Ё', 'Е').ToLowerInvariant();
             var key = new StringBuilder();
             int pos = 0;
             foreach (Match m in VoiceWord.Matches(s))
@@ -166,8 +171,8 @@ namespace JacRed.Infrastructure.Persistence
             /// <summary>Key of a common word -> its name, for the language and for <see cref="voiceTrackStudios"/>.</summary>
             internal static readonly Dictionary<string, string> Hidden = new();
 
-            /// <summary>Keys matched only as written: as words they are something else ("Deep", "Fox").</summary>
-            internal static readonly Dictionary<string, string> Exact = new();
+            /// <summary>Keys matched only as written, with their written forms: as words they are something else ("Deep", "Fox").</summary>
+            internal static readonly Dictionary<string, HashSet<string>> Exact = new();
 
             /// <summary>First words of the keys of several words.</summary>
             internal static readonly HashSet<string> FirstWords = new();
@@ -187,19 +192,28 @@ namespace JacRed.Infrastructure.Persistence
 
                 foreach (string raw in voiceAliases.Keys.Concat(allVoices).Concat(voiceAliases.Values.SelectMany(s => s)))
                 {
-                    string x = WebUtility.HtmlDecode(raw);
+                    string x = WebUtility.HtmlDecode(raw).Normalize(NormalizationForm.FormC);
                     if (voiceDropped.Contains(x))
                         continue;
 
                     string key = VoiceKey(x);
-                    if (key == null || Names.ContainsKey(key))
+                    if (key == null)
+                        continue;
+
+                    // "ТеТ" and "ТЕТ": one key, both written forms allowed
+                    if (voiceExact.Contains(x))
+                    {
+                        if (!Exact.TryGetValue(key, out var written))
+                            Exact[key] = written = new HashSet<string>();
+                        written.Add(x);
+                    }
+
+                    if (Names.ContainsKey(key))
                         continue;
 
                     Names[key] = voiceStopWords.Contains(x) ? string.Empty : shown.GetValueOrDefault(x, x);
                     if (Names[key] == string.Empty)
                         Hidden[key] = shown.GetValueOrDefault(x, x);
-                    if (voiceExact.Contains(x))
-                        Exact[key] = x;
                 }
 
                 foreach (string key in Names.Keys)
@@ -273,7 +287,7 @@ namespace JacRed.Infrastructure.Persistence
         /// </summary>
         static readonly HashSet<string> voiceExact = new HashSet<string>
         {
-            "FOX", "JAM", "AMS", "DEEP", "ТеТ", "TET", "HDr", "TVS", "LF", "NS", "SRb", "СБ", "CPI", "OPT", "HTB"
+            "FOX", "JAM", "AMS", "DEEP", "ТеТ", "ТЕТ", "TET", "HDr", "TVS", "LF", "NS", "SRb", "СБ", "CPI", "OPT", "HTB"
         };
 
         /// <summary>
@@ -415,6 +429,7 @@ namespace JacRed.Infrastructure.Persistence
             ["Mallorn Studio"] = new[] { "Mallorn Studio", "Mallorn" },
             ["Україна"] = new[] { "Україна", "Украина", "Ukraina" },
             ["Інтер"] = new[] { "Інтер", "інтер", "IНТЕР", "Inter", "Интер" },
+            ["ТеТ"] = new[] { "ТеТ", "ТЕТ" },
         };
     }
 }

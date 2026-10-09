@@ -324,6 +324,58 @@ public class FileDBVoicesTests : IDisposable
         Assert.Contains("AniLibria", t.voices);
     }
 
+    [Fact]
+    public void UpdateFullDetails_OriginalTrackOfOnlineCinema_IsNoVoice()
+    {
+        // the online cinema is the source of the original track; a studio in such a title is still the studio
+        var t = Details("Индиана Джонс / Raiders of the Lost Ark (1981) WEB-DL 1080p");
+        t.ffprobe = AudioTracks("Original AC3 (IVI)", " Оригинал | KinoPoisk HD", "Original (Пифагор)", "Дубляж IVI");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Equivalent(new[] { "Пифагор", "IVI" }, t.voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_OriginalTrackOfOnlineCinemaOnly_IsNoVoice()
+    {
+        var t = Details("Индиана Джонс / Raiders of the Lost Ark (1981) WEB-DL 1080p");
+        t.ffprobe = AudioTracks("Original AC3 (IVI)", "Original E-AC3 (KinoPoisk HD)");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Empty(t.voices);
+    }
+
+    [Theory]
+    [InlineData("ТеТ")]
+    [InlineData("ТЕТ")]
+    public void UpdateFullDetails_ExactNameWithSeveralWrittenForms_MatchesEach(string written)
+    {
+        var t = Update($"Друзья / Friends (1994) WEB-DL 1080p | {written}");
+
+        Assert.Equivalent(new[] { "ТеТ" }, t.voices, strict: true);
+        Assert.Contains("ukr", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_ExactName_OtherWrittenFormIsNoMatch()
+    {
+        Assert.Empty(Update("Друзья / Friends (1994) WEB-DL 1080p | Тет").voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_DecomposedLetters_MatchAsComposed()
+    {
+        // "й" as "и" + U+0306 in track titles; allVoices also holds such a spelling of НеЗупиняйПродакшн
+        var t = Details("Дюна / Dune: Part One (2021) BDRip 1080p");
+        t.ffprobe = AudioTracks("AVO [А.Карповскии\u0306]", "MVO НеЗупиняи\u0306Продакшн", "MVO НеЗупиняйПродакшн");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Equivalent(new[] { "А. Карповский", "НеЗупиняйПродакшн" }, t.voices, strict: true);
+    }
+
     [Theory]
     [InlineData("FoxLife", "Fox Life")]
     [InlineData("Сербин", "Ю. Сербин")]
