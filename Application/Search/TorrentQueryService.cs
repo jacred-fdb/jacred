@@ -163,7 +163,11 @@ namespace JacRed.Application.Search
                 query = query.Where(i => i.videotype == videotype);
 
             if (!string.IsNullOrWhiteSpace(voice))
-                query = query.Where(i => i.voices.Contains(voice));
+            {
+                // "FoxLife" also finds "Fox Life"; records not yet recomputed keep the old spelling
+                string canonicalVoice = FileDB.CanonicalVoice(voice);
+                query = query.Where(i => i.voices.Contains(voice) || i.voices.Contains(canonicalVoice));
+            }
 
             if (season > 0)
                 query = query.Where(i => i.seasons.Contains((int)season));
