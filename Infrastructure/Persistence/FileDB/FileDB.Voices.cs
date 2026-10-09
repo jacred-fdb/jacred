@@ -190,7 +190,8 @@ namespace JacRed.Infrastructure.Persistence
                         shown[s] = a.Key;
                 }
 
-                foreach (string raw in voiceAliases.Keys.Concat(allVoices).Concat(voiceAliases.Values.SelectMany(s => s)))
+                // voiceStopWords last: sources such as "Netflix" are in no other list
+                foreach (string raw in voiceAliases.Keys.Concat(allVoices).Concat(voiceAliases.Values.SelectMany(s => s)).Concat(voiceStopWords))
                 {
                     string x = WebUtility.HtmlDecode(raw).Normalize(NormalizationForm.FormC);
                     if (voiceDropped.Contains(x))
@@ -224,8 +225,8 @@ namespace JacRed.Infrastructure.Persistence
                     MaxWords = Math.Max(MaxWords, w.Length);
                 }
 
-                Rus = rusVoices.Select(CanonicalVoice).ToHashSet();
-                Ukr = ukrVoices.Select(CanonicalVoice).ToHashSet();
+                Rus = rusVoices.Concat(voiceRus).Select(CanonicalVoice).ToHashSet();
+                Ukr = ukrVoices.Concat(voiceUkr).Select(CanonicalVoice).ToHashSet();
             }
         }
 
@@ -250,7 +251,9 @@ namespace JacRed.Infrastructure.Persistence
         /// </summary>
         static readonly HashSet<string> voiceTrackStudios = new HashSet<string>
         {
-            "Карусель", "Домашний", "Пятница", "Tycoon", "Twister", "Союзмультфильм", "Україна", "Кинопоиск", "IVI"
+            "Карусель", "Домашний", "Пятница", "Tycoon", "Twister", "Союзмультфильм", "Україна", "Кинопоиск", "IVI",
+            "Россия", "ТВ3", "ТВ6", "AMC", "K1", "Новий Канал", "НЛО-TV", "Enter-фільм", "Дім", "Нота", "Марафон",
+            "Okko", "KION", "Megogo", "Freedom Media"
         };
 
         /// <summary>
@@ -259,9 +262,9 @@ namespace JacRed.Infrastructure.Persistence
         /// </summary>
         static readonly HashSet<string> voiceDropped = new HashSet<string>
         {
-            "Laci", "ICG", "Vano", "Oni", "Jade", "Andy", "Нота", "AMC", "НСТ", "Че!", "MGM", "МИР", "Твин", "AOS",
-            "CPIG", "D1", "Dice", "Gits", "jept", "KIHO", "Line", "MCA", "R5", "SGEV", "TB5", "Tori", "Troy", "Twix",
-            "VHS", "ГКГ", "ИГМ", "Инис", "Ирэн", "К9", "ТРК", "КiT", "NLO", "НЛО", "ТВ3", "ТВ-3", "ТВ6"
+            "Laci", "Vano", "Oni", "Jade", "Andy", "НСТ", "Че!", "MGM", "МИР", "Твин", "AOS",
+            "D1", "Dice", "Gits", "jept", "KIHO", "Line", "MCA", "R5", "SGEV", "TB5", "Tori", "Troy", "Twix",
+            "VHS", "ГКГ", "ИГМ", "Ирэн", "К9", "ТРК", "КiT", "ТВ-3", "ТВ-6"
         };
 
         /// <summary>
@@ -277,8 +280,15 @@ namespace JacRed.Infrastructure.Persistence
             "Союзмультфильм", "Paradox", "Живаго", "Сокуров", "Ракурс", "Парадиз", "ELEKTRI4KA", "Ultradox",
             "National Geographic", "RG.Paravozik", "Україна", "Украина", "Ukraina",
             "Русский дубляж",
+            "Медіа Дім Рава", // a studio, not the channel Дім
+            // channels and studios named by a word or a tag
+            "ТВ3", "TV3", "TB3", "ТВ6", "TV6", "AMC", "АМС", "K1", "К1", "Новий", "Novy", "NLO", "НЛО", "Enter", "Дім",
+            "Нота", "Nota", "Марафон", "Marafon",
             // online cinemas: in a release title the source of the rip, like NF or AMZN
-            "Кинопоиск", "Kinopoisk", "Kinopoisk HD", "IVI"
+            "Кинопоиск", "Kinopoisk", "Kinopoisk HD", "KP HD", "КинопоискHD", "Кинопоиск HD", "IVI", "Okko", "Окко",
+            "KION", "Кион", "Megogo", "Мегого", "MGG", "Freedom Media",
+            // sources of the file, never a voice
+            "Netflix", "iTunes"
         };
 
         /// <summary>
@@ -287,7 +297,26 @@ namespace JacRed.Infrastructure.Persistence
         /// </summary>
         static readonly HashSet<string> voiceExact = new HashSet<string>
         {
-            "FOX", "JAM", "AMS", "DEEP", "ТеТ", "ТЕТ", "TET", "HDr", "TVS", "LF", "NS", "SRb", "СБ", "CPI", "OPT", "HTB"
+            "FOX", "JAM", "AMS", "DEEP", "ТеТ", "ТЕТ", "TET", "HDr", "TVS", "LF", "NS", "SRb", "СБ", "CPI", "OPT", "HTB",
+            "HATE", "Баритон", "Bariton", "Baritone", "ICG", "SDI", "ETV", "CTC", "STS", "THT", "TNT", "RTR", "HTH",
+            "K1", "К1", "Новий", "НОВИЙ", "Novy", "NOVY", "Enter", "Дім", "ДІМ", "ДіМ"
+        };
+
+        /// <summary>Names of voiceAliases that give the language, besides rusVoices and ukrVoices.</summary>
+        static readonly string[] voiceRus =
+        {
+            "Мосфильм-Мастер", "MovieDalen", "WStudio", "RuDub", "Paragraph Media", "WinMedia", "Dragon Money Studio",
+            "1win Studio", "заКАДРЫ", "DubLikTV", "Akimbo Production", "Продубляж", "Light Breeze", "Leff Sound",
+            "Soundmasters", "Vox Records", "В. Береговых", "Honey&Haseena", "SC Produb", "Храм тысячи струн",
+            "Kazoku Project", "Digi Media", "Head Pack Films", "Delta Dubbing", "SoulPro", "Alt Pro", "HATE Studio",
+            "Баритон", "Марафон", "Voize", "Videofilm International", "ТВ6", "Нота", "Інтер-фільм"
+        };
+
+        static readonly string[] voiceUkr =
+        {
+            "Робота Голосом", "Glass Moon", "Tretyakoff Production", "Dzuski", "15КЗ", "CloverDUB", "VRdub", "Kioto Anime",
+            "Pie Post Production", "Sweet Sound Studio", "What About Production", "ГайдаМайк", "UAFlix", "MEGOGO Voice",
+            "K1", "Cine+", "Enter-фільм", "Суспільне Культура", "Дім", "ICTV2", "НТН"
         };
 
         /// <summary>
@@ -296,7 +325,7 @@ namespace JacRed.Infrastructure.Persistence
         /// </summary>
         static readonly Dictionary<string, string[]> voiceAliases = new Dictionary<string, string[]>
         {
-            ["JAM"] = new[] { "JAM", "JAM Club" },
+            ["JAM"] = new[] { "JAM", "JAM Club", "JAMCLUB" },
             ["DEEP"] = new[] { "DEEP" },
             ["AniLiberty"] = new[] { "AniLiberty" },
             ["AniBaza"] = new[] { "AniBaza" },
@@ -323,7 +352,7 @@ namespace JacRed.Infrastructure.Persistence
             ["DeadLine Studio"] = new[] { "DeadLine Studio", "DeadLine" },
             ["Voice Project Studio"] = new[] { "Voice Project Studio", "Voice Project" },
             ["Selena International"] = new[] { "Selena International", "Selena", "Селена Интернешнл", "Селена Интернэшнл" },
-            ["Ozz"] = new[] { "Ozz", "Ozz.tv", "Ozz TV" },
+            ["Ozz"] = new[] { "Ozz", "Ozz.tv", "Ozz TV", "OzzTV" },
             ["Sunshine Studio"] = new[] { "Sunshine Studio", "SunshineStudio" },
             ["Cactus Team"] = new[] { "Cactus Team", "CactusTeam" },
             ["Victory-Films"] = new[] { "Victory-Films", "VictoryFilms" },
@@ -348,28 +377,28 @@ namespace JacRed.Infrastructure.Persistence
             ["Кравец"] = new[] { "Кравец", "Kravec", "Kravets", "Kravec Records" },
             ["РенТВ"] = new[] { "РенТВ", "Рен ТВ", "Ren TV", "RenTV" },
             ["Novamedia"] = new[] { "Novamedia", "Новамедиа" },
-            ["Колобок"] = new[] { "Колобок", "Kолобок", "Студия Колобок" },
+            ["Колобок"] = new[] { "Колобок", "Kолобок", "Студия Колобок", "Kolobok" },
             ["Omskbird"] = new[] { "Omskbird", "Omskbird Records" },
             ["Kerob"] = new[] { "Kerob", "KerobTV" },
             ["Flarrow Films"] = new[] { "Flarrow Films", "FlarrowFilms" },
             ["Ю. Сербин"] = new[] { "Ю. Сербин", "Сербин", "Юрий Сербин", "Serbin", "Yu.Serbin", "Y.Serbin", "SRb" },
-            ["М. Яроцкий"] = new[] { "М. Яроцкий", "Яроцкий", "Михаил Яроцкий", "Yarotsky", "M.Yarotsky" },
+            ["М. Яроцкий"] = new[] { "М. Яроцкий", "Яроцкий", "Михаил Яроцкий", "Yarotsky", "M.Yarotsky", "Kyberpunk", "Kyberpynk" },
             ["М. Чадов"] = new[] { "М. Чадов", "Чадов", "Михаил Чадов", "Chadov", "M.Chadov" },
             ["Д. Есарев"] = new[] { "Д. Есарев", "Есарев", "Дмитрий Есарев", "Esarev", "Yesarev", "D.Esarev", "D.Yesarev" },
             ["А. Гаврилов"] = new[] { "А. Гаврилов", "Гаврилов", "Андрей Гаврилов", "Gavrilov", "A.Gavrilov" },
-            ["Ю. Живов"] = new[] { "Ю. Живов", "Живов", "Юрий Живов", "Zhivov", "Yu.Zhivov", "Jivov" },
+            ["Ю. Живов"] = new[] { "Ю. Живов", "Живов", "Юрий Живов", "Zhivov", "Yu.Zhivov", "Jivov", "Givov", "Jyvov" },
             ["Д. Пучков"] = new[] { "Д. Пучков", "Пучков", "Дмитрий Пучков", "Гоблин", "Goblin" },
             ["Кубик в Кубе"] = new[] { "Кубик в Кубе", "KvK", "Kubik-V-Kube", "Kubik V Kube", "Kubik3", "kubik&ko", "Кубик в Кубе & Ko" },
             ["LeDoyen"] = new[] { "LeDoyen", "Le Doyen" },
             ["А. Матвеев"] = new[] { "А. Матвеев", "Матвеев", "Matveev", "Doctor Joker", "Dr. Joker", "Doctor Jocker" },
-            ["А. Дольский"] = new[] { "А. Дольский", "Дольский", "Андрей Дольский", "Dolsky" },
+            ["А. Дольский"] = new[] { "А. Дольский", "Дольский", "Андрей Дольский", "Dolsky", "Dolskiy", "A.Dolsky", "A.Dolskiy" },
             ["Пифагор"] = new[] { "Пифагор", "Pythagor", "Pifagor" },
             ["Переводман"] = new[] { "Переводман", "Perevodman" },
             ["П. Гланц"] = new[] { "П. Гланц", "Гланц", "Пётр Гланц", "Петр Гланц", "Glanz", "Glanc", "P.Glanc", "P.Glantz", "P.Glanz" },
-            ["Л. Володарский"] = new[] { "Л. Володарский", "Володарский", "Леонид Володарский", "L.Volodarsky", "Volodarsky", "Volodarskiy" },
-            ["С. Визгунов"] = new[] { "С. Визгунов", "Визгунов", "Сергей Визгунов", "Vizgunov" },
+            ["Л. Володарский"] = new[] { "Л. Володарский", "Володарский", "Леонид Володарский", "L.Volodarsky", "Volodarsky", "Volodarskiy", "Volodarskij" },
+            ["С. Визгунов"] = new[] { "С. Визгунов", "Визгунов", "Сергей Визгунов", "Vizgunov", "Vizgynov" },
             ["В. Горчаков"] = new[] { "В. Горчаков", "Горчаков", "Василий Горчаков", "Gorchakov" },
-            ["В. Дохалов"] = new[] { "В. Дохалов", "Дохалов", "Вартан Дохалов" },
+            ["В. Дохалов"] = new[] { "В. Дохалов", "Дохалов", "Вартан Дохалов", "Dohalov", "Dokhalov" },
             ["А. Михалёв"] = new[] { "А. Михалёв", "Михалев", "Алексей Михалёв", "Mihalev", "Mikhalev" },
             ["Г. Либергал"] = new[] { "Г. Либергал", "Либергал", "Григорий Либергал", "Libergal" },
             ["Ю. Немахов"] = new[] { "Ю. Немахов", "Немахов", "Юрий Немахов", "Yu.Nemahov", "Nemahov", "Nemakhov" },
@@ -383,16 +412,16 @@ namespace JacRed.Infrastructure.Persistence
             ["3df voice"] = new[] { "3df voice", "3df" },
             ["Filiza Studio"] = new[] { "Filiza Studio", "Filiza" },
             ["Е. Гаевский"] = new[] { "Е. Гаевский", "Гаевский" },
-            ["А. Карповский"] = new[] { "А. Карповский", "Карповский" },
-            ["А. Алексеев"] = new[] { "А. Алексеев", "Алексеев" },
+            ["А. Карповский"] = new[] { "А. Карповский", "Карповский", "Karpovsky", "Karpovskiy", "A.Karpovsky" },
+            ["А. Алексеев"] = new[] { "А. Алексеев", "Алексеев", "Антон Алексеев", "Alekseev", "Anton Alekseev" },
             ["А. Багичев"] = new[] { "А. Багичев", "Багичев", "Bagichev" },
             ["В. Завгородний"] = new[] { "В. Завгородний", "Завгородний", "V.Zavgorodny" },
-            ["П. Карцев"] = new[] { "П. Карцев", "Карцев", "P.Kartsev" },
-            ["А. Кашкин"] = new[] { "А. Кашкин", "Кашкин" },
+            ["П. Карцев"] = new[] { "П. Карцев", "Карцев", "P.Kartsev", "Kartsev", "Karcev" },
+            ["А. Кашкин"] = new[] { "А. Кашкин", "Кашкин", "Александр Кашкин", "Первомайский", "Kashkin", "A.Kashkin" },
             ["А. Киреев"] = new[] { "А. Киреев", "Киреев" },
-            ["С. Кузнецов"] = new[] { "С. Кузнецов", "Кузнецов" },
+            ["С. Кузнецов"] = new[] { "С. Кузнецов", "Кузнецов", "Сергей Кузнецов", "Kuznecov" },
             ["В. Курдов"] = new[] { "В. Курдов", "Курдов" },
-            ["М. Латышев"] = new[] { "М. Латышев", "Латышев", "Максим Латышев" },
+            ["М. Латышев"] = new[] { "М. Латышев", "Латышев", "Максим Латышев", "Latyshev" },
             ["А. Марченко"] = new[] { "А. Марченко", "Марченко", "A.Marchenko" },
             ["Д. Нурмухаметов"] = new[] { "Д. Нурмухаметов", "Нурмухаметов", "D. Nurmukhametov" },
             ["В. Попов"] = new[] { "В. Попов", "Попов", "V.Popov" },
@@ -404,15 +433,15 @@ namespace JacRed.Infrastructure.Persistence
             ["К. Филонов"] = new[] { "К. Филонов", "Филонов" },
             ["Интер Фильм"] = new[] { "Интер Фильм", "Интерфильм", "INTERFILM" },
             ["Позитив-Мультимедиа"] = new[] { "Позитив-Мультимедиа", "Позитив", "Позитив Мультимедиа", "Positive Multimedia", "Pozitiv Multimedia", "Pozitiv" },
-            ["НТВ+"] = new[] { "НТВ+", "НТВ Плюс" },
-            ["НТВ"] = new[] { "НТВ", "HTB" },
+            ["НТВ+"] = new[] { "НТВ+", "НТВ Плюс", "NTV+" },
+            ["НТВ"] = new[] { "НТВ", "HTB", "NTV" },
             ["НТВ-Профит"] = new[] { "НТВ-Профит", "НТВ Профит" },
             ["ОРТ"] = new[] { "ОРТ", "ORT", "OPT" },
             ["Киномания"] = new[] { "Киномания", "Kinomania", "Kinomaniya", "Kinomanija", "Kinomanya" },
             ["Амальгама"] = new[] { "Амальгама", "Amalgama" },
             ["Невафильм"] = new[] { "Невафильм", "Nevafilm" },
             ["Кураж-Бамбей"] = new[] { "Кураж-Бамбей", "Kuraj-Bambey", "Kurazh-Bambey", "Kuraj Bambey" },
-            ["Кинопоиск"] = new[] { "Кинопоиск", "Kinopoisk", "Kinopoisk HD" },
+            ["Кинопоиск"] = new[] { "Кинопоиск", "Kinopoisk", "Kinopoisk HD", "KP HD", "КинопоискHD", "Кинопоиск HD" },
             ["Logos"] = new[] { "Logos", "Логос" },
             ["Русский Бестселлер"] = new[] { "Русский Бестселлер", "Бестселлер" },
             ["Tycoon"] = new[] { "Tycoon Studio", "Tycoon-Studio", "Тайкун" },
@@ -420,16 +449,112 @@ namespace JacRed.Infrastructure.Persistence
             ["Домашний"] = new[] { "Domashniy" },
             ["Дубляжная"] = new[] { "Дубляжная", "ТО Дубляжная", "TO Dublyazhnaya", "TO Dublyajnaya" },
             ["HDRezka"] = new[] { "HDRezka", "HDRezka Studio", "HDr" },
-            ["TVShows"] = new[] { "TVShows", "TVS" },
+            ["TVShows"] = new[] { "TVShows", "TVS", "TVShow" },
             ["LostFilm"] = new[] { "LostFilm", "LostFilmTV", "Lost Film", "LF" },
             ["NewStudio"] = new[] { "NewStudio", "NS" },
             ["Студийная Банда"] = new[] { "Студийная Банда", "Studio Band", "StudioBand", "СБ" },
-            ["CPI Films"] = new[] { "CPI Films", "CPI" },
-            ["НЛО-TV"] = new[] { "НЛО-TV", "NLO TV", "NLO.TV" },
+            ["CPI Films"] = new[] { "CPI Films", "CPI", "СиПиАй Филмз" },
+            ["НЛО-TV"] = new[] { "НЛО-TV", "NLO TV", "NLO.TV", "НЛО-ТБ", "NLO", "НЛО" },
             ["Mallorn Studio"] = new[] { "Mallorn Studio", "Mallorn" },
             ["Україна"] = new[] { "Україна", "Украина", "Ukraina" },
             ["Інтер"] = new[] { "Інтер", "інтер", "IНТЕР", "Inter", "Интер" },
             ["ТеТ"] = new[] { "ТеТ", "ТЕТ" },
+            ["SDI Media"] = new[] { "SDI Media", "Iyuno-SDI Group", "Iyuno", "Iyuno Russia", "SDI" },
+            ["СТС"] = new[] { "СТС", "CTC", "STS" },
+            ["ТНТ"] = new[] { "ТНТ", "THT", "TNT" },
+            ["РТР"] = new[] { "РТР", "RTR" },
+            ["НТН"] = new[] { "НТН", "HTH", "NTN" },
+            ["ETV+"] = new[] { "ETV+", "ETV" },
+            ["Прайд Продакшн"] = new[] { "Прайд Продакшн", "Pride Production" },
+            ["Гуртом"] = new[] { "Гуртом", "Hurtom", "Hurtom.com" },
+            ["Велес"] = new[] { "Велес", "Veles" },
+            ["Кипарис"] = new[] { "Кипарис", "Kiparis" },
+            ["ViruseProject"] = new[] { "ViruseProject", "Viruse Project", "VirusProject" },
+            ["Кириллица"] = new[] { "Кириллица", "Cyrillica", "Kirillitsa" },
+            ["АрхиАзия"] = new[] { "АрхиАзия", "АрхиAsia" },
+            ["CrazyCatStudio"] = new[] { "CrazyCatStudio", "Crazy Cat Studio", "Crazy Cat" },
+            ["LE-Production"] = new[] { "LE-Production", "LE-Prod" },
+            ["Pazl Voice"] = new[] { "Pazl Voice", "PazlVoice" },
+            ["Варус-Видео"] = new[] { "Варус-Видео", "Varus Video" },
+            ["Премьер Видео"] = new[] { "Премьер Видео", "Премьер Видеофильм", "Premier Videofilm" },
+            ["Видеопродакшн"] = new[] { "Видеопродакшн", "Видео Продакшн" },
+            ["BaibaKo"] = new[] { "BaibaKo", "BaibaKoTV" },
+            ["Amber"] = new[] { "Amber", "Amber Studio", "Amber Studios" },
+            ["Инис"] = new[] { "Инис", "Inis", "Студия Инис" },
+            ["ICG"] = new[] { "ICG", "ICGTV" },
+            ["CPIG"] = new[] { "CPIG", "Central Production International Group" },
+            ["Е. Гранкин"] = new[] { "Е. Гранкин", "Гранкин", "Евгений Гранкин" },
+            ["Н. Антонов"] = new[] { "Н. Антонов", "Антонов", "Николай Антонов", "Антонов Николай" },
+            ["И. Клушин"] = new[] { "И. Клушин", "Клушин", "Игорь Клушин" },
+            ["Махонько"] = new[] { "Махонько", "Mahonko" },
+            // studios
+            ["Мосфильм-Мастер"] = new[] { "Мосфильм-Мастер", "Mosfilm-Master" },
+            ["MovieDalen"] = new[] { "MovieDalen", "Movie Dalen" },
+            ["WStudio"] = new[] { "WStudio" },
+            ["RuDub"] = new[] { "RuDub" },
+            ["Paragraph Media"] = new[] { "Paragraph Media" },
+            ["WinMedia"] = new[] { "WinMedia", "Winmedia Studio" },
+            ["Dragon Money Studio"] = new[] { "Dragon Money Studio", "Dragon Money", "Драгон Мани Студио" },
+            ["1win Studio"] = new[] { "1win Studio", "1WinStudio", "1win" },
+            ["заКАДРЫ"] = new[] { "заКАДРЫ", "zaKADRY" },
+            ["Akimbo Production"] = new[] { "Akimbo Production" },
+            ["Продубляж"] = new[] { "Продубляж" },
+            ["DubLikTV"] = new[] { "DubLikTV", "DubLik TV", "ДубликТВ" },
+            ["Light Breeze"] = new[] { "Light Breeze", "Легкий Ветерок" },
+            ["Leff Sound"] = new[] { "Leff Sound", "LeffSound" },
+            ["Soundmasters"] = new[] { "Soundmasters" },
+            ["Vox Records"] = new[] { "Vox Records", "Вокс Рекордс" },
+            ["Honey&Haseena"] = new[] { "Honey&Haseena" },
+            ["SC Produb"] = new[] { "SC Produb" },
+            ["Храм тысячи струн"] = new[] { "Храм тысячи струн" },
+            ["Kazoku Project"] = new[] { "Kazoku Project", "Kazoku" },
+            ["Digi Media"] = new[] { "Digi Media" },
+            ["TV3 Group"] = new[] { "TV3 Group" },
+            ["Head Pack Films"] = new[] { "Head Pack Films" },
+            ["Delta Dubbing"] = new[] { "Delta Dubbing", "Дельта Даббинг" },
+            ["SoulPro"] = new[] { "SoulPro" },
+            ["Alt Pro"] = new[] { "Alt Pro" },
+            ["HATE Studio"] = new[] { "HATE Studio", "HATE" },
+            ["Баритон"] = new[] { "Баритон", "Bariton", "Baritone" },
+            ["Марафон"] = new[] { "Марафон", "Marafon", "Студия Марафон" },
+            ["Нота"] = new[] { "Нота", "Nota", "Студия Нота" },
+            ["Voize"] = new[] { "Voize" },
+            ["Videofilm International"] = new[] { "Videofilm International", "Videofilm Int.", "Videofilm Ltd.", "Видеофильм Интернешнл" },
+            ["В. Береговых"] = new[] { "В. Береговых", "Береговых", "Виктор Береговых" },
+            ["Syncmer"] = new[] { "Syncmer" },
+            ["Sunnysiders"] = new[] { "Sunnysiders", "Sunnysiders Audiovisual" },
+            ["Cinema Sound Production"] = new[] { "Cinema Sound Production", "Cinema Sound UA Production", "Cinema Sound UA", "Cinema Sound" },
+            ["Tretyakoff Production"] = new[] { "Tretyakoff Production" },
+            ["GoLTFilm"] = new[] { "GoLTFilm" },
+            ["Робота Голосом"] = new[] { "Робота Голосом", "Robota Holosom" },
+            ["Glass Moon"] = new[] { "Glass Moon", "Gwean & Maslinka" },
+            ["Dzuski"] = new[] { "Dzuski", "Dzuski.com" },
+            ["15КЗ"] = new[] { "15КЗ", "15К3", "15K3", "15KЗ" },
+            ["CloverDUB"] = new[] { "CloverDUB" },
+            ["VRdub"] = new[] { "VRdub" },
+            ["Kioto Anime"] = new[] { "Kioto Anime", "Кіото аніме" },
+            ["Pie Post Production"] = new[] { "Pie Post Production" },
+            ["Sweet Sound Studio"] = new[] { "Sweet Sound Studio", "Sweet Sound" },
+            ["What About Production"] = new[] { "What About Production" },
+            ["ГайдаМайк"] = new[] { "ГайдаМайк" },
+            ["UAFlix"] = new[] { "UAFlix", "ЮАФЛІКС" },
+            ["MEGOGO Voice"] = new[] { "MEGOGO Voice", "MGG Voice" },
+            ["Інтер-фільм"] = new[] { "Інтер-фільм", "ІнтерФільм", "Iнтер-фiльм", "Inter-Film" },
+            // TV channels and online cinemas
+            ["ТВ3"] = new[] { "ТВ3", "TV3", "TB3", "ТВ3 Россия" },
+            ["ТВ6"] = new[] { "ТВ6", "TV6" },
+            ["AMC"] = new[] { "AMC", "АМС" },
+            ["K1"] = new[] { "K1", "К1" },
+            ["Cine+"] = new[] { "Cine+" },
+            ["Новий Канал"] = new[] { "Новий Канал", "Новый канал", "Novy Kanal", "Новий", "НОВИЙ", "Novy", "NOVY" },
+            ["Enter-фільм"] = new[] { "Enter-фільм", "Enter-film", "Enter" },
+            ["Суспільне Культура"] = new[] { "Суспільне Культура" },
+            ["Дім"] = new[] { "Дім", "ДІМ", "ДіМ" },
+            ["ICTV2"] = new[] { "ICTV2" },
+            ["Okko"] = new[] { "Okko", "Окко" },
+            ["KION"] = new[] { "KION", "Кион" },
+            ["Megogo"] = new[] { "Megogo", "Мегого", "MGG" },
+            ["Freedom Media"] = new[] { "Freedom Media" },
         };
     }
 }

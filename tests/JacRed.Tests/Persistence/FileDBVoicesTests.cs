@@ -376,6 +376,88 @@ public class FileDBVoicesTests : IDisposable
         Assert.Equivalent(new[] { "А. Карповский", "НеЗупиняйПродакшн" }, t.voices, strict: true);
     }
 
+    static TorrentDetails UpdateWithTracks(params string[] tracks)
+    {
+        var t = Details("Дюна / Dune: Part One (2021) WEB-DL 1080p");
+        t.ffprobe = AudioTracks(tracks);
+        FileDB.updateFullDetails(t);
+        return t;
+    }
+
+    [Theory]
+    [InlineData("DUB | Мосфильм-Мастер", "Мосфильм-Мастер", "rus")]
+    [InlineData("DUB AC3 (Mosfilm-Master)", "Мосфильм-Мастер", "rus")]
+    [InlineData("MVO | Робота голосом", "Робота Голосом", "ukr")]
+    [InlineData("MVO | 15K3 для MGG", "15КЗ", "ukr")]
+    [InlineData("MVO | Інтер-фільм", "Інтер-фільм", "rus")]
+    public void UpdateFullDetails_NewStudio_IsDetectedWithItsLanguage(string track, string name, string language)
+    {
+        var t = UpdateWithTracks(track);
+
+        Assert.Contains(name, t.voices);
+        Assert.Equivalent(new[] { language }, t.languages, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioOfBothLanguages_GivesNoLanguage()
+    {
+        var t = UpdateWithTracks("MVO [Syncmer]");
+
+        Assert.Equivalent(new[] { "Syncmer" }, t.voices, strict: true);
+        Assert.Empty(t.languages);
+    }
+
+    [Theory]
+    [InlineData("MVO CTC", "СТС")]
+    [InlineData("DVO - KOLOBOK", "Колобок")]
+    [InlineData("DUB (Видео Продакшн / iTunes)", "Видеопродакшн")]
+    [InlineData("AVO Anton Alekseev", "А. Алексеев")]
+    [InlineData("AVO [kyberpunk]", "М. Яроцкий")]
+    [InlineData("Dub, Iyuno-SDI Group", "SDI Media")]
+    public void UpdateFullDetails_NewSpellingOfKnownName_IsShownUnderIt(string track, string name)
+    {
+        Assert.Equivalent(new[] { name }, UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("MVO (OKKO)", "Okko")]
+    [InlineData("UKR (Новий)", "Новий Канал")]
+    [InlineData("Ukrainian | MVO | ТК \"ДІМ\"", "Дім")]
+    [InlineData("MVO Россия", "Россия")]
+    public void UpdateFullDetails_ChannelOrCinemaInTrackTitle_IsTheStudio(string track, string name)
+    {
+        Assert.Equivalent(new[] { name }, UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("Original EAC3 (OKKO)")]
+    [InlineData("Ukrainian | новий переклад")]
+    [InlineData("Студія \"Медіа Дім \"РАВА\"\"")]
+    public void UpdateFullDetails_ChannelWordInTrackTitle_IsNoStudio(string track)
+    {
+        Assert.Empty(UpdateWithTracks(track).voices);
+    }
+
+    [Theory]
+    [InlineData("Трансформеры / Transformers (2007) WEB-DL 1080p | OKKO")]
+    [InlineData("Трансформеры / Transformers (2007) WEB-DL 1080p | Megogo")]
+    [InlineData("Mushoku Tensei III / Реинкарнация безработного [ТВ-3] (14 из 14) Complete [1080p]")]
+    public void UpdateFullDetails_ChannelOrCinemaInReleaseTitle_IsNoVoice(string title)
+    {
+        var t = Update(title);
+
+        Assert.Empty(t.voices);
+        Assert.Empty(t.languages);
+    }
+
+    [Theory]
+    [InlineData("DUB (iTunes)")]
+    [InlineData("Dub Netflix")]
+    public void UpdateFullDetails_SourceOfTheFile_IsNeverAVoice(string track)
+    {
+        Assert.Empty(UpdateWithTracks(track).voices);
+    }
+
     [Theory]
     [InlineData("FoxLife", "Fox Life")]
     [InlineData("Сербин", "Ю. Сербин")]
