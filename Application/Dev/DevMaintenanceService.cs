@@ -116,7 +116,6 @@ namespace JacRed.Application.Dev
                             continue;
                         }
                         FileDB.updateFullDetails(torrent.Value);
-                        torrent.Value.languages = null;
 
                         torrent.Value.updateTime = DateTime.UtcNow;
                         FileDB.SetShard(item.Key, torrent.Value.updateTime);
