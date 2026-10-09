@@ -29,7 +29,7 @@
     "fsevents": true,
     "sharp": true,
     "vue-demi": true,
-    "workerd@1.20260918.1": true
+    "workerd@1.20261006.1": true
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
