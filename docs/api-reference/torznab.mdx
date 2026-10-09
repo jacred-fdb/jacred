@@ -84,6 +84,21 @@ Search Feed Prowlarr принимает те же параметры, что и 
   Для `t=indexers`: если `false`, возвращает пустой список.
 </ParamField>
 
+## Язык раздачи
+
+Каждый язык отдаётся отдельным атрибутом `<torznab:attr name="language" value="…"/>` с английским названием языка, как в Jackett:
+
+1. Основной язык угадывается по названию: кириллица — `Russian`, только латиница — `English`. Раздачи, найденные только на украинских трекерах (toloka, mazepa), — `Ukrainian`.
+2. Затем добавляются известные языки раздачи: по трекеру, названию, озвучкам и аудиодорожкам ffprobe.
+
+```xml
+<torznab:attr name="language" value="Russian" />
+<torznab:attr name="language" value="English" />
+<torznab:attr name="language" value="Ukrainian" />
+```
+
+Атрибут `lang` (`ru` или `en`) по-прежнему определяется только по алфавиту названия.
+
 ## Подключение к Sonarr/Radarr
 
 <Steps>
