@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Models.Details;
@@ -45,8 +47,7 @@ public class FileDBVoicesTests : IDisposable
     {
         var t = Update(title);
 
-        Assert.DoesNotContain("Inter", t.voices);
-        Assert.DoesNotContain("Интер", t.voices);
+        Assert.DoesNotContain("Інтер", t.voices);
         Assert.DoesNotContain("ukr", t.languages);
     }
 
@@ -58,7 +59,7 @@ public class FileDBVoicesTests : IDisposable
     {
         var t = Update(title);
 
-        Assert.Contains("Inter", t.voices);
+        Assert.Contains("Інтер", t.voices);
         Assert.Contains("ukr", t.languages);
     }
 
@@ -79,7 +80,7 @@ public class FileDBVoicesTests : IDisposable
     }
 
     [Fact]
-    public void UpdateFullDetails_VoiceGluedInCamelCase_IsDetected()
+    public void UpdateFullDetails_GluedSpellingOfVoice_IsDetected()
     {
         var t = Update("Ведьмак (1 сезон: 1-8 серии из 8) / The Witcher / 2019 / ЛМ (KerobTV) / WEBRip");
 
@@ -100,7 +101,7 @@ public class FileDBVoicesTests : IDisposable
 
         var t = Update("Интерстеллар / Interstellar (2014) BDRip 1080p");
 
-        Assert.Contains("Inter", t.voices);
+        Assert.Contains("Інтер", t.voices);
         Assert.Contains("ukr", t.languages);
     }
 
@@ -117,8 +118,426 @@ public class FileDBVoicesTests : IDisposable
 
         var t = Update("Интерстеллар / Interstellar (2014) BDRip 1080p");
 
-        Assert.Contains("Интерфильм", t.voices);
-        Assert.DoesNotContain("Интер", t.voices);
+        Assert.Contains("Интер Фильм", t.voices);
+        Assert.DoesNotContain("Інтер", t.voices);
         Assert.DoesNotContain("ukr", t.languages);
+    }
+
+    static List<ffStream> AudioTracks(params string[] titles) =>
+        titles.Select(x => new ffStream { codec_type = "audio", tags = new ffTags { title = x } }).ToList();
+
+    [Fact]
+    public void UpdateFullDetails_RecordFfprobe_TrackTitleVoiceIsDetected()
+    {
+        // A synced instance has the tracks in the record, not in its own tracks DB
+        var t = Details("Дюна / Dune: Part One (2021) BDRip 1080p");
+        t.ffprobe = AudioTracks("Dub | Пифагор", "Original");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Contains("Пифагор", t.voices);
+        Assert.Contains("rus", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_EmptyRecordFfprobe_FallsBackToTracksDb()
+    {
+        TracksAnalyzer.Database[InfoHash] = new FfprobeModel { streams = AudioTracks("Dub | Пифагор") };
+        var t = Details("Дюна / Dune: Part One (2021) BDRip 1080p");
+        t.ffprobe = new List<ffStream>();
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Contains("Пифагор", t.voices);
+    }
+
+    const string FdbName = "Дюна ffprobe тест", FdbOriginalName = "Dune Ffprobe Test";
+
+    static TorrentDetails FdbRecord()
+    {
+        var t = Details($"{FdbName} / {FdbOriginalName} (2021) BDRip 1080p");
+        t.name = FdbName;
+        t.originalname = FdbOriginalName;
+        return t;
+    }
+
+    [Fact]
+    public void AddOrUpdate_FfprobeArrivesLater_VoicesAreRecomputed()
+    {
+        string key = FileDB.KeyForTorrent(FdbName, FdbOriginalName);
+        string path = FileDB.PathForKey(key);
+        try
+        {
+            using var fdb = FileDB.OpenWrite(key);
+            fdb.AddOrUpdate(FdbRecord());
+            Assert.Empty(fdb.Database[FdbRecord().url].voices);
+
+            var later = FdbRecord();
+            later.ffprobe = AudioTracks("Dub | Пифагор");
+            fdb.AddOrUpdate(later);
+
+            Assert.Contains("Пифагор", fdb.Database[later.url].voices);
+            Assert.Contains("rus", fdb.Database[later.url].languages);
+        }
+        finally
+        {
+            using (var fdb = FileDB.OpenWrite(key))
+            {
+                fdb.Database.Clear();
+                fdb.savechanges = true;
+            }
+
+            FileDB.RemoveKeyFromMasterDb(key);
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void UpdateFullDetails_LongestName_WinsOverItsPart()
+    {
+        var t = Update("Во все тяжкие / Breaking Bad / Сезон: 2 [2009, США, драма, BDRip 1080p] Dub (Selena International) + MVO (Amedia)");
+
+        Assert.Equivalent(new[] { "Дубляж", "Selena International", "Amedia" }, t.voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("Белорусский вокзал (Андрей Смирнов) [1971, драма, BDRip]", "Смирнов")]
+    [InlineData("Сваты / Сезон: 7 / Серии: 1-9 из 9 (Андрей Яковлев) [2021, Украина, комедия, WEBRip]", "Яковлев")]
+    [InlineData("Ворон / The Crow (1994) BDRip 1080p", "Ворон")]
+    public void UpdateFullDetails_NameBeforeTheYear_IsNotAVoice(string title, string name)
+    {
+        var t = Update(title);
+
+        Assert.DoesNotContain(name, t.voices);
+        Assert.Empty(t.voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_LeadingGroupBeforeTheYear_IsAVoice()
+    {
+        var t = Update("[AniLibria] Магическая битва / Jujutsu Kaisen [TV] (2020) WEBRip 1080p");
+
+        Assert.Contains("AniLibria", t.voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_CommonWord_IsNotAVoice()
+    {
+        var t = Update("Джокер / Joker (2019) BDRip от Twister & ExKinoRay | Лицензия");
+
+        Assert.Empty(t.voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_ShortName_MatchesOnlyAsWritten()
+    {
+        Assert.Contains("DEEP", Update("Монолог фармацевта / Kusuriya no Hitorigoto / 2023 / ДБ (DEEP), 2 x ЛМ, СТ / WEB-DL (1080p)").voices);
+        Assert.DoesNotContain("DEEP", Update("Глубина / The Deep (2012) Deep Blue BDRip").voices);
+    }
+
+    [Theory]
+    [InlineData("Доктор Хаус / House M.D. (2004) BDRip | FoxLife", "Fox Life")]
+    [InlineData("Ковбой Бибоп / Cowboy Bebop (1998) BDRip | АП (Сербин)", "Ю. Сербин")]
+    [InlineData("Атака титанов / Shingeki no Kyojin (2013) WEBRip | Studio Band", "Студийная Банда")]
+    public void UpdateFullDetails_OtherSpelling_IsShownUnderOneName(string title, string name)
+    {
+        var t = Update(title);
+
+        Assert.Equivalent(new[] { name }, t.voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_PlusAfterName_IsPartOfIt()
+    {
+        var t = Update("Индиана Джонс / Raiders of the Lost Ark (1981) BDRip | MVO (НТВ+)");
+
+        Assert.Equivalent(new[] { "НТВ+" }, t.voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioTracker_GivesItsVoice()
+    {
+        var t = Details("Рик и Морти / Rick and Morty (2013) WEB-DL 1080p");
+        t.trackerName = "rudub";
+        FileDB.updateFullDetails(t);
+
+        Assert.Contains("RuDub", t.voices);
+    }
+
+    [Theory]
+    [InlineData("Иван Васильевич меняет профессию (Леонид Гайдай) [1973, комедия, BDRip] Мосфильм")]
+    [InlineData("Джокер / Joker (2019) BDRip | Русский дубляж")]
+    public void UpdateFullDetails_CommonWordOfLanguage_IsNoVoiceButGivesLanguage(string title)
+    {
+        var t = Update(title);
+
+        Assert.Empty(t.voices);
+        Assert.Contains("rus", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_ChannelInTrackTitle_IsTheStudio()
+    {
+        TracksAnalyzer.Database[InfoHash] = new FfprobeModel { streams = AudioTracks("MVO (Карусель)", "Дубляж IVI", "AniLibria (Dejz, Lupin)") };
+
+        var t = Update("Индиана Джонс / Raiders of the Lost Ark (1981) BDRip");
+
+        Assert.Equivalent(new[] { "Карусель", "IVI", "AniLibria" }, t.voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_OnlineCinemaInReleaseTitle_IsTheSource()
+    {
+        var t = Update("Таксист / Taxi Driver (1976) WEB-DL 1080p | IVI | Kinopoisk HD");
+
+        Assert.Empty(t.voices);
+    }
+
+    [Theory]
+    [InlineData("Друзья / Friends (1994) WEB-DL 1080p | Inter")]
+    [InlineData("Друзья / Friends (1994) WEB-DL 1080p | Интер")]
+    [InlineData("Друзья / Friends (1994) WEB-DL 1080p | Інтер")]
+    public void UpdateFullDetails_InterSpellings_AreOneChannel(string title)
+    {
+        var t = Update(title);
+
+        Assert.Equivalent(new[] { "Інтер" }, t.voices, strict: true);
+        Assert.Contains("ukr", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_Ozz_IsNotUkrainian()
+    {
+        var t = Update("Острые козырьки / Peaky Blinders (2013) HDTVRip | Ozz.tv");
+
+        Assert.Equivalent(new[] { "Ozz" }, t.voices, strict: true);
+        Assert.Contains("rus", t.languages);
+        Assert.DoesNotContain("ukr", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_LeadingSpaceBeforeGroup_IsTheLeadingGroup()
+    {
+        var t = Update(" [AniLibria] Магическая битва / Jujutsu Kaisen [TV] (2020) WEBRip 1080p");
+
+        Assert.Contains("AniLibria", t.voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_OriginalTrackOfOnlineCinema_IsNoVoice()
+    {
+        // the online cinema is the source of the original track; a studio in such a title is still the studio
+        var t = Details("Индиана Джонс / Raiders of the Lost Ark (1981) WEB-DL 1080p");
+        t.ffprobe = AudioTracks("Original AC3 (IVI)", " Оригинал | KinoPoisk HD", "Original (Пифагор)", "Дубляж IVI");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Equivalent(new[] { "Пифагор", "IVI" }, t.voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_OriginalTrackOfOnlineCinemaOnly_IsNoVoice()
+    {
+        var t = Details("Индиана Джонс / Raiders of the Lost Ark (1981) WEB-DL 1080p");
+        t.ffprobe = AudioTracks("Original AC3 (IVI)", "Original E-AC3 (KinoPoisk HD)");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Empty(t.voices);
+    }
+
+    [Theory]
+    [InlineData("ТеТ")]
+    [InlineData("ТЕТ")]
+    [InlineData("TET")]
+    public void UpdateFullDetails_ExactNameWithSeveralWrittenForms_MatchesEach(string written)
+    {
+        var t = Update($"Друзья / Friends (1994) WEB-DL 1080p | {written}");
+
+        Assert.Equivalent(new[] { "ТЕТ" }, t.voices, strict: true);
+        Assert.Contains("ukr", t.languages);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_ExactName_OtherWrittenFormIsNoMatch()
+    {
+        Assert.Empty(Update("Друзья / Friends (1994) WEB-DL 1080p | Тет").voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_DecomposedLetters_MatchAsComposed()
+    {
+        // "й" as "и" + U+0306 in track titles; allVoices also holds such a spelling of НеЗупиняйПродакшн
+        var t = Details("Дюна / Dune: Part One (2021) BDRip 1080p");
+        t.ffprobe = AudioTracks("AVO [А.Карповскии\u0306]", "MVO НеЗупиняи\u0306Продакшн", "MVO НеЗупиняйПродакшн");
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Equivalent(new[] { "А. Карповский", "НеЗупиняйПродакшн" }, t.voices, strict: true);
+    }
+
+    static TorrentDetails UpdateWithTracks(params string[] tracks)
+    {
+        var t = Details("Дюна / Dune: Part One (2021) WEB-DL 1080p");
+        t.ffprobe = AudioTracks(tracks);
+        FileDB.updateFullDetails(t);
+        return t;
+    }
+
+    [Theory]
+    [InlineData("DUB | Мосфильм-Мастер", "Мосфильм-Мастер", "rus")]
+    [InlineData("DUB AC3 (Mosfilm-Master)", "Мосфильм-Мастер", "rus")]
+    [InlineData("MVO | Робота голосом", "Робота Голосом", "ukr")]
+    [InlineData("MVO | 15K3 для MGG", "15КЗ", "ukr")]
+    [InlineData("MVO | Інтер-фільм", "Інтер-фільм", "rus")]
+    public void UpdateFullDetails_NewStudio_IsDetectedWithItsLanguage(string track, string name, string language)
+    {
+        var t = UpdateWithTracks(track);
+
+        Assert.Contains(name, t.voices);
+        Assert.Equivalent(new[] { language }, t.languages, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioOfBothLanguages_GivesNoLanguage()
+    {
+        var t = UpdateWithTracks("MVO [Syncmer]");
+
+        Assert.Equivalent(new[] { "Syncmer" }, t.voices, strict: true);
+        Assert.Empty(t.languages);
+    }
+
+    [Theory]
+    [InlineData("MVO CTC", "СТС")]
+    [InlineData("DVO - KOLOBOK", "Колобок")]
+    [InlineData("DUB (Видео Продакшн / iTunes)", "Видеопродакшн")]
+    [InlineData("AVO Anton Alekseev", "А. Алексеев")]
+    [InlineData("AVO [kyberpunk]", "М. Яроцкий")]
+    [InlineData("Dub, Iyuno-SDI Group", "SDI Media")]
+    public void UpdateFullDetails_NewSpellingOfKnownName_IsShownUnderIt(string track, string name)
+    {
+        Assert.Equivalent(new[] { name }, UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("MVO (OKKO)", "Okko")]
+    [InlineData("UKR (Новий)", "Новий Канал")]
+    [InlineData("Ukrainian | MVO | ТК \"ДІМ\"", "Дім")]
+    [InlineData("MVO Россия", "Россия")]
+    public void UpdateFullDetails_ChannelOrCinemaInTrackTitle_IsTheStudio(string track, string name)
+    {
+        Assert.Equivalent(new[] { name }, UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("Original EAC3 (OKKO)")]
+    [InlineData("Ukrainian | новий переклад")]
+    [InlineData("Студія \"Медіа Дім \"РАВА\"\"")]
+    public void UpdateFullDetails_ChannelWordInTrackTitle_IsNoStudio(string track)
+    {
+        Assert.Empty(UpdateWithTracks(track).voices);
+    }
+
+    [Theory]
+    [InlineData("Трансформеры / Transformers (2007) WEB-DL 1080p | OKKO")]
+    [InlineData("Трансформеры / Transformers (2007) WEB-DL 1080p | Megogo")]
+    [InlineData("Mushoku Tensei III / Реинкарнация безработного [ТВ-3] (14 из 14) Complete [1080p]")]
+    public void UpdateFullDetails_ChannelOrCinemaInReleaseTitle_IsNoVoice(string title)
+    {
+        var t = Update(title);
+
+        Assert.Empty(t.voices);
+        Assert.Empty(t.languages);
+    }
+
+    [Theory]
+    [InlineData("Ну, погоди! (1969) DVDRip | Karusel")]
+    [InlineData("Сваты (2008) DVDRip | Domashniy")]
+    public void UpdateFullDetails_LatinSpellingOfChannelInReleaseTitle_IsNoVoice(string title)
+    {
+        Assert.Empty(Update(title).voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_LatinSpellingOfChannelInTrackTitle_IsTheStudio()
+    {
+        Assert.Equivalent(new[] { "Карусель" }, UpdateWithTracks("MVO Karusel").voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioOfAWordInReleaseTitle_IsTheVoiceWhenSpelledOut()
+    {
+        // only the bare word "Нота" is hidden in a release title; "Студия Нота" is the studio
+        Assert.Equivalent(new[] { "Нота" }, Update("Друзья / Friends (1994) DVDRip | MVO (Студия Нота)").voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("AVO V.Popov", "А. Попов")]
+    [InlineData("AVO Алексей Попов", "А. Попов")]
+    [InlineData("VO Егор Хрусталёв", "М. Латышев")]
+    [InlineData("VO Solod", "Е. Солодухин")]
+    [InlineData("MVO Neoclassica", "Неоклассика")]
+    [InlineData("VO Петербуржец", "В. Козлов")]
+    [InlineData("VO Владимир Козлов", "В. Козлов")]
+    [InlineData("VO Сергей Козлов", "С. Козлов")]
+    [InlineData("VO Козлов", "Козлов")]
+    public void UpdateFullDetails_PersonOrStudioUnderOtherName_IsShownUnderOneName(string track, string name)
+    {
+        Assert.Equivalent(new[] { name }, UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_ConjunctionBeforeSurname_IsReadAsTheInitial()
+    {
+        // the key of "И. Королёва" is "и королева", so the conjunction in "Гланц и Королёва" reads as the initial;
+        // in the dump every such title is this pair
+        Assert.Equivalent(new[] { "П. Гланц", "И. Королёва" }, UpdateWithTracks("DVO, Гланц и Королёва").voices, strict: true);
+    }
+
+    [Theory]
+    [InlineData("Dub, BD CEE", "")]
+    [InlineData("BD USA Paramount Pictures", "")]
+    [InlineData("TNT Sports", "")]
+    [InlineData("MVO ТНТ", "ТНТ")]
+    public void UpdateFullDetails_SourceOfTheTrack_IsNoVoice(string track, string expected)
+    {
+        Assert.Equivalent(expected.Split('|', StringSplitOptions.RemoveEmptyEntries), UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Theory]
+    // stop phrases of several words are in no other list: without them their last word is a voice
+    [InlineData("MVO СТС со вставками В. Котова", "СТС")]
+    [InlineData("MVO FocusStudio (Михаил Хрусталев, Анна Ветрова)", "FocusStudio")]
+    [InlineData("DVO НТВ+ (Александр Котов)", "НТВ+")]
+    [InlineData("MVO РТР (Всеволод Кузнецов)", "РТР")]
+    public void UpdateFullDetails_ListedActorOfTheSurnameOfATranslator_IsNoVoice(string track, string expected)
+    {
+        Assert.Equivalent(expected.Split('|'), UpdateWithTracks(track).voices, strict: true);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_DvdPublisherInReleaseTitle_IsNoVoice()
+    {
+        Assert.Empty(Update("Ирония судьбы (Эльдар Рязанов) [1976, комедия, DVDRemux] Издание Крупный План/Lizard Digital Video").voices);
+    }
+
+    [Fact]
+    public void UpdateFullDetails_StudioOfSeveralLanguages_IsNotRussian()
+    {
+        var t = UpdateWithTracks("Dub | Cinema Tone Production");
+
+        Assert.Equivalent(new[] { "Cinema Tone Production" }, t.voices, strict: true);
+        Assert.Empty(t.languages);
+    }
+
+    [Theory]
+    [InlineData("FoxLife", "Fox Life")]
+    [InlineData("Сербин", "Ю. Сербин")]
+    [InlineData("LostFilm", "LostFilm")]
+    [InlineData("Unknown Studio", "Unknown Studio")]
+    public void CanonicalVoice_OtherSpelling_GivesNameShown(string name, string expected)
+    {
+        Assert.Equal(expected, FileDB.CanonicalVoice(name));
     }
 }
