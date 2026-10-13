@@ -192,7 +192,7 @@ jobs:
           output-file: sbom.${{ inputs.syft_format == 'spdx-json' && 'spdx.json' || 'json' }}
 
       - if: ${{ inputs.generate_syft_sbom && inputs.push && github.repository == 'jacred-fdb/jacred' }}
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: sbom-${{ inputs.image }}-${{ github.sha }}
           path: sbom.${{ inputs.syft_format == 'spdx-json' && 'spdx.json' || 'json' }}
