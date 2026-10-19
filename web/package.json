@@ -64,7 +64,7 @@
     "eslint": "^10.12.0",
     "eslint-plugin-vue": "^10.11.1",
     "globals": "^17.13.0",
-    "happy-dom": "^20.14.6",
+    "happy-dom": "^21.0.3",
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
