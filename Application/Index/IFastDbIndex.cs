@@ -7,5 +7,7 @@ namespace JacRed.Application.Index
         Dictionary<string, List<string>> Get(bool update = false);
 
         void Rebuild();
+
+        bool RebuildIfChanged();
     }
 }

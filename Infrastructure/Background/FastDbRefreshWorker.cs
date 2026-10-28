@@ -41,7 +41,7 @@ namespace JacRed.Infrastructure.Background
                     break;
                 }
 
-                try { _fastDbIndex.Rebuild(); }
+                try { _fastDbIndex.RebuildIfChanged(); }
                 catch (Exception ex) { _logger.LogError(ex, "fastdb periodic rebuild"); }
             }
         }

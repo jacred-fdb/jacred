@@ -22,6 +22,10 @@ namespace JacRed.Infrastructure.Persistence
         /// </summary>
         public static ConcurrentDictionary<string, MasterDbShard> masterDb = new ConcurrentDictionary<string, MasterDbShard>();
 
+        // Search aliases depend on shard keys, not on their timestamps or contents.
+        static long searchKeysVersion;
+        internal static long SearchKeysVersion => Interlocked.Read(ref searchKeysVersion);
+
         static ConcurrentDictionary<string, WriteTaskModel> openWriteTask = new ConcurrentDictionary<string, WriteTaskModel>();
 
         /// <summary>
@@ -153,7 +157,10 @@ namespace JacRed.Infrastructure.Persistence
             if (string.IsNullOrEmpty(key))
                 return;
             if (masterDb.TryRemove(key, out _))
+            {
+                Interlocked.Increment(ref searchKeysVersion);
                 MarkDirty();
+            }
         }
 
         #region AddOrUpdateMasterDb
@@ -168,11 +175,27 @@ namespace JacRed.Infrastructure.Persistence
             if (string.IsNullOrEmpty(key))
                 return;
 
-            masterDb[key] = new MasterDbShard
+            var shard = new MasterDbShard
             {
                 updateTime = updateTime,
                 fileTime = updateTime.ToFileTimeUtc()
             };
+            var shards = masterDb;
+            while (true)
+            {
+                if (shards.TryGetValue(key, out var previous))
+                {
+                    if (shards.TryUpdate(key, shard, previous))
+                        break;
+                }
+                else if (shards.TryAdd(key, shard))
+                {
+                    // Publish after insertion so a refresh cannot consume a change
+                    // before its key is visible. Removal races retry above.
+                    Interlocked.Increment(ref searchKeysVersion);
+                    break;
+                }
+            }
             MarkDirty();
         }
 
