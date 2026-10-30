@@ -1,3 +1,4 @@
+using JacRed.Infrastructure.Trackers;
 using JacRed.Models.Api;
 using MonoTorrent;
 using System;
@@ -13,6 +14,8 @@ namespace JacRed.Infrastructure.Indexers
         public static List<Result> MergeAndSort(params IEnumerable<Result>[] batches)
         {
             var map = new Dictionary<string, Result>(StringComparer.OrdinalIgnoreCase);
+            // Whether map[key].Seeders came from a tracker with reliable counts.
+            var reliableSeeders = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var batch in batches)
             {
@@ -31,10 +34,18 @@ namespace JacRed.Infrastructure.Indexers
                         // Inputs may be shared with other requests (FileDB cache records,
                         // IMemoryCache result lists): merge into a copy, never into the input.
                         map[key] = item.Clone();
+                        reliableSeeders[key] = UnreliableSeeders.AnyReliable(item.Tracker);
                         continue;
                     }
 
-                    if (item.Seeders > existing.Seeders)
+                    bool itemReliable = UnreliableSeeders.AnyReliable(item.Tracker);
+                    if (itemReliable && !reliableSeeders[key])
+                    {
+                        existing.Seeders = item.Seeders;
+                        existing.Peers = item.Peers;
+                        reliableSeeders[key] = true;
+                    }
+                    else if (itemReliable == reliableSeeders[key] && item.Seeders > existing.Seeders)
                     {
                         existing.Seeders = item.Seeders;
                         existing.Peers = Math.Max(existing.Peers, item.Peers);

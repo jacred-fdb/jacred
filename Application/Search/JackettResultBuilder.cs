@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Web;
+using JacRed.Infrastructure.Trackers;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Models.Api;
 using JacRed.Models.Details;
@@ -108,6 +109,7 @@ namespace JacRed.Application.Search
                     else
                     {
                         var t = temp[hex];
+                        bool reliableSeeders = UnreliableSeeders.AnyReliable(t.torrent.trackerName);
 
                         if (!t.torrent.trackerName.Contains(torrent.trackerName))
                             t.torrent.trackerName += $", {torrent.trackerName}";
@@ -186,8 +188,14 @@ namespace JacRed.Application.Search
                         }
                         #endregion
 
-                        if (torrent.trackerName != "selezen")
+                        if (UnreliableSeeders.AnyReliable(torrent.trackerName))
                         {
+                            if (!reliableSeeders)
+                            {
+                                t.torrent.sid = torrent.sid;
+                                t.torrent.pir = torrent.pir;
+                            }
+
                             if (torrent.sid > t.torrent.sid)
                                 t.torrent.sid = torrent.sid;
 

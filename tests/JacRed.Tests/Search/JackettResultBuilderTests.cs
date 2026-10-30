@@ -61,4 +61,52 @@ public class JackettResultBuilderTests
         Assert.Equal(new[] { "HDRezka" }, c.voices);
         Assert.Equal(new[] { "ukr" }, c.languages);
     }
+
+    static TorrentDetails Seeded(string tracker, int ageMinutes, int sid, int pir)
+    {
+        var t = Torrent(tracker, ageMinutes, null, null);
+        t.sid = sid;
+        t.pir = pir;
+        return t;
+    }
+
+    [Theory]
+    [InlineData("korsars")]
+    [InlineData("selezen")]
+    public void Build_MergeDuplicates_IgnoresInflatedSeedersOfNewestRecord(string tracker)
+    {
+        // The newest record becomes the merge target; its inflated counts must not survive.
+        var inflated = Seeded(tracker, 0, 231, 50);
+        var kinozal = Seeded("kinozal", 1, 4, 2);
+        var rutor = Seeded("rutor", 2, 1, 3);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(inflated, kinozal, rutor), null, false));
+
+        Assert.Equal(4, result.Seeders);
+        Assert.Equal(3, result.Peers);
+    }
+
+    [Fact]
+    public void Build_MergeDuplicates_KeepsSeedersWhenOnlyUnreliableTracker()
+    {
+        var korsars = Seeded("korsars", 0, 231, 50);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(korsars), null, false));
+
+        Assert.Equal(231, result.Seeders);
+        Assert.Equal(50, result.Peers);
+    }
+
+    [Fact]
+    public void Build_MergeDuplicates_TakesMaxSeedersOfReliableTrackers()
+    {
+        var rutor = Seeded("rutor", 0, 5, 1);
+        var kinozal = Seeded("kinozal", 1, 7, 0);
+        var korsars = Seeded("korsars", 2, 1700, 90);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(rutor, kinozal, korsars), null, false));
+
+        Assert.Equal(7, result.Seeders);
+        Assert.Equal(1, result.Peers);
+    }
 }
