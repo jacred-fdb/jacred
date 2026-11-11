@@ -113,37 +113,11 @@ namespace JacRed.Infrastructure.Background
                             else if (root.collections.Count > 0)
                             {
                                 reset = true;
-                                var torrents = new List<TorrentBaseDetails>(root.countread);
-                                int filteredByTracker = 0, filteredBySport = 0;
+                                int added = ApplyTorrents(root);
 
-                                foreach (var collection in root.collections)
-                                {
-                                    foreach (var torrent in collection.Value.torrents)
-                                    {
-                                        if (AppInit.conf.synctrackers != null && torrent.Value.trackerName != null && !AppInit.conf.synctrackers.Contains(torrent.Value.trackerName))
-                                        {
-                                            filteredByTracker++;
-                                            continue;
-                                        }
-
-                                        if (!AppInit.conf.syncsport && torrent.Value.types != null && torrent.Value.types.Contains("sport"))
-                                        {
-                                            filteredBySport++;
-                                            continue;
-                                        }
-
-                                        torrents.Add(torrent.Value);
-                                    }
-                                }
-
-                                if (filteredByTracker > 0 || filteredBySport > 0)
-                                    JacRedLog.Information(JacRedLogCategories.Sync, $"  incoming {root.countread}; filtered out {filteredByTracker} by tracker, {filteredBySport} by sport");
-
-                                FileDB.AddOrUpdate(torrents);
-
-                                cycleTotal += torrents.Count;
+                                cycleTotal += added;
                                 var batchElapsed = DateTime.Now - batchStart;
-                                JacRedLog.Information(JacRedLogCategories.Sync, $"[{batchIndex}] time={lastsync} ({FormatFileTime(lastsync)}) | {torrents.Count} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
+                                JacRedLog.Information(JacRedLogCategories.Sync, $"[{batchIndex}] time={lastsync} ({FormatFileTime(lastsync)}) | {added} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
 
                                 lastsync = root.collections.Last().Value.fileTime;
 
@@ -199,6 +173,68 @@ namespace JacRed.Infrastructure.Background
                     await Task.Delay(1000 * 60 * (20 > AppInit.conf.timeSync ? 20 : AppInit.conf.timeSync), cancellationToken);
             }
         }
+
+        static bool ExcludedByTracker(TorrentBaseDetails t) =>
+            AppInit.conf.synctrackers != null && t.trackerName != null && !AppInit.conf.synctrackers.Contains(t.trackerName);
+
+        static bool ExcludedBySport(TorrentBaseDetails t) =>
+            !AppInit.conf.syncsport && t.types != null && t.types.Contains("sport");
+
+        // A stub carries no tracker or types, so the sync filters are checked on the stored record.
+        static bool SyncAllowed(TorrentDetails t) => !ExcludedByTracker(t) && !ExcludedBySport(t);
+
+        /// <summary>Stores one /sync/fdb/torrents batch. Returns the number of full torrents passed to FileDB.</summary>
+        internal static int ApplyTorrents(Models.Sync.v2.RootObject root)
+        {
+            var torrents = new List<TorrentBaseDetails>(root.countread);
+            int filteredByTracker = 0, filteredBySport = 0, stubs = 0, stubsChanged = 0, stubsNotFound = 0;
+
+            foreach (var collection in root.collections)
+            {
+                var collectionStubs = new List<TorrentBaseDetails>();
+
+                foreach (var torrent in collection.Value.torrents)
+                {
+                    // A stub has no name, so FileDB.AddOrUpdate would look for it in the shard of an empty name and drop it.
+                    if (FileDB.IsSyncStub(torrent.Value))
+                    {
+                        collectionStubs.Add(torrent.Value);
+                        continue;
+                    }
+
+                    if (ExcludedByTracker(torrent.Value))
+                    {
+                        filteredByTracker++;
+                        continue;
+                    }
+
+                    if (ExcludedBySport(torrent.Value))
+                    {
+                        filteredBySport++;
+                        continue;
+                    }
+
+                    torrents.Add(torrent.Value);
+                }
+
+                if (collectionStubs.Count > 0)
+                {
+                    var (changed, notFound) = FileDB.UpdatePeers(collection.Key, collectionStubs, SyncAllowed);
+                    stubs += collectionStubs.Count;
+                    stubsChanged += changed;
+                    stubsNotFound += notFound;
+                }
+            }
+
+            if (filteredByTracker > 0 || filteredBySport > 0)
+                JacRedLog.Information(JacRedLogCategories.Sync, $"  incoming {root.countread}; filtered out {filteredByTracker} by tracker, {filteredBySport} by sport");
+
+            if (stubs > 0)
+                JacRedLog.Information(JacRedLogCategories.Sync, $"  {stubs} sid/pir stubs, {stubsChanged} changed, {stubsNotFound} not found");
+
+            FileDB.AddOrUpdate(torrents);
+            return torrents.Count;
+        }
         #endregion
 
         #region Spidr
@@ -239,14 +275,7 @@ namespace JacRed.Infrastructure.Background
                             {
                                 var batchCount = root.collections.Sum(c => c.Value?.torrents?.Count ?? 0);
 
-                                foreach (var collection in root.collections)
-                                {
-                                    if (collection?.Value?.torrents == null)
-                                        continue;
-                                    FileDB.AddOrUpdate(collection.Value.torrents.Values);
-                                }
-
-                                cycleTotal += batchCount;
+                                cycleTotal += ApplySpidr(root);
                                 var batchElapsed = DateTime.Now - batchStart;
                                 JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"[{batchIndex}] time={lastsync_spidr} ({FormatFileTime(lastsync_spidr)}) | {root.collections.Count} collections, {batchCount} torrents, nextread={root.nextread}, {FormatElapsed(batchElapsed)}");
 
@@ -278,6 +307,47 @@ namespace JacRed.Infrastructure.Background
                 }
                 catch (Exception ex) { JacRedLog.Error(JacRedLogCategories.SyncSpidr, $"error / {DateTime.Now.ToString(TimeFormat)} / {ex.Message}"); }
             }
+        }
+
+        /// <summary>Stores one spidr batch (/sync/fdb/torrents?spidr=true). Returns the number of full torrents passed to FileDB.</summary>
+        internal static int ApplySpidr(Models.Sync.v2.RootObject root)
+        {
+            int added = 0, stubs = 0, stubsChanged = 0, stubsNotFound = 0;
+
+            foreach (var collection in root.collections)
+            {
+                if (collection?.Value?.torrents == null)
+                    continue;
+
+                var collectionStubs = new List<TorrentBaseDetails>();
+                var torrents = new List<TorrentBaseDetails>();
+                foreach (var torrent in collection.Value.torrents.Values)
+                {
+                    if (FileDB.IsSyncStub(torrent))
+                        collectionStubs.Add(torrent);
+                    else
+                        torrents.Add(torrent);
+                }
+
+                if (collectionStubs.Count > 0)
+                {
+                    var (changed, notFound) = FileDB.UpdatePeers(collection.Key, collectionStubs, SyncAllowed);
+                    stubs += collectionStubs.Count;
+                    stubsChanged += changed;
+                    stubsNotFound += notFound;
+                }
+
+                if (torrents.Count > 0)
+                {
+                    FileDB.AddOrUpdate(torrents);
+                    added += torrents.Count;
+                }
+            }
+
+            if (stubs > 0)
+                JacRedLog.Information(JacRedLogCategories.SyncSpidr, $"  {stubs} sid/pir stubs, {stubsChanged} changed, {stubsNotFound} not found");
+
+            return added;
         }
         #endregion
     }

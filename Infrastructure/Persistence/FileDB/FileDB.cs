@@ -151,21 +151,7 @@ namespace JacRed.Infrastructure.Persistence
                     upt();
                 }
 
-                if (torrent.sid != t.sid)
-                {
-                    if (t.sid == 0 && torrent.sid >= 2 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
-                    {
-                        t.ffprobe_tryingdata = 0;
-                    }
-                    t.sid = torrent.sid;
-                    upt(updatetime: false);
-                }
-
-                if (torrent.pir != t.pir)
-                {
-                    t.pir = torrent.pir;
-                    upt(updatetime: false);
-                }
+                SetPeers(t, torrent.sid, torrent.pir);
 
                 if (!string.IsNullOrWhiteSpace(torrent.sizeName) && torrent.sizeName != t.sizeName)
                 {
@@ -351,6 +337,73 @@ namespace JacRed.Infrastructure.Persistence
                 }
             }
         }
+
+        /// <summary>
+        /// Sets sid/pir without touching updateTime (counts change too often to resend the record).
+        /// </summary>
+        bool SetPeers(TorrentDetails t, int sid, int pir)
+        {
+            bool changed = false;
+
+            if (sid != t.sid)
+            {
+                if (t.sid == 0 && sid >= 2 && t.ffprobe_tryingdata >= AppInit.conf.tracksatempt)
+                {
+                    t.ffprobe_tryingdata = 0;
+                }
+                t.sid = sid;
+                changed = true;
+            }
+
+            if (pir != t.pir)
+            {
+                t.pir = pir;
+                changed = true;
+            }
+
+            if (changed)
+                savechanges = true;
+
+            return changed;
+        }
+
+        /// <summary>
+        /// Applies sync stubs ({sid, pir, url}) to records that already exist in shard <paramref name="key"/>
+        /// and pass <paramref name="accept"/>. A stub has no name or magnet, so an unknown url or shard is
+        /// skipped and nothing is created. Returns how many records changed and how many stubs found no record.
+        /// </summary>
+        public static (int changed, int notFound) UpdatePeers(string key, IReadOnlyCollection<TorrentBaseDetails> stubs, Func<TorrentDetails, bool> accept = null)
+        {
+            if (string.IsNullOrEmpty(key) || !masterDb.ContainsKey(key))
+                return (0, stubs.Count);
+
+            int changed = 0, notFound = 0;
+
+            using (var fdb = OpenWrite(key))
+            {
+                lock (fdb._dbLock)
+                {
+                    foreach (var stub in stubs)
+                    {
+                        if (stub?.url == null || !fdb.Database.TryGetValue(stub.url, out TorrentDetails t))
+                        {
+                            notFound++;
+                            continue;
+                        }
+
+                        if ((accept == null || accept(t)) && fdb.SetPeers(t, stub.sid, stub.pir))
+                            changed++;
+                    }
+                }
+            }
+
+            return (changed, notFound);
+        }
+
+        /// <summary>A record that /sync/fdb/torrents sends as {sid, pir, url} only (spidr, or older than start).</summary>
+        public static bool IsSyncStub(TorrentBaseDetails t) =>
+            string.IsNullOrEmpty(t.trackerName) && string.IsNullOrEmpty(t.title) && string.IsNullOrEmpty(t.name)
+            && string.IsNullOrEmpty(t.originalname) && string.IsNullOrEmpty(t.magnet) && (t.types == null || t.types.Length == 0);
         #endregion
 
         #region FdbLog
