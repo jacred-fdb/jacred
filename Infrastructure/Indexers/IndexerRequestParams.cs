@@ -284,7 +284,7 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         static readonly Regex SeasonEpisodeTokenRe = new Regex(
-            @"\b(S\d{1,2}E\d{1,2}|S\d{1,2}E?\d{0,2}|E\d{1,2}|\d{1,2}x\d{1,2})\b",
+            @"\b(S\d{1,2}E\d{1,4}|S\d{1,2}E?\d{0,2}|E\d{1,4}|\d{1,2}x\d{1,4})\b",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         static readonly Regex RussianSeasonSuffixRe = new Regex(

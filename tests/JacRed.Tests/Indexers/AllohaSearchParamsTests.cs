@@ -146,10 +146,29 @@ public class AllohaSearchParamsTests
         Assert.Equal(expected, IndexerRequestParams.StripSeasonEpisode(raw));
     }
 
+    // long-running anime: absolute episode numbers go past 99 (One Piece S01E1170)
+    [Theory]
+    [InlineData("One Piece S01E05", "One Piece")]
+    [InlineData("One Piece S01E923", "One Piece")]
+    [InlineData("One Piece S01E1170", "One Piece")]
+    [InlineData("One Piece 1x923", "One Piece")]
+    [InlineData("One Piece E923", "One Piece")]
+    [InlineData("1923 S01E05", "1923")]
+    [InlineData("2001: A Space Odyssey S01E923", "2001: A Space Odyssey")]
+    [InlineData("Блич 1000-летняя война S01E1170", "Блич 1000-летняя война")]
+    public void StripSeasonEpisode_LongEpisodeNumbers(string raw, string expected)
+    {
+        Assert.Equal(expected, IndexerRequestParams.StripSeasonEpisode(raw));
+    }
+
     [Theory]
     [InlineData("Fight Club 1999")]
     [InlineData("tt14688458")]
     [InlineData("Breaking Bad")]
+    [InlineData("1923")]
+    [InlineData("2001: Космическая одиссея")]
+    [InlineData("Блич 1000-летняя война")]
+    [InlineData("One Piece 923")]
     public void StripSeasonEpisode_Unchanged_ReturnsNull(string raw)
     {
         Assert.Null(IndexerRequestParams.StripSeasonEpisode(raw));
