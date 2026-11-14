@@ -76,4 +76,17 @@ public class IndexerResultMergerTests
         Assert.Equal(5, result.Seeders);
         Assert.Equal(3, result.Peers);
     }
+
+    [Fact]
+    public void MergeAndSort_SubsTakenFromEitherBatch()
+    {
+        var jackett = Item(5);
+        var v1 = Item(1);
+        v1.subs = new List<string> { "English" };
+
+        var merged = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { jackett }, new[] { v1 }));
+
+        Assert.Equal(new[] { "English" }, merged.subs);
+        Assert.Null(jackett.subs);
+    }
 }
