@@ -20,6 +20,18 @@ public class TorznabXmlFormatterLanguageTests
     static string[] Languages(string xml) =>
         Regex.Matches(xml, "name=\"language\" value=\"([^\"]*)\"").Select(m => m.Groups[1].Value).ToArray();
 
+    static string[] Subs(string xml) =>
+        Regex.Matches(xml, "name=\"subs\" value=\"([^\"]*)\"").Select(m => m.Groups[1].Value).ToArray();
+
+    static ffStream Track(string type, string language, string title = null) =>
+        new ffStream { codec_type = type, tags = language == null && title == null ? null : new ffTags { language = language, title = title } };
+
+    static string XmlWithTracks(params ffStream[] tracks) =>
+        TorznabXmlFormatter.ItemsXml(new[]
+        {
+            new Result { Tracker = "rutracker", Title = "Дюна: Часть вторая / Dune: Part Two (2024)", languages = new HashSet<string> { "rus", "eng" }, ffprobe = tracks.ToList() }
+        }, "2000", false, null);
+
     [Fact]
     public void ItemsXml_UkrainianTrackerOnly_UkrainianFirstWithoutRussian()
     {
@@ -81,5 +93,45 @@ public class TorznabXmlFormatterLanguageTests
         var result = IndexerSearchEngine.MapV1(torrent, rqnum: false);
 
         Assert.Equal(new[] { "eng", "rus" }, result.languages.OrderBy(l => l));
+    }
+
+    [Fact]
+    public void ItemsXml_SubtitleTracks_OneSubsPerLanguage()
+    {
+        var xml = XmlWithTracks(
+            Track("subtitle", "rus", "Форсированные"),
+            Track("subtitle", "rus", "Полные"),
+            Track("subtitle", "eng", "Forced"),
+            Track("subtitle", "eng", "SDH"));
+
+        Assert.Equal(new[] { "English", "Russian" }, Subs(xml));
+    }
+
+    [Fact]
+    public void ItemsXml_SubtitleCodes_NormalisedDeduplicatedJunkDropped()
+    {
+        var xml = XmlWithTracks(
+            Track("subtitle", " RUS "), Track("subtitle", "ru"), Track("subtitle", "fre"), Track("subtitle", "fra"),
+            Track("subtitle", "und"), Track("subtitle", "mul"), Track("subtitle", "zxx"), Track("subtitle", "qaa"),
+            Track("subtitle", ""), Track("subtitle", null, "Полные"), Track("subtitle", null));
+
+        Assert.Equal(new[] { "French", "Russian" }, Subs(xml));
+    }
+
+    [Fact]
+    public void ItemsXml_AudioTracks_NotInSubsAndLanguageUnchanged()
+    {
+        var xml = XmlWithTracks(Track("audio", "ukr"), Track("video", "jpn"), Track("subtitle", "heb"));
+
+        Assert.Equal(new[] { "Hebrew" }, Subs(xml));
+        Assert.Equal(new[] { "Russian", "English" }, Languages(xml));
+    }
+
+    [Fact]
+    public void ItemsXml_NoFfprobeOrNoKnownSubtitleLanguage_NoSubs()
+    {
+        Assert.Empty(Subs(Xml("rutracker", "Дюна", "rus")));
+        Assert.Empty(Subs(XmlWithTracks()));
+        Assert.Empty(Subs(XmlWithTracks(Track("audio", "rus"), Track("subtitle", "und"), Track("subtitle", null))));
     }
 }
