@@ -140,6 +140,8 @@ namespace JacRed.Infrastructure.Indexers
             string primary = TorznabLanguages.IsUkrainianTracker(torrent.Tracker) ? "ukr" : (langCode == "en" ? "eng" : "rus");
             foreach (string language in TorznabLanguages.Resolve(primary, torrent.languages))
                 AppendAttr(attrs, "language", language);
+            foreach (string language in torrent.subs ?? TorznabLanguages.Subtitles(torrent.ffprobe))
+                AppendAttr(attrs, "subs", language);
             AppendAttr(attrs, "lang", langCode);
 
             if (torrent.info?.relased > 0)
