@@ -16,6 +16,8 @@ namespace JacRed.Infrastructure.External
         public int Year { get; init; }
         /// <summary>JacRed FileDB type hint from Alloha category.slug (movie/serial/anime).</summary>
         public string Type { get; init; }
+        /// <summary>Series by Alloha category (serial, tv-show, anime-serial); anime films stay false.</summary>
+        public bool IsSeries { get; init; }
         public string ImdbId { get; init; }
         public string KpId { get; init; }
         public string TmdbId { get; init; }
@@ -118,6 +120,7 @@ namespace JacRed.Infrastructure.External
                         AlternativeName = fromCache.AlternativeName,
                         Year = fromCache.Year,
                         Type = urlCategoryHint,
+                        IsSeries = urlCategoryHint == "serial",
                         ImdbId = fromCache.ImdbId,
                         KpId = fromCache.KpId,
                         TmdbId = fromCache.TmdbId ?? id
@@ -237,7 +240,7 @@ namespace JacRed.Infrastructure.External
             }
         }
 
-        static AllohaResolveResult MapTitles(
+        internal static AllohaResolveResult MapTitles(
             string originalName, string name, string alternativeName, int year, string categorySlug, string urlCategoryHint,
             string imdbId, string kpId, string tmdbId, string fallbackSearch, string fallbackAlt)
         {
@@ -273,7 +276,14 @@ namespace JacRed.Infrastructure.External
                     altNameDistinct = a;
             }
 
-            string type = MapCategorySlug(categorySlug) ?? urlCategoryHint;
+            string mappedType = MapCategorySlug(categorySlug);
+            string type = mappedType ?? urlCategoryHint;
+            bool isSeries = mappedType switch
+            {
+                null => urlCategoryHint == "serial",
+                "serial" => true,
+                _ => categorySlug.Trim().ToLowerInvariant() == "anime-serial"
+            };
 
             return new AllohaResolveResult
             {
@@ -282,6 +292,7 @@ namespace JacRed.Infrastructure.External
                 AlternativeName = altNameDistinct,
                 Year = year,
                 Type = type,
+                IsSeries = isSeries,
                 ImdbId = imdbId,
                 KpId = kpId,
                 TmdbId = tmdbId

@@ -19,6 +19,7 @@ namespace JacRed.Application.Search
         {
             #region search kp/imdb
             int allohaYear = 0;
+            bool allohaSeries = false;
             string allohaAltTitle = null;
             bool idQuery = AllohaTitleResolver.IsResolvableId(search);
             if (idQuery)
@@ -27,6 +28,7 @@ namespace JacRed.Application.Search
                 search = resolved.Search;
                 altname = resolved.AltName;
                 allohaYear = resolved.Year;
+                allohaSeries = resolved.IsSeries;
                 allohaAltTitle = resolved.AlternativeName;
                 if (string.IsNullOrWhiteSpace(type) && !string.IsNullOrWhiteSpace(resolved.Type))
                     type = resolved.Type;
@@ -154,7 +156,7 @@ namespace JacRed.Application.Search
             if (relased > 0)
                 query = query.Where(i => i.relased == relased);
             else if (allohaYear > 0 && AppInit.conf.alloha?.filterByYear == true)
-                query = query.Where(i => i.relased <= 0 || i.relased == allohaYear || i.relased == allohaYear - 1 || i.relased == allohaYear + 1);
+                query = query.Where(i => IndexerResultFilters.MatchesCardYear(i.relased, allohaYear, movieLike: !allohaSeries));
 
             if (quality > 0)
                 query = query.Where(i => i.quality == quality);

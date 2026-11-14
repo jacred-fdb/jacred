@@ -25,7 +25,7 @@ namespace JacRed.Infrastructure.Indexers
   <limits max=""1000"" default=""100""/>
   <searching>
     <search available=""yes"" supportedParams=""q,imdbid""/>
-    <tv-search available=""yes"" supportedParams=""q,imdbid,tvdbid,season,ep""/>
+    <tv-search available=""yes"" supportedParams=""q,imdbid,season,ep""/>
     <movie-search available=""yes"" supportedParams=""q,imdbid""/>
   </searching>
   <categories>
