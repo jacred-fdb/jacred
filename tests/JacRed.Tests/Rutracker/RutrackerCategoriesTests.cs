@@ -10,8 +10,8 @@ public class RutrackerCategoriesTests
     [Fact]
     public void Map_HasExpectedCounts()
     {
-        Assert.Equal(242, RutrackerCategories.Map.Count);
-        Assert.Equal(98, RutrackerCategories.QuickParseIds.Count());
+        Assert.Equal(243, RutrackerCategories.Map.Count);
+        Assert.Equal(99, RutrackerCategories.QuickParseIds.Count());
         Assert.Equal(RutrackerCategories.Map.Count, RutrackerCategories.Ids.Distinct().Count());
         Assert.True(RutrackerCategories.QuickParseIds.All(id => RutrackerCategories.Map.ContainsKey(id)));
     }

@@ -83,6 +83,7 @@ namespace JacRed.Infrastructure.Trackers.Rutracker
             // Сериалы (зарубежные, русские, HD, LatAm, KR/JP)
             ["842"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["235"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
+            ["507"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["242"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["819"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
             ["1531"] = new() { Types = new[] { "serial" }, TitleKind = RutrackerTitleKind.Serial, QuickParse = true },
