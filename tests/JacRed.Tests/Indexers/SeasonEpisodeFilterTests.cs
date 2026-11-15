@@ -137,6 +137,46 @@ public class SeasonEpisodeFilterTests
         Assert.True(Passes("Мажор (1, 2 сезон: 1-24 серии из 24) / 2014-2016 / РУ / WEBRip", 1, 3, 1, 2));
     }
 
+    static bool KeptByTextSeason(string title, int season, params int[] seasons) =>
+        SeasonEpisodeFilter.DropFirstSeasonGuess(new List<Result> { Release(title, seasons) }, season).Count == 1;
+
+    [Theory]
+    // First-season releases on a q=… S02 search (AIOStreams text half of "both"): read as season 1 by episodes only
+    [InlineData("Solo Leveling / Ore dake Level Up na Ken / Поднятие уровня в одиночку (12 из 12) Complete [1080p]", 2, false)]
+    [InlineData("Поднятие уровня в одиночку (1-4 серии из 12) / Ore Dake Level Up na Ken / 2024 / ДБ (StudioBand) / WEB-DLRip", 2, false)]
+    [InlineData("Dan Da Dan | Дандадан [2024, TV, 12 из 12] WEBRip 720p raw", 2, false)]
+    [InlineData("Записки аптекаря (Монолог фармацевта) (1-23 серии из 24) / Kusuriya no Hitorigoto / 2023-2024 / ЛМ (AniLibria), СТ / WEBRip (1080p)", 2, false)]
+    [InlineData("Kingdom | Царство [2012, TV, 38 из 38] WEB-DL 1080p raw", 2, false)]
+    // Absolute numbering of a long series is matched by the client: a run from a later episode or past 52
+    [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 21, true)]
+    [InlineData("Блич / Bleach [168-366 из 366] (2004-2012) HDTV 1080p | D | СВ-Дубль", 2, true)]
+    [InlineData("Bleach / Блич [2004, TV, 342 из 366] DVDRip Raw", 2, true)]
+    [InlineData("Наруто / Naruto [220 из 220] | [AniDUB].rus", 3, true)]
+    // The guess is season 1, so a season 1 search keeps it
+    [InlineData("Solo Leveling / Ore dake Level Up na Ken / Поднятие уровня в одиночку (12 из 12) Complete [1080p]", 1, true)]
+    // A named season is left to the client: tracker and Cinemeta seasons differ for anime arcs (Demon Slayer S5 = ТВ-4)
+    [InlineData("Клинок, рассекаюший демонов: Тренировка столпов (ТВ-4) / Kimetsu no Yaiba: Hashira Geiko hen / Demon Slayer: Kimetsu no Yaiba Hashira Training / Blade of Demon Destruction / Истребитель демонов [TV] [8 из 8] [RUS(int), JAP+Sub] [2024, приключения, фэнтези, сенэн, WEB-DL] [1080p]", 5, true)]
+    [InlineData("Дандадан (ТВ-1) / Dan Da Dan / Dandadan / Dan Dadan (Ямасиро Фуга) [TV] [12 из 12] [RUS(ext), JAP+Sub] [2024, приключения, комедия, BDRemux] [1080p]", 2, true)]
+    [InlineData("Холод [01х01-07 из 10] (2026) WEB-DLRip-AVC от Generalfilm", 2, true)]
+    // No season and no episodes: absolute numbering, unread packs, films
+    [InlineData("[SubsPlease] Solo Leveling - 15 (1080p)", 2, true)]
+    [InlineData("[uni] Дандадан / Dandadan [2TV][2024-2025, фантастика, приключения, комедия]", 2, true)]
+    [InlineData("Ван Пис / One Piece — Серия 1082 | [AniStar].rus", 2, true)]
+    // Episodes without a season, but not guessed as season 1: OVA, "all seasons"
+    [InlineData("Моя геройская академия OVA (1-2 серии из 2) / Boku no Hero Academia / 2016-2017 / ПМ, СТ / WEB-DL (1080p)", 2, true)]
+    [InlineData("Атака титанов / Shingeki no Kyojin [TV] [Все сезоны, серии 87 из 87] [Без хардсаба] [RUS(int), JAP, Sub] [2013, Сенен, Экшен, Драма, Фэнтези, Детектив]", 2, true)]
+    public void DropFirstSeasonGuess_EmptyStoredSeasons(string title, int season, bool expected)
+    {
+        Assert.Equal(expected, KeptByTextSeason(title, season));
+    }
+
+    [Fact]
+    public void DropFirstSeasonGuess_StoredSeasons_LeftToClient()
+    {
+        Assert.True(KeptByTextSeason("Sousou no Frieren / Фрирен (28 из 28) Complete [1080p]", 2, 1));
+        Assert.True(KeptByTextSeason("Ателье колдовских колпаков (1-13 серии из 13) / Tongari Boushi no Atelier / 2026 / ДБ (DEEP) / WEB-DLRip", 2, 2));
+    }
+
     [Theory]
     [InlineData("Холод [01х01-07 из 10] (2026) WEB-DLRip-AVC от Generalfilm", 1, true)]
     [InlineData("Холод [01х01-07 из 10] (2026) WEB-DLRip-AVC от Generalfilm", 2, false)]

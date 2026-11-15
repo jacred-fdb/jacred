@@ -295,6 +295,27 @@ namespace JacRed.Infrastructure.Indexers
             @"\b(Сезон|Season)\s*\d{1,2}(?!\d).*$",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        // A trailing S02 or S02E05; not S2000 or "S01 Title". Narrower than SeasonEpisodeTokenRe on purpose:
+        // stripping may be loose, a season hint must be unambiguous.
+        static readonly Regex TrailingSeasonRe = new Regex(
+            @"(?<![\p{L}0-9])S(?<season>[0-9]{1,2})(?:E[0-9]{1,4})?\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Season named by a trailing <c>S02</c> / <c>S02E05</c> in a text query, for clients that send it only inside
+        /// <c>q=</c> (AIOStreams forced query search). Null when the query has no such token.
+        /// </summary>
+        public static int? SeasonFromText(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query) || IsImdbOrKpQuery(query)) return null;
+
+            var m = TrailingSeasonRe.Match(query.Trim());
+            if (!m.Success) return null;
+
+            int season = int.Parse(m.Groups["season"].Value);
+            return season > 0 ? season : null;
+        }
+
         /// <summary>
         /// Strip inline TV season/episode tokens from text search queries (AIOStreams/Sonarr-style <c>q=</c> params).
         /// Returns null when nothing changed.

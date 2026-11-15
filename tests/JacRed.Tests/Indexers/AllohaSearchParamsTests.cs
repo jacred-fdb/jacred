@@ -174,6 +174,25 @@ public class AllohaSearchParamsTests
         Assert.Null(IndexerRequestParams.StripSeasonEpisode(raw));
     }
 
+    // AIOStreams forced query search: the season is only in q=
+    [Theory]
+    [InlineData("solo leveling S02", 2)]
+    [InlineData("поднятие уровня в одиночку S02E03", 2)]
+    [InlineData("silo 2023 s01e01", 1)]
+    [InlineData("One Piece S01E1170", 1)]
+    [InlineData("Breaking Bad", null)]
+    [InlineData("tt14688458", null)]
+    [InlineData("S01 silo", null)]
+    [InlineData("Ford S2000", null)]
+    [InlineData("One Piece 1x923", null)]
+    [InlineData("One Piece E923", null)]
+    [InlineData("Кухня S00", null)]
+    [InlineData("", null)]
+    public void SeasonFromText(string raw, int? season)
+    {
+        Assert.Equal(season, IndexerRequestParams.SeasonFromText(raw));
+    }
+
     [Fact]
     public void StripSeasonEpisode_ChainedWithTrailingYear()
     {

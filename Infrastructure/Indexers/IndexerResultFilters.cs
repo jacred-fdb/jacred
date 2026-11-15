@@ -165,6 +165,29 @@ namespace JacRed.Infrastructure.Indexers
             return !episode.HasValue || release.HasEpisode(episode.Value);
         }
 
+        /// <summary>
+        /// For a season only hinted in a text query (<c>q=Title S02</c>): drop releases read as season 1 just because they list
+        /// episodes without a season ("(12 из 12) Complete"). A release that names a season is left to the client, whose
+        /// season numbering may differ from the tracker's (anime arcs); one without a season or episodes is kept.
+        /// </summary>
+        public static List<Result> DropFirstSeasonGuess(List<Result> items, int season)
+        {
+            if (season <= 1) return items;
+            return items.Where(t => !IsFirstSeasonGuess(t)).ToList();
+        }
+
+        // A season's worth of episodes from 1. A run from a later episode or a longer one is absolute numbering of a
+        // long series (One Piece 207-1180, Naruto 220 из 220), which the client matches by absolute episode.
+        const int MaxGuessedSeasonEpisodes = 52;
+
+        static bool IsFirstSeasonGuess(Result t)
+        {
+            if (t.info?.seasons != null && t.info.seasons.Count > 0) return false;
+            var release = ParseTitle(t.Title);
+            return release != null && release.Seasons.Count == 0 && release.FirstSeasonByDefault
+                && release.FirstEpisode == 1 && release.LastEpisode <= MaxGuessedSeasonEpisodes;
+        }
+
         /// <summary>Whether the release title names the season, or lists episodes only and is read as season 1.</summary>
         public static bool TitleHasSeason(string title, int season) => ParseTitle(title)?.HasSeason(season) == true;
 
