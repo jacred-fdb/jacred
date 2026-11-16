@@ -1,3 +1,4 @@
+using JacRed.Models.Tracks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -68,13 +69,26 @@ namespace JacRed.Infrastructure.Indexers
             if (known == null)
                 return result;
 
-            result.AddRange(known
-                .Select(Name)
-                .Where(n => n != null && n != primary)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(n => n, StringComparer.Ordinal));
+            result.AddRange(NamesOf(known).Where(n => n != primary));
             return result;
         }
+
+        /// <summary>
+        /// Values of the Torznab <c>subs</c> attribute: languages of the ffprobe subtitle tracks,
+        /// normalised as in <see cref="Resolve"/>.
+        /// </summary>
+        public static List<string> Subtitles(IEnumerable<ffStream> streams) =>
+            streams == null
+                ? new List<string>()
+                : NamesOf(streams.Where(s => s?.codec_type == "subtitle").Select(s => s.tags?.language)).ToList();
+
+        /// <summary>Distinct English names in ordinal order, junk dropped.</summary>
+        static IEnumerable<string> NamesOf(IEnumerable<string> codes) =>
+            codes
+                .Select(Name)
+                .Where(n => n != null)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(n => n, StringComparer.Ordinal);
 
         /// <summary>English name for a language code; an unknown but well-formed code is returned as is.</summary>
         static string Name(string value)
