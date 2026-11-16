@@ -1,3 +1,4 @@
+using JacRed.Application.Index;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
@@ -27,10 +28,14 @@ public class SearchCacheIsolationTests : IDisposable
         _bucketKey = FileDB.KeyForTorrent(RuName, EnName);
         _fdbPath = FileDB.PathForKey(_bucketKey);
 
-        using var fdb = FileDB.OpenWrite(_bucketKey);
-        // Voices come from the tracker name: lostfilm → LostFilm, hdrezka → HDRezka.
-        fdb.AddOrUpdate(Torrent("lostfilm"));
-        fdb.AddOrUpdate(Torrent("hdrezka"));
+        using (var fdb = FileDB.OpenWrite(_bucketKey))
+        {
+            // Voices come from the tracker name: lostfilm → LostFilm, hdrezka → HDRezka.
+            fdb.AddOrUpdate(Torrent("lostfilm"));
+            fdb.AddOrUpdate(Torrent("hdrezka"));
+        }
+        // Exact (id) search reads bucket keys from fastdb; production refreshes it every 10 min.
+        FastDbIndex.Default.RebuildIfChanged();
     }
 
     public void Dispose()

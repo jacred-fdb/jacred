@@ -1,3 +1,4 @@
+using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Indexers;
@@ -194,6 +195,8 @@ public class AllohaFileDbSearchTests : IDisposable
             updateTime = DateTime.UtcNow
         });
         Assert.True(FileDB.masterDb.ContainsKey(_bucketKey));
+        // Exact (id) search reads bucket keys from fastdb; production refreshes it every 10 min.
+        FastDbIndex.Default.RebuildIfChanged();
     }
 
     static string PickTracker()

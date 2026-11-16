@@ -1,3 +1,4 @@
+using JacRed.Application.Index;
 using JacRed.Application.Search;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Persistence;
@@ -208,9 +209,9 @@ namespace JacRed.Infrastructure.Indexers
 
             if (exact)
             {
-                foreach (var mdb in FileDB.masterDb.Where(i => (sn != null && (i.Key.StartsWith($"{sn}:") || i.Key.EndsWith($":{sn}"))) || (altSn != null && i.Key.Contains(altSn))))
+                foreach (string key in FastDbIndex.Default.ExactKeys(sn, altSn))
                 {
-                    foreach (var t in FileDB.OpenRead(mdb.Key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null) continue;
                         string n = t._sn ?? StringConvert.SearchName(t.name);

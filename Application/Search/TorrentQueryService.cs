@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using JacRed.Application.Index;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
@@ -71,12 +72,9 @@ namespace JacRed.Application.Search
             if (exact)
             {
                 #region Точный поиск
-                foreach (var mdb in FileDB.masterDb.Where(i =>
-                    (_s != null && (i.Key.StartsWith($"{_s}:") || i.Key.EndsWith($":{_s}")))
-                    || (_altsearch != null && i.Key.Contains(_altsearch))
-                    || (_alt2 != null && i.Key.Contains(_alt2))))
+                foreach (string key in FastDbIndex.Default.ExactKeys(_s, _altsearch, _alt2))
                 {
-                    foreach (var t in FileDB.OpenRead(mdb.Key, true).Values)
+                    foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null)
                             continue;

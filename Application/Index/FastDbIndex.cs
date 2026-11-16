@@ -83,5 +83,23 @@ namespace JacRed.Application.Index
         }
 
         public void Rebuild() => Get(update: true);
+
+        /// <summary>
+        /// Bucket keys whose name or original-name part equals one of
+        /// <paramref name="searchNames"/> (<c>StringConvert.SearchName</c> form).
+        /// SearchName strips ':', so a torrent whose name or originalname equals
+        /// one of them can only live in these buckets.
+        /// </summary>
+        public HashSet<string> ExactKeys(params string[] searchNames)
+        {
+            var fastdb = Get();
+            var keys = new HashSet<string>();
+            foreach (string sn in searchNames)
+            {
+                if (!string.IsNullOrEmpty(sn) && fastdb.TryGetValue(sn, out List<string> list))
+                    keys.UnionWith(list);
+            }
+            return keys;
+        }
     }
 }

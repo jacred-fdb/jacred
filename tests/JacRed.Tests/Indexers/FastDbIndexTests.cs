@@ -64,6 +64,21 @@ public class FastDbIndexTests : IDisposable
     }
 
     [Fact]
+    public void ExactKeys_MatchWholeNamePartsOnly()
+    {
+        string byName = Add("seven", "se7en");
+        string byOriginal = Add("other", "seven");
+        string longer = Add("sevensamurai", "shichinin");
+        var index = new FastDbIndex();
+        index.Rebuild();
+
+        var keys = index.ExactKeys(_prefix + "seven", null, "");
+
+        Assert.Equal(new HashSet<string> { byName, byOriginal }, keys);
+        Assert.DoesNotContain(longer, keys);
+    }
+
+    [Fact]
     public void AddedAndRemovedKeys_RefreshAliasesAndKeepOldReadersValid()
     {
         string first = Add("first", "shared");
