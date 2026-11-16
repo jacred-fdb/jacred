@@ -61,6 +61,8 @@ namespace JacRed.Infrastructure.Indexers
                     if (existing.ffprobe == null && item.ffprobe != null)
                         existing.ffprobe = item.ffprobe;
 
+                    existing.subs ??= item.subs;
+
                     if ((existing.languages == null || existing.languages.Count == 0) && item.languages != null && item.languages.Count > 0)
                         existing.languages = item.languages;
 

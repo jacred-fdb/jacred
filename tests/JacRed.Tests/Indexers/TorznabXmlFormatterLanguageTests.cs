@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Models.Api;
@@ -133,5 +135,41 @@ public class TorznabXmlFormatterLanguageTests
         Assert.Empty(Subs(Xml("rutracker", "Дюна", "rus")));
         Assert.Empty(Subs(XmlWithTracks()));
         Assert.Empty(Subs(XmlWithTracks(Track("audio", "rus"), Track("subtitle", "und"), Track("subtitle", null))));
+    }
+
+    [Fact]
+    public void MapV1_TracksOff_SubsWithoutFfprobe()
+    {
+        // tracks: false (the default) drops ffprobe from v1 records, as in an imdbid search.
+        var torrent = new TorrentDetails
+        {
+            trackerName = "rutracker",
+            title = "Дюна: Часть вторая / Dune: Part Two (2024)",
+            magnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+            ffprobe = new List<ffStream> { Track("audio", "rus"), Track("subtitle", "eng"), Track("subtitle", "rus") }
+        };
+
+        var result = IndexerSearchEngine.MapV1(torrent, rqnum: false);
+
+        Assert.Null(result.ffprobe);
+        Assert.Equal(new[] { "English", "Russian" }, Subs(TorznabXmlFormatter.ItemsXml(new[] { result }, "2000", false, null)));
+    }
+
+    [Fact]
+    public void MapV1_NoKnownSubtitleLanguage_SubsNull()
+    {
+        Assert.Null(IndexerSearchEngine.MapV1(new TorrentDetails { title = "Дюна" }, rqnum: false).subs);
+        Assert.Null(IndexerSearchEngine.MapV1(new TorrentDetails { title = "Дюна", ffprobe = new List<ffStream> { Track("audio", "rus"), Track("subtitle", "und") } }, rqnum: false).subs);
+    }
+
+    [Fact]
+    public void Result_SubsNotInJson()
+    {
+        // Same options as the MVC JSON output in Program.cs.
+        var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = null };
+
+        var json = JsonSerializer.Serialize(new Result { Title = "Дюна", subs = new List<string> { "English" } }, options);
+
+        Assert.DoesNotContain("subs", json);
     }
 }

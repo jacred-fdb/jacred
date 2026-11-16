@@ -6,6 +6,7 @@ using JacRed.Infrastructure.Utils;
 using JacRed.Models.Api;
 using JacRed.Models.AppConf;
 using JacRed.Models.Details;
+using JacRed.Models.Tracks;
 using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
@@ -256,6 +257,13 @@ namespace JacRed.Infrastructure.Indexers
             return (resolved.Search, resolved.AltName);
         }
 
+        // Null, not empty: the Torznab formatter then falls back to an ffprobe merged in from another batch.
+        static List<string> Subtitles(List<ffStream> ffprobe)
+        {
+            var subs = TorznabLanguages.Subtitles(ffprobe);
+            return subs.Count > 0 ? subs : null;
+        }
+
         internal static Result MapV1(TorrentDetails i, bool rqnum)
         {
             var cats = new HashSet<int>();
@@ -288,6 +296,8 @@ namespace JacRed.Infrastructure.Indexers
                 ffprobe = rqnum || !AppInit.conf.tracks ? null : i.ffprobe,
                 // Stored languages come from metadata only; add the audio tracks, as JackettResultBuilder does.
                 languages = TracksDB.Languages(i, i.ffprobe),
+                // Torznab subs need the stored tracks even when ffprobe is not returned.
+                subs = !rqnum && !AppInit.conf.tracks ? Subtitles(i.ffprobe) : null,
                 info = rqnum ? null : new TorrentInfo
                 {
                     name = i.name,
