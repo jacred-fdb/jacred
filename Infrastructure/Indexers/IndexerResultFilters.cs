@@ -37,13 +37,14 @@ namespace JacRed.Infrastructure.Indexers
             }).ToList();
         }
 
-        public static List<Result> FilterByYear(List<Result> items, int year)
+        /// <summary>Year gate of <see cref="MatchesCardYear"/>; series keep later seasons.</summary>
+        public static List<Result> FilterByYear(List<Result> items, int year, bool movieLike = true)
         {
             if (year <= 0) return items;
             return items.Where(t =>
             {
                 int rel = t.info?.relased ?? 0;
-                return MatchesCardYear(rel, year, movieLike: true);
+                return MatchesCardYear(rel, year, movieLike);
             }).ToList();
         }
 
@@ -121,6 +122,9 @@ namespace JacRed.Infrastructure.Indexers
             if (release.Value.isSeasonPack) return true;
             return release.Value.episode == episode;
         }
+
+        /// <summary>Whether the release title names the season (SxxEyy, NxMM, Sxx).</summary>
+        public static bool TitleHasSeason(string title, int season) => ParseTitle(title)?.season == season;
 
         static (int season, int? episode, bool isSeasonPack)? ParseTitle(string title)
         {

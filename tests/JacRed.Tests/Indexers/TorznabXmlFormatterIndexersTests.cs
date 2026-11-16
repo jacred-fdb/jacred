@@ -18,6 +18,15 @@ public class TorznabXmlFormatterIndexersTests
     }
 
     [Fact]
+    public void Caps_TvSearchDoesNotAdvertiseTvdbId()
+    {
+        // A tvdbid-only request is answered with an empty list (TvdbIdOnly).
+        string caps = TorznabXmlFormatter.CapsXml("http://localhost/torznab/api");
+        Assert.Contains(@"<tv-search available=""yes"" supportedParams=""q,imdbid,season,ep""/>", caps);
+        Assert.DoesNotContain("tvdbid", caps);
+    }
+
+    [Fact]
     public void IndexersXml_NullTrackers_OnlyAll()
     {
         var xml = TorznabXmlFormatter.IndexersXml(null);

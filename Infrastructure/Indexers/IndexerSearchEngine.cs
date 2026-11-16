@@ -47,7 +47,7 @@ namespace JacRed.Infrastructure.Indexers
 
                 var merged = IndexerResultMerger.MergeAndSort(batches.ToArray());
                 if (req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true)
-                    merged = IndexerResultFilters.FilterByYear(merged, resolved.Year);
+                    merged = IndexerResultFilters.FilterByYear(merged, resolved.Year, movieLike: !resolved.IsSeries);
                 if ((req.Categories == null || req.Categories.Count == 0) && !string.IsNullOrWhiteSpace(resolved.Type))
                     merged = IndexerResultFilters.FilterByType(merged, resolved.Type);
                 return merged;
@@ -244,7 +244,10 @@ namespace JacRed.Infrastructure.Indexers
             }
 
             if (season.HasValue && season.Value > 0)
-                query = query.Where(i => i.seasons != null && i.seasons.Contains(season.Value));
+                // No stored seasons: match the season in the title.
+                query = query.Where(i => i.seasons != null && i.seasons.Count > 0
+                    ? i.seasons.Contains(season.Value)
+                    : SeasonEpisodeFilter.TitleHasSeason(i.title, season.Value));
 
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
         }
