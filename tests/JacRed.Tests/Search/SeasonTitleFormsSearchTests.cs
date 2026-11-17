@@ -136,6 +136,25 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData(5000)]
+    public async Task SeriesIdSearch_SpinOffSeenFromOneName_DropsItsBucketsForBoth(int? category)
+    {
+        // The spin-off's first season shares a bucket with the title by its Russian name, so only the English
+        // subtitle part leads to it; its second season has a Russian subtitle of its own.
+        string[] serial = { "serial" };
+        Seed("rp-s2", $"Робокар {_tag} Поли", $"Robocar {_tag} Poli", 2012, serial, $"Робокар {_tag} Поли / Robocar {_tag} Poli [S02] (2012) WEBRip");
+        Seed("rr-s1", $"Робокар {_tag} Поли", $"Robocar {_tag} Poli: Rules of the road", 2013, serial,
+            $"Робокар {_tag} Поли / Robocar {_tag} Poli: Rules of the road [S01] (2013) WEBRip");
+        Seed("rr-s2", $"Робокар {_tag} Поли: Правила дорожного движения", $"Robocar {_tag} Poli: Rules of the road", 2014, serial,
+            $"Робокар {_tag} Поли: Правила дорожного движения / Robocar {_tag} Poli: Rules of the road [S02] (2014) WEBRip");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        Assert.Equal(new[] { "rp-s2" }, await IdSearch("tt9990107", $"Robocar {_tag} Poli", $"Робокар {_tag} Поли", 2012, "serial", series: true, 2, cats));
+    }
+
+    [Theory]
     [InlineData(2)]
     [InlineData(4)]
     public async Task SeriesIdSearch_PackWithFirstSeasonUnderSubtitle_IsNoSpinOff(int season)
@@ -221,21 +240,21 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Seed("saga-subtitle", $"{saga}: Глава", $"{saga}: Глава", 2020, new[] { "serial" }, $"{saga}: Глава [S02] (2020)");
         FastDbIndex.Default.RebuildIfChanged();
 
-        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, 2, 0));
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 1, 0));
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 0, 0));
+        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, null, 0, 0));
 
         // A name with many letters behind it gets no subtitle buckets.
         for (int i = 0; i < FastDbIndex.MaxSubtitleParts; i++)
             Seed($"saga-word-{i}", $"{saga}{(char)('а' + i)}", $"{saga}{(char)('а' + i)}", 2020, new[] { "movie" }, $"{saga}{(char)('а' + i)} (2020)");
         FastDbIndex.Default.RebuildIfChanged();
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 2, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
 
         // Too many buckets give nothing.
         for (int i = 0; i < FastDbIndex.MaxTitleFormKeys; i++)
             Seed($"saga-ep-{i}", $"{saga} (1-{i + 6} из 200)", $"{saga} (1-{i + 6} из 200)", 2020, new[] { "serial" }, $"{saga} (1-{i + 6} из 200) (2020)");
         FastDbIndex.Default.RebuildIfChanged();
-        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, 1, 0));
+        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0));
     }
 
     async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null)

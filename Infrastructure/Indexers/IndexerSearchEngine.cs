@@ -220,8 +220,7 @@ namespace JacRed.Infrastructure.Indexers
                     keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, FastDbIndex.MaxFranchiseKeys));
                 // "Холод (1-10 из 10)", and for a season "Монолог фармацевта 2 / Kusuriya no Hitorigoto 2nd Season".
                 int formSeason = season ?? 0;
-                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, formSeason, titleYear));
-                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(altSn, formSeason, titleYear));
+                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear));
 
                 foreach (string key in keys)
                 {
