@@ -167,6 +167,19 @@ public class SeasonEpisodeFilterTests
     [InlineData("Моб Психо 100 / Mob Psycho 100 / 2016 / [BDRip 1080p][HEVC][1-12]", 1, true)]
     [InlineData("Апгрейд 2.0 / Upgrade 2.0 / 2021 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
     [InlineData("Досье лорда Эль-Меллоя II / Lord El-Melloi II Sei no Jikenbo: Rail Zeppelin Grace Note / 2019 / [BDRip 1080p][HEVC][1-13]", 1, true)]
+    // Nor a number of a volume
+    [InlineData("Кайдзю номер 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 8, false)]
+    [InlineData("Кайдзю номер 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Тетрадь смерти. Том 2 / Death Note Vol. 2 / 2007 / [BDRip 1080p][AVC][1-12]", 2, false)]
+    [InlineData("Тетрадь смерти. Том 2 / Death Note Vol. 2 / 2007 / [BDRip 1080p][AVC][1-12]", 1, true)]
+    [InlineData("Тетрадь смерти Том 2 / Death Note / 2007 / [BDRip 1080p][AVC][13-24]", 2, false)]
+    [InlineData("Тетрадь смерти / Death Note Vol. 2 / 2007 / [BDRip 1080p][AVC][1-12]", 2, false)]
+    // A film, OVA or specials numbered after the name is no season at all
+    [InlineData("Повелитель: Фильм 2 / Overlord Movie 2 / 2017 / [BDRip 1080p][HEVC][1-1]", 2, false)]
+    [InlineData("Повелитель: Фильм 2 / Overlord Movie 2 / 2017 / [BDRip 1080p][HEVC][1-1]", 1, false)]
+    [InlineData("Повелитель: Спецвыпуски 2 / Overlord Specials 2 / 2018 / [BDRip 1080p][HEVC][1-13]", 2, false)]
+    [InlineData("Повелитель: OVA 2 / Overlord OVA 2 / 2017 / [BDRip 1080p][HEVC][1-2]", 2, false)]
+    [InlineData("Пять невест: Спецвыпуски 2 / Go-toubun no Hanayome Specials 2 / 2026 / [WEBRip 1080p][AVC][1-2]", 2, false)]
     // A later part numbers its episodes from 1 again: no season from the name
     [InlineData("Дни Сакамото. Часть 2 / Sakamoto Days Part 2 / 2025 / [WEBRip 1080p][HEVC][12-22]", 2, false)]
     public void TitleHasSeason(string title, int season, bool expected)

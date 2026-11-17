@@ -136,6 +136,23 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData(5000)]
+    public async Task SeriesIdSearch_FilmAndSpecialsNumberedAfterName_AreNoSeason(int? category)
+    {
+        string[] anime = { "anime", "serial" };
+        Seed("ov-s2", $"Повелитель {_tag}", $"Overlord {_tag}", 2018, anime, $"Повелитель {_tag} / Overlord {_tag} [ТВ-2] (13 из 13)");
+        Seed("ov-movie2", $"Повелитель {_tag}: Фильм 2", $"Overlord {_tag} Movie 2", 2017, new[] { "anime" },
+            $"Повелитель {_tag}: Фильм 2 / Overlord {_tag} Movie 2 / 2017 / [BDRip 1080p][HEVC][1-1]");
+        Seed("ov-sp2", $"Повелитель {_tag}: Спецвыпуски 2", $"Overlord {_tag} Specials 2", 2018, anime,
+            $"Повелитель {_tag}: Спецвыпуски 2 / Overlord {_tag} Specials 2 / 2018 / [BDRip 1080p][HEVC][1-13]");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        Assert.Equal(new[] { "ov-s2" }, await IdSearch("tt9990110", $"Overlord {_tag}", $"Повелитель {_tag}", 2015, "serial", series: true, 2, cats));
+    }
+
+    [Theory]
     [InlineData(1, new[] { "frost" })]
     [InlineData(2, new string[0])]
     public async Task SeriesIdSearch_FindsEpisodesInName(int season, string[] expected)

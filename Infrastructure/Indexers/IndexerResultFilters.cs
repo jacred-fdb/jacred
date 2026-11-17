@@ -122,8 +122,9 @@ namespace JacRed.Infrastructure.Indexers
         // AniLiberty: … / 2023 / [WEBRip 1080p][HEVC][1-28]. Not years: [2005-2006].
         static readonly Regex BracketedRange = new Regex(@"\[(?<first>[0-9]{1,3})\s*-\s*(?<last>[0-9]{1,3})\]", Opts);
         // AniLiberty names a later season by a number after the name: "Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]".
-        // Not a number of the name itself: "Кайдзю № 8", "Kaiju No. 8", "Апгрейд 2.0", "Моб Психо 100".
-        static readonly Regex NameSeasonNumber = new Regex(@"(?<!(?:№|#|(?i:\bno\.?))\s*)\s(?:(?<n>[0-9]{1,2})|(?<r>II|III|IV|V|VI|VII|VIII|IX|X))$", RegexOptions.Compiled);
+        // Not a number of the name itself: "Кайдзю № 8", "Kaiju No. 8", "Кайдзю номер 8", "Апгрейд 2.0", "Моб Психо 100",
+        // nor a volume: "Тетрадь смерти. Том 2", "Death Note Vol. 2".
+        static readonly Regex NameSeasonNumber = new Regex(@"(?<!(?:№|#|(?i:\b(?:no|vol)\.?|\b(?:номер|том)))\s*)\s(?:(?<n>[0-9]{1,2})|(?<r>II|III|IV|V|VI|VII|VIII|IX|X))$", RegexOptions.Compiled);
         static readonly string[] Roman = { null, "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
         // A later part of a split season numbers its episodes from 1 again: (4 сезон. Часть 2: 1-12 серии из 12) is E17-28.
         static readonly Regex LaterPart = new Regex(@"(?<!\p{L})(?:част\p{L}*|part|cour)\s*(?<part>[0-9]{1,2})(?![0-9-])", Opts);
@@ -212,8 +213,9 @@ namespace JacRed.Infrastructure.Indexers
             if (info.Seasons.Count == 0)
             {
                 if (!info.FirstEpisode.HasValue) return null;
+                // Not a film, OVA or specials numbered after the name: "Повелитель: Фильм 2 / Overlord Movie 2 / … [1-1]".
                 int nameSeason = bracketed ? NameSeason(title) : 0;
-                if (nameSeason >= 2)
+                if (nameSeason >= 2 && !NoSeasonOneGuess.IsMatch(title))
                     info.Seasons.Add(nameSeason);
                 else
                     info.FirstSeasonByDefault = !NoSeasonOneGuess.IsMatch(title);
