@@ -49,6 +49,47 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         /// <summary>
+        /// <see cref="FilterByYear"/> by torrent: the copies of one infohash across all <paramref name="batches"/> are judged
+        /// together. A torrent whose dated copies all miss the year goes whole, its copies of unknown year too; otherwise only
+        /// the copies dated otherwise go, so the merge takes the torrent's info from a copy that matches.
+        /// </summary>
+        public static List<Result>[] FilterTorrentsByYear(IReadOnlyList<List<Result>> batches, int year, bool movieLike = true)
+        {
+            var result = new List<Result>[batches.Count];
+            if (year <= 0)
+            {
+                for (int i = 0; i < batches.Count; i++) result[i] = batches[i];
+                return result;
+            }
+
+            var dated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var batch in batches)
+            {
+                foreach (var t in batch)
+                {
+                    int rel = t?.info?.relased ?? 0;
+                    string key = rel > 0 ? IndexerResultMerger.InfoHashKey(t) : null;
+                    if (key == null) continue;
+                    dated.Add(key);
+                    if (MatchesCardYear(rel, year, movieLike)) matched.Add(key);
+                }
+            }
+
+            for (int i = 0; i < batches.Count; i++)
+            {
+                result[i] = batches[i].Where(t =>
+                {
+                    int rel = t?.info?.relased ?? 0;
+                    if (rel > 0) return MatchesCardYear(rel, year, movieLike);
+                    string key = IndexerResultMerger.InfoHashKey(t);
+                    return key == null || !dated.Contains(key) || matched.Contains(key);
+                }).ToList();
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Card-search year gate. Unknown <paramref name="relased"/> (≤0) passes.
         /// Movies: year ± 1. Serials and other: relased ≥ year − 1.
         /// </summary>

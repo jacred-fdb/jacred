@@ -278,19 +278,77 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(new[] { "jk-s2" }, ids);
     }
 
-    [Fact]
-    public async Task FilmIdSearch_CopyOfUnknownYear_KeepsNoTorrentOfAnotherYear()
+    [Theory]
+    [InlineData(20, 10)]
+    [InlineData(80, 115)]
+    public async Task FilmIdSearch_CopyOfUnknownYear_KeepsNoTorrentOfAnotherYear(int datedSid, int undatedSid)
     {
-        // A remake under the same Russian name: one copy has its year, another none.
+        // A remake under the same Russian name: one copy has its year, another none; whichever comes first in the merge.
         Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
-        Seed("gf-2023", $"Голдфингер {_tag}", $"Голдфингер {_tag}", 2023, new[] { "movie" }, $"Голдфингер {_tag} / The Goldfinger {_tag} (2023) BDRip", sid: 20);
-        Seed("gf-2023-copy", $"Голдфингер {_tag}", $"Голдфингер {_tag} The Goldfinger {_tag} 2023 BDRip", 0, new[] { "movie" },
-            $"Голдфингер {_tag} / The Goldfinger {_tag} (2023) BDRip", hashOf: "gf-2023");
+        Seed("gf-2023", $"Голдфингер {_tag}", $"Голдфингер {_tag}", 2023, new[] { "movie" },
+            $"Голдфингер {_tag} / Золотой палец / Gam sau zi / The Goldfinger {_tag} (2023) HDRip-AVC", sid: datedSid);
+        Seed("gf-2023-copy", $"Голдфингер {_tag}", $"Голдфингер {_tag} / Золотой палец / Gam sau zi / The Goldfinger {_tag}", 0, new[] { "movie" },
+            $"Голдфингер {_tag} / Золотой палец / Gam sau zi / The Goldfinger {_tag} (2023) HDRip-AVC", hashOf: "gf-2023", sid: undatedSid);
         FastDbIndex.Default.RebuildIfChanged();
 
         var ids = await IdSearch("tt9990117", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null);
 
         Assert.Equal(new[] { "gf-1964" }, ids);
+    }
+
+    [Theory]
+    // A series of another year: its dated copy is typed as a series, its copy of unknown year as a film.
+    [InlineData("Мастер {0} и Маргарита", 2023, "Мастер {0} и Маргарита (2023) WEB-DL 1080p",
+        2005, "Мастер {0} и Маргарита (2005) DVDRip [H.264] (серии 1-10 из 10)", "Мастер {0} и Маргарита ( 1 - 10 серии из 10 ) /2005 / РУ /  DVDRip")]
+    [InlineData("А зори {0} здесь тихие...", 1972, "А зори {0} здесь тихие... (1972) WEBRip [H.264/1080p-LQ]",
+        2015, "А зори {0} здесь тихие... (1-4 из 4) (2015) HDTVRip", "А зори {0} здесь тихие... (1-4 серии из 4) (2015) HDTVRip | Расширенная версия")]
+    public async Task FilmIdSearch_SeriesOfAnotherYear_WithFilmCopyOfUnknownYear_IsDropped(string name, int year, string filmTitle,
+        int seriesYear, string seriesTitle, string copyTitle)
+    {
+        string ru = string.Format(name, _tag);
+        Seed("film", ru, ru, year, new[] { "movie" }, string.Format(filmTitle, _tag));
+        Seed("series", ru, string.Format(seriesTitle, _tag), seriesYear, new[] { "serial" }, string.Format(seriesTitle, _tag), sid: 10);
+        Seed("series-film-copy", ru, string.Format(copyTitle, _tag), 0, new[] { "movie" }, string.Format(copyTitle, _tag), hashOf: "series", sid: 1);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990118", ru, ru, year, "movie", series: false, season: null);
+
+        Assert.Equal(new[] { "film" }, ids);
+    }
+
+    [Theory]
+    // bitru dates a release by its remaster or Blu-ray, with more seeders than the copies dated by the film.
+    [InlineData("Плохие {0} парни 2", "Bad {0} Boys II", 2003, "Плохие {0} парни 2 / Bad {0} Boys II ({1}) BDRip | Remastered", 2015)]
+    [InlineData("2001 год: Космическая {0} одиссея", "2001: A Space {0} Odyssey", 1968,
+        "2001 год: Космическая {0} одиссея / 2001: A Space {0} Odyssey ({1}) UHD BDRip [H.265/2160p] [4K, HDR10, Dolby Vision]", 2001)]
+    public async Task FilmIdSearch_CopyOfAnotherYearFirst_KeepsTheTorrentWithTheCopyOfItsYear(string ru, string en, int year, string title, int otherYear)
+    {
+        ru = string.Format(ru, _tag);
+        en = string.Format(en, _tag);
+        Seed("film", ru, en, year, new[] { "movie" }, string.Format(title, _tag, year), sid: 2);
+        Seed("film-copy", ru, en, otherYear, new[] { "movie" }, string.Format(title, _tag, otherYear), hashOf: "film", sid: 3);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990119", en, ru, year, "movie", series: false, season: null);
+
+        // The torrent comes with the copy of the film's year.
+        Assert.Equal(new[] { "film" }, ids);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_CollectionOfUnknownYear_IsKept()
+    {
+        // The film with its sequel: no copy dates it otherwise, and the copy typed as a film keeps it.
+        Seed("film", $"Чебурашка {_tag}", $"Чебурашка {_tag}", 2022, new[] { "movie" }, $"Чебурашка {_tag} (2022) WEB-DL 1080p");
+        Seed("collection", $"Чебурашка {_tag}", $"Чебурашка {_tag}", 0, new[] { "multfilm", "multserial" },
+            $"Чебурашка {_tag} (2022 - 2025) WEB-DL [H.264/1080p] [Коллекция]", sid: 7);
+        Seed("collection-film", $"Чебурашка {_tag}", $"Чебурашка {_tag} (Коллекция) / 2022-2025 / РУ / WEB-DL (1080p)", 0, new[] { "movie" },
+            $"Чебурашка {_tag} (Коллекция) / 2022-2025 / РУ / WEB-DL (1080p)", hashOf: "collection", sid: 3);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990120", $"Чебурашка {_tag}", $"Чебурашка {_tag}", 2022, "movie", series: false, season: null);
+
+        Assert.Equal(new[] { "collection-film", "film" }, ids);
     }
 
     [Theory]

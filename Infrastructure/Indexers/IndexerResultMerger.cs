@@ -74,7 +74,7 @@ namespace JacRed.Infrastructure.Indexers
             return map.Values.OrderByDescending(r => r.Seeders).ThenByDescending(r => r.Peers).ToList();
         }
 
-        static string InfoHashKey(Result item)
+        internal static string InfoHashKey(Result item)
         {
             try
             {

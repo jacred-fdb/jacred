@@ -42,19 +42,21 @@ namespace JacRed.Infrastructure.Indexers
             {
                 var resolved = await AllohaTitleResolver.ResolveAsync(query, null, cache);
                 int franchiseYear = resolved.IsSeries ? 0 : resolved.Year;
+                var found = new List<List<Result>> { await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.AlternativeName) };
+                if (!string.IsNullOrWhiteSpace(resolved.AlternativeName))
+                    found.Add(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.Search));
+
+                // The year by torrent, over the copies of both names: a copy of unknown year must not keep a torrent its other
+                // copies date otherwise (a remake), and a copy dated by a remaster must not drop one the others date right.
+                var byTorrent = req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true
+                    ? IndexerResultFilters.FilterTorrentsByYear(found, resolved.Year, movieLike: !resolved.IsSeries)
+                    : found.ToArray();
                 // The type of each record before the merge: the merge keeps the first record's info, and one torrent may also
                 // sit under another name and type ("Магическая битва 2" typed as a cartoon on another tracker).
                 bool byType = (req.Categories == null || req.Categories.Count == 0) && !string.IsNullOrWhiteSpace(resolved.Type);
-                List<Result> filter(List<Result> items) => byType ? IndexerResultFilters.FilterByType(items, resolved.Type) : items;
-                batches.Add(filter(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.AlternativeName)));
-                if (!string.IsNullOrWhiteSpace(resolved.AlternativeName))
-                    batches.Add(filter(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.Search)));
-
-                var merged = IndexerResultMerger.MergeAndSort(batches.ToArray());
-                // The year after it: a copy of unknown year passes, and must not keep a torrent its other copies date otherwise.
-                if (req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true)
-                    merged = IndexerResultFilters.FilterByYear(merged, resolved.Year, movieLike: !resolved.IsSeries);
-                return merged;
+                foreach (var items in byTorrent)
+                    batches.Add(byType ? IndexerResultFilters.FilterByType(items, resolved.Type) : items);
+                return IndexerResultMerger.MergeAndSort(batches.ToArray());
             }
 
             var category = BuildCategoryDict(req.Categories);
