@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Persistence;
+using JacRed.Infrastructure.Utils;
 using JacRed.Models;
 
 namespace JacRed.Application.Index
@@ -13,6 +14,9 @@ namespace JacRed.Application.Index
         public static FastDbIndex Default { get; } = new FastDbIndex();
 
         volatile Dictionary<string, List<string>> _fastdb;
+        // The _fastdb parts ordered by their reversed text, so the parts that end
+        // with a name form one run (see FranchiseKeys).
+        volatile string[] _partsByEnd;
         ConcurrentDictionary<string, MasterDbShard> _source;
         long _sourceKeysVersion;
         readonly object _lock = new object();
@@ -72,10 +76,15 @@ namespace JacRed.Application.Index
                 }
             }
 
+            var partsByEnd = new string[fastdb.Count];
+            fastdb.Keys.CopyTo(partsByEnd, 0);
+            Array.Sort(partsByEnd, CompareFromEnd);
+
             // Keep the version captured BEFORE enumeration. A concurrent mutation
             // must remain pending, even if this build happened to include its key.
             _source = source;
             _sourceKeysVersion = version;
+            _partsByEnd = partsByEnd;
             _fastdb = fastdb;
 
             if (log)
@@ -100,6 +109,127 @@ namespace JacRed.Application.Index
                     keys.UnionWith(list);
             }
             return keys;
+        }
+
+        /// <summary>
+        /// Shortest title, in SearchName letters, looked up behind a prefix. "Исчезновение
+        /// Элеанор Ригби: Она / The Disappearance of Eleanor Rigby: Her" is another film
+        /// of the same year as "Она / Her".
+        /// </summary>
+        public const int MinFranchiseTitle = 5;
+
+        /// <summary>
+        /// Bucket keys that may hold a release named with a franchise prefix,
+        /// "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger" for
+        /// <c>голдфингер</c> or <c>goldfinger</c> (<c>StringConvert.SearchName</c> form):
+        /// the name part of the key ends with <paramref name="nameSn"/> and is longer,
+        /// or the original-name part does so with <paramref name="originalSn"/>.
+        /// SearchName drops the ':', so <see cref="IsFranchiseMatch"/> has to confirm
+        /// the records. A side gives nothing when its name is shorter than
+        /// <see cref="MinFranchiseTitle"/> or more than <paramref name="max"/> buckets qualify.
+        /// </summary>
+        public HashSet<string> FranchiseKeys(string nameSn, string originalSn, int max)
+        {
+            var keys = SideKeys(nameSn, nameSide: true, max);
+            keys.UnionWith(SideKeys(originalSn, nameSide: false, max));
+            return keys;
+        }
+
+        HashSet<string> SideKeys(string sn, bool nameSide, int max)
+        {
+            var fastdb = Get();
+            var parts = _partsByEnd;
+            var keys = new HashSet<string>();
+            if (parts == null || sn == null || sn.Length < MinFranchiseTitle)
+                return keys;
+
+            foreach (string part in PartsEndingWith(parts, sn))
+            {
+                if (part.Length == sn.Length || !fastdb.TryGetValue(part, out List<string> list))
+                    continue;
+
+                foreach (string key in list)
+                {
+                    // The part may be either half of the key; keep this side only.
+                    int colon = key.IndexOf(':');
+                    bool hit = nameSide
+                        ? colon == part.Length && key.StartsWith(part, StringComparison.Ordinal)
+                        : key.Length - colon - 1 == part.Length && key.EndsWith(part, StringComparison.Ordinal);
+
+                    if (hit && keys.Add(key) && keys.Count > max)
+                        return new HashSet<string>();
+                }
+            }
+            return keys;
+        }
+
+        /// <summary>
+        /// True when the record carries the title behind a franchise prefix, the text
+        /// after a ':' in <c>StringConvert.SearchName</c> form. With both names, each side
+        /// must match: whole, behind the prefix, or as the end of a name that has a prefix
+        /// of its own (Alloha: "James Bond 04.5 - Never Say Never Again"). "Мертвые как я:
+        /// Жизнь после смерти / Dead Like Me: Life After Death" is then not "Жизнь после
+        /// смерти / After.Life". With one name, that side must match behind the prefix.
+        /// </summary>
+        public static bool IsFranchiseMatch(string name, string originalname, string nameSn, string originalSn)
+        {
+            bool hasName = !string.IsNullOrEmpty(nameSn), hasOriginal = !string.IsNullOrEmpty(originalSn);
+            if (hasName && hasOriginal)
+                return Math.Max(nameSn.Length, originalSn.Length) >= MinFranchiseTitle
+                    && SideMatches(name, nameSn) && SideMatches(originalname, originalSn);
+            if (hasName)
+                return nameSn.Length >= MinFranchiseTitle && BehindPrefix(name, nameSn, tail: false);
+            return hasOriginal && originalSn.Length >= MinFranchiseTitle && BehindPrefix(originalname, originalSn, tail: false);
+        }
+
+        static bool SideMatches(string title, string sn) =>
+            StringConvert.SearchName(title) == sn || BehindPrefix(title, sn, tail: true);
+
+        static bool BehindPrefix(string title, string sn, bool tail)
+        {
+            if (string.IsNullOrEmpty(title))
+                return false;
+
+            for (int i = title.IndexOf(':'); i >= 0; i = title.IndexOf(':', i + 1))
+            {
+                string rest = StringConvert.SearchName(title.Substring(i + 1));
+                if (rest == null || StringConvert.SearchName(title.Substring(0, i)) == null)
+                    continue;
+                if (rest == sn || (tail && rest.Length >= MinFranchiseTitle && sn.EndsWith(rest, StringComparison.Ordinal)))
+                    return true;
+            }
+            return false;
+        }
+
+        static List<string> PartsEndingWith(string[] parts, string suffix)
+        {
+            // Lower bound: the first part not ordered before the suffix itself.
+            int lo = 0, hi = parts.Length;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >> 1;
+                if (CompareFromEnd(parts[mid], suffix) < 0)
+                    lo = mid + 1;
+                else
+                    hi = mid;
+            }
+
+            var run = new List<string>();
+            for (int i = lo; i < parts.Length && parts[i].EndsWith(suffix, StringComparison.Ordinal); i++)
+                run.Add(parts[i]);
+            return run;
+        }
+
+        /// <summary>Ordinal comparison of the reversed strings.</summary>
+        static int CompareFromEnd(string x, string y)
+        {
+            int i = x.Length - 1, j = y.Length - 1;
+            for (; i >= 0 && j >= 0; i--, j--)
+            {
+                if (x[i] != y[j])
+                    return x[i] < y[j] ? -1 : 1;
+            }
+            return x.Length.CompareTo(y.Length);
         }
     }
 }
