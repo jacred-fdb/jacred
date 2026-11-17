@@ -94,7 +94,7 @@ namespace JacRed.Application.Search
                     // "Механик: Воскрешение" (2016) — не "Воскрешение" (2015).
                     if (year <= 0)
                         return torrents;
-                    keys = fastDbIndex.FranchiseKeys(_n, _o, AppInit.conf.maxreadfile);
+                    keys = fastDbIndex.FranchiseKeys(_n, _o, FastDbIndex.MaxFranchiseKeys);
                 }
                 else
                 {

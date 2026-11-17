@@ -127,7 +127,7 @@ namespace JacRed.Application.Index
         public const int MinFranchiseTitle = 5;
 
         /// <summary>
-        /// Most buckets one side of <see cref="FranchiseKeys"/> may give to an id search.
+        /// Most buckets one side of <see cref="FranchiseKeys"/> may give to a search, by id or by text.
         /// A Bond title ends at most 9 parts; "огонь" or "мальчик" end about 250, and
         /// opening them on every request pushes other buckets out of evercache.
         /// </summary>

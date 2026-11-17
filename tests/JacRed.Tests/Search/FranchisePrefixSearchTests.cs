@@ -205,6 +205,19 @@ public class FranchisePrefixSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task TextSearchWithYear_TitleEndingTooManyBuckets_GetsNoFranchiseMatches()
+    {
+        for (int i = 0; i <= FastDbIndex.MaxFranchiseKeys; i++)
+            Seed($"many-{i}", $"Серия {i}: Огонь и лёд {_tag}", $"Series {i}: Fire and Ice {_tag}", 2001, "movie", " (2001) DVDRip");
+        Seed("fire", $"Огонь и лёд {_tag}", $"Fire and Ice {_tag}", 2001, "movie", " (2001) DVDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await TextSearch($"Fire and Ice {_tag} 2001");
+
+        Assert.Equal(new[] { "fire" }, Ids(results));
+    }
+
+    [Fact]
     public async Task TextSearchWithoutYear_KeepsExactNamesOnly()
     {
         var results = await TextSearch("Never Say Never Again " + _tag);
