@@ -178,6 +178,13 @@ namespace JacRed.Infrastructure.Indexers
         /// <summary>Whether the release title names the season itself, without the season 1 guess.</summary>
         public static bool TitleNamesSeason(string title, int season) => ParseTitle(title)?.Seasons.Contains(season) == true;
 
+        /// <summary>Whether the release title names that season and no other, without the season 1 guess.</summary>
+        public static bool TitleNamesOnlySeason(string title, int season)
+        {
+            var seasons = ParseTitle(title)?.Seasons;
+            return seasons != null && seasons.Count == 1 && seasons.Contains(season);
+        }
+
         static TitleInfo ParseTitle(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return null;

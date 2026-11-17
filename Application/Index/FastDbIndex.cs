@@ -228,11 +228,12 @@ namespace JacRed.Application.Index
         /// Bucket keys that may hold a release named <paramref name="sn"/> (<c>StringConvert.SearchName</c> form)
         /// plus episodes, or, for <paramref name="season"/> &gt; 0, plus that season or a subtitle: the parts that
         /// start with the name and go on as <see cref="ReleaseTitleForms.IsCandidateRest"/> says, or with
-        /// letters (a subtitle) for season 2 or later, unless the subtitle's buckets hold a first season (a spin-off).
+        /// letters (a subtitle) for season 2 or later, unless the subtitle's buckets hold a first season of its own
+        /// (a spin-off, <see cref="ReleaseTitleForms.IsOwnFirstSeason"/>, by <paramref name="titleYear"/>).
         /// <see cref="ReleaseTitleForms.Matches"/> has to confirm the records. Empty when more than
         /// <see cref="MaxTitleFormKeys"/> buckets qualify.
         /// </summary>
-        public HashSet<string> TitleFormKeys(string sn, int season)
+        public HashSet<string> TitleFormKeys(string sn, int season, int titleYear)
         {
             var fastdb = Get();
             var parts = _partsByStart;
@@ -264,7 +265,7 @@ namespace JacRed.Application.Index
                 foreach (string part in subtitles)
                 {
                     var list = fastdb[part];
-                    if (spinOffs.Exists(s => part.StartsWith(s, StringComparison.Ordinal)) || list.Exists(HoldsFirstSeason))
+                    if (spinOffs.Exists(s => part.StartsWith(s, StringComparison.Ordinal)) || list.Exists(k => HoldsOwnFirstSeason(k, titleYear)))
                         spinOffs.Add(part);
                     else
                         keys.UnionWith(list);
@@ -274,11 +275,11 @@ namespace JacRed.Application.Index
             return keys.Count > MaxTitleFormKeys ? new HashSet<string>() : keys;
         }
 
-        static bool HoldsFirstSeason(string key)
+        static bool HoldsOwnFirstSeason(string key, int titleYear)
         {
             foreach (var t in FileDB.OpenRead(key, true).Values)
             {
-                if (ReleaseTitleForms.NamesFirstSeason(t))
+                if (ReleaseTitleForms.IsOwnFirstSeason(t, titleYear))
                     return true;
             }
             return false;

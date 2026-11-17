@@ -109,8 +109,20 @@ namespace JacRed.Infrastructure.Indexers
             return sub.Success && isTitle(sub.Groups["base"].Value) && NamesSeason(t, season);
         }
 
-        /// <summary>Whether the release names season 1, in the stored seasons or in the title.</summary>
-        public static bool NamesFirstSeason(TorrentDetails t) => NamesSeason(t, 1);
+        /// <summary>
+        /// Whether <paramref name="t"/>, a release behind a subtitle of the title, is a first season of its own:
+        /// it names season 1 only, in the stored seasons or in the title, and, when the title's <paramref name="titleYear"/>
+        /// is known, came out after it. A pack "(Сезоны 1-4)" is not one, nor is a season subtitle a tracker reads as
+        /// "1 сезон" in the title's own year ("Mythic Quest: Raven's Banquet", 2020), nor a release of unknown year.
+        /// </summary>
+        public static bool IsOwnFirstSeason(TorrentDetails t, int titleYear)
+        {
+            if (titleYear > 0 && t.relased <= titleYear)
+                return false;
+            return t.seasons != null && t.seasons.Count > 0
+                ? t.seasons.Count == 1 && t.seasons.Contains(1)
+                : SeasonEpisodeFilter.TitleNamesOnlySeason(t.title, 1);
+        }
 
         static int NameSeason(Match m)
         {

@@ -136,6 +136,42 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    public async Task SeriesIdSearch_PackWithFirstSeasonUnderSubtitle_IsNoSpinOff(int season)
+    {
+        string[] serial = { "serial" };
+        Seed("pb-s2", $"Побег {_tag} из тюрьмы", $"Prison {_tag} Break", 2006, serial, $"Побег {_tag} из тюрьмы / Prison {_tag} Break [S02] (2006) BDRip");
+        Seed("pb-pack", $"Побег {_tag} из тюрьмы: Коллекция", $"Prison {_tag} Break: Collection", 2009, serial,
+            $"Побег {_tag} из тюрьмы: Коллекция / Prison {_tag} Break: Collection (2005-2009) BDRip (Сезоны 1-4, серии 1-79 из 79)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990108", $"Prison {_tag} Break", $"Побег {_tag} из тюрьмы", 2005, "serial", series: true, season, new List<int> { 5000 });
+
+        Assert.Equal(season == 2 ? new[] { "pb-pack", "pb-s2" } : new[] { "pb-pack" }, ids);
+    }
+
+    [Theory]
+    [InlineData(2020, new[] { "mq-s2" })]
+    // Without the title's year any first season behind a subtitle reads as a spin-off.
+    [InlineData(0, new string[0])]
+    public async Task SeriesIdSearch_FirstSeasonOfTheTitlesYear_IsNoSpinOff(int year, string[] expected)
+    {
+        // A tracker names the first season by the full name, "Mythic Quest: Raven's Banquet (1 сезон)", in the title's year.
+        string[] serial = { "serial" };
+        Seed("mq-s1", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2020, serial,
+            $"Мифический {_tag} квест: Пир ворона (1 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2020 / WEB-DL (1080p)");
+        Seed("mq-s2", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2021, serial,
+            $"Мифический {_tag} квест: Пир ворона (2 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2021 / WEB-DL (1080p)");
+        Seed("mq-base", $"Мифический {_tag} квест", $"Mythic {_tag} Quest", 2022, serial, $"Мифический {_tag} квест / Mythic {_tag} Quest [S03] (2022) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990109", $"Mythic {_tag} Quest", $"Мифический {_tag} квест", year, "serial", series: true, 2, new List<int> { 5000 });
+
+        Assert.Equal(expected, ids);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData(5000)]
     public async Task SeriesIdSearch_FilmAndSpecialsNumberedAfterName_AreNoSeason(int? category)
@@ -185,21 +221,21 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Seed("saga-subtitle", $"{saga}: Глава", $"{saga}: Глава", 2020, new[] { "serial" }, $"{saga}: Глава [S02] (2020)");
         FastDbIndex.Default.RebuildIfChanged();
 
-        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, 2));
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 1));
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 0));
+        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, 2, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 1, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 0, 0));
 
         // A name with many letters behind it gets no subtitle buckets.
         for (int i = 0; i < FastDbIndex.MaxSubtitleParts; i++)
             Seed($"saga-word-{i}", $"{saga}{(char)('а' + i)}", $"{saga}{(char)('а' + i)}", 2020, new[] { "movie" }, $"{saga}{(char)('а' + i)} (2020)");
         FastDbIndex.Default.RebuildIfChanged();
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 2));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 2, 0));
 
         // Too many buckets give nothing.
         for (int i = 0; i < FastDbIndex.MaxTitleFormKeys; i++)
             Seed($"saga-ep-{i}", $"{saga} (1-{i + 6} из 200)", $"{saga} (1-{i + 6} из 200)", 2020, new[] { "serial" }, $"{saga} (1-{i + 6} из 200) (2020)");
         FastDbIndex.Default.RebuildIfChanged();
-        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, 1));
+        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, 1, 0));
     }
 
     async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null)
