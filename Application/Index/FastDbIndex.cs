@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Utils;
@@ -17,6 +18,8 @@ namespace JacRed.Application.Index
         // The _fastdb parts ordered by their reversed text, so the parts that end
         // with a name form one run (see FranchiseKeys).
         volatile string[] _partsByEnd;
+        // The same parts in ordinal order, so the parts that start with a name form one run (see TitleFormKeys).
+        volatile string[] _partsByStart;
         ConcurrentDictionary<string, MasterDbShard> _source;
         long _sourceKeysVersion;
         readonly object _lock = new object();
@@ -79,12 +82,16 @@ namespace JacRed.Application.Index
             var partsByEnd = new string[fastdb.Count];
             fastdb.Keys.CopyTo(partsByEnd, 0);
             Array.Sort(partsByEnd, CompareFromEnd);
+            var partsByStart = new string[fastdb.Count];
+            fastdb.Keys.CopyTo(partsByStart, 0);
+            Array.Sort(partsByStart, StringComparer.Ordinal);
 
             // Keep the version captured BEFORE enumeration. A concurrent mutation
             // must remain pending, even if this build happened to include its key.
             _source = source;
             _sourceKeysVersion = version;
             _partsByEnd = partsByEnd;
+            _partsByStart = partsByStart;
             _fastdb = fastdb;
 
             if (log)
@@ -206,6 +213,60 @@ namespace JacRed.Application.Index
                     return true;
             }
             return false;
+        }
+
+        /// <summary>Most buckets <see cref="TitleFormKeys"/> may give for one name.</summary>
+        public const int MaxTitleFormKeys = 100;
+
+        /// <summary>
+        /// Most parts a name may have behind it as a subtitle ("Solo Leveling: Arise from the Shadow").
+        /// Any letters may follow a name, so a name with more ("Холод…" ends hundreds) gets no subtitle buckets.
+        /// </summary>
+        public const int MaxSubtitleParts = 10;
+
+        /// <summary>
+        /// Bucket keys that may hold a release named <paramref name="sn"/> (<c>StringConvert.SearchName</c> form)
+        /// plus episodes, or, for <paramref name="season"/> &gt; 0, plus that season or a subtitle: the parts that
+        /// start with the name and go on as <see cref="ReleaseTitleForms.IsCandidateRest"/> says.
+        /// <see cref="ReleaseTitleForms.Matches"/> has to confirm the records. Empty when more than
+        /// <see cref="MaxTitleFormKeys"/> buckets qualify.
+        /// </summary>
+        public HashSet<string> TitleFormKeys(string sn, int season)
+        {
+            var fastdb = Get();
+            var parts = _partsByStart;
+            var keys = new HashSet<string>();
+            if (parts == null || string.IsNullOrEmpty(sn))
+                return keys;
+
+            var subtitles = new List<string>();
+            foreach (string part in PartsStartingWith(parts, sn))
+            {
+                if (part.Length == sn.Length)
+                    continue;
+                string rest = part.Substring(sn.Length);
+                if (ReleaseTitleForms.IsCandidateRest(rest, season))
+                    keys.UnionWith(fastdb[part]);
+                else if (season > 0 && sn.Length >= MinFranchiseTitle && char.IsLetter(rest[0]))
+                    subtitles.Add(part);
+            }
+
+            if (subtitles.Count <= MaxSubtitleParts)
+            {
+                foreach (string part in subtitles)
+                    keys.UnionWith(fastdb[part]);
+            }
+
+            return keys.Count > MaxTitleFormKeys ? new HashSet<string>() : keys;
+        }
+
+        static IEnumerable<string> PartsStartingWith(string[] parts, string prefix)
+        {
+            int i = Array.BinarySearch(parts, prefix, StringComparer.Ordinal);
+            if (i < 0)
+                i = ~i;
+            for (; i < parts.Length && parts[i].StartsWith(prefix, StringComparison.Ordinal); i++)
+                yield return parts[i];
         }
 
         static List<string> PartsEndingWith(string[] parts, string suffix)

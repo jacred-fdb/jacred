@@ -218,6 +218,10 @@ namespace JacRed.Infrastructure.Indexers
                 bool franchise = franchiseYear > 0;
                 if (franchise)
                     keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, FastDbIndex.MaxFranchiseKeys));
+                // "Холод (1-10 из 10)", and for a season "Монолог фармацевта 2 / Kusuriya no Hitorigoto 2nd Season".
+                int formSeason = season ?? 0;
+                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, formSeason));
+                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(altSn, formSeason));
 
                 foreach (string key in keys)
                 {
@@ -228,7 +232,8 @@ namespace JacRed.Infrastructure.Indexers
                         string o = t._so ?? StringConvert.SearchName(t.originalname);
                         if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
                             || (franchise && t.relased == franchiseYear && IsFilm(t.types)
-                                && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn)))
+                                && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn))
+                            || ReleaseTitleForms.Matches(t, sn, altSn, formSeason))
                             add(t);
                     }
                 }
