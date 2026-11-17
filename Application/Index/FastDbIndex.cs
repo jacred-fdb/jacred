@@ -285,6 +285,10 @@ namespace JacRed.Application.Index
             {
                 if (part.Length == sn.Length)
                     continue;
+                // Without a season only episodes may follow, and they start with a digit: a short name ("я")
+                // starts thousands of parts, so check that before any lookup or copy.
+                if (season <= 0 && !char.IsAsciiDigit(part[sn.Length]))
+                    continue;
                 // _partsByStart is published before _fastdb: a part of a newer build may be missing here.
                 if (!fastdb.TryGetValue(part, out List<string> list))
                     continue;
