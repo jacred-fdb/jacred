@@ -128,8 +128,13 @@ namespace JacRed.Infrastructure.Indexers
             if (req.Year > 0 && !req.CardMode)
                 results = IndexerResultFilters.FilterByYear(results, req.Year);
 
-            if (req.Season.HasValue && !settings.skipSeasonEpisodeFilter)
-                results = SeasonEpisodeFilter.Filter(results, req.Season.Value, req.Episode);
+            if (!settings.skipSeasonEpisodeFilter)
+            {
+                if (req.Season.HasValue)
+                    results = SeasonEpisodeFilter.Filter(results, req.Season.Value, req.Episode);
+                else if (IndexerRequestParams.SeasonFromText(req.Query) is int textSeason)
+                    results = SeasonEpisodeFilter.DropFirstSeasonGuess(results, textSeason);
+            }
 
             results = IndexerResultFilters.FilterByTrackers(results, req.Trackers);
 
