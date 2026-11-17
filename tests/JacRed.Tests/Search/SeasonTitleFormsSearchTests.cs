@@ -152,6 +152,9 @@ public class SeasonTitleFormsSearchTests : IDisposable
         var cats = category.HasValue ? new List<int> { category.Value } : null;
 
         Assert.Equal(new[] { "rp-s2" }, await IdSearch("tt9990107", $"Robocar {_tag} Poli", $"Робокар {_tag} Поли", 2012, "serial", series: true, 2, cats));
+        // Alloha's alternative_name is searched apart, with the Russian name: the spin-off is still seen from the original one.
+        Assert.Equal(new[] { "rp-s2" }, await IdSearch("tt9990113", $"Robocar {_tag} Poli", $"Робокар {_tag} Поли", 2012, "serial", series: true, 2, cats,
+            alternative: $"Robocar {_tag} Poli Show"));
     }
 
     [Theory]
@@ -305,13 +308,15 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
     }
 
-    async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null)
+    async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null,
+        string alternative = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         cache.Set($"alloha:title:{imdbId}", new AllohaResolveResult
         {
             Search = search,
             AltName = altName,
+            AlternativeName = alternative,
             Year = year,
             Type = type,
             IsSeries = series,

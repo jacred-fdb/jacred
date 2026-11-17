@@ -52,9 +52,9 @@ namespace JacRed.Infrastructure.Indexers
                         items = IndexerResultFilters.FilterByType(items, resolved.Type);
                     return items;
                 }
-                batches.Add(filter(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year)));
+                batches.Add(filter(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.AlternativeName)));
                 if (!string.IsNullOrWhiteSpace(resolved.AlternativeName))
-                    batches.Add(filter(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year)));
+                    batches.Add(filter(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.Search)));
 
                 return IndexerResultMerger.MergeAndSort(batches.ToArray());
             }
@@ -191,7 +191,7 @@ namespace JacRed.Infrastructure.Indexers
             return pairs;
         }
 
-        static async Task<List<Result>> V1SearchAsync(string search, string altname, bool exact, string sort, List<string> trackers, int? season, IMemoryCache cache, bool rqnum, int franchiseYear = 0, int titleYear = 0)
+        static async Task<List<Result>> V1SearchAsync(string search, string altname, bool exact, string sort, List<string> trackers, int? season, IMemoryCache cache, bool rqnum, int franchiseYear = 0, int titleYear = 0, string otherName = null)
         {
             if (string.IsNullOrWhiteSpace(search)) return new List<Result>();
 
@@ -225,7 +225,8 @@ namespace JacRed.Infrastructure.Indexers
                     keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, FastDbIndex.MaxFranchiseKeys));
                 // "Холод (1-10 из 10)", and for a season "Монолог фармацевта 2 / Kusuriya no Hitorigoto 2nd Season".
                 int formSeason = season ?? 0;
-                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear));
+                // A spin-off seen from the title's other name searched apart drops its buckets here too.
+                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear, StringConvert.SearchName(otherName)));
 
                 foreach (string key in keys)
                 {

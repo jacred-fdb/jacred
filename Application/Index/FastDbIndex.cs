@@ -231,16 +231,20 @@ namespace JacRed.Application.Index
         /// says, or with letters (a subtitle) for season 2 or later, unless the subtitle is a spin-off: its buckets hold
         /// a first season of its own (<see cref="ReleaseTitleForms.IsOwnFirstSeason"/>, by <paramref name="titleYear"/>).
         /// A spin-off seen from either name drops its buckets from both ("Robocar Poli: Rules of the road" /
-        /// "Робокар Поли: Правила дорожного движения"). <see cref="ReleaseTitleForms.Matches"/> has to confirm the records.
+        /// "Робокар Поли: Правила дорожного движения"), and so does one seen from <paramref name="otherSn"/>, a third name
+        /// of the title searched apart (Alloha's alternative_name), which gives no buckets here.
+        /// <see cref="ReleaseTitleForms.Matches"/> has to confirm the records.
         /// A name whose forms and subtitles hold more than <see cref="MaxTitleFormKeys"/> buckets gives none.
         /// </summary>
-        public HashSet<string> TitleFormKeys(string sn, string altSn, int season, int titleYear)
+        public HashSet<string> TitleFormKeys(string sn, string altSn, int season, int titleYear, string otherSn = null)
         {
             var keys = new HashSet<string>();
             var spinOffs = new HashSet<string>();
             AddTitleFormKeys(sn, season, titleYear, keys, spinOffs);
             if (altSn != sn)
                 AddTitleFormKeys(altSn, season, titleYear, keys, spinOffs);
+            if (otherSn != sn && otherSn != altSn)
+                AddTitleFormKeys(otherSn, season, titleYear, new HashSet<string>(), spinOffs);
             keys.ExceptWith(spinOffs);
             return keys;
         }
