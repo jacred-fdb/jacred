@@ -221,13 +221,16 @@ namespace JacRed.Infrastructure.Indexers
             return info;
         }
 
-        // The number after the name, before the first " / ": "Повелитель 2", "Повелитель IV".
+        // The number after the name, before the first " / ": "Повелитель 2", "Повелитель IV / Overlord IV".
+        // A Roman numeral counts only when it also ends the original name: "Досье лорда Эль-Меллоя II /
+        // Lord El-Melloi II Sei no Jikenbo" is a first season.
         static int NameSeason(string title)
         {
-            int slash = title.IndexOf(" / ", StringComparison.Ordinal);
-            var m = NameSeasonNumber.Match(slash > 0 ? title.Substring(0, slash).TrimEnd() : title);
+            string[] names = title.Split(" / ", 3);
+            var m = NameSeasonNumber.Match(names[0].TrimEnd());
             if (!m.Success) return 0;
-            return m.Groups["n"].Success ? int.Parse(m.Groups["n"].Value) : Array.IndexOf(Roman, m.Groups["r"].Value);
+            if (m.Groups["n"].Success) return int.Parse(m.Groups["n"].Value);
+            return names.Length > 1 && NameSeasonNumber.IsMatch(names[1].TrimEnd()) ? Array.IndexOf(Roman, m.Groups["r"].Value) : 0;
         }
 
         static Match FirstNxnn(string title)

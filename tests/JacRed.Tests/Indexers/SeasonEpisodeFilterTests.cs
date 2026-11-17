@@ -166,6 +166,7 @@ public class SeasonEpisodeFilterTests
     [InlineData("Кайдзю № 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
     [InlineData("Моб Психо 100 / Mob Psycho 100 / 2016 / [BDRip 1080p][HEVC][1-12]", 1, true)]
     [InlineData("Апгрейд 2.0 / Upgrade 2.0 / 2021 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Досье лорда Эль-Меллоя II / Lord El-Melloi II Sei no Jikenbo: Rail Zeppelin Grace Note / 2019 / [BDRip 1080p][HEVC][1-13]", 1, true)]
     // A later part numbers its episodes from 1 again: no season from the name
     [InlineData("Дни Сакамото. Часть 2 / Sakamoto Days Part 2 / 2025 / [WEBRip 1080p][HEVC][12-22]", 2, false)]
     public void TitleHasSeason(string title, int season, bool expected)
