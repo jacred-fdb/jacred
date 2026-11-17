@@ -278,6 +278,21 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(new[] { "jk-s2" }, ids);
     }
 
+    [Fact]
+    public async Task FilmIdSearch_CopyOfUnknownYear_KeepsNoTorrentOfAnotherYear()
+    {
+        // A remake under the same Russian name: one copy has its year, another none.
+        Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
+        Seed("gf-2023", $"Голдфингер {_tag}", $"Голдфингер {_tag}", 2023, new[] { "movie" }, $"Голдфингер {_tag} / The Goldfinger {_tag} (2023) BDRip", sid: 20);
+        Seed("gf-2023-copy", $"Голдфингер {_tag}", $"Голдфингер {_tag} The Goldfinger {_tag} 2023 BDRip", 0, new[] { "movie" },
+            $"Голдфингер {_tag} / The Goldfinger {_tag} (2023) BDRip", hashOf: "gf-2023");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990117", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null);
+
+        Assert.Equal(new[] { "gf-1964" }, ids);
+    }
+
     [Theory]
     [InlineData(1, new[] { "frost" })]
     [InlineData(2, new string[0])]
