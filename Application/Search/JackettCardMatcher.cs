@@ -131,11 +131,12 @@ namespace JacRed.Application.Search
 
                 // Записи только по сериям в скобках не считаются найденным именем: поиск без года ищет
                 // остальные сезоны и написания, и одна такая запись не должна его отменять.
+                // Так же и запись трекера, которого нет в выдаче (disable_trackers, вне synctrackers).
                 bool byEpisodes = false, foundByName = false;
                 void add(TorrentDetails t)
                 {
-                    JackettResultBuilder.AddTorrent(torrents, t);
-                    foundByName |= !byEpisodes;
+                    if (JackettResultBuilder.AddTorrent(torrents, t))
+                        foundByName |= !byEpisodes;
                 }
 
                 foreach (string key in keys)

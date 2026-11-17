@@ -617,12 +617,59 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
     }
 
+    // The name is found only where the output drops it: the search without the year must still run and find the other year.
+    [Fact]
+    public async Task FilmCard_ExactNameOnlyOnDisabledTracker_StillSearchesWithoutYear()
+    {
+        string ru = $"Мираж {_tag} пустыни", en = $"Mirage {_tag} desert";
+        Seed("exact-disabled", ru, en, 2020, new[] { "movie" }, $"{ru} / {en} (2020) WEB-DL", tracker: "kinozal");
+        // Episodes in brackets on a kept tracker: the output is not empty, but the name itself is still not found.
+        Seed("episodes", $"{ru} (1-2 из 2)", $"{ru} (1-2 из 2)", 2020, new[] { "movie" }, $"{ru} (1-2 из 2) (2020) BDRip", tracker: "rutor");
+        Seed("other-year", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL", tracker: "rutor");
+        FastDbIndex.Default.RebuildIfChanged();
+        var prev = AppInit.conf.disable_trackers;
+        AppInit.conf.disable_trackers = new[] { "kinozal" };
+        try
+        {
+            Assert.Equal(new[] { "episodes", "other-year" }, await CardSearch(ru, en, 2020, 1));
+        }
+        finally { AppInit.conf.disable_trackers = prev; }
+    }
+
+    [Fact]
+    public async Task FilmCard_ExactNameOnlyOnTrackerOutsideSyncTrackers_StillSearchesWithoutYear()
+    {
+        string ru = $"Мираж {_tag} пустыни", en = $"Mirage {_tag} desert";
+        Seed("exact-unsynced", ru, en, 2020, new[] { "movie" }, $"{ru} / {en} (2020) WEB-DL", tracker: "kinozal");
+        Seed("other-year", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL", tracker: "rutor");
+        FastDbIndex.Default.RebuildIfChanged();
+        var prev = AppInit.conf.synctrackers;
+        AppInit.conf.synctrackers = new[] { "rutor" };
+        try
+        {
+            Assert.Equal(new[] { "other-year" }, await CardSearch(ru, en, 2020, 1));
+        }
+        finally { AppInit.conf.synctrackers = prev; }
+    }
+
+    [Fact]
+    public async Task FilmCard_ExactNameOnlyWithoutRussian_RusKey_StillSearchesWithoutYear()
+    {
+        string ru = $"Мираж {_tag} пустыни", en = $"Mirage {_tag} desert";
+        Seed("exact-eng", ru, en, 2020, new[] { "movie" }, $"{ru} / {en} (2020) WEB-DL", tracker: "rutor");
+        // The voice in the title gives the release its Russian language on save.
+        Seed("other-year-rus", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL | RuDub", tracker: "rutor");
+        FastDbIndex.Default.RebuildIfChanged();
+        Assert.Equal(new[] { "other-year-rus" }, await CardSearch(ru, en, 2020, 1, apiKey: "rus"));
+    }
+
     // As Lampa sends a card: the original title as the query, both titles, the year and is_serial.
-    async Task<string[]> CardSearch(string title, string original, int year, int isSerial, List<int> categories = null)
+    async Task<string[]> CardSearch(string title, string original, int year, int isSerial, List<int> categories = null, string apiKey = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         var results = await IndexerSearchEngine.SearchCombinedAsync(
-            new IndexerSearchRequest { Query = original, Title = title, TitleOriginal = original, Year = year, IsSerial = isSerial, Categories = categories, CardMode = true },
+            new IndexerSearchRequest { Query = original, Title = title, TitleOriginal = original, Year = year, IsSerial = isSerial, Categories = categories, CardMode = true,
+                ApiKey = apiKey },
             cache, new JackettSearchService(FastDbIndex.Default));
         return Ids(results);
     }

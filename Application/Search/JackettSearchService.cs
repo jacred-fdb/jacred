@@ -55,6 +55,10 @@ namespace JacRed.Application.Search
 
             var torrents = JackettCardMatcher.Search(_fastDbIndex, query, title, title_original, year, category, is_serial, rqnum, memoryCache, out nameFound, franchise);
             var results = JackettResultBuilder.Build(torrents, apikey, rqnum);
+            // The output may drop every release found by name (apikey "rus" keeps Russian ones only): then the search
+            // without the year must still run.
+            if (results.Count == 0)
+                nameFound = false;
 
             if (memoryCache != null && AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour == 0)
                 memoryCache.Set(cachekey, (results, nameFound), System.DateTime.Now.AddMinutes(5));
