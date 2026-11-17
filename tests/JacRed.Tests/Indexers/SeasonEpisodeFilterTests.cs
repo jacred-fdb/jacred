@@ -58,6 +58,15 @@ public class SeasonEpisodeFilterTests
     [InlineData("Полицейский с Рублевки (2016) SATRip (серии 1-8 из 8)", 1, 8, true)]
     [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 1, 1180, true)]
     [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 1, 206, false)]
+    // Episodes as a bare bracketed range (AniLiberty) or "з" (Ukrainian "of"): season 1
+    [InlineData("Провожающая в последний путь Фрирен / Sousou no Frieren / 2023 / [WEBRip 1080p][HEVC][1-28]", 1, 5, true)]
+    [InlineData("Провожающая в последний путь Фрирен / Sousou no Frieren / 2023 / [WEBRip 1080p][HEVC][1-28]", 1, 29, false)]
+    [InlineData("Провожающая в последний путь Фрирен / Sousou no Frieren / 2023 / [WEBRip 1080p][HEVC][1-28]", 2, null, false)]
+    [InlineData("Монолог фармацевта 2 / Kusuriya no Hitorigoto 2nd Season / 2025 / [WEBRip 1080p][HEVC][1-24]", 2, 25, false)]
+    [InlineData("Відвідувачка тризн Фрірен / Sousou no Frieren (серії 5-7 з 28) (2023) WEBDL 1080р H.264 Ukr/Jpn | sub Ukr", 1, 6, true)]
+    [InlineData("Відвідувачка тризн Фрірен / Sousou no Frieren (серії 5-7 з 28) (2023) WEBDL 1080р H.264 Ukr/Jpn | sub Ukr", 1, 8, false)]
+    // Not a bracketed range of episodes: years
+    [InlineData("Сериал / Series [2005-2006] DVDRip", 1, null, false)]
     // ...so a first-season release without a season mark stays out of season 2
     [InlineData("Монолог фармацевта / Kusuriya no Hitorigoto / Записки аптекаря / The Apothecary Diaries (Норихиро Наганума) [TV] [1-19 из 24] [RUS(int), JAP+Sub] [2023, драма, детектив, исторический, WEB-DL] [1080p]", 2, 5, false)]
     [InlineData("Ore dake Level Up na Ken | Solo Leveling | Поднятие уровня в одиночку [2024, TV, 12 из 12] WEBRip 396p Raw+Rus", 2, 3, false)]
