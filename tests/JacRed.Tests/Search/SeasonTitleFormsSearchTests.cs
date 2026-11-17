@@ -208,6 +208,39 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Theory]
+    [InlineData("StudioBand")]
+    [InlineData("3 x ДБ")]
+    public async Task SeriesIdSearch_SameTorrentUnderSeasonName_OfAnotherType_KeepsTheTitlesRelease(string voices)
+    {
+        // A tracker that types anime as cartoons holds the same torrent under the season's own name, with more seeders.
+        // The merge keeps that record first, and FilterByType must not drop the torrent with it.
+        Seed("sl-s2", $"Поднятие {_tag} уровня в одиночку", $"Ore Dake Level Up {_tag} na Ken", 2025, new[] { "anime" },
+            $"Поднятие {_tag} уровня в одиночку (2 сезон: 1-13 серии из 13) / Ore Dake Level Up {_tag} na Ken / 2025 / {voices} / WEBRip (1080p)");
+        Seed("sl-s2-cartoon", $"Поднятие {_tag} уровня в одиночку 2: Восстаньте из тени", $"Solo Leveling {_tag} 2", 2025, new[] { "multfilm", "multserial" },
+            $"Поднятие {_tag} уровня в одиночку 2: Восстаньте из тени / Ore dake Level Up {_tag} na Ken Season 2: Arise from the Shadow (2025) WEBRip 1080p",
+            hashOf: "sl-s2", sid: 400);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990111", $"Ore dake Level Up {_tag} na Ken", $"Поднятие {_tag} уровня в одиночку", 2024, "anime", series: true, 2);
+
+        Assert.Equal(new[] { "sl-s2" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_SameTorrentUnderNumberedName_OfAnotherType_KeepsTheTitlesRelease()
+    {
+        Seed("jk-s2", $"Магическая {_tag} битва", $"Jujutsu {_tag} Kaisen", 2023, new[] { "anime" },
+            $"Магическая {_tag} битва (2 сезон: 1-23 серии из 23) / Jujutsu {_tag} Kaisen / 2023 / ДБ (Force Media), СТ / WEBRip (1080p)");
+        Seed("jk-s2-cartoon", $"Магическая {_tag} битва 2", $"JUJUTSU {_tag} KAISEN Season 2", 2023, new[] { "multfilm", "multserial" },
+            $"Магическая {_tag} битва 2 / JUJUTSU {_tag} KAISEN Season 2 [S02] (2023) WEBRip 1080p", hashOf: "jk-s2", sid: 26);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990112", $"Jujutsu {_tag} Kaisen", $"Магическая {_tag} битва", 2020, "anime", series: true, 2);
+
+        Assert.Equal(new[] { "jk-s2" }, ids);
+    }
+
+    [Theory]
     [InlineData(1, new[] { "frost" })]
     [InlineData(2, new string[0])]
     public async Task SeriesIdSearch_FindsEpisodesInName(int season, string[] expected)
@@ -299,7 +332,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         }
     }
 
-    void Seed(string id, string name, string original, int year, string[] types, string title)
+    void Seed(string id, string name, string original, int year, string[] types, string title, string hashOf = null, int sid = 10)
     {
         string key = FileDB.KeyForTorrent(name, original);
         if (!_keys.Contains(key))
@@ -314,8 +347,8 @@ public class SeasonTitleFormsSearchTests : IDisposable
             title = title,
             name = name,
             originalname = original,
-            magnet = "magnet:?xt=urn:btih:" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(id + _tag))),
-            sid = 10,
+            magnet = "magnet:?xt=urn:btih:" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes((hashOf ?? id) + _tag))),
+            sid = sid,
             pir = 1,
             sizeName = "1 GB",
             relased = year,
