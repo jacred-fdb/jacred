@@ -92,7 +92,9 @@ namespace JacRed.Application.Search
                     // Франшиза перед названием (kinozal: "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger").
                     // Только с годом карточки, и год релиза должен совпасть точно:
                     // "Механик: Воскрешение" (2016) — не "Воскрешение" (2015).
-                    if (year <= 0)
+                    // Карточка сериала (is_serial 2, 3): проход ищет фильмы, он читал бы бакеты
+                    // впустую и взял бы лишь сериал с типом anime ("Клинок: Вызов").
+                    if (year <= 0 || is_serial == 2 || is_serial == 3)
                         return torrents;
                     keys = fastDbIndex.FranchiseKeys(_n, _o, FastDbIndex.MaxFranchiseKeys);
                 }

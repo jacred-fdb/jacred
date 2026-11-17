@@ -217,6 +217,22 @@ public class FranchisePrefixSearchTests : IDisposable
         Assert.Equal(new[] { "fire" }, Ids(results));
     }
 
+    [Theory]
+    [InlineData(2, null)]
+    [InlineData(0, 5000)]
+    public async Task TextSearchWithYear_SeriesCard_GetsNoFranchiseMatches(int isSerial, int? category)
+    {
+        // The franchise pass takes films; "anime" is a film type too, and a series card takes
+        // that type, so the pass would add the series "Клинок: Вызов".
+        Seed("series", $"Вызов {_tag}", $"The Challenge {_tag}", 2023, "serial", " (2023) [1-8 из 8]");
+        Seed("anime", $"Клинок: Вызов {_tag}", $"Blade: The Challenge {_tag}", 2023, "anime", " (2023) [1-12 из 12]");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await TextSearch($"The Challenge {_tag} 2023", isSerial, category.HasValue ? new List<int> { category.Value } : null);
+
+        Assert.Equal(new[] { "series" }, Ids(results));
+    }
+
     [Fact]
     public async Task TextSearchWithoutYear_KeepsExactNamesOnly()
     {
@@ -274,11 +290,11 @@ public class FranchisePrefixSearchTests : IDisposable
         Assert.Equal(byText, FastDbIndex.IsFranchiseMatch(name, original, nameSn, originalSn, otherNamePrefixed: true));
     }
 
-    async Task<List<Result>> TextSearch(string query)
+    async Task<List<Result>> TextSearch(string query, int isSerial = -1, List<int> categories = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         return await IndexerSearchEngine.SearchCombinedAsync(
-            new IndexerSearchRequest { Query = query }, cache, new JackettSearchService(FastDbIndex.Default));
+            new IndexerSearchRequest { Query = query, IsSerial = isSerial, Categories = categories }, cache, new JackettSearchService(FastDbIndex.Default));
     }
 
     static string StringConvertName(string value) => JacRed.Infrastructure.Utils.StringConvert.SearchName(value);
