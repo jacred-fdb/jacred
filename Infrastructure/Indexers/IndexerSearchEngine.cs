@@ -41,9 +41,10 @@ namespace JacRed.Infrastructure.Indexers
             if (imdbMode)
             {
                 var resolved = await AllohaTitleResolver.ResolveAsync(query, null, cache);
-                batches.Add(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                int franchiseYear = resolved.IsSeries ? 0 : resolved.Year;
+                batches.Add(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear));
                 if (!string.IsNullOrWhiteSpace(resolved.AlternativeName))
-                    batches.Add(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                    batches.Add(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear));
 
                 var merged = IndexerResultMerger.MergeAndSort(batches.ToArray());
                 if (req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true)
@@ -185,7 +186,7 @@ namespace JacRed.Infrastructure.Indexers
             return pairs;
         }
 
-        static async Task<List<Result>> V1SearchAsync(string search, string altname, bool exact, string sort, List<string> trackers, int? season, IMemoryCache cache, bool rqnum)
+        static async Task<List<Result>> V1SearchAsync(string search, string altname, bool exact, string sort, List<string> trackers, int? season, IMemoryCache cache, bool rqnum, int franchiseYear = 0)
         {
             if (string.IsNullOrWhiteSpace(search)) return new List<Result>();
 
@@ -209,14 +210,25 @@ namespace JacRed.Infrastructure.Indexers
 
             if (exact)
             {
-                foreach (string key in FastDbIndex.Default.ExactKeys(sn, altSn))
+                var keys = FastDbIndex.Default.ExactKeys(sn, altSn);
+                // kinozal names a film of a series "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger".
+                // Alloha gives the original name as search and the Russian one as altname.
+                // Only a film of the film year: "Механик: Воскрешение" (2016) is not "Воскрешение" (2015).
+                // FilterByType is skipped when the client sends categories, so the type is checked here.
+                bool franchise = franchiseYear > 0;
+                if (franchise)
+                    keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, FastDbIndex.MaxFranchiseKeys));
+
+                foreach (string key in keys)
                 {
                     foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null) continue;
                         string n = t._sn ?? StringConvert.SearchName(t.name);
                         string o = t._so ?? StringConvert.SearchName(t.originalname);
-                        if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn)))
+                        if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
+                            || (franchise && t.relased == franchiseYear && IsFilm(t.types)
+                                && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn)))
                             add(t);
                     }
                 }
@@ -251,6 +263,9 @@ namespace JacRed.Infrastructure.Indexers
 
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
         }
+
+        static bool IsFilm(string[] types) =>
+            types.Contains("movie") || types.Contains("multfilm") || types.Contains("documovie") || types.Contains("anime");
 
         static bool MatchesTrackerFilter(string trackerName, List<string> trackers) =>
             TrackerNameMatching.Matches(trackerName, trackers);
