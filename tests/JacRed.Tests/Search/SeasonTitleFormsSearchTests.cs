@@ -1,4 +1,5 @@
 using JacRed.Application.Index;
+using JacRed.Application.Search;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
@@ -459,6 +460,57 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(new[] { "film-brackets", "film-parts" }, ids);
     }
 
+    [Theory]
+    [InlineData(2, null)]
+    [InlineData(0, 5000)]
+    [InlineData(-1, null)]
+    public async Task SeriesCardSearch_FindsEpisodesInName(int isSerial, int? category)
+    {
+        // An exact name fills the card, so the search without the year, which takes any part with the title, does not run.
+        Seed("frost-exact", $"Мороз {_tag}", $"Мороз {_tag}", 2026, new[] { "serial" }, $"Мороз {_tag} [S01] (2026) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await CardSearch($"Мороз {_tag}", $"Мороз {_tag}", 2026, isSerial, cats);
+
+        Assert.Equal(new[] { "frost", "frost-exact" }, ids);
+    }
+
+    [Theory]
+    [InlineData(1, null)]
+    [InlineData(0, 2000)]
+    public async Task FilmCardSearch_FindsEpisodesInName_NotOtherNumberOrSeries(int isSerial, int? category)
+    {
+        Seed("film-exact", $"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, new[] { "movie" }, $"Ирония {_tag} судьбы (1975) DVDRip");
+        // A number in brackets that is no episodes: another film.
+        Seed("film-number", $"Ирония {_tag} судьбы (2)", $"Ирония {_tag} судьбы (2)", 1975, new[] { "movie" }, $"Ирония {_tag} судьбы (2) (1975) DVDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await CardSearch($"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, isSerial, cats);
+
+        // "film-brackets" names its parts "серии", and a film card drops such a title, as for an exact name.
+        Assert.Equal(new[] { "film-exact", "film-parts" }, ids);
+    }
+
+    [Fact]
+    public async Task CardSearch_TooManyEpisodeBuckets_GetsExactNamesOnly()
+    {
+        string chronicle = $"Летопись {_tag}";
+        string[] serial = { "serial" };
+        Seed("chr-exact", chronicle, chronicle, 2020, serial, $"{chronicle} [S01] (2020) WEB-DL");
+        Seed("chr-ep-0", $"{chronicle} (1-1 из 200)", $"{chronicle} (1-1 из 200)", 2020, serial, $"{chronicle} (1-1 из 200) (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "chr-ep-0", "chr-exact" }, await CardSearch(chronicle, chronicle, 2020, 2));
+
+        for (int i = 1; i <= FastDbIndex.MaxTitleFormKeys; i++)
+            Seed($"chr-ep-{i}", $"{chronicle} (1-{i + 1} из 200)", $"{chronicle} (1-{i + 1} из 200)", 2020, serial, $"{chronicle} (1-{i + 1} из 200) (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "chr-exact" }, await CardSearch(chronicle, chronicle, 2020, 2));
+    }
+
     [Fact]
     public void TitleFormKeys_SubtitlesAndBucketsAreBounded()
     {
@@ -499,6 +551,16 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(FastDbIndex.MaxTitleFormKeys - 1, FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0).Count);
         // 99 episode buckets and 2 subtitle buckets: past the bound, so the subtitle buckets are not read.
         Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
+    }
+
+    // As Lampa sends a card: the original title as the query, both titles, the year and is_serial.
+    async Task<string[]> CardSearch(string title, string original, int year, int isSerial, List<int> categories = null)
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var results = await IndexerSearchEngine.SearchCombinedAsync(
+            new IndexerSearchRequest { Query = original, Title = title, TitleOriginal = original, Year = year, IsSerial = isSerial, Categories = categories, CardMode = true },
+            cache, new JackettSearchService(FastDbIndex.Default));
+        return Ids(results);
     }
 
     async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null,

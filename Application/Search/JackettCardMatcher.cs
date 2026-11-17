@@ -102,6 +102,9 @@ namespace JacRed.Application.Search
                 {
                     updateKeys(_n);
                     updateKeys(_o);
+                    // Серии в скобках за названием: "Холод (1-10 из 10)". Сезона в карточке нет, поэтому
+                    // только эта форма: она не говорит, какой это сезон или фильм.
+                    keys.UnionWith(fastDbIndex.TitleFormKeys(_n, _o, 0, year));
 
                     if ((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) && keys.Count > AppInit.conf.maxreadfile)
                         keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
@@ -116,7 +119,8 @@ namespace JacRed.Application.Search
                 bool matches(TorrentDetails t, string name, string originalname) => franchise
                     ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o, otherNamePrefixed: true)
                     // Точная выборка по name или originalname
-                    : (_n != null && _n == name) || (_o != null && _o == originalname);
+                    : (_n != null && _n == name) || (_o != null && _o == originalname)
+                        || ReleaseTitleForms.Matches(t, _n, _o, 0);
 
                 foreach (string key in keys)
                 {
