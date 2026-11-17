@@ -234,6 +234,20 @@ public class FranchisePrefixSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task TextSearchWithYear_SameYearSubtitleOnOneName_IsAKnownFalseMatch()
+    {
+        Seed("film", $"Тёмная сторона {_tag}", $"Bloodline {_tag}", 2018, "movie", " (2018) WEB-DL");
+        Seed("dead", $"День мертвецов: Злая кровь {_tag}", $"Day of the Dead: Bloodline {_tag}", 2018, "movie", " (2018) BDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await TextSearch($"Bloodline {_tag} 2018");
+
+        // Known risk: "Day of the Dead: Bloodline" is another 2018 film, but it has the title
+        // behind a prefix and a prefix on the other name, as kinozal names a Bond film.
+        Assert.Equal(new[] { "dead", "film" }, Ids(results));
+    }
+
+    [Fact]
     public async Task TextSearchWithoutYear_KeepsExactNamesOnly()
     {
         var results = await TextSearch("Never Say Never Again " + _tag);
