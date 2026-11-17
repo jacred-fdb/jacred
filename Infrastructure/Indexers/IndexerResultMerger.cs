@@ -16,9 +16,11 @@ namespace JacRed.Infrastructure.Indexers
         /// <summary>
         /// <see cref="MergeAndSort(IEnumerable{Result}[])"/>, then <paramref name="moreCopies"/> merged only into the torrents
         /// of <paramref name="batches"/>: their seeders, voices, ffprobe and languages count, the torrent's info is not theirs.
+        /// <paramref name="infoHashKey"/> may be <see cref="InfoHashKeys"/> shared with a filter of the same records.
         /// </summary>
-        public static List<Result> MergeAndSort(IEnumerable<Result>[] batches, IEnumerable<Result> moreCopies)
+        public static List<Result> MergeAndSort(IEnumerable<Result>[] batches, IEnumerable<Result> moreCopies, Func<Result, string> infoHashKey = null)
         {
+            infoHashKey ??= InfoHashKey;
             var map = new Dictionary<string, Result>(StringComparer.OrdinalIgnoreCase);
             // Whether map[key].Seeders came from a tracker with reliable counts.
             var reliableSeeders = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
@@ -31,7 +33,7 @@ namespace JacRed.Infrastructure.Indexers
                 foreach (var item in batch)
                 {
                     if (item == null) continue;
-                    string key = InfoHashKey(item);
+                    string key = infoHashKey(item);
                     if (string.IsNullOrEmpty(key))
                     {
                         key = "md5:" + Md5(item.Title + "|" + item.MagnetUri);
@@ -81,6 +83,18 @@ namespace JacRed.Infrastructure.Indexers
             }
 
             return map.Values.OrderByDescending(r => r.Seeders).ThenByDescending(r => r.Peers).ToList();
+        }
+
+        /// <summary><see cref="InfoHashKey"/> that parses the magnet of each record once, for one request's records.</summary>
+        internal static Func<Result, string> InfoHashKeys()
+        {
+            var keys = new Dictionary<Result, string>(ReferenceEqualityComparer.Instance);
+            return item =>
+            {
+                if (item == null) return null;
+                if (!keys.TryGetValue(item, out var key)) keys[item] = key = InfoHashKey(item);
+                return key;
+            };
         }
 
         internal static string InfoHashKey(Result item)

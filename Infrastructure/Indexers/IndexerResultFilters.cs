@@ -52,10 +52,13 @@ namespace JacRed.Infrastructure.Indexers
         /// <see cref="FilterByYear"/> by torrent: the copies of one infohash across all <paramref name="batches"/> are judged
         /// together. A torrent whose dated copies all miss the year goes whole, its copies of unknown year too; otherwise its
         /// copies dated otherwise move to <paramref name="otherYearCopies"/>, for the merge to take the torrent's info from a
-        /// copy that matches and the seeders and voices from all.
+        /// copy that matches and the seeders and voices from all. <paramref name="infoHashKey"/> may be
+        /// <see cref="IndexerResultMerger.InfoHashKeys"/> shared with the merge.
         /// </summary>
-        public static List<Result>[] FilterTorrentsByYear(IReadOnlyList<List<Result>> batches, int year, bool movieLike, out List<Result> otherYearCopies)
+        public static List<Result>[] FilterTorrentsByYear(IReadOnlyList<List<Result>> batches, int year, bool movieLike, out List<Result> otherYearCopies,
+            Func<Result, string> infoHashKey = null)
         {
+            infoHashKey ??= IndexerResultMerger.InfoHashKey;
             var result = new List<Result>[batches.Count];
             otherYearCopies = new List<Result>();
             if (year <= 0)
@@ -71,7 +74,7 @@ namespace JacRed.Infrastructure.Indexers
                 foreach (var t in batch)
                 {
                     int rel = t?.info?.relased ?? 0;
-                    string key = rel > 0 ? IndexerResultMerger.InfoHashKey(t) : null;
+                    string key = rel > 0 ? infoHashKey(t) : null;
                     if (key == null) continue;
                     dated.Add(key);
                     if (MatchesCardYear(rel, year, movieLike)) matched.Add(key);
@@ -89,7 +92,7 @@ namespace JacRed.Infrastructure.Indexers
                         result[i].Add(t);
                         continue;
                     }
-                    string key = IndexerResultMerger.InfoHashKey(t);
+                    string key = infoHashKey(t);
                     if (rel > 0)
                     {
                         if (key != null && matched.Contains(key)) otherYearCopies.Add(t);

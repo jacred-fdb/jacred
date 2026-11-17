@@ -49,8 +49,9 @@ namespace JacRed.Infrastructure.Indexers
                 // The year by torrent, over the copies of both names: a copy of unknown year must not keep a torrent its other
                 // copies date otherwise (a remake), and a copy dated by a remaster must not drop one the others date right.
                 List<Result> otherYearCopies = null;
+                var infoHashKey = IndexerResultMerger.InfoHashKeys();
                 var byTorrent = req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true
-                    ? IndexerResultFilters.FilterTorrentsByYear(found, resolved.Year, movieLike: !resolved.IsSeries, out otherYearCopies)
+                    ? IndexerResultFilters.FilterTorrentsByYear(found, resolved.Year, movieLike: !resolved.IsSeries, out otherYearCopies, infoHashKey)
                     : found.ToArray();
                 // The type of each record before the merge: the merge keeps the first record's info, and one torrent may also
                 // sit under another name and type ("Магическая битва 2" typed as a cartoon on another tracker).
@@ -58,7 +59,7 @@ namespace JacRed.Infrastructure.Indexers
                 foreach (var items in byTorrent)
                     batches.Add(byType ? IndexerResultFilters.FilterByType(items, resolved.Type) : items);
                 // The copies dated otherwise of a kept torrent come last: their seeders and voices count, its info is not theirs.
-                return IndexerResultMerger.MergeAndSort(batches.ToArray(), otherYearCopies);
+                return IndexerResultMerger.MergeAndSort(batches.ToArray(), otherYearCopies, infoHashKey);
             }
 
             var category = BuildCategoryDict(req.Categories);
