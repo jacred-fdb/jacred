@@ -47,6 +47,26 @@ public class SeasonTitleFormsSearchTests : IDisposable
         // The name reads as season 2, the release says season 1.
         Seed("title-s1", $"{Ru} 2", $"{En} 2", 2025, anime, $"{Ru} 2 / {En} 2 [S01] (2025) WEBRip");
 
+        // Spin-offs behind the title have a first season of their own; their later seasons are not the title's.
+        string[] serial = { "serial" };
+        Seed("sg-s2", $"Игра {_tag} в кальмара", $"Squid {_tag} Game", 2024, serial, $"Игра {_tag} в кальмара / Squid {_tag} Game [S02] (2024) WEB-DL");
+        Seed("sgc-s1", $"Игра {_tag} в кальмара. Вызов", $"Squid {_tag} Game: The Challenge", 2023, new[] { "tvshow" },
+            $"Игра {_tag} в кальмара. Вызов (1 сезон: 1-10 выпуски из 10) / Squid {_tag} Game: The Challenge / 2023 / WEB-DL (1080p)");
+        Seed("sgc-s2", $"Игра {_tag} в кальмара. Вызов", $"Squid {_tag} Game: The Challenge", 2025, new[] { "tvshow" },
+            $"Игра {_tag} в кальмара. Вызов (2 сезон: 1-9 выпуски из 9) / Squid {_tag} Game: The Challenge / 2025 / WEB-DL (1080p)");
+        Seed("sgc-s2-ru", $"Игра {_tag} в кальмара: Вызов", $"Squid {_tag} Game The Challenge", 2025, serial, $"Игра {_tag} в кальмара: Вызов (2 сезон) [+9 серия] [1080p]");
+        Seed("cm-s2", $"Мыслить {_tag} как преступник", $"Criminal {_tag} Minds", 2006, serial, $"Мыслить {_tag} как преступник / Criminal {_tag} Minds / Сезон: 2 / Серии: 1-23 из 23 (2006) WEB-DL");
+        Seed("cmbb-s1", $"Мыслить {_tag} как преступник: За границей", $"Criminal {_tag} Minds: Beyond Borders", 2016, serial,
+            $"Мыслить {_tag} как преступник: За границей (1 сезон: 1-13 серии из 13) / Criminal {_tag} Minds: Beyond Borders / 2016 / WEB-DL (1080p)");
+        Seed("cmbb-s2", $"Мыслить {_tag} как преступник: За границей", $"Criminal {_tag} Minds: Beyond Borders", 2017, serial,
+            $"Мыслить {_tag} как преступник: За границей (2 сезон: 1-13 серии из 13) / Criminal {_tag} Minds: Beyond Borders / 2017 / WEB-DL (1080p)");
+        Seed("twd-s2", $"Ходячие {_tag} мертвецы", $"The Walking {_tag} Dead", 2011, serial, $"Ходячие {_tag} мертвецы / The Walking {_tag} Dead [S02] (2011) BDRip");
+        Seed("twdd-s1", $"Ходячие {_tag} мертвецы: Дэрил Диксон", $"The Walking {_tag} Dead: Daryl Dixon", 2023, serial,
+            $"Ходячие {_tag} мертвецы: Дэрил Диксон (1 сезон: 1-6 серии из 6) / The Walking {_tag} Dead: Daryl Dixon / 2023 / WEB-DL (1080p)");
+        // The second season of a spin-off under a longer name.
+        Seed("twdd-s2", $"Ходячие {_tag} мертвецы: Дэрил Диксон. Книга Кэрол", $"The Walking {_tag} Dead: Daryl Dixon. The Book of Carol", 2024, serial,
+            $"Ходячие {_tag} мертвецы: Дэрил Диксон. Книга Кэрол (Сезон 2) / The Walking {_tag} Dead: Daryl Dixon. The Book of Carol (Season 2) (2024) WEB-DL 1080p");
+
         Seed("frost", $"Мороз {_tag} (1-10 из 10)", $"Мороз {_tag} (1-10 из 10)", 2026, new[] { "serial" }, $"Мороз {_tag} (1-10 из 10) (2026) WEBRip");
 
         Seed("film-parts", $"Ирония {_tag} судьбы (1-2 из 2)", $"Ирония {_tag} судьбы (1-2 из 2)", 1975, new[] { "movie" }, $"Ирония {_tag} судьбы (1-2 из 2) (1975) BDRip");
@@ -100,6 +120,19 @@ public class SeasonTitleFormsSearchTests : IDisposable
         var ids = await IdSearch("tt9990101", En, Ru, 2023, "anime", series: true, season);
 
         Assert.Equal(expected, ids);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(5000)]
+    public async Task SeriesIdSearch_SpinOffSubtitle_NotALaterSeason(int? category)
+    {
+        // With a category FilterByType is skipped; the spin-off is a tvshow of a later year, past FilterByYear too.
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        Assert.Equal(new[] { "sg-s2" }, await IdSearch("tt9990104", $"Squid {_tag} Game", $"Игра {_tag} в кальмара", 2021, "serial", series: true, 2, cats));
+        Assert.Equal(new[] { "cm-s2" }, await IdSearch("tt9990105", $"Criminal {_tag} Minds", $"Мыслить {_tag} как преступник", 2005, "serial", series: true, 2, cats));
+        Assert.Equal(new[] { "twd-s2" }, await IdSearch("tt9990106", $"The Walking {_tag} Dead", $"Ходячие {_tag} мертвецы", 2010, "serial", series: true, 2, cats));
     }
 
     [Theory]

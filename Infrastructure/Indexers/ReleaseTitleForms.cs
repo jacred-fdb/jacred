@@ -12,7 +12,8 @@ namespace JacRed.Infrastructure.Indexers
     /// "Магическая битва (Второй сезон)") or a season subtitle ("Solo Leveling: Arise from the Shadow").
     /// A season or subtitle only narrows: it needs a season search, the number in the name must be
     /// that season, and the stored seasons or the title must name it. A subtitle needs season 2 or later:
-    /// behind a first season it is a spin-off or a revival ("Побег: Продолжение (1 сезон…)", 2017).
+    /// behind a first season it is a spin-off or a revival ("Побег: Продолжение (1 сезон…)", 2017), and so is
+    /// a subtitle with a first season of its own ("Squid Game: The Challenge", see FastDbIndex.TitleFormKeys).
     /// </summary>
     public static class ReleaseTitleForms
     {
@@ -107,6 +108,9 @@ namespace JacRed.Infrastructure.Indexers
             var sub = Subtitle.Match(name);
             return sub.Success && isTitle(sub.Groups["base"].Value) && NamesSeason(t, season);
         }
+
+        /// <summary>Whether the release names season 1, in the stored seasons or in the title.</summary>
+        public static bool NamesFirstSeason(TorrentDetails t) => NamesSeason(t, 1);
 
         static int NameSeason(Match m)
         {

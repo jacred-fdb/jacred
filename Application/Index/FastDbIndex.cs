@@ -228,7 +228,7 @@ namespace JacRed.Application.Index
         /// Bucket keys that may hold a release named <paramref name="sn"/> (<c>StringConvert.SearchName</c> form)
         /// plus episodes, or, for <paramref name="season"/> &gt; 0, plus that season or a subtitle: the parts that
         /// start with the name and go on as <see cref="ReleaseTitleForms.IsCandidateRest"/> says, or with
-        /// letters (a subtitle) for season 2 or later.
+        /// letters (a subtitle) for season 2 or later, unless the subtitle's buckets hold a first season (a spin-off).
         /// <see cref="ReleaseTitleForms.Matches"/> has to confirm the records. Empty when more than
         /// <see cref="MaxTitleFormKeys"/> buckets qualify.
         /// </summary>
@@ -257,11 +257,31 @@ namespace JacRed.Application.Index
 
             if (subtitles.Count <= MaxSubtitleParts)
             {
+                // A spin-off has a first season of its own ("Squid Game: The Challenge", "The Walking Dead: Daryl Dixon"),
+                // and so do the longer names behind it ("… Daryl Dixon. The Book of Carol"); a season subtitle has none.
+                // Ordinal order puts a name before the longer ones.
+                var spinOffs = new List<string>();
                 foreach (string part in subtitles)
-                    keys.UnionWith(fastdb[part]);
+                {
+                    var list = fastdb[part];
+                    if (spinOffs.Exists(s => part.StartsWith(s, StringComparison.Ordinal)) || list.Exists(HoldsFirstSeason))
+                        spinOffs.Add(part);
+                    else
+                        keys.UnionWith(list);
+                }
             }
 
             return keys.Count > MaxTitleFormKeys ? new HashSet<string>() : keys;
+        }
+
+        static bool HoldsFirstSeason(string key)
+        {
+            foreach (var t in FileDB.OpenRead(key, true).Values)
+            {
+                if (ReleaseTitleForms.NamesFirstSeason(t))
+                    return true;
+            }
+            return false;
         }
 
         static IEnumerable<string> PartsStartingWith(string[] parts, string prefix)
