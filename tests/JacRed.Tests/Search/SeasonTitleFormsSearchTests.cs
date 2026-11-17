@@ -40,6 +40,8 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Seed("film-2", $"{Ru} 2", $"{En} 2", 2025, new[] { "anime" }, $"{Ru} 2 / {En} 2 (2025) BDRip 1080p");
         Seed("film-subtitle", $"{Ru}: Фильм", $"{En}: The Movie", 2025, new[] { "anime" }, $"{Ru}: Фильм / {En}: The Movie (2025) BDRip");
         Seed("s20", $"{Ru} 20", $"{En} 20", 2025, anime, $"{Ru} 20 / {En} 20 [S01] (2025) WEBRip");
+        // A revival behind the title names its own first season.
+        Seed("revival", $"{Ru}: Продолжение", $"{En}: Sequel", 2027, anime, $"{Ru}: Продолжение (1 сезон: 1-9 серии из 9) / {En}: Sequel / 2027 / WEB-DL (1080p)");
         // The name reads as season 2, the release says season 1.
         Seed("title-s1", $"{Ru} 2", $"{En} 2", 2025, anime, $"{Ru} 2 / {En} 2 [S01] (2025) WEBRip");
 
@@ -122,17 +124,18 @@ public class SeasonTitleFormsSearchTests : IDisposable
         string episodes = FileDB.KeyForTorrent($"{saga} (1-5 из 5)", $"{saga} (1-5 из 5)");
         Seed("saga-episodes", $"{saga} (1-5 из 5)", $"{saga} (1-5 из 5)", 2020, new[] { "serial" }, $"{saga} (1-5 из 5) (2020)");
         string subtitle = FileDB.KeyForTorrent($"{saga}: Глава", $"{saga}: Глава");
-        Seed("saga-subtitle", $"{saga}: Глава", $"{saga}: Глава", 2020, new[] { "serial" }, $"{saga}: Глава [S01] (2020)");
+        Seed("saga-subtitle", $"{saga}: Глава", $"{saga}: Глава", 2020, new[] { "serial" }, $"{saga}: Глава [S02] (2020)");
         FastDbIndex.Default.RebuildIfChanged();
 
-        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, 1));
+        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, 2));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 1));
         Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 0));
 
         // A name with many letters behind it gets no subtitle buckets.
         for (int i = 0; i < FastDbIndex.MaxSubtitleParts; i++)
             Seed($"saga-word-{i}", $"{saga}{(char)('а' + i)}", $"{saga}{(char)('а' + i)}", 2020, new[] { "movie" }, $"{saga}{(char)('а' + i)} (2020)");
         FastDbIndex.Default.RebuildIfChanged();
-        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 1));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, 2));
 
         // Too many buckets give nothing.
         for (int i = 0; i < FastDbIndex.MaxTitleFormKeys; i++)

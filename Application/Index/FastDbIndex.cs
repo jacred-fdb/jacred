@@ -227,7 +227,8 @@ namespace JacRed.Application.Index
         /// <summary>
         /// Bucket keys that may hold a release named <paramref name="sn"/> (<c>StringConvert.SearchName</c> form)
         /// plus episodes, or, for <paramref name="season"/> &gt; 0, plus that season or a subtitle: the parts that
-        /// start with the name and go on as <see cref="ReleaseTitleForms.IsCandidateRest"/> says.
+        /// start with the name and go on as <see cref="ReleaseTitleForms.IsCandidateRest"/> says, or with
+        /// letters (a subtitle) for season 2 or later.
         /// <see cref="ReleaseTitleForms.Matches"/> has to confirm the records. Empty when more than
         /// <see cref="MaxTitleFormKeys"/> buckets qualify.
         /// </summary>
@@ -247,7 +248,7 @@ namespace JacRed.Application.Index
                 string rest = part.Substring(sn.Length);
                 if (ReleaseTitleForms.IsCandidateRest(rest, season))
                     keys.UnionWith(fastdb[part]);
-                else if (season > 0 && sn.Length >= MinFranchiseTitle && char.IsLetter(rest[0]))
+                else if (season > 1 && sn.Length >= MinFranchiseTitle && char.IsLetter(rest[0]))
                     subtitles.Add(part);
             }
 

@@ -59,6 +59,8 @@ public class ReleaseTitleFormsTests
     [InlineData("Solo Leveling: Arise from the Shadow", "Solo Leveling: Arise from the Shadow / Ore dake Level Up na Ken: Arise from the Shadow / Поднятие уровня в одиночку [ТВ-2] (13 из 13) Complete [1080p]", "Solo Leveling", 1, false)]
     [InlineData("Атака титанов: финал - заключительная глава", "Атака титанов: финал - заключительная глава / Attack on Titan: The Final Season Part 3", "Атака титанов", 3, false)]
     [InlineData("Побег: Продолжение", "Побег: Продолжение / Prison Break: Sequel (2017) WEB-DLRip", "Побег", 1, false)]
+    // A subtitle behind a first season is a spin-off or a revival
+    [InlineData("Побег: Продолжение", "Побег: Продолжение (1 сезон: 1-9 серии из 9) / Prison Break: Sequel / 2017 / WEB-DL (1080p)", "Побег", 1, false)]
     public void Matches_Name(string name, string title, string search, int season, bool expected)
     {
         var t = new TorrentDetails { name = name, originalname = name, title = title, seasons = new HashSet<int>() };

@@ -11,7 +11,8 @@ namespace JacRed.Infrastructure.Indexers
     /// a season ("Монолог фармацевта 2", "Kusuriya no Hitorigoto 2nd Season", "Jujutsu Kaisen TV-2",
     /// "Магическая битва (Второй сезон)") or a season subtitle ("Solo Leveling: Arise from the Shadow").
     /// A season or subtitle only narrows: it needs a season search, the number in the name must be
-    /// that season, and the stored seasons or the title must name it.
+    /// that season, and the stored seasons or the title must name it. A subtitle needs season 2 or later:
+    /// behind a first season it is a spin-off or a revival ("Побег: Продолжение (1 сезон…)", 2017).
     /// </summary>
     public static class ReleaseTitleForms
     {
@@ -100,6 +101,8 @@ namespace JacRed.Infrastructure.Indexers
                     return NamesSeason(t, season);
             }
 
+            if (season < 2)
+                return false;
             var sub = Subtitle.Match(name);
             return sub.Success && isTitle(sub.Groups["base"].Value) && NamesSeason(t, season);
         }
