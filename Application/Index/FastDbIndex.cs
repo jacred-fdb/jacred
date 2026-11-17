@@ -245,9 +245,12 @@ namespace JacRed.Application.Index
             {
                 if (part.Length == sn.Length)
                     continue;
+                // _partsByStart is published before _fastdb: a part of a newer build may be missing here.
+                if (!fastdb.TryGetValue(part, out List<string> list))
+                    continue;
                 string rest = part.Substring(sn.Length);
                 if (ReleaseTitleForms.IsCandidateRest(rest, season))
-                    keys.UnionWith(fastdb[part]);
+                    keys.UnionWith(list);
                 else if (season > 1 && sn.Length >= MinFranchiseTitle && char.IsLetter(rest[0]))
                     subtitles.Add(part);
             }
