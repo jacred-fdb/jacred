@@ -6,6 +6,7 @@ using JacRed.Infrastructure.Logging;
 using JacRed.Infrastructure.Persistence;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models;
+using JacRed.Models.Details;
 
 namespace JacRed.Application.Index
 {
@@ -229,7 +230,7 @@ namespace JacRed.Application.Index
         /// (<c>StringConvert.SearchName</c> form) plus episodes, or, for <paramref name="season"/> &gt; 0, plus that
         /// season or a subtitle: the parts that start with a name and go on as <see cref="ReleaseTitleForms.IsCandidateRest"/>
         /// says, or with letters (a subtitle) for season 2 or later, unless the subtitle is a spin-off: its buckets hold
-        /// a first season of its own (<see cref="ReleaseTitleForms.IsOwnFirstSeason"/>, by <paramref name="titleYear"/>).
+        /// a first season of its own (<see cref="ReleaseTitleForms.IsSpinOff"/>, by <paramref name="titleYear"/>).
         /// A spin-off seen from either name drops its buckets from both ("Robocar Poli: Rules of the road" /
         /// "Робокар Поли: Правила дорожного движения"), and so does one seen from <paramref name="otherSn"/>, a third name
         /// of the title searched apart (Alloha's alternative_name), which gives no buckets here.
@@ -294,7 +295,7 @@ namespace JacRed.Application.Index
             foreach (string part in subtitles)
             {
                 var list = fastdb[part];
-                if (spinOffParts.Exists(s => part.StartsWith(s, StringComparison.Ordinal)) || list.Exists(k => HoldsOwnFirstSeason(k, titleYear)))
+                if (spinOffParts.Exists(s => part.StartsWith(s, StringComparison.Ordinal)) || IsSpinOff(list, titleYear))
                 {
                     spinOffParts.Add(part);
                     spinOffs.UnionWith(list);
@@ -304,14 +305,12 @@ namespace JacRed.Application.Index
             }
         }
 
-        static bool HoldsOwnFirstSeason(string key, int titleYear)
+        static bool IsSpinOff(List<string> keys, int titleYear)
         {
-            foreach (var t in FileDB.OpenRead(key, true).Values)
-            {
-                if (ReleaseTitleForms.IsOwnFirstSeason(t, titleYear))
-                    return true;
-            }
-            return false;
+            var records = new List<TorrentDetails>();
+            foreach (string key in keys)
+                records.AddRange(FileDB.OpenRead(key, true).Values);
+            return ReleaseTitleForms.IsSpinOff(records, titleYear);
         }
 
         static IEnumerable<string> PartsStartingWith(string[] parts, string prefix)

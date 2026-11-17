@@ -164,7 +164,8 @@ public class SeasonTitleFormsSearchTests : IDisposable
     {
         string[] serial = { "serial" };
         Seed("pb-s2", $"Побег {_tag} из тюрьмы", $"Prison {_tag} Break", 2006, serial, $"Побег {_tag} из тюрьмы / Prison {_tag} Break [S02] (2006) BDRip");
-        Seed("pb-pack", $"Побег {_tag} из тюрьмы: Коллекция", $"Prison {_tag} Break: Collection", 2009, serial,
+        // The tracker gives the pack the title's year, the first of its "2005-2009".
+        Seed("pb-pack", $"Побег {_tag} из тюрьмы: Коллекция", $"Prison {_tag} Break: Collection", 2005, serial,
             $"Побег {_tag} из тюрьмы: Коллекция / Prison {_tag} Break: Collection (2005-2009) BDRip (Сезоны 1-4, серии 1-79 из 79)");
         FastDbIndex.Default.RebuildIfChanged();
 
@@ -191,6 +192,40 @@ public class SeasonTitleFormsSearchTests : IDisposable
         var ids = await IdSearch("tt9990109", $"Mythic {_tag} Quest", $"Мифический {_tag} квест", year, "serial", series: true, 2, new List<int> { 5000 });
 
         Assert.Equal(expected, ids);
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_FirstSeasonUploadedLater_IsNoSpinOff()
+    {
+        // A tracker's year may be the year of the rip or upload: the earliest first season is the one that counts.
+        string[] serial = { "serial" };
+        Seed("mq-s1", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2020, serial,
+            $"Мифический {_tag} квест: Пир ворона (1 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2020 / WEB-DL (1080p)");
+        Seed("mq-s1-late", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2021, serial,
+            $"Мифический {_tag} квест: Пир ворона (1 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2021 / WEB-DL (2160p)");
+        Seed("mq-s2", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2021, serial,
+            $"Мифический {_tag} квест: Пир ворона (2 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2021 / WEB-DL (1080p)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990114", $"Mythic {_tag} Quest", $"Мифический {_tag} квест", 2020, "serial", series: true, 2, new List<int> { 5000 });
+
+        Assert.Equal(new[] { "mq-s2" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_SpinOffWithFirstSeasonInPackOnly_IsSpinOff()
+    {
+        string[] serial = { "serial" };
+        Seed("st-s2", $"Очень {_tag} странные дела", $"Stranger {_tag} Things", 2017, serial, $"Очень {_tag} странные дела / Stranger {_tag} Things [S02] (2017) WEB-DL");
+        Seed("tales-pack", $"Очень {_tag} странные дела: Байки", $"Stranger {_tag} Things: Tales", 2026, serial,
+            $"Очень {_tag} странные дела: Байки / Stranger {_tag} Things: Tales [S01-02] (2026) WEB-DL");
+        Seed("ik-s1", $"Озорной {_tag} поцелуй", $"Itazura {_tag} na Kiss", 2008, new[] { "anime", "serial" }, $"Озорной {_tag} поцелуй / Itazura {_tag} na Kiss [25 из 25] (2008) DVDRip");
+        Seed("ik-tokyo", $"Озорной {_tag} поцелуй: Любовь в Токио", $"Itazura {_tag} na Kiss: Love in Tokyo", 2013, serial,
+            $"Озорной {_tag} поцелуй: Любовь в Токио / Itazura {_tag} na Kiss: Love in Tokyo [s01-02] (2013) HDTVRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "st-s2" }, await IdSearch("tt9990115", $"Stranger {_tag} Things", $"Очень {_tag} странные дела", 2016, "serial", series: true, 2, new List<int> { 5000 }));
+        Assert.Empty(await IdSearch("tt9990116", $"Itazura {_tag} na Kiss", $"Озорной {_tag} поцелуй", 2008, "anime", series: true, 2, new List<int> { 5000 }));
     }
 
     [Theory]

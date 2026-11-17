@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using JacRed.Infrastructure.Utils;
 using JacRed.Models.Details;
@@ -110,18 +111,29 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         /// <summary>
-        /// Whether <paramref name="t"/>, a release behind a subtitle of the title, is a first season of its own:
-        /// it names season 1 only, in the stored seasons or in the title, and, when the title's <paramref name="titleYear"/>
-        /// is known, came out after it. A pack "(Сезоны 1-4)" is not one, nor is a season subtitle a tracker reads as
-        /// "1 сезон" in the title's own year ("Mythic Quest: Raven's Banquet", 2020), nor a release of unknown year.
+        /// Whether <paramref name="records"/>, the releases behind a subtitle of the title, are a spin-off with a first season
+        /// of its own. When the title's <paramref name="titleYear"/> is known, the earliest release that names season 1, in the
+        /// stored seasons or in the title, pack or not ("[S01-02]"), came out after it: a tracker's year may be the year of the
+        /// rip or upload, and a season subtitle a tracker reads as "1 сезон" has one in the title's own year ("Mythic Quest:
+        /// Raven's Banquet", 2020), so has a pack of all seasons ("Prison Break: Collection", 2005). Releases of unknown
+        /// year do not count. Without the year, any release that names season 1 only.
         /// </summary>
-        public static bool IsOwnFirstSeason(TorrentDetails t, int titleYear)
+        public static bool IsSpinOff(IEnumerable<TorrentDetails> records, int titleYear)
         {
-            if (titleYear > 0 && t.relased <= titleYear)
-                return false;
-            return t.seasons != null && t.seasons.Count > 0
-                ? t.seasons.Count == 1 && t.seasons.Contains(1)
-                : SeasonEpisodeFilter.TitleNamesOnlySeason(t.title, 1);
+            int first = int.MaxValue;
+            foreach (var t in records)
+            {
+                if (titleYear <= 0)
+                {
+                    if (t.seasons != null && t.seasons.Count > 0
+                            ? t.seasons.Count == 1 && t.seasons.Contains(1)
+                            : SeasonEpisodeFilter.TitleNamesOnlySeason(t.title, 1))
+                        return true;
+                }
+                else if (t.relased > 0 && t.relased < first && NamesSeason(t, 1))
+                    first = t.relased;
+            }
+            return titleYear > 0 && first != int.MaxValue && first > titleYear;
         }
 
         static int NameSeason(Match m)
