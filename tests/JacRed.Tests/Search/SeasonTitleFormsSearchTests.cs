@@ -32,6 +32,8 @@ public class SeasonTitleFormsSearchTests : IDisposable
         string[] anime = { "anime", "serial" };
         Seed("s1", Ru, En, 2023, anime, $"{Ru} / {En} / 2023 / [WEBRip 1080p][HEVC][1-24]");
         Seed("s2-number", $"{Ru} 2", $"{En} 2nd Season", 2025, anime, $"{Ru} 2 / {En} 2nd Season / 2025 / [WEBRip 1080p][HEVC][1-24]");
+        // AniLiberty: the season only as a number after the name, the episodes in brackets.
+        Seed("s2-aniliberty", $"{Ru} 2", $"{En} II", 2025, anime, $"{Ru} 2 / {En} II / 2025 / [HDTVRip 720p][AVC][1-12]");
         Seed("s2-tv", $"{Ru} ТВ-2", $"{En} TV-2", 2025, anime, $"{Ru} ТВ-2 / {En} TV-2 [24 из 24]");
         Seed("s2-subtitle", $"{En}: Arise from the Shadow", $"Apothecary {_tag}: Arise from the Shadow", 2025, anime,
             $"Apothecary {_tag}: Arise from the Shadow / {En}: Arise from the Shadow / {Ru} [ТВ-2] (13 из 13) Complete [1080p]");
@@ -90,7 +92,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
 
     [Theory]
     [InlineData(1, new[] { "s1" })]
-    [InlineData(2, new[] { "s2-number", "s2-subtitle", "s2-tv" })]
+    [InlineData(2, new[] { "s2-aniliberty", "s2-number", "s2-subtitle", "s2-tv" })]
     [InlineData(3, new[] { "s3-word" })]
     [InlineData(4, new string[0])]
     public async Task SeriesIdSearch_FindsSeasonForms_OfThatSeasonOnly(int season, string[] expected)

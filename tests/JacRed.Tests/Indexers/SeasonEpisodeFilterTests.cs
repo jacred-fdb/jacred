@@ -156,6 +156,18 @@ public class SeasonEpisodeFilterTests
     [InlineData("[SubsPlease] Sousou no Frieren - 28 (1080p)", 1, false)]
     [InlineData("Третий сезон 1-10 из 10", 5, false)]
     [InlineData(null, 1, false)]
+    // AniLiberty names a later season by a number after the name
+    [InlineData("Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]", 1, false)]
+    [InlineData("Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]", 2, true)]
+    [InlineData("Повелитель IV / Overlord IV / 2022 / [WEBRip 1080p][HEVC][1-13]", 4, true)]
+    [InlineData("Мастера Меча Онлайн 2 / Sword Art Online II / 2014 / [BDRip 1080p][AVC][1-24]", 1, false)]
+    [InlineData("Мастера Меча Онлайн 2 / Sword Art Online II / 2014 / [BDRip 1080p][AVC][1-24]", 2, true)]
+    // A number of the name itself is not a season: the episodes are still season 1
+    [InlineData("Кайдзю № 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Моб Психо 100 / Mob Psycho 100 / 2016 / [BDRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Апгрейд 2.0 / Upgrade 2.0 / 2021 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    // A later part numbers its episodes from 1 again: no season from the name
+    [InlineData("Дни Сакамото. Часть 2 / Sakamoto Days Part 2 / 2025 / [WEBRip 1080p][HEVC][12-22]", 2, false)]
     public void TitleHasSeason(string title, int season, bool expected)
     {
         Assert.Equal(expected, SeasonEpisodeFilter.TitleHasSeason(title, season));

@@ -121,6 +121,10 @@ namespace JacRed.Infrastructure.Indexers
         static readonly Regex EpisodeCount = new Regex(@"(?<![0-9.])(?:(?<first>[0-9]{1,4})-)?(?<last>[0-9]{1,4})\s*(?:эп|ep)(?!\p{L})", Opts);
         // AniLiberty: … / 2023 / [WEBRip 1080p][HEVC][1-28]. Not years: [2005-2006].
         static readonly Regex BracketedRange = new Regex(@"\[(?<first>[0-9]{1,3})\s*-\s*(?<last>[0-9]{1,3})\]", Opts);
+        // AniLiberty names a later season by a number after the name: "Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]".
+        // Not a number of the name itself: "Кайдзю № 8", "Kaiju No. 8", "Апгрейд 2.0", "Моб Психо 100".
+        static readonly Regex NameSeasonNumber = new Regex(@"(?<!(?:№|#|(?i:\bno\.?))\s*)\s(?:(?<n>[0-9]{1,2})|(?<r>II|III|IV|V|VI|VII|VIII|IX|X))$", RegexOptions.Compiled);
+        static readonly string[] Roman = { null, "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
         // A later part of a split season numbers its episodes from 1 again: (4 сезон. Часть 2: 1-12 серии из 12) is E17-28.
         static readonly Regex LaterPart = new Regex(@"(?<!\p{L})(?:част\p{L}*|part|cour)\s*(?<part>[0-9]{1,2})(?![0-9-])", Opts);
         // Episodes without a season are season 1, unless the title names a season in words or is a film, OVA or special.
@@ -196,16 +200,34 @@ namespace JacRed.Infrastructure.Indexers
 
             m = EpisodesOf.Match(rest);
             if (!m.Success) m = EpisodeCount.Match(rest);
-            if (!m.Success) m = BracketedRange.Match(rest);
+            bool bracketed = false;
+            if (!m.Success)
+            {
+                m = BracketedRange.Match(rest);
+                bracketed = m.Success;
+            }
             if (m.Success && !IsLaterPart(rest))
                 SetEpisodes(info, m.Groups["first"].Success ? int.Parse(m.Groups["first"].Value) : 1, int.Parse(m.Groups["last"].Value));
 
             if (info.Seasons.Count == 0)
             {
                 if (!info.FirstEpisode.HasValue) return null;
-                info.FirstSeasonByDefault = !NoSeasonOneGuess.IsMatch(title);
+                int nameSeason = bracketed ? NameSeason(title) : 0;
+                if (nameSeason >= 2)
+                    info.Seasons.Add(nameSeason);
+                else
+                    info.FirstSeasonByDefault = !NoSeasonOneGuess.IsMatch(title);
             }
             return info;
+        }
+
+        // The number after the name, before the first " / ": "Повелитель 2", "Повелитель IV".
+        static int NameSeason(string title)
+        {
+            int slash = title.IndexOf(" / ", StringComparison.Ordinal);
+            var m = NameSeasonNumber.Match(slash > 0 ? title.Substring(0, slash).TrimEnd() : title);
+            if (!m.Success) return 0;
+            return m.Groups["n"].Success ? int.Parse(m.Groups["n"].Value) : Array.IndexOf(Roman, m.Groups["r"].Value);
         }
 
         static Match FirstNxnn(string title)
