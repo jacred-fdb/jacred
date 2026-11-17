@@ -51,6 +51,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Seed("film-brackets", $"Ирония {_tag} судьбы [1-2 серии из 2]", $"Ирония {_tag} судьбы [1-2 серии из 2] (1975) WEB-DL 1080p", 1975, new[] { "movie" },
             $"Ирония {_tag} судьбы [1-2 серии из 2] (1975) WEB-DL 1080p");
         Seed("film-sequel", $"Ирония {_tag} судьбы 2", $"Ирония {_tag} судьбы 2", 1976, new[] { "movie" }, $"Ирония {_tag} судьбы 2 (1976) DVDRip");
+        Seed("same-year-series", $"Ирония {_tag} судьбы (1-4 из 4)", $"Ирония {_tag} судьбы (1-4 из 4)", 1975, new[] { "serial" }, $"Ирония {_tag} судьбы (1-4 из 4) (1975) TVRip");
         Seed("remake-series", $"Ирония {_tag} судьбы (1-12 из 12)", $"Ирония {_tag} судьбы (1-12 из 12)", 2005, new[] { "serial" }, $"Ирония {_tag} судьбы (1-12 из 12) (2005) DVDRip");
 
         FastDbIndex.Default.RebuildIfChanged();
@@ -109,10 +110,15 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(expected, ids);
     }
 
-    [Fact]
-    public async Task FilmIdSearch_FindsEpisodesInName_NotSequelOrSeries()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2000)]
+    public async Task FilmIdSearch_FindsEpisodesInName_NotSequelOrSeries(int? category)
     {
-        var ids = await IdSearch("tt9990103", $"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, "movie", series: false, season: null);
+        // With a category FilterByType is skipped: the form match itself must drop the series.
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await IdSearch("tt9990103", $"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, "movie", series: false, season: null, cats);
 
         Assert.Equal(new[] { "film-brackets", "film-parts" }, ids);
     }
@@ -144,7 +150,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, 1));
     }
 
-    async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season)
+    async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         cache.Set($"alloha:title:{imdbId}", new AllohaResolveResult
@@ -162,7 +168,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         try
         {
             var results = await IndexerSearchEngine.SearchCombinedAsync(
-                new IndexerSearchRequest { Query = imdbId, CardMode = false, Season = season }, cache, jackettSearch: null);
+                new IndexerSearchRequest { Query = imdbId, CardMode = false, Season = season, Categories = categories }, cache, jackettSearch: null);
             return Ids(results);
         }
         finally

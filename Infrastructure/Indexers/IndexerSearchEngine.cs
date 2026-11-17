@@ -233,7 +233,7 @@ namespace JacRed.Infrastructure.Indexers
                         if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
                             || (franchise && t.relased == franchiseYear && IsFilm(t.types)
                                 && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn))
-                            || ReleaseTitleForms.Matches(t, sn, altSn, formSeason))
+                            || ((!franchise || IsFilm(t.types)) && ReleaseTitleForms.Matches(t, sn, altSn, formSeason)))
                             add(t);
                     }
                 }
