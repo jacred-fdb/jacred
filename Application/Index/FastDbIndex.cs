@@ -119,6 +119,13 @@ namespace JacRed.Application.Index
         public const int MinFranchiseTitle = 5;
 
         /// <summary>
+        /// Most buckets one side of <see cref="FranchiseKeys"/> may give to an id search.
+        /// A Bond title ends at most 9 parts; "огонь" or "мальчик" end about 250, and
+        /// opening them on every request pushes other buckets out of evercache.
+        /// </summary>
+        public const int MaxFranchiseKeys = 50;
+
+        /// <summary>
         /// Bucket keys that may hold a release named with a franchise prefix,
         /// "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger" for
         /// <c>голдфингер</c> or <c>goldfinger</c> (<c>StringConvert.SearchName</c> form):

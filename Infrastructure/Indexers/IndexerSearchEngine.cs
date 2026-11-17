@@ -213,10 +213,11 @@ namespace JacRed.Infrastructure.Indexers
                 var keys = FastDbIndex.Default.ExactKeys(sn, altSn);
                 // kinozal names a film of a series "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger".
                 // Alloha gives the original name as search and the Russian one as altname.
-                // Only in the film year: "Механик: Воскрешение" (2016) is not "Воскрешение" (2015).
+                // Only a film of the film year: "Механик: Воскрешение" (2016) is not "Воскрешение" (2015).
+                // FilterByType is skipped when the client sends categories, so the type is checked here.
                 bool franchise = franchiseYear > 0;
                 if (franchise)
-                    keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, AppInit.conf.maxreadfile));
+                    keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, FastDbIndex.MaxFranchiseKeys));
 
                 foreach (string key in keys)
                 {
@@ -226,7 +227,8 @@ namespace JacRed.Infrastructure.Indexers
                         string n = t._sn ?? StringConvert.SearchName(t.name);
                         string o = t._so ?? StringConvert.SearchName(t.originalname);
                         if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
-                            || (franchise && t.relased == franchiseYear && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn)))
+                            || (franchise && t.relased == franchiseYear && IsFilm(t.types)
+                                && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn)))
                             add(t);
                     }
                 }
@@ -261,6 +263,9 @@ namespace JacRed.Infrastructure.Indexers
 
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
         }
+
+        static bool IsFilm(string[] types) =>
+            types.Contains("movie") || types.Contains("multfilm") || types.Contains("documovie") || types.Contains("anime");
 
         static bool MatchesTrackerFilter(string trackerName, List<string> trackers) =>
             TrackerNameMatching.Matches(trackerName, trackers);

@@ -76,17 +76,56 @@ public class FranchisePrefixSearchTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2000)]
+    public async Task ImdbSearch_FindsPrefixedRelease_NotOtherYearOrSeries(int? category)
+    {
+        // With a category FilterByType is skipped: the franchise match itself must drop the series.
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await ImdbSearch(ImdbId, AllohaOriginal, Ru, 1983, cats);
+
+        Assert.Equal(new[] { "kinozal-4k", "rutor" }, ids);
+    }
+
     [Fact]
-    public async Task ImdbSearch_FindsPrefixedRelease_NotOtherYearOrSeries()
+    public async Task ImdbSearch_SameYearSequelSubtitle_IsAKnownFalseMatch()
+    {
+        Seed("trunk", $"Багажник: Запертая {_tag}", $"Trunk: Locked In {_tag}", 2023, "movie", " (2023) WEB-DLRip");
+        Seed("locked-in", $"Запертая {_tag}", $"Locked In {_tag}", 2023, "movie", " (2023) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await ImdbSearch("tt9990001", $"Locked In {_tag}", $"Запертая {_tag}", 2023);
+
+        // Known risk: "Trunk: Locked In" is another 2023 film, but both of its names are
+        // "Запертая / Locked In" behind a prefix, so nothing in the names tells them apart.
+        Assert.Equal(new[] { "locked-in", "trunk" }, ids);
+    }
+
+    [Fact]
+    public async Task ImdbSearch_TitleEndingTooManyBuckets_GetsNoFranchiseMatches()
+    {
+        for (int i = 0; i <= FastDbIndex.MaxFranchiseKeys; i++)
+            Seed($"many-{i}", $"Серия {i}: Огонь и лёд {_tag}", $"Series {i}: Fire and Ice {_tag}", 2001, "movie", " (2001) DVDRip");
+        Seed("fire", $"Огонь и лёд {_tag}", $"Fire and Ice {_tag}", 2001, "movie", " (2001) DVDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await ImdbSearch("tt9990002", $"Fire and Ice {_tag}", $"Огонь и лёд {_tag}", 2001);
+
+        Assert.Equal(new[] { "fire" }, ids);
+    }
+
+    async Task<string[]> ImdbSearch(string imdbId, string search, string altName, int year, List<int> categories = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
-        cache.Set($"alloha:title:{ImdbId}", new AllohaResolveResult
+        cache.Set($"alloha:title:{imdbId}", new AllohaResolveResult
         {
-            Search = AllohaOriginal,
-            AltName = Ru,
-            Year = 1983,
+            Search = search,
+            AltName = altName,
+            Year = year,
             Type = "movie",
-            ImdbId = ImdbId
+            ImdbId = imdbId
         }, TimeSpan.FromHours(1));
 
         var prev = AppInit.conf.alloha.filterByYear;
@@ -94,9 +133,8 @@ public class FranchisePrefixSearchTests : IDisposable
         try
         {
             var results = await IndexerSearchEngine.SearchCombinedAsync(
-                new IndexerSearchRequest { Query = ImdbId, CardMode = false }, cache, jackettSearch: null);
-
-            Assert.Equal(new[] { "kinozal-4k", "rutor" }, Ids(results));
+                new IndexerSearchRequest { Query = imdbId, CardMode = false, Categories = categories }, cache, jackettSearch: null);
+            return Ids(results);
         }
         finally
         {
