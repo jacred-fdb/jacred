@@ -156,6 +156,23 @@ public class FranchisePrefixSearchTests : IDisposable
         Assert.Equal(expected.Split(' '), Ids(results));
     }
 
+    [Theory]
+    [InlineData("The Empire Strikes Back {0} 1980")]
+    [InlineData("Империя наносит ответный удар {0} 1980")]
+    public async Task TextSearchWithYear_PrefixedMatch_KeepsTheFallbackWithoutYear(string query)
+    {
+        // No exact name, so the card search falls back to the title without the year, as a part
+        // of a name: that finds "Episode V - The Empire Strikes Back". A prefixed release of the
+        // year must not stand in for it.
+        Seed("sw-prefix", $"Звёздные войны: Империя наносит ответный удар {_tag}", $"Star Wars: The Empire Strikes Back {_tag}", 1980, "movie", " (1980) BDRip");
+        Seed("sw-episode", $"Звёздные войны: Эпизод 5 - Империя наносит ответный удар {_tag}", $"Star Wars: Episode V - The Empire Strikes Back {_tag}", 1980, "movie", " (1980) BDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await TextSearch(string.Format(query, _tag));
+
+        Assert.Equal(new[] { "sw-episode", "sw-prefix" }, Ids(results));
+    }
+
     [Fact]
     public async Task TextSearchWithoutYear_KeepsExactNamesOnly()
     {

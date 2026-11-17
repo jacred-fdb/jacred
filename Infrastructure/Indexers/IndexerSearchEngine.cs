@@ -74,6 +74,9 @@ namespace JacRed.Infrastructure.Indexers
                     foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
                         batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache));
                 }
+                // A pass of its own: "Звёздные войны: Империя наносит ответный удар" (1980) must not stand
+                // in for the search without the year, which finds "Эпизод 5 - Империя наносит ответный удар".
+                batches.Add(jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, franchise: true));
             }
             else
             {

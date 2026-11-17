@@ -10,6 +10,8 @@ namespace JacRed.Application.Search
     {
         Task<List<Result>> SearchAsync(JackettSearchRequest request, IMemoryCache cache, CancellationToken ct = default);
 
-        List<Result> SearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache);
+        /// <param name="franchise">Card fields only: instead of the exact names, the releases of the card
+        /// year that carry the title behind a franchise prefix ("Джеймс Бонд 007: Голдфингер").</param>
+        List<Result> SearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache, bool franchise = false);
     }
 }

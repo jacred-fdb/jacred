@@ -22,7 +22,8 @@ namespace JacRed.Application.Search
             Dictionary<string, string> category,
             int is_serial,
             bool rqnum,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            bool franchise = false)
         {
             var fastdb = fastDbIndex.Get();
             var torrents = new Dictionary<string, TorrentDetails>();
@@ -86,21 +87,28 @@ namespace JacRed.Application.Search
                     }
                 }
 
-                updateKeys(_n);
-                updateKeys(_o);
-
-                if ((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) && keys.Count > AppInit.conf.maxreadfile)
-                    keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
-
-                // Франшиза перед названием (kinozal: "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger").
-                // Только с годом карточки, и год релиза должен совпасть точно:
-                // "Механик: Воскрешение" (2016) — не "Воскрешение" (2015).
-                bool franchise = year > 0;
                 if (franchise)
-                    keys.UnionWith(fastDbIndex.FranchiseKeys(_n, _o, AppInit.conf.maxreadfile));
+                {
+                    // Франшиза перед названием (kinozal: "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger").
+                    // Только с годом карточки, и год релиза должен совпасть точно:
+                    // "Механик: Воскрешение" (2016) — не "Воскрешение" (2015).
+                    if (year <= 0)
+                        return torrents;
+                    keys = fastDbIndex.FranchiseKeys(_n, _o, AppInit.conf.maxreadfile);
+                }
+                else
+                {
+                    updateKeys(_n);
+                    updateKeys(_o);
 
-                bool franchiseMatch(TorrentDetails t) =>
-                    franchise && t.relased == year && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o);
+                    if ((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) && keys.Count > AppInit.conf.maxreadfile)
+                        keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
+                }
+
+                bool matches(TorrentDetails t, string name, string originalname) => franchise
+                    ? t.relased == year && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o)
+                    // Точная выборка по name или originalname
+                    : (_n != null && _n == name) || (_o != null && _o == originalname);
 
                 foreach (string key in keys)
                 {
@@ -109,8 +117,7 @@ namespace JacRed.Application.Search
                         string name = t._sn ?? StringConvert.SearchName(t.name);
                         string originalname = t._so ?? StringConvert.SearchName(t.originalname);
 
-                        // Точная выборка по name или originalname
-                        if ((_n != null && _n == name) || (_o != null && _o == originalname) || franchiseMatch(t))
+                        if (matches(t, name, originalname))
                         {
                             if (is_serial == 1)
                             {
