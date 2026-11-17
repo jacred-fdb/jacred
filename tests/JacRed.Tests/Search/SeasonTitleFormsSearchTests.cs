@@ -372,6 +372,55 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task FilmIdSearch_RemakeDatedOnlyUnderTheAlternativeName_IsDropped()
+    {
+        // The remake's copy of unknown year comes under the film's name, its dated copy only under the alternative name.
+        Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
+        Seed("rm-2023", $"Золотой {_tag} палец", $"Золотой {_tag} палец", 2023, new[] { "movie" }, $"Золотой {_tag} палец (2023) BDRip", sid: 5);
+        Seed("rm-copy", $"Голдфингер {_tag}", $"Голдфингер {_tag} remake", 0, new[] { "movie" }, $"Голдфингер {_tag} (remake) BDRip", hashOf: "rm-2023", sid: 50);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990123", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null,
+            alternative: $"Золотой {_tag} палец");
+
+        Assert.Equal(new[] { "gf-1964" }, ids);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_YearFilterOff_KeepsEveryYear()
+    {
+        Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
+        Seed("gf-2023", $"Голдфингер {_tag}", $"Голдфингер {_tag}", 2023, new[] { "movie" }, $"Голдфингер {_tag} (2023) BDRip", sid: 20);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990124", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null,
+            filterByYear: false);
+
+        Assert.Equal(new[] { "gf-1964", "gf-2023" }, Ids(results));
+    }
+
+    [Theory]
+    // Series keep later seasons: a later season with an early pack copy, a copy of year - 1 with one of unknown year.
+    [InlineData(2012, 2008, true)]
+    [InlineData(2009, 0, true)]
+    // Only an early copy and one of unknown year.
+    [InlineData(2008, 0, false)]
+    public async Task SeriesIdSearch_JudgesTheYearByAllCopies(int year, int copyYear, bool kept)
+    {
+        Seed("series", $"Сериал {_tag} проверка", $"Serial {_tag} Check", year, new[] { "serial" }, $"Сериал {_tag} проверка (сезоны 1-3) ({year}) WEB-DL");
+        Seed("series-copy", $"Сериал {_tag} проверка", $"Serial {_tag} Check", copyYear, new[] { "serial" }, $"Сериал {_tag} проверка [S01-03] WEB-DL",
+            hashOf: "series", sid: 50);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990125", $"Serial {_tag} Check", $"Сериал {_tag} проверка", 2010, "serial", series: true, season: null);
+
+        // One torrent, with the seeders of every copy.
+        var torrents = Ours(results).ToList();
+        Assert.Equal(kept ? 1 : 0, torrents.Count);
+        if (kept) Assert.Equal(50, torrents[0].Seeders);
+    }
+
+    [Fact]
     public async Task FilmIdSearch_CollectionOfUnknownYear_IsKept()
     {
         // The film with its sequel: no copy dates it otherwise, and the copy typed as a film keeps it.
@@ -457,7 +506,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Ids(await IdSearchResults(imdbId, search, altName, year, type, series, season, categories, alternative));
 
     async Task<List<Result>> IdSearchResults(string imdbId, string search, string altName, int year, string type, bool series, int? season,
-        List<int> categories = null, string alternative = null)
+        List<int> categories = null, string alternative = null, bool filterByYear = true)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         cache.Set($"alloha:title:{imdbId}", new AllohaResolveResult
@@ -472,7 +521,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         }, TimeSpan.FromHours(1));
 
         var prev = AppInit.conf.alloha.filterByYear;
-        AppInit.conf.alloha.filterByYear = true;
+        AppInit.conf.alloha.filterByYear = filterByYear;
         try
         {
             return await IndexerSearchEngine.SearchCombinedAsync(
