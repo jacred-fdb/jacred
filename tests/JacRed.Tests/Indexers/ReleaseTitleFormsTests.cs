@@ -83,4 +83,21 @@ public class ReleaseTitleFormsTests
         t.seasons = new HashSet<int> { 2 };
         Assert.True(ReleaseTitleForms.Matches(t, "магическаябитва", "jujutsukaisen", 2));
     }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("(")]
+    [InlineData(" ( ")]
+    [InlineData("x 2 ")]
+    public void Matches_LongRunsOfSpacesAreQuick(string unit)
+    {
+        // A lazy title then optional spaces, a bracket and spaces split a run of spaces cubically many ways:
+        // 1000 spaces took seconds.
+        string name = "Монолог фармацевта" + string.Concat(Enumerable.Repeat(unit, 1000)) + "!";
+        var t = new TorrentDetails { name = name, originalname = name, title = "Монолог фармацевта (2025)", seasons = new HashSet<int>() };
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Assert.False(ReleaseTitleForms.Matches(t, "монологфармацевта", "kusuriyanohitorigoto", 2));
+        Assert.True(sw.ElapsedMilliseconds < 500, $"{sw.ElapsedMilliseconds} ms");
+    }
 }

@@ -31,10 +31,11 @@ namespace JacRed.Infrastructure.Indexers
         // An optional ": subtitle" may follow the season
         static readonly Regex[] SeasonNames =
         {
-            // 2nd Season, Season 2, TV-2, ТВ-2, [ТВ-2], (Сезон 2), 2 сезон, (Второй сезон)
-            new(@"^(?<base>.+?)(?:\s+[(\[]?|\s*[(\[])\s*(?:(?<s>[0-9]{1,2})(?:st|nd|rd|th)\s+season|season\s*(?<s>[0-9]{1,2})|(?:тв|tv|tb)-?\s*(?<s>[0-9]{1,2})|сезон\s*(?<s>[0-9]{1,2})|(?<s>[0-9]{1,2})(?:-?й)?\s+сезон|(?<w>\p{L}+)\s+сезон)\s*[)\]]?(?:\s*:\s*\S.*)?$", Opts),
+            // 2nd Season, Season 2, TV-2, ТВ-2, [ТВ-2], (Сезон 2), 2 сезон, (Второй сезон).
+            // Spaces, a bracket or both after the title; atomic, so a run of spaces is not split many ways.
+            new(@"^(?<base>.*?\S)(?>\s*)(?:[(\[](?>\s*)|(?<=\s))(?:(?<s>[0-9]{1,2})(?:st|nd|rd|th)\s+season|season\s*(?<s>[0-9]{1,2})|(?:тв|tv|tb)-?\s*(?<s>[0-9]{1,2})|сезон\s*(?<s>[0-9]{1,2})|(?<s>[0-9]{1,2})(?:-?й)?\s+сезон|(?<w>\p{L}+)\s+сезон)\s*[)\]]?(?:\s*:\s*\S.*)?$", Opts),
             // Монолог фармацевта 2, Поднятие уровня в одиночку 2: Восстаньте из тени
-            new(@"^(?<base>.+?)\s+(?<s>[0-9]{1,2})(?:\s*:\s*\S.*)?$", Opts),
+            new(@"^(?<base>.*?\S)(?>\s+)(?<s>[0-9]{1,2})(?:\s*:\s*\S.*)?$", Opts),
         };
 
         // Ore dake Level Up na Ken: Arise from the Shadow
