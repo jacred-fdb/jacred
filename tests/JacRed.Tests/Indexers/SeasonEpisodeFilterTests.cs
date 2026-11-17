@@ -42,6 +42,10 @@ public class SeasonEpisodeFilterTests
     [InlineData("Беспринципные (2026) WEBRip [H.265/2160p] [4K, SDR, 8-bit] (сезон 5, серии 1-8 из 8)", 5, 9, false)]
     [InlineData("Монолог травниці (Сезон 2) / Kusuriya no Hitorigoto (Season 2) (2025) WEBDLRip 1080p H.265 Ukr/Jap", 2, 5, true)]
     [InlineData("Останні з нас /The Last of Us /s02e01-07 /HD720p WEBRip Atmos /2-й сезон повністю (УКР.)", 2, 3, true)]
+    // Ordinal endings: 1ый, 2-ой
+    [InlineData("Побег из тюрьмы / Prison Break (1ый сезон, серии 1-22) (Бобби Рот / Bobby Roth и другие) [2005-2006, США, криминал, боевик, триллер, драма, BDRip-AVC] VO (Novafilm)", 1, 5, true)]
+    [InlineData("Побег из тюрьмы / Prison Break (1ый сезон, серии 1-22) (Бобби Рот / Bobby Roth и другие) [2005-2006, США, криминал, боевик, триллер, драма, BDRip-AVC] VO (Novafilm)", 2, null, false)]
+    [InlineData("Сериал / Series (2-ой сезон, серии 1-10) [2006, DVDRip]", 2, 3, true)]
     // Anime seasons: ТВ-N, 2nd Season
     [InlineData("Записки аптекаря (ТВ-2) / Kusuriya no Hitorigoto 2nd Season / The Apothecary Diaries Season 2 / Монолог фармацевта 2 [TV] [24 из 24] [RUS(int), JAP+Sub] [2025, драма, детектив, мистика, WEB-DL] [1080p]", 2, 5, true)]
     [InlineData("Записки аптекаря (ТВ-2) / Kusuriya no Hitorigoto 2nd Season / The Apothecary Diaries Season 2 / Монолог фармацевта 2 [TV] [24 из 24] [RUS(int), JAP+Sub] [2025, драма, детектив, мистика, WEB-DL] [1080p]", 1, 5, false)]

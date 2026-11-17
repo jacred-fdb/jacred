@@ -161,8 +161,8 @@ namespace JacRed.Infrastructure.Indexers
         {
             // 2nd Season
             new Regex(@"(?<![0-9])(?<season>[0-9]{1,2})(?:st|nd|rd|th)\s+season", Opts),
-            // 2 сезон, 1-3 сезоны, 2-й сезон
-            new Regex(@"(?<![0-9])(?<season>[0-9]{1,2})(?:-(?<seasonLast>[0-9]{1,2}))?(?:-?й)?\s*сезон", Opts),
+            // 2 сезон, 1-3 сезоны, 2-й сезон, 1ый сезон, 2-ой сезон
+            new Regex(@"(?<![0-9])(?<season>[0-9]{1,2})(?:-(?<seasonLast>[0-9]{1,2}))?(?:-?[ыои]?й)?\s*сезон", Opts),
             // Сезон: 4, сезон 5, Сезоны 1-3, Season 2, Season 1-3; not episodes (Третий сезон 1-10 из 10)
             new Regex(@"(?<!\p{L})(?:сезон\p{L}*|season)\s*[:№]?\s*(?<season>[0-9]{1,2})(?:-(?<seasonLast>[0-9]{1,2})(?!\s*из))?(?![0-9]|-(?!й))", Opts),
             // Anime: (ТВ-2), [TV-3], (TB-1), ТВ-3 / …; not the channel at the end (… из 22) ТВ-3)
