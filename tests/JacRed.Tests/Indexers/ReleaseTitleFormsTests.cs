@@ -68,6 +68,23 @@ public class ReleaseTitleFormsTests
         Assert.Equal(expected, ReleaseTitleForms.Matches(t, StringConvert.SearchName(search), null, season));
     }
 
+    [Theory]
+    [InlineData("Холод (1-10 из 10)", "Холод (1-10 из 10)", "Холод", 10)]
+    [InlineData("...А зори здесь тихие [1-2 серии из 2]", "...А зори здесь тихие [1-2 серии из 2]", "...А зори здесь тихие", 2)]
+    [InlineData("Место встречи изменить нельзя [01-05 из 05]", "Place of Meeting", "Место встречи изменить нельзя", 5)]
+    [InlineData("Холод", "Cold (1-6 из 6)", "Cold", 6)]
+    [InlineData("Холод (1-2 из 2)", "Холод (1-8 из 8)", "Холод", 8)]
+    // Not right behind the title, or no "из N"
+    [InlineData("Холодное сердце (1-2 из 2)", "Холодное сердце (1-2 из 2)", "Холод", 0)]
+    [InlineData("Холод (2)", "Холод (2)", "Холод", 0)]
+    [InlineData("Холод", "Холод", "Холод", 0)]
+    public void EpisodesTotal(string name, string originalname, string search, int expected)
+    {
+        var t = new TorrentDetails { name = name, originalname = originalname };
+
+        Assert.Equal(expected, ReleaseTitleForms.EpisodesTotal(t, StringConvert.SearchName(search), null));
+    }
+
     [Fact]
     public void Matches_StoredSeasonsWinOverTitle()
     {

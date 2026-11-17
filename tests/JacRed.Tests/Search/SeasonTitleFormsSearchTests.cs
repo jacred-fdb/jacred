@@ -507,6 +507,26 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     [Fact]
+    public async Task FilmCardSearch_ManyEpisodesInBrackets_OnlyAsMovie()
+    {
+        // A film card takes anime, multfilm and documovie, and trackers give those types to series too.
+        string train = $"Клинок {_tag} поезд";
+        Seed("train-film", train, train, 2020, new[] { "anime" }, $"{train} (2020) BDRip");
+        Seed("train-anime", $"{train} (1-7 из 7)", $"{train} (1-7 из 7)", 2021, new[] { "anime" }, $"{train} (1-7 из 7) (2021) WEBRip");
+        Seed("train-mult", $"{train} [01-20 из 20]", $"{train} [01-20 из 20]", 2020, new[] { "multfilm", "multserial" }, $"{train} [01-20 из 20] (2020) WEB-DLRip");
+        Seed("train-docuserial", $"{train} (1-10 из 10)", $"{train} (1-10 из 10)", 2019, new[] { "docuserial", "documovie" }, $"{train} (1-10 из 10) (2019) HDTVRip");
+        Seed("train-documovie", $"{train} (1-16 из 16)", $"{train} (1-16 из 16)", 2019, new[] { "documovie" }, $"{train} (1-16 из 16) (2019) SATRip");
+        // Kept: a tracker that says movie, and two parts of any film type.
+        Seed("train-movie", $"{train} [01-05 из 05]", $"{train} [01-05 из 05]", 2020, new[] { "movie" }, $"{train} [01-05 из 05] (2020) DVDRip");
+        Seed("train-doc-parts", $"{train} (1-2 из 2)", $"{train} (1-2 из 2)", 2020, new[] { "documovie" }, $"{train} (1-2 из 2) (2020) HDTVRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch(train, train, 2020, 1);
+
+        Assert.Equal(new[] { "train-doc-parts", "train-film", "train-movie" }, ids);
+    }
+
+    [Fact]
     public async Task CardSearch_TooManyEpisodeBuckets_GetsExactNamesOnly()
     {
         string chronicle = $"Летопись {_tag}";

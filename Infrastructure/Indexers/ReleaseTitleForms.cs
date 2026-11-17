@@ -28,7 +28,7 @@ namespace JacRed.Infrastructure.Indexers
         static readonly Regex EpisodesRest = new(@"^[0-9]+(?:сери[а-я]*)?из[0-9]+[a-zа-я]*$", Opts);
 
         // (1-10 из 10), [1-2 серии из 2], [01-05 из 05], (2 из 2)
-        static readonly Regex EpisodesGroup = new(@"\s*[(\[]\s*[0-9]{1,4}(?:\s*-\s*[0-9]{1,4})?\s*(?:сери\p{L}*\s*)?из\s*[0-9]{1,4}\s*[)\]]", Opts);
+        static readonly Regex EpisodesGroup = new(@"\s*[(\[]\s*[0-9]{1,4}(?:\s*-\s*[0-9]{1,4})?\s*(?:сери\p{L}*\s*)?из\s*(?<n>[0-9]{1,4})\s*[)\]]", Opts);
 
         // An optional ": subtitle" may follow the season
         static readonly Regex[] SeasonNames =
@@ -79,19 +79,42 @@ namespace JacRed.Infrastructure.Indexers
         public static bool Matches(TorrentDetails t, string sn, string altSn, int season) =>
             NameMatches(t, t.name, sn, altSn, season) || NameMatches(t, t.originalname, sn, altSn, season);
 
+        /// <summary>
+        /// The N of "из N" in the episodes in brackets behind <paramref name="sn"/> or <paramref name="altSn"/>
+        /// in the name or original name of <paramref name="t"/>, the larger of the two; 0 when neither has them.
+        /// </summary>
+        public static int EpisodesTotal(TorrentDetails t, string sn, string altSn) =>
+            Math.Max(NameEpisodesTotal(t.name, sn, altSn), NameEpisodesTotal(t.originalname, sn, altSn));
+
+        static int NameEpisodesTotal(string name, string sn, string altSn)
+        {
+            var episodes = TitleEpisodes(name, sn, altSn);
+            return episodes == null ? 0 : int.Parse(episodes.Groups["n"].Value);
+        }
+
+        // The episodes in brackets right behind the title, or null.
+        static Match TitleEpisodes(string name, string sn, string altSn)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+            var episodes = EpisodesGroup.Match(name);
+            return episodes.Success && episodes.Index > 0 && IsTitle(name.Substring(0, episodes.Index), sn, altSn) ? episodes : null;
+        }
+
+        static bool IsTitle(string part, string sn, string altSn)
+        {
+            string p = StringConvert.SearchName(part);
+            return p != null && (p == sn || p == altSn);
+        }
+
         static bool NameMatches(TorrentDetails t, string name, string sn, string altSn, int season)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return false;
 
-            bool isTitle(string part)
-            {
-                string p = StringConvert.SearchName(part);
-                return p != null && (p == sn || p == altSn);
-            }
+            bool isTitle(string part) => IsTitle(part, sn, altSn);
 
-            var episodes = EpisodesGroup.Match(name);
-            if (episodes.Success && episodes.Index > 0 && isTitle(name.Substring(0, episodes.Index)))
+            if (TitleEpisodes(name, sn, altSn) != null)
                 return true;
 
             if (season <= 0)

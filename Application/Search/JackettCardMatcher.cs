@@ -120,11 +120,12 @@ namespace JacRed.Application.Search
                     (types.Contains("movie") || types.Contains("multfilm") || types.Contains("documovie") || types.Contains("anime"))
                     && !types.Contains("serial") && !types.Contains("multserial") && !types.Contains("docuserial") && !types.Contains("tvshow");
 
+                bool exactName(string name, string originalname) => (_n != null && _n == name) || (_o != null && _o == originalname);
+
                 bool matches(TorrentDetails t, string name, string originalname) => franchise
                     ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o, otherNamePrefixed: true)
                     // Точная выборка по name или originalname
-                    : (_n != null && _n == name) || (_o != null && _o == originalname)
-                        || (titleForms && ReleaseTitleForms.Matches(t, _n, _o, 0));
+                    : exactName(name, originalname) || (titleForms && ReleaseTitleForms.Matches(t, _n, _o, 0));
 
                 foreach (string key in keys)
                 {
@@ -135,12 +136,21 @@ namespace JacRed.Application.Search
 
                         if (matches(t, name, originalname))
                         {
+                            // Только по сериям в скобках за названием: "Холод (1-10 из 10)"
+                            bool byEpisodes = !franchise && !exactName(name, originalname);
+
                             if (is_serial == 1)
                             {
                                 #region Фильм
                                 if (t.types.Contains("movie") || t.types.Contains("multfilm") || t.types.Contains("anime") || t.types.Contains("documovie"))
                                 {
                                     if (Regex.IsMatch(t.title, " (сезон|сери(и|я|й))", RegexOptions.IgnoreCase))
+                                        continue;
+
+                                    // Больше двух серий в скобках — фильм, только если трекер так и записал (movie):
+                                    // anime, multfilm и documovie ставят и сериалам ("Холодная война (1-16 из 16)", documovie).
+                                    // Две серии — двухсерийный фильм: "Ирония судьбы (1-2 из 2)" с любым из этих типов.
+                                    if (byEpisodes && !t.types.Contains("movie") && ReleaseTitleForms.EpisodesTotal(t, _n, _o) > 2)
                                         continue;
 
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: true))
