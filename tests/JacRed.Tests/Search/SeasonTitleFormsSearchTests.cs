@@ -257,6 +257,21 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0));
     }
 
+    [Fact]
+    public void TitleFormKeys_BoundCountsSubtitleBucketsBeforeReadingThem()
+    {
+        string chronicle = $"Хроника {_tag}", sn = JacRed.Infrastructure.Utils.StringConvert.SearchName(chronicle);
+        for (int i = 0; i < FastDbIndex.MaxTitleFormKeys - 1; i++)
+            Seed($"chr-ep-{i}", $"{chronicle} (1-{i + 1} из 200)", $"{chronicle} (1-{i + 1} из 200)", 2020, new[] { "serial" }, $"{chronicle} (1-{i + 1} из 200) (2020)");
+        Seed("chr-sub-a", $"{chronicle}: Глава", $"Chronicle {_tag}: Chapter", 2020, new[] { "serial" }, $"{chronicle}: Глава [S02] (2020)");
+        Seed("chr-sub-b", $"{chronicle}: Глава", $"Chronicle {_tag}: Part", 2020, new[] { "serial" }, $"{chronicle}: Глава [S02] (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(FastDbIndex.MaxTitleFormKeys - 1, FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0).Count);
+        // 99 episode buckets and 2 subtitle buckets: past the bound, so the subtitle buckets are not read.
+        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
+    }
+
     async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());

@@ -215,7 +215,7 @@ namespace JacRed.Application.Index
             return false;
         }
 
-        /// <summary>Most buckets <see cref="TitleFormKeys"/> may give for one name.</summary>
+        /// <summary>Most buckets <see cref="TitleFormKeys"/> may read and give for one name.</summary>
         public const int MaxTitleFormKeys = 100;
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace JacRed.Application.Index
         /// a first season of its own (<see cref="ReleaseTitleForms.IsOwnFirstSeason"/>, by <paramref name="titleYear"/>).
         /// A spin-off seen from either name drops its buckets from both ("Robocar Poli: Rules of the road" /
         /// "Робокар Поли: Правила дорожного движения"). <see cref="ReleaseTitleForms.Matches"/> has to confirm the records.
-        /// A name with more than <see cref="MaxTitleFormKeys"/> buckets qualifying gives none.
+        /// A name whose forms and subtitles hold more than <see cref="MaxTitleFormKeys"/> buckets gives none.
         /// </summary>
         public HashSet<string> TitleFormKeys(string sn, string altSn, int season, int titleYear)
         {
@@ -263,13 +263,25 @@ namespace JacRed.Application.Index
                     continue;
                 string rest = part.Substring(sn.Length);
                 if (ReleaseTitleForms.IsCandidateRest(rest, season))
+                {
                     forms.UnionWith(list);
+                    if (forms.Count > MaxTitleFormKeys)
+                        return;
+                }
                 else if (season > 1 && sn.Length >= MinFranchiseTitle && char.IsLetter(rest[0]))
                     subtitles.Add(part);
             }
 
             if (subtitles.Count > MaxSubtitleParts)
                 subtitles.Clear();
+            // Bound the reads of the spin-off check too, before any of them.
+            var bounded = new HashSet<string>(forms);
+            foreach (string part in subtitles)
+                bounded.UnionWith(fastdb[part]);
+            if (bounded.Count > MaxTitleFormKeys)
+                return;
+
+            keys.UnionWith(forms);
 
             // A spin-off has a first season of its own ("Squid Game: The Challenge", "The Walking Dead: Daryl Dixon"),
             // and so do the longer names behind it ("… Daryl Dixon. The Book of Carol"); a season subtitle has none.
@@ -284,10 +296,8 @@ namespace JacRed.Application.Index
                     spinOffs.UnionWith(list);
                 }
                 else
-                    forms.UnionWith(list);
+                    keys.UnionWith(list);
             }
-            if (forms.Count <= MaxTitleFormKeys)
-                keys.UnionWith(forms);
         }
 
         static bool HoldsOwnFirstSeason(string key, int titleYear)
