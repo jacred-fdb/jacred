@@ -144,15 +144,14 @@ public class FranchisePrefixSearchTests : IDisposable
     }
 
     [Theory]
-    [InlineData("Never Say Never Again {0} 1983", "kinozal-4k rutor series")]
-    [InlineData("Никогда не говори никогда {0} 1983", "kinozal-4k ru-only rutor series")]
-    public async Task TextSearchWithYear_FindsPrefixedRelease_NotOtherYear(string query, string expected)
+    [InlineData("Never Say Never Again {0} 1983", "kinozal-4k rutor")]
+    [InlineData("Никогда не говори никогда {0} 1983", "kinozal-4k ru-only rutor")]
+    public async Task TextSearchWithYear_FindsPrefixedRelease_NotOtherYearOrSeries(string query, string expected)
     {
         var results = await TextSearch(string.Format(query, _tag));
 
-        // One title: the text search cannot tell "ru-only" from the film, nor a series
-        // of the same year, as for an exact name. A prefixed release of the next year
-        // is left out, though an exact name would stay.
+        // One title: the text search cannot tell "ru-only" from the film. A prefixed
+        // release of the next year or a series is left out, though an exact name would stay.
         Assert.Equal(expected.Split(' '), Ids(results));
     }
 
@@ -171,6 +170,25 @@ public class FranchisePrefixSearchTests : IDisposable
         var results = await TextSearch(string.Format(query, _tag));
 
         Assert.Equal(new[] { "sw-episode", "sw-prefix" }, Ids(results));
+    }
+
+    [Theory]
+    // A show of the film year: "Вызов / The Challenge" is a subtitle of "Squid Game".
+    [InlineData("Игра в кальмара: Вызов", "Squid Game: The Challenge", "tvshow", "The Challenge")]
+    [InlineData("Игра в кальмара: Вызов", "Squid Game: The Challenge", "docuserial documovie", "Вызов")]
+    // A TV making-of of the film year.
+    [InlineData("Большой киночарт: Вызов", "Большой киночарт: Вызов", "docuserial documovie", "Вызов")]
+    // Another film of the year: "Багажник", whose original name has the title as its subtitle.
+    [InlineData("Багажник", "Trunk: The Challenge", "movie", "The Challenge")]
+    public async Task TextSearchWithYear_PrefixedMatch_NeedsAFilmWithAPrefixOnBothNames(string name, string original, string types, string title)
+    {
+        Seed("film", $"Вызов {_tag}", $"The Challenge {_tag}", 2023, "movie", " (2023) WEB-DL");
+        Seed("other", $"{name} {_tag}", $"{original} {_tag}", 2023, types, " (2023) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await TextSearch($"{title} {_tag} 2023");
+
+        Assert.Equal(new[] { "film" }, Ids(results));
     }
 
     [Fact]
@@ -212,6 +230,9 @@ public class FranchisePrefixSearchTests : IDisposable
     [InlineData("Джеймс Бонд 007: Никогда не говори никогда", "James Bond 007: Never Say Never Again", "никогданеговориникогда", "jamesbond045neversayneveragain", true)]
     [InlineData("Мертвые как я: Жизнь после смерти", "Dead Like Me: Life After Death", "жизньпослесмерти", "afterlife", false)]
     [InlineData("Мертвые как я: Жизнь после смерти", "Dead Like Me: Life After Death", "жизньпослесмерти", null, true)]
+    [InlineData("Багажник", "Trunk: Locked In", null, "lockedin", false)]
+    [InlineData("Багажник: Запертая", "Trunk: Locked In", null, "lockedin", true)]
+    [InlineData("Trunk: Locked In", "Trunk: Locked In", null, "lockedin", true)]
     public void IsFranchiseMatch_LooksBehindAColon(string name, string original, string nameSn, string originalSn, bool expected)
     {
         Assert.Equal(expected, FastDbIndex.IsFranchiseMatch(name, original, nameSn, originalSn));
@@ -237,7 +258,7 @@ public class FranchisePrefixSearchTests : IDisposable
         {
             url = UrlBase + id + "/" + _tag,
             trackerName = PickTracker(),
-            types = new[] { type },
+            types = type.Split(' '),
             title = $"{name} / {original}{tail}",
             name = name,
             originalname = original,

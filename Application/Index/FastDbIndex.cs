@@ -184,7 +184,9 @@ namespace JacRed.Application.Index
         /// must match: whole, behind the prefix, or as the end of a name that has a prefix
         /// of its own (Alloha: "James Bond 04.5 - Never Say Never Again"). "Мертвые как я:
         /// Жизнь после смерти / Dead Like Me: Life After Death" is then not "Жизнь после
-        /// смерти / After.Life". With one name, that side must match behind the prefix.
+        /// смерти / After.Life". With one name, that side must match behind the prefix, and the
+        /// other name of the record, unless empty or the same, must have a prefix of its own:
+        /// "Багажник / Trunk: Locked In" is the film "Багажник", not "Locked In".
         /// </summary>
         public static bool IsFranchiseMatch(string name, string originalname, string nameSn, string originalSn)
         {
@@ -193,8 +195,24 @@ namespace JacRed.Application.Index
                 return Math.Max(nameSn.Length, originalSn.Length) >= MinFranchiseTitle
                     && SideMatches(name, nameSn) && SideMatches(originalname, originalSn);
             if (hasName)
-                return nameSn.Length >= MinFranchiseTitle && BehindPrefix(name, nameSn, tail: false);
-            return hasOriginal && originalSn.Length >= MinFranchiseTitle && BehindPrefix(originalname, originalSn, tail: false);
+                return nameSn.Length >= MinFranchiseTitle && BehindPrefix(name, nameSn, tail: false) && OtherSideFits(originalname, name);
+            return hasOriginal && originalSn.Length >= MinFranchiseTitle && BehindPrefix(originalname, originalSn, tail: false) && OtherSideFits(name, originalname);
+        }
+
+        static bool OtherSideFits(string other, string side)
+        {
+            string otherSn = StringConvert.SearchName(other);
+            return otherSn == null || otherSn == StringConvert.SearchName(side) || HasPrefix(other);
+        }
+
+        static bool HasPrefix(string title)
+        {
+            for (int i = title.IndexOf(':'); i >= 0; i = title.IndexOf(':', i + 1))
+            {
+                if (StringConvert.SearchName(title.Substring(0, i)) != null && StringConvert.SearchName(title.Substring(i + 1)) != null)
+                    return true;
+            }
+            return false;
         }
 
         static bool SideMatches(string title, string sn) =>

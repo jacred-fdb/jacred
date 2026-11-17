@@ -105,8 +105,14 @@ namespace JacRed.Application.Search
                         keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
                 }
 
+                // Только фильм: "Игра в кальмара: Вызов" (2023) — шоу, а не фильм "Вызов" (2023);
+                // и сборник с типами docuserial и documovie тоже не фильм.
+                bool film(string[] types) =>
+                    (types.Contains("movie") || types.Contains("multfilm") || types.Contains("documovie") || types.Contains("anime"))
+                    && !types.Contains("serial") && !types.Contains("multserial") && !types.Contains("docuserial") && !types.Contains("tvshow");
+
                 bool matches(TorrentDetails t, string name, string originalname) => franchise
-                    ? t.relased == year && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o)
+                    ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o)
                     // Точная выборка по name или originalname
                     : (_n != null && _n == name) || (_o != null && _o == originalname);
 
