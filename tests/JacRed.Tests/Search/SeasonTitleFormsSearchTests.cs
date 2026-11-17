@@ -329,10 +329,46 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Seed("film-copy", ru, en, otherYear, new[] { "movie" }, string.Format(title, _tag, otherYear), hashOf: "film", sid: 3);
         FastDbIndex.Default.RebuildIfChanged();
 
-        var ids = await IdSearch("tt9990119", en, ru, year, "movie", series: false, season: null);
+        var results = await IdSearchResults("tt9990119", en, ru, year, "movie", series: false, season: null);
 
-        // The torrent comes with the copy of the film's year.
-        Assert.Equal(new[] { "film" }, ids);
+        // The torrent comes with the copy of the film's year and the seeders of both.
+        Assert.Equal(new[] { "film" }, Ids(results));
+        var torrent = Ours(results).Single();
+        Assert.Equal(year, torrent.info.relased);
+        Assert.Equal(3, torrent.Seeders);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_CopyOfAnotherYear_BringsItsSeedersToTheKeptTorrent()
+    {
+        // Copies of the film's year with no seeders or inflated ones, and a copy dated by the remaster with the seeders.
+        string ru = $"Плохие {_tag} парни 2", en = $"Bad {_tag} Boys II";
+        Seed("film", ru, en, 2003, new[] { "movie" }, $"{ru} / {en} (2003) BDRip 1080p", sid: 0, tracker: "rutor");
+        Seed("film-inflated", ru, en, 2003, new[] { "movie" }, $"{ru} / {en} (2003) BDRip 1080p", hashOf: "film", sid: 2, tracker: "korsars");
+        Seed("film-remaster", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) BDRip 1080p | Remastered", hashOf: "film", sid: 3, tracker: "bitru");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990121", en, ru, 2003, "movie", series: false, season: null);
+
+        // The torrent comes as a copy of the film's year.
+        Assert.Contains(Assert.Single(Ids(results)), new[] { "film", "film-inflated" });
+        var torrent = Ours(results).Single();
+        Assert.Equal(2003, torrent.info.relased);
+        Assert.Equal(3, torrent.Seeders);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_CopyOfAnotherYear_DoesNotBringBackATorrentOfAnotherType()
+    {
+        // The copy of the film's year is a series and goes with the type; the copy dated otherwise must not stand in for it.
+        string ru = $"Плохие {_tag} парни 2", en = $"Bad {_tag} Boys II";
+        Seed("series", ru, en, 2003, new[] { "serial" }, $"{ru} / {en} (2003) (1-10 из 10) WEB-DL", sid: 2);
+        Seed("series-film-copy", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL", hashOf: "series", sid: 30);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990122", en, ru, 2003, "movie", series: false, season: null);
+
+        Assert.Empty(ids);
     }
 
     [Fact]
@@ -417,7 +453,11 @@ public class SeasonTitleFormsSearchTests : IDisposable
     }
 
     async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null,
-        string alternative = null)
+        string alternative = null) =>
+        Ids(await IdSearchResults(imdbId, search, altName, year, type, series, season, categories, alternative));
+
+    async Task<List<Result>> IdSearchResults(string imdbId, string search, string altName, int year, string type, bool series, int? season,
+        List<int> categories = null, string alternative = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         cache.Set($"alloha:title:{imdbId}", new AllohaResolveResult
@@ -435,9 +475,8 @@ public class SeasonTitleFormsSearchTests : IDisposable
         AppInit.conf.alloha.filterByYear = true;
         try
         {
-            var results = await IndexerSearchEngine.SearchCombinedAsync(
+            return await IndexerSearchEngine.SearchCombinedAsync(
                 new IndexerSearchRequest { Query = imdbId, CardMode = false, Season = season, Categories = categories }, cache, jackettSearch: null);
-            return Ids(results);
         }
         finally
         {
@@ -445,7 +484,8 @@ public class SeasonTitleFormsSearchTests : IDisposable
         }
     }
 
-    void Seed(string id, string name, string original, int year, string[] types, string title, string hashOf = null, int sid = 10)
+    void Seed(string id, string name, string original, int year, string[] types, string title, string hashOf = null, int sid = 10,
+        string tracker = null)
     {
         string key = FileDB.KeyForTorrent(name, original);
         if (!_keys.Contains(key))
@@ -455,7 +495,7 @@ public class SeasonTitleFormsSearchTests : IDisposable
         fdb.AddOrUpdate(new TorrentDetails
         {
             url = UrlBase + id + "/" + _tag,
-            trackerName = PickTracker(),
+            trackerName = tracker ?? PickTracker(),
             types = types,
             title = title,
             name = name,
@@ -470,8 +510,11 @@ public class SeasonTitleFormsSearchTests : IDisposable
         });
     }
 
+    IEnumerable<Result> Ours(IEnumerable<Result> results) =>
+        results.Where(r => r.Details != null && r.Details.StartsWith(UrlBase) && r.Details.EndsWith("/" + _tag));
+
     string[] Ids(IEnumerable<Result> results) =>
-        results.Where(r => r.Details != null && r.Details.StartsWith(UrlBase) && r.Details.EndsWith("/" + _tag))
+        Ours(results)
             .Select(r => r.Details.Substring(UrlBase.Length, r.Details.Length - UrlBase.Length - _tag.Length - 1))
             .Distinct()
             .OrderBy(s => s, StringComparer.Ordinal)

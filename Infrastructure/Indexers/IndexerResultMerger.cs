@@ -11,15 +11,23 @@ namespace JacRed.Infrastructure.Indexers
 {
     public static class IndexerResultMerger
     {
-        public static List<Result> MergeAndSort(params IEnumerable<Result>[] batches)
+        public static List<Result> MergeAndSort(params IEnumerable<Result>[] batches) => MergeAndSort(batches, null);
+
+        /// <summary>
+        /// <see cref="MergeAndSort(IEnumerable{Result}[])"/>, then <paramref name="moreCopies"/> merged only into the torrents
+        /// of <paramref name="batches"/>: their seeders, voices, ffprobe and languages count, the torrent's info is not theirs.
+        /// </summary>
+        public static List<Result> MergeAndSort(IEnumerable<Result>[] batches, IEnumerable<Result> moreCopies)
         {
             var map = new Dictionary<string, Result>(StringComparer.OrdinalIgnoreCase);
             // Whether map[key].Seeders came from a tracker with reliable counts.
             var reliableSeeders = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var batch in batches)
+            for (int b = 0; b <= batches.Length; b++)
             {
+                var batch = b < batches.Length ? batches[b] : moreCopies;
                 if (batch == null) continue;
+                bool copiesOnly = b == batches.Length;
                 foreach (var item in batch)
                 {
                     if (item == null) continue;
@@ -31,6 +39,7 @@ namespace JacRed.Infrastructure.Indexers
 
                     if (!map.TryGetValue(key, out var existing))
                     {
+                        if (copiesOnly) continue;
                         // Inputs may be shared with other requests (FileDB cache records,
                         // IMemoryCache result lists): merge into a copy, never into the input.
                         map[key] = item.Clone();
@@ -66,7 +75,7 @@ namespace JacRed.Infrastructure.Indexers
                     if ((existing.languages == null || existing.languages.Count == 0) && item.languages != null && item.languages.Count > 0)
                         existing.languages = item.languages;
 
-                    if (existing.info == null && item.info != null)
+                    if (existing.info == null && item.info != null && !copiesOnly)
                         existing.info = item.info.Clone();
                 }
             }

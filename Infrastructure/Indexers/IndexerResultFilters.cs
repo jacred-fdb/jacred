@@ -50,12 +50,14 @@ namespace JacRed.Infrastructure.Indexers
 
         /// <summary>
         /// <see cref="FilterByYear"/> by torrent: the copies of one infohash across all <paramref name="batches"/> are judged
-        /// together. A torrent whose dated copies all miss the year goes whole, its copies of unknown year too; otherwise only
-        /// the copies dated otherwise go, so the merge takes the torrent's info from a copy that matches.
+        /// together. A torrent whose dated copies all miss the year goes whole, its copies of unknown year too; otherwise its
+        /// copies dated otherwise move to <paramref name="otherYearCopies"/>, for the merge to take the torrent's info from a
+        /// copy that matches and the seeders and voices from all.
         /// </summary>
-        public static List<Result>[] FilterTorrentsByYear(IReadOnlyList<List<Result>> batches, int year, bool movieLike = true)
+        public static List<Result>[] FilterTorrentsByYear(IReadOnlyList<List<Result>> batches, int year, bool movieLike, out List<Result> otherYearCopies)
         {
             var result = new List<Result>[batches.Count];
+            otherYearCopies = new List<Result>();
             if (year <= 0)
             {
                 for (int i = 0; i < batches.Count; i++) result[i] = batches[i];
@@ -78,13 +80,23 @@ namespace JacRed.Infrastructure.Indexers
 
             for (int i = 0; i < batches.Count; i++)
             {
-                result[i] = batches[i].Where(t =>
+                result[i] = new List<Result>();
+                foreach (var t in batches[i])
                 {
                     int rel = t?.info?.relased ?? 0;
-                    if (rel > 0) return MatchesCardYear(rel, year, movieLike);
+                    if (rel > 0 && MatchesCardYear(rel, year, movieLike))
+                    {
+                        result[i].Add(t);
+                        continue;
+                    }
                     string key = IndexerResultMerger.InfoHashKey(t);
-                    return key == null || !dated.Contains(key) || matched.Contains(key);
-                }).ToList();
+                    if (rel > 0)
+                    {
+                        if (key != null && matched.Contains(key)) otherYearCopies.Add(t);
+                    }
+                    else if (key == null || !dated.Contains(key) || matched.Contains(key))
+                        result[i].Add(t);
+                }
             }
             return result;
         }
