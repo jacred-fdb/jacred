@@ -463,7 +463,6 @@ public class SeasonTitleFormsSearchTests : IDisposable
     [Theory]
     [InlineData(2, null)]
     [InlineData(0, 5000)]
-    [InlineData(-1, null)]
     public async Task SeriesCardSearch_FindsEpisodesInName(int isSerial, int? category)
     {
         // An exact name fills the card, so the search without the year, which takes any part with the title, does not run.
@@ -474,6 +473,20 @@ public class SeasonTitleFormsSearchTests : IDisposable
         var ids = await CardSearch($"Мороз {_tag}", $"Мороз {_tag}", 2026, isSerial, cats);
 
         Assert.Equal(new[] { "frost", "frost-exact" }, ids);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task UnknownTypeCardSearch_KeepsExactNamesOnly(int isSerial)
+    {
+        // No type to check a release against, and a series is held only by a year open upwards.
+        Seed("frost-exact", $"Мороз {_tag}", $"Мороз {_tag}", 2026, new[] { "serial" }, $"Мороз {_tag} [S01] (2026) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch($"Мороз {_tag}", $"Мороз {_tag}", 2026, isSerial);
+
+        Assert.Equal(new[] { "frost-exact" }, ids);
     }
 
     [Theory]
