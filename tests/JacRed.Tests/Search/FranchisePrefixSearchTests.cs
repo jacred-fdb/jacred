@@ -1,4 +1,5 @@
 using JacRed.Application.Index;
+using JacRed.Application.Search;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
@@ -12,7 +13,7 @@ namespace JacRed.Tests.Search;
 /// <summary>
 /// kinozal puts the series before the title: "Джеймс Бонд 007: Никогда не говори никогда /
 /// James Bond 007: Never Say Never Again / 1983 / …". Neither name equals the film title,
-/// so the id search must look behind the prefix.
+/// so the id search and the text search must look behind the prefix.
 /// </summary>
 [Collection("FastDb index")]
 public class FranchisePrefixSearchTests : IDisposable
@@ -142,6 +143,27 @@ public class FranchisePrefixSearchTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("Never Say Never Again {0} 1983", "kinozal-4k rutor series")]
+    [InlineData("Никогда не говори никогда {0} 1983", "kinozal-4k ru-only rutor series")]
+    public async Task TextSearchWithYear_FindsPrefixedRelease_NotOtherYear(string query, string expected)
+    {
+        var results = await TextSearch(string.Format(query, _tag));
+
+        // One title: the text search cannot tell "ru-only" from the film, nor a series
+        // of the same year, as for an exact name. A prefixed release of the next year
+        // is left out, though an exact name would stay.
+        Assert.Equal(expected.Split(' '), Ids(results));
+    }
+
+    [Fact]
+    public async Task TextSearchWithoutYear_KeepsExactNamesOnly()
+    {
+        var results = await TextSearch("Never Say Never Again " + _tag);
+
+        Assert.Equal(new[] { "rutor" }, Ids(results));
+    }
+
     [Fact]
     public void FranchiseKeys_LongerPartsOnly_AndEmptyOverTheLimit()
     {
@@ -176,6 +198,13 @@ public class FranchisePrefixSearchTests : IDisposable
     public void IsFranchiseMatch_LooksBehindAColon(string name, string original, string nameSn, string originalSn, bool expected)
     {
         Assert.Equal(expected, FastDbIndex.IsFranchiseMatch(name, original, nameSn, originalSn));
+    }
+
+    async Task<List<Result>> TextSearch(string query)
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        return await IndexerSearchEngine.SearchCombinedAsync(
+            new IndexerSearchRequest { Query = query }, cache, new JackettSearchService(FastDbIndex.Default));
     }
 
     static string StringConvertName(string value) => JacRed.Infrastructure.Utils.StringConvert.SearchName(value);

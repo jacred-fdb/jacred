@@ -9,5 +9,8 @@ namespace JacRed.Application.Index
         void Rebuild();
 
         bool RebuildIfChanged();
+
+        /// <summary>See <see cref="FastDbIndex.FranchiseKeys"/>.</summary>
+        HashSet<string> FranchiseKeys(string nameSn, string originalSn, int max);
     }
 }
