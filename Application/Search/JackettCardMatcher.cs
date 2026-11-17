@@ -23,10 +23,12 @@ namespace JacRed.Application.Search
             int is_serial,
             bool rqnum,
             IMemoryCache memoryCache,
+            out bool nameFound,
             bool franchise = false)
         {
             var fastdb = fastDbIndex.Get();
             var torrents = new Dictionary<string, TorrentDetails>();
+            nameFound = false;
 
             #region Запрос с NUM
             // NUM / Lampa free-text: "Ru En Year", "Ru En", or "Ru Year" → card title fields.
@@ -127,6 +129,15 @@ namespace JacRed.Application.Search
                     // Точная выборка по name или originalname
                     : exactName(name, originalname) || (titleForms && ReleaseTitleForms.Matches(t, _n, _o, 0));
 
+                // Записи только по сериям в скобках не считаются найденным именем: поиск без года ищет
+                // остальные сезоны и написания, и одна такая запись не должна его отменять.
+                bool byEpisodes = false, foundByName = false;
+                void add(TorrentDetails t)
+                {
+                    JackettResultBuilder.AddTorrent(torrents, t);
+                    foundByName |= !byEpisodes;
+                }
+
                 foreach (string key in keys)
                 {
                     foreach (var t in FileDB.OpenRead(key, true).Values.Where(t => t.types != null && !t.title.Contains(" КПК")))
@@ -137,7 +148,7 @@ namespace JacRed.Application.Search
                         if (matches(t, name, originalname))
                         {
                             // Только по сериям в скобках за названием: "Холод (1-10 из 10)"
-                            bool byEpisodes = !franchise && !exactName(name, originalname);
+                            byEpisodes = !franchise && !exactName(name, originalname);
 
                             if (is_serial == 1)
                             {
@@ -154,7 +165,7 @@ namespace JacRed.Application.Search
                                         continue;
 
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: true))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -164,7 +175,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("serial") || t.types.Contains("multserial") || t.types.Contains("anime") || t.types.Contains("docuserial") || t.types.Contains("tvshow"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -174,7 +185,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("tvshow"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -184,7 +195,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("docuserial") || t.types.Contains("documovie"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -194,7 +205,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("anime"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -203,13 +214,14 @@ namespace JacRed.Application.Search
                                 #region Неизвестно
                                 bool movieLike = t.types.Contains("movie") || t.types.Contains("multfilm") || t.types.Contains("documovie");
                                 if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike))
-                                    JackettResultBuilder.AddTorrent(torrents, t);
+                                    add(t);
                                 #endregion
                             }
                         }
                     }
 
                 }
+                nameFound = foundByName;
                 #endregion
             }
             else if (!string.IsNullOrWhiteSpace(query) && query.Length > 1)
@@ -315,6 +327,7 @@ namespace JacRed.Application.Search
                     if (torrents.Count == 0)
                         torrentsSearch(exact: false, exactdb: false);
                 }
+                nameFound = torrents.Count > 0;
                 #endregion
             }
 

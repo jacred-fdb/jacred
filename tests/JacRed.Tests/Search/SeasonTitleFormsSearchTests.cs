@@ -475,6 +475,37 @@ public class SeasonTitleFormsSearchTests : IDisposable
         Assert.Equal(new[] { "frost", "frost-exact" }, ids);
     }
 
+    [Fact]
+    public async Task SeriesCardSearch_OnlyEpisodesInName_StillSearchesWithoutYear()
+    {
+        // No release has the name itself: the search without the year finds the later seasons.
+        string snow = $"Снег {_tag} идет";
+        string[] serial = { "serial" };
+        Seed("snow-s1", $"{snow} (1-10 из 10)", $"{snow} (1-10 из 10)", 2020, serial, $"{snow} (1-10 из 10) (2020) WEBRip");
+        Seed("snow-s2", $"{snow} 2", $"{snow} 2", 2022, serial, $"{snow} 2 (1-8 из 8) (2022) WEBRip");
+        Seed("snow-s2-word", $"{snow}. Сезон 2", $"{snow}. Сезон 2", 2022, serial, $"{snow}. Сезон 2 (2022) WEBRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch(snow, snow, 2020, 2);
+
+        Assert.Equal(new[] { "snow-s1", "snow-s2", "snow-s2-word" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesCardSearch_OneNameWithEpisodes_StillSearchesOtherSpellings()
+    {
+        // A card with the Russian title only; one release has it with episodes, another only in another spelling.
+        string ru = $"Холод {_tag} зимы", en = $"Cold {_tag} winter";
+        string[] serial = { "serial" };
+        Seed("cold-ru", $"{ru} (1-10 из 10)", $"{en} (1-10 из 10)", 2025, serial, $"{ru} (1-10 из 10) / {en} (2025)");
+        Seed("cold-other", $"{ru} сериал", $"{en} [1-10 из 10]", 2025, serial, $"{ru} / {en} [1-10 из 10] (2025)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch(ru, null, 2025, 2);
+
+        Assert.Equal(new[] { "cold-other", "cold-ru" }, ids);
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]

@@ -67,21 +67,22 @@ namespace JacRed.Infrastructure.Indexers
 
             if (req.CardMode)
             {
-                var card = jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache);
-                batches.Add(card);
-                if (card.Count == 0)
+                // Episodes in brackets alone ("Холод (1-10 из 10)") do not fill the card: the search without the year
+                // still runs, and it finds the other seasons and spellings.
+                batches.Add(jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, out bool nameFound));
+                if (!nameFound)
                 {
                     foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                        batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache));
+                        batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache, out _));
                 }
                 // A pass of its own: "Звёздные войны: Империя наносит ответный удар" (1980) must not stand
                 // in for the search without the year, which finds "Эпизод 5 - Империя наносит ответный удар".
-                batches.Add(jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, franchise: true));
+                batches.Add(jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, out _, franchise: true));
             }
             else
             {
                 foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                    batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache));
+                    batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache, out _));
             }
 
             foreach (var pair in V1Pairs(query, titleRu, titleEn, settings, req.CardMode))
