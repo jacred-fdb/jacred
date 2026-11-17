@@ -117,6 +117,19 @@ public class FranchisePrefixSearchTests : IDisposable
         Assert.Equal(new[] { "fire" }, ids);
     }
 
+    [Fact]
+    public async Task ImdbSearch_OneName_KeepsAPrefixOnOneNameOnly()
+    {
+        // Alloha may give only the original name. The Russian name of the record has no prefix,
+        // and it is still the film, unlike "Багажник / Trunk: Locked In" for a text query.
+        Seed("gf-en-prefix", $"Голдфингер {_tag}", $"James Bond 007: Goldfinger {_tag}", 1964, "movie", " (1964) BDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await ImdbSearch("tt9990003", $"Goldfinger {_tag}", null, 1964);
+
+        Assert.Equal(new[] { "gf-en-prefix" }, ids);
+    }
+
     async Task<string[]> ImdbSearch(string imdbId, string search, string altName, int year, List<int> categories = null)
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
@@ -230,12 +243,22 @@ public class FranchisePrefixSearchTests : IDisposable
     [InlineData("Джеймс Бонд 007: Никогда не говори никогда", "James Bond 007: Never Say Never Again", "никогданеговориникогда", "jamesbond045neversayneveragain", true)]
     [InlineData("Мертвые как я: Жизнь после смерти", "Dead Like Me: Life After Death", "жизньпослесмерти", "afterlife", false)]
     [InlineData("Мертвые как я: Жизнь после смерти", "Dead Like Me: Life After Death", "жизньпослесмерти", null, true)]
-    [InlineData("Багажник", "Trunk: Locked In", null, "lockedin", false)]
-    [InlineData("Багажник: Запертая", "Trunk: Locked In", null, "lockedin", true)]
-    [InlineData("Trunk: Locked In", "Trunk: Locked In", null, "lockedin", true)]
     public void IsFranchiseMatch_LooksBehindAColon(string name, string original, string nameSn, string originalSn, bool expected)
     {
         Assert.Equal(expected, FastDbIndex.IsFranchiseMatch(name, original, nameSn, originalSn));
+    }
+
+    [Theory]
+    [InlineData("Багажник", "Trunk: Locked In", null, "lockedin", true, false)]
+    [InlineData("Голдфингер", "James Bond 007: Goldfinger", null, "goldfinger", true, false)]
+    [InlineData("Джеймс Бонд 007: Голдфингер", "Goldfinger", "голдфингер", null, true, false)]
+    [InlineData("Багажник: Запертая", "Trunk: Locked In", null, "lockedin", true, true)]
+    [InlineData("Trunk: Locked In", "Trunk: Locked In", null, "lockedin", true, true)]
+    [InlineData("Мертвые как я: Жизнь после смерти", null, "жизньпослесмерти", null, true, true)]
+    public void IsFranchiseMatch_OneName_OtherNamePrefixedForTextOnly(string name, string original, string nameSn, string originalSn, bool byId, bool byText)
+    {
+        Assert.Equal(byId, FastDbIndex.IsFranchiseMatch(name, original, nameSn, originalSn));
+        Assert.Equal(byText, FastDbIndex.IsFranchiseMatch(name, original, nameSn, originalSn, otherNamePrefixed: true));
     }
 
     async Task<List<Result>> TextSearch(string query)

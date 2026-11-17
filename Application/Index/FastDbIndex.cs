@@ -184,19 +184,23 @@ namespace JacRed.Application.Index
         /// must match: whole, behind the prefix, or as the end of a name that has a prefix
         /// of its own (Alloha: "James Bond 04.5 - Never Say Never Again"). "Мертвые как я:
         /// Жизнь после смерти / Dead Like Me: Life After Death" is then not "Жизнь после
-        /// смерти / After.Life". With one name, that side must match behind the prefix, and the
-        /// other name of the record, unless empty or the same, must have a prefix of its own:
-        /// "Багажник / Trunk: Locked In" is the film "Багажник", not "Locked In".
+        /// смерти / After.Life". With one name, that side must match behind the prefix. With
+        /// <paramref name="otherNamePrefixed"/> (a text query), the other name of the record, unless
+        /// empty or the same, must also have a prefix of its own: "Багажник / Trunk: Locked In" is
+        /// the film "Багажник", not "Locked In". The id search leaves it off: Alloha may give only
+        /// "Goldfinger", and "Голдфингер / James Bond 007: Goldfinger" is that film.
         /// </summary>
-        public static bool IsFranchiseMatch(string name, string originalname, string nameSn, string originalSn)
+        public static bool IsFranchiseMatch(string name, string originalname, string nameSn, string originalSn, bool otherNamePrefixed = false)
         {
             bool hasName = !string.IsNullOrEmpty(nameSn), hasOriginal = !string.IsNullOrEmpty(originalSn);
             if (hasName && hasOriginal)
                 return Math.Max(nameSn.Length, originalSn.Length) >= MinFranchiseTitle
                     && SideMatches(name, nameSn) && SideMatches(originalname, originalSn);
             if (hasName)
-                return nameSn.Length >= MinFranchiseTitle && BehindPrefix(name, nameSn, tail: false) && OtherSideFits(originalname, name);
-            return hasOriginal && originalSn.Length >= MinFranchiseTitle && BehindPrefix(originalname, originalSn, tail: false) && OtherSideFits(name, originalname);
+                return nameSn.Length >= MinFranchiseTitle && BehindPrefix(name, nameSn, tail: false)
+                    && (!otherNamePrefixed || OtherSideFits(originalname, name));
+            return hasOriginal && originalSn.Length >= MinFranchiseTitle && BehindPrefix(originalname, originalSn, tail: false)
+                && (!otherNamePrefixed || OtherSideFits(name, originalname));
         }
 
         static bool OtherSideFits(string other, string side)

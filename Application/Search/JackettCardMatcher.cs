@@ -112,7 +112,7 @@ namespace JacRed.Application.Search
                     && !types.Contains("serial") && !types.Contains("multserial") && !types.Contains("docuserial") && !types.Contains("tvshow");
 
                 bool matches(TorrentDetails t, string name, string originalname) => franchise
-                    ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o)
+                    ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o, otherNamePrefixed: true)
                     // Точная выборка по name или originalname
                     : (_n != null && _n == name) || (_o != null && _o == originalname);
 
