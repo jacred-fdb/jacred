@@ -42,6 +42,10 @@ public class SeasonEpisodeFilterTests
     [InlineData("Беспринципные (2026) WEBRip [H.265/2160p] [4K, SDR, 8-bit] (сезон 5, серии 1-8 из 8)", 5, 9, false)]
     [InlineData("Монолог травниці (Сезон 2) / Kusuriya no Hitorigoto (Season 2) (2025) WEBDLRip 1080p H.265 Ukr/Jap", 2, 5, true)]
     [InlineData("Останні з нас /The Last of Us /s02e01-07 /HD720p WEBRip Atmos /2-й сезон повністю (УКР.)", 2, 3, true)]
+    // Ordinal endings: 1ый, 2-ой
+    [InlineData("Побег из тюрьмы / Prison Break (1ый сезон, серии 1-22) (Бобби Рот / Bobby Roth и другие) [2005-2006, США, криминал, боевик, триллер, драма, BDRip-AVC] VO (Novafilm)", 1, 5, true)]
+    [InlineData("Побег из тюрьмы / Prison Break (1ый сезон, серии 1-22) (Бобби Рот / Bobby Roth и другие) [2005-2006, США, криминал, боевик, триллер, драма, BDRip-AVC] VO (Novafilm)", 2, null, false)]
+    [InlineData("Сериал / Series (2-ой сезон, серии 1-10) [2006, DVDRip]", 2, 3, true)]
     // Anime seasons: ТВ-N, 2nd Season
     [InlineData("Записки аптекаря (ТВ-2) / Kusuriya no Hitorigoto 2nd Season / The Apothecary Diaries Season 2 / Монолог фармацевта 2 [TV] [24 из 24] [RUS(int), JAP+Sub] [2025, драма, детектив, мистика, WEB-DL] [1080p]", 2, 5, true)]
     [InlineData("Записки аптекаря (ТВ-2) / Kusuriya no Hitorigoto 2nd Season / The Apothecary Diaries Season 2 / Монолог фармацевта 2 [TV] [24 из 24] [RUS(int), JAP+Sub] [2025, драма, детектив, мистика, WEB-DL] [1080p]", 1, 5, false)]
@@ -58,6 +62,15 @@ public class SeasonEpisodeFilterTests
     [InlineData("Полицейский с Рублевки (2016) SATRip (серии 1-8 из 8)", 1, 8, true)]
     [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 1, 1180, true)]
     [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 1, 206, false)]
+    // Episodes as a bare bracketed range (AniLiberty) or "з" (Ukrainian "of"): season 1
+    [InlineData("Провожающая в последний путь Фрирен / Sousou no Frieren / 2023 / [WEBRip 1080p][HEVC][1-28]", 1, 5, true)]
+    [InlineData("Провожающая в последний путь Фрирен / Sousou no Frieren / 2023 / [WEBRip 1080p][HEVC][1-28]", 1, 29, false)]
+    [InlineData("Провожающая в последний путь Фрирен / Sousou no Frieren / 2023 / [WEBRip 1080p][HEVC][1-28]", 2, null, false)]
+    [InlineData("Монолог фармацевта 2 / Kusuriya no Hitorigoto 2nd Season / 2025 / [WEBRip 1080p][HEVC][1-24]", 2, 25, false)]
+    [InlineData("Відвідувачка тризн Фрірен / Sousou no Frieren (серії 5-7 з 28) (2023) WEBDL 1080р H.264 Ukr/Jpn | sub Ukr", 1, 6, true)]
+    [InlineData("Відвідувачка тризн Фрірен / Sousou no Frieren (серії 5-7 з 28) (2023) WEBDL 1080р H.264 Ukr/Jpn | sub Ukr", 1, 8, false)]
+    // Not a bracketed range of episodes: years
+    [InlineData("Сериал / Series [2005-2006] DVDRip", 1, null, false)]
     // ...so a first-season release without a season mark stays out of season 2
     [InlineData("Монолог фармацевта / Kusuriya no Hitorigoto / Записки аптекаря / The Apothecary Diaries (Норихиро Наганума) [TV] [1-19 из 24] [RUS(int), JAP+Sub] [2023, драма, детектив, исторический, WEB-DL] [1080p]", 2, 5, false)]
     [InlineData("Ore dake Level Up na Ken | Solo Leveling | Поднятие уровня в одиночку [2024, TV, 12 из 12] WEBRip 396p Raw+Rus", 2, 3, false)]
@@ -147,6 +160,32 @@ public class SeasonEpisodeFilterTests
     [InlineData("[SubsPlease] Sousou no Frieren - 28 (1080p)", 1, false)]
     [InlineData("Третий сезон 1-10 из 10", 5, false)]
     [InlineData(null, 1, false)]
+    // AniLiberty names a later season by a number after the name
+    [InlineData("Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]", 1, false)]
+    [InlineData("Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]", 2, true)]
+    [InlineData("Повелитель IV / Overlord IV / 2022 / [WEBRip 1080p][HEVC][1-13]", 4, true)]
+    [InlineData("Мастера Меча Онлайн 2 / Sword Art Online II / 2014 / [BDRip 1080p][AVC][1-24]", 1, false)]
+    [InlineData("Мастера Меча Онлайн 2 / Sword Art Online II / 2014 / [BDRip 1080p][AVC][1-24]", 2, true)]
+    // A number of the name itself is not a season: the episodes are still season 1
+    [InlineData("Кайдзю № 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Моб Психо 100 / Mob Psycho 100 / 2016 / [BDRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Апгрейд 2.0 / Upgrade 2.0 / 2021 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Досье лорда Эль-Меллоя II / Lord El-Melloi II Sei no Jikenbo: Rail Zeppelin Grace Note / 2019 / [BDRip 1080p][HEVC][1-13]", 1, true)]
+    // Nor a number of a volume
+    [InlineData("Кайдзю номер 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 8, false)]
+    [InlineData("Кайдзю номер 8 / Kaijuu 8-gou / 2024 / [WEBRip 1080p][HEVC][1-12]", 1, true)]
+    [InlineData("Тетрадь смерти. Том 2 / Death Note Vol. 2 / 2007 / [BDRip 1080p][AVC][1-12]", 2, false)]
+    [InlineData("Тетрадь смерти. Том 2 / Death Note Vol. 2 / 2007 / [BDRip 1080p][AVC][1-12]", 1, true)]
+    [InlineData("Тетрадь смерти Том 2 / Death Note / 2007 / [BDRip 1080p][AVC][13-24]", 2, false)]
+    [InlineData("Тетрадь смерти / Death Note Vol. 2 / 2007 / [BDRip 1080p][AVC][1-12]", 2, false)]
+    // A film, OVA or specials numbered after the name is no season at all
+    [InlineData("Повелитель: Фильм 2 / Overlord Movie 2 / 2017 / [BDRip 1080p][HEVC][1-1]", 2, false)]
+    [InlineData("Повелитель: Фильм 2 / Overlord Movie 2 / 2017 / [BDRip 1080p][HEVC][1-1]", 1, false)]
+    [InlineData("Повелитель: Спецвыпуски 2 / Overlord Specials 2 / 2018 / [BDRip 1080p][HEVC][1-13]", 2, false)]
+    [InlineData("Повелитель: OVA 2 / Overlord OVA 2 / 2017 / [BDRip 1080p][HEVC][1-2]", 2, false)]
+    [InlineData("Пять невест: Спецвыпуски 2 / Go-toubun no Hanayome Specials 2 / 2026 / [WEBRip 1080p][AVC][1-2]", 2, false)]
+    // A later part numbers its episodes from 1 again: no season from the name
+    [InlineData("Дни Сакамото. Часть 2 / Sakamoto Days Part 2 / 2025 / [WEBRip 1080p][HEVC][12-22]", 2, false)]
     public void TitleHasSeason(string title, int season, bool expected)
     {
         Assert.Equal(expected, SeasonEpisodeFilter.TitleHasSeason(title, season));

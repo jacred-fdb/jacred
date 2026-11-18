@@ -6,6 +6,8 @@ using Xunit;
 
 namespace JacRed.Tests.Indexers;
 
+// Sets the process-wide tracker lists that every search filters by: a search test running alongside would lose its records.
+[Collection("FastDb index")]
 public class TrackerCatalogServiceTests
 {
     [Fact]
