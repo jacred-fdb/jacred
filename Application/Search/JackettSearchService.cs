@@ -44,17 +44,24 @@ namespace JacRed.Application.Search
             return IndexerSearchHelper.ApplyPostFilters(results, q, req);
         }
 
-        public List<Result> SearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache)
+        public List<Result> SearchResults(string apikey, string query, string title, string title_original, int year, Dictionary<string, string> category, int is_serial, bool rqnum, IMemoryCache memoryCache, out bool nameFound, bool franchise = false)
         {
-            string cachekey = $"api:v2.0:indexers:{query}:{title}:{title_original}:{year}:{(category != null && category.Count > 0 ? string.Join(",", category.Select(i => $"{i.Key}={i.Value}")) : "null")}:{is_serial}";
-            if (memoryCache != null && memoryCache.TryGetValue(cachekey, out List<Result> _cacheResult))
-                return _cacheResult;
+            string cachekey = $"api:v2.0:indexers:{query}:{title}:{title_original}:{year}:{(category != null && category.Count > 0 ? string.Join(",", category.Select(i => $"{i.Key}={i.Value}")) : "null")}:{is_serial}{(franchise ? ":franchise" : "")}";
+            if (memoryCache != null && memoryCache.TryGetValue(cachekey, out (List<Result> results, bool nameFound) _cacheResult))
+            {
+                nameFound = _cacheResult.nameFound;
+                return _cacheResult.results;
+            }
 
-            var torrents = JackettCardMatcher.Search(_fastDbIndex, query, title, title_original, year, category, is_serial, rqnum, memoryCache);
+            var torrents = JackettCardMatcher.Search(_fastDbIndex, query, title, title_original, year, category, is_serial, rqnum, memoryCache, out nameFound, franchise);
             var results = JackettResultBuilder.Build(torrents, apikey, rqnum);
+            // The output may drop every release found by name (apikey "rus" keeps Russian ones only): then the search
+            // without the year must still run.
+            if (results.Count == 0)
+                nameFound = false;
 
             if (memoryCache != null && AppInit.conf.evercache.enable && AppInit.conf.evercache.validHour == 0)
-                memoryCache.Set(cachekey, results, System.DateTime.Now.AddMinutes(5));
+                memoryCache.Set(cachekey, (results, nameFound), System.DateTime.Now.AddMinutes(5));
 
             return results;
         }

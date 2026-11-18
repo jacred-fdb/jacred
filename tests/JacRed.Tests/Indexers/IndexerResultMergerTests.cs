@@ -89,4 +89,29 @@ public class IndexerResultMergerTests
         Assert.Equal(new[] { "English" }, merged.subs);
         Assert.Null(jackett.subs);
     }
+
+    [Fact]
+    public void MergeAndSort_MoreCopiesAddSeedersAndVoicesButNotTheirInfo()
+    {
+        var kept = Seeded("rutor", 0, 1);
+        kept.info = new TorrentInfo { relased = 2003, voices = new HashSet<string> { "Dub" } };
+        var otherYear = Seeded("bitru", 3, 2);
+        otherYear.info = new TorrentInfo { relased = 2015, voices = new HashSet<string> { "MVO" } };
+
+        var merged = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { new[] { kept } }, new[] { otherYear }));
+
+        Assert.Equal("rutor", merged.Tracker);
+        Assert.Equal(2003, merged.info.relased);
+        Assert.Equal(3, merged.Seeders);
+        Assert.Equal(new[] { "Dub", "MVO" }, merged.info.voices.OrderBy(v => v));
+    }
+
+    [Fact]
+    public void MergeAndSort_MoreCopiesBringNoTorrentOfTheirOwn()
+    {
+        var otherYear = Seeded("bitru", 3, 2);
+        otherYear.info = new TorrentInfo { relased = 2015 };
+
+        Assert.Empty(IndexerResultMerger.MergeAndSort(new[] { new Result[0] }, new[] { otherYear }));
+    }
 }

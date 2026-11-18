@@ -1,0 +1,752 @@
+using JacRed.Application.Index;
+using JacRed.Application.Search;
+using JacRed.Infrastructure.External;
+using JacRed.Infrastructure.Indexers;
+using JacRed.Infrastructure.Persistence;
+using JacRed.Models.Api;
+using JacRed.Models.Details;
+using Microsoft.Extensions.Caching.Memory;
+using Xunit;
+
+namespace JacRed.Tests.Search;
+
+/// <summary>
+/// Release names that carry more than the title: a season ("Монолог фармацевта 2 / Kusuriya no
+/// Hitorigoto 2nd Season", "… ТВ-2", "… Season 3"), a season subtitle ("Solo Leveling: Arise from
+/// the Shadow") or episodes ("Холод (1-10 из 10)"). The id search matches names exactly, so such
+/// releases were lost. A season taken from the name narrows: only that season gets the release.
+/// </summary>
+[Collection("FastDb index")]
+public class SeasonTitleFormsSearchTests : IDisposable
+{
+    const string UrlBase = "https://example.test/season-title-forms/";
+
+    // Digits only, inside the title: a number at the end of a name reads as a season.
+    readonly string _tag = (Math.Abs(Guid.NewGuid().GetHashCode()) % 90_000_000 + 10_000_000).ToString();
+    readonly List<string> _keys = new();
+
+    string Ru => $"Монолог {_tag} фармацевта";
+    string En => $"Kusuriya {_tag} no Hitorigoto";
+
+    public SeasonTitleFormsSearchTests()
+    {
+        string[] anime = { "anime", "serial" };
+        Seed("s1", Ru, En, 2023, anime, $"{Ru} / {En} / 2023 / [WEBRip 1080p][HEVC][1-24]");
+        Seed("s2-number", $"{Ru} 2", $"{En} 2nd Season", 2025, anime, $"{Ru} 2 / {En} 2nd Season / 2025 / [WEBRip 1080p][HEVC][1-24]");
+        // AniLiberty: the season only as a number after the name, the episodes in brackets.
+        Seed("s2-aniliberty", $"{Ru} 2", $"{En} II", 2025, anime, $"{Ru} 2 / {En} II / 2025 / [HDTVRip 720p][AVC][1-12]");
+        Seed("s2-tv", $"{Ru} ТВ-2", $"{En} TV-2", 2025, anime, $"{Ru} ТВ-2 / {En} TV-2 [24 из 24]");
+        Seed("s2-subtitle", $"{En}: Arise from the Shadow", $"Apothecary {_tag}: Arise from the Shadow", 2025, anime,
+            $"Apothecary {_tag}: Arise from the Shadow / {En}: Arise from the Shadow / {Ru} [ТВ-2] (13 из 13) Complete [1080p]");
+        Seed("s3-word", $"{Ru} (Третий сезон)", $"{En} Season 3", 2026, anime, $"{Ru} (Третий сезон) / {En} Season 3 [03x01-04 из 24] (2026) WEBRip 1080p");
+        // Not season 2: a film sequel, a film behind the title, another number.
+        Seed("film-2", $"{Ru} 2", $"{En} 2", 2025, new[] { "anime" }, $"{Ru} 2 / {En} 2 (2025) BDRip 1080p");
+        Seed("film-subtitle", $"{Ru}: Фильм", $"{En}: The Movie", 2025, new[] { "anime" }, $"{Ru}: Фильм / {En}: The Movie (2025) BDRip");
+        Seed("s20", $"{Ru} 20", $"{En} 20", 2025, anime, $"{Ru} 20 / {En} 20 [S01] (2025) WEBRip");
+        // A revival behind the title names its own first season.
+        Seed("revival", $"{Ru}: Продолжение", $"{En}: Sequel", 2027, anime, $"{Ru}: Продолжение (1 сезон: 1-9 серии из 9) / {En}: Sequel / 2027 / WEB-DL (1080p)");
+        // The name reads as season 2, the release says season 1.
+        Seed("title-s1", $"{Ru} 2", $"{En} 2", 2025, anime, $"{Ru} 2 / {En} 2 [S01] (2025) WEBRip");
+
+        // Spin-offs behind the title have a first season of their own; their later seasons are not the title's.
+        string[] serial = { "serial" };
+        Seed("sg-s2", $"Игра {_tag} в кальмара", $"Squid {_tag} Game", 2024, serial, $"Игра {_tag} в кальмара / Squid {_tag} Game [S02] (2024) WEB-DL");
+        Seed("sgc-s1", $"Игра {_tag} в кальмара. Вызов", $"Squid {_tag} Game: The Challenge", 2023, new[] { "tvshow" },
+            $"Игра {_tag} в кальмара. Вызов (1 сезон: 1-10 выпуски из 10) / Squid {_tag} Game: The Challenge / 2023 / WEB-DL (1080p)");
+        Seed("sgc-s2", $"Игра {_tag} в кальмара. Вызов", $"Squid {_tag} Game: The Challenge", 2025, new[] { "tvshow" },
+            $"Игра {_tag} в кальмара. Вызов (2 сезон: 1-9 выпуски из 9) / Squid {_tag} Game: The Challenge / 2025 / WEB-DL (1080p)");
+        Seed("sgc-s2-ru", $"Игра {_tag} в кальмара: Вызов", $"Squid {_tag} Game The Challenge", 2025, serial, $"Игра {_tag} в кальмара: Вызов (2 сезон) [+9 серия] [1080p]");
+        Seed("cm-s2", $"Мыслить {_tag} как преступник", $"Criminal {_tag} Minds", 2006, serial, $"Мыслить {_tag} как преступник / Criminal {_tag} Minds / Сезон: 2 / Серии: 1-23 из 23 (2006) WEB-DL");
+        Seed("cmbb-s1", $"Мыслить {_tag} как преступник: За границей", $"Criminal {_tag} Minds: Beyond Borders", 2016, serial,
+            $"Мыслить {_tag} как преступник: За границей (1 сезон: 1-13 серии из 13) / Criminal {_tag} Minds: Beyond Borders / 2016 / WEB-DL (1080p)");
+        Seed("cmbb-s2", $"Мыслить {_tag} как преступник: За границей", $"Criminal {_tag} Minds: Beyond Borders", 2017, serial,
+            $"Мыслить {_tag} как преступник: За границей (2 сезон: 1-13 серии из 13) / Criminal {_tag} Minds: Beyond Borders / 2017 / WEB-DL (1080p)");
+        Seed("twd-s2", $"Ходячие {_tag} мертвецы", $"The Walking {_tag} Dead", 2011, serial, $"Ходячие {_tag} мертвецы / The Walking {_tag} Dead [S02] (2011) BDRip");
+        Seed("twdd-s1", $"Ходячие {_tag} мертвецы: Дэрил Диксон", $"The Walking {_tag} Dead: Daryl Dixon", 2023, serial,
+            $"Ходячие {_tag} мертвецы: Дэрил Диксон (1 сезон: 1-6 серии из 6) / The Walking {_tag} Dead: Daryl Dixon / 2023 / WEB-DL (1080p)");
+        // The second season of a spin-off under a longer name.
+        Seed("twdd-s2", $"Ходячие {_tag} мертвецы: Дэрил Диксон. Книга Кэрол", $"The Walking {_tag} Dead: Daryl Dixon. The Book of Carol", 2024, serial,
+            $"Ходячие {_tag} мертвецы: Дэрил Диксон. Книга Кэрол (Сезон 2) / The Walking {_tag} Dead: Daryl Dixon. The Book of Carol (Season 2) (2024) WEB-DL 1080p");
+
+        Seed("frost", $"Мороз {_tag} (1-10 из 10)", $"Мороз {_tag} (1-10 из 10)", 2026, new[] { "serial" }, $"Мороз {_tag} (1-10 из 10) (2026) WEBRip");
+
+        Seed("film-parts", $"Ирония {_tag} судьбы (1-2 из 2)", $"Ирония {_tag} судьбы (1-2 из 2)", 1975, new[] { "movie" }, $"Ирония {_tag} судьбы (1-2 из 2) (1975) BDRip");
+        Seed("film-brackets", $"Ирония {_tag} судьбы [1-2 серии из 2]", $"Ирония {_tag} судьбы [1-2 серии из 2] (1975) WEB-DL 1080p", 1975, new[] { "movie" },
+            $"Ирония {_tag} судьбы [1-2 серии из 2] (1975) WEB-DL 1080p");
+        Seed("film-sequel", $"Ирония {_tag} судьбы 2", $"Ирония {_tag} судьбы 2", 1976, new[] { "movie" }, $"Ирония {_tag} судьбы 2 (1976) DVDRip");
+        Seed("same-year-series", $"Ирония {_tag} судьбы (1-4 из 4)", $"Ирония {_tag} судьбы (1-4 из 4)", 1975, new[] { "serial" }, $"Ирония {_tag} судьбы (1-4 из 4) (1975) TVRip");
+        Seed("remake-series", $"Ирония {_tag} судьбы (1-12 из 12)", $"Ирония {_tag} судьбы (1-12 из 12)", 2005, new[] { "serial" }, $"Ирония {_tag} судьбы (1-12 из 12) (2005) DVDRip");
+
+        FastDbIndex.Default.RebuildIfChanged();
+    }
+
+    public void Dispose()
+    {
+        foreach (string key in _keys)
+        {
+            try
+            {
+                using (var fdb = FileDB.OpenWrite(key))
+                {
+                    fdb.Database.Clear();
+                    fdb.savechanges = true;
+                }
+            }
+            catch
+            {
+                // ignore cleanup races
+            }
+
+            FileDB.RemoveKeyFromMasterDb(key);
+            try
+            {
+                string path = FileDB.PathForKey(key);
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(1, new[] { "s1" })]
+    [InlineData(2, new[] { "s2-aniliberty", "s2-number", "s2-subtitle", "s2-tv" })]
+    [InlineData(3, new[] { "s3-word" })]
+    [InlineData(4, new string[0])]
+    public async Task SeriesIdSearch_FindsSeasonForms_OfThatSeasonOnly(int season, string[] expected)
+    {
+        var ids = await IdSearch("tt9990101", En, Ru, 2023, "anime", series: true, season);
+
+        Assert.Equal(expected, ids);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(5000)]
+    public async Task SeriesIdSearch_SpinOffSubtitle_NotALaterSeason(int? category)
+    {
+        // With a category FilterByType is skipped; the spin-off is a tvshow of a later year, past FilterByYear too.
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        Assert.Equal(new[] { "sg-s2" }, await IdSearch("tt9990104", $"Squid {_tag} Game", $"Игра {_tag} в кальмара", 2021, "serial", series: true, 2, cats));
+        Assert.Equal(new[] { "cm-s2" }, await IdSearch("tt9990105", $"Criminal {_tag} Minds", $"Мыслить {_tag} как преступник", 2005, "serial", series: true, 2, cats));
+        Assert.Equal(new[] { "twd-s2" }, await IdSearch("tt9990106", $"The Walking {_tag} Dead", $"Ходячие {_tag} мертвецы", 2010, "serial", series: true, 2, cats));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(5000)]
+    public async Task SeriesIdSearch_SpinOffSeenFromOneName_DropsItsBucketsForBoth(int? category)
+    {
+        // The spin-off's first season shares a bucket with the title by its Russian name, so only the English
+        // subtitle part leads to it; its second season has a Russian subtitle of its own.
+        string[] serial = { "serial" };
+        Seed("rp-s2", $"Робокар {_tag} Поли", $"Robocar {_tag} Poli", 2012, serial, $"Робокар {_tag} Поли / Robocar {_tag} Poli [S02] (2012) WEBRip");
+        Seed("rr-s1", $"Робокар {_tag} Поли", $"Robocar {_tag} Poli: Rules of the road", 2013, serial,
+            $"Робокар {_tag} Поли / Robocar {_tag} Poli: Rules of the road [S01] (2013) WEBRip");
+        Seed("rr-s2", $"Робокар {_tag} Поли: Правила дорожного движения", $"Robocar {_tag} Poli: Rules of the road", 2014, serial,
+            $"Робокар {_tag} Поли: Правила дорожного движения / Robocar {_tag} Poli: Rules of the road [S02] (2014) WEBRip");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        Assert.Equal(new[] { "rp-s2" }, await IdSearch("tt9990107", $"Robocar {_tag} Poli", $"Робокар {_tag} Поли", 2012, "serial", series: true, 2, cats));
+        // Alloha's alternative_name is searched apart, with the Russian name: the spin-off is still seen from the original one.
+        Assert.Equal(new[] { "rp-s2" }, await IdSearch("tt9990113", $"Robocar {_tag} Poli", $"Робокар {_tag} Поли", 2012, "serial", series: true, 2, cats,
+            alternative: $"Robocar {_tag} Poli Show"));
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    public async Task SeriesIdSearch_PackWithFirstSeasonUnderSubtitle_IsNoSpinOff(int season)
+    {
+        string[] serial = { "serial" };
+        Seed("pb-s2", $"Побег {_tag} из тюрьмы", $"Prison {_tag} Break", 2006, serial, $"Побег {_tag} из тюрьмы / Prison {_tag} Break [S02] (2006) BDRip");
+        // The tracker gives the pack the title's year, the first of its "2005-2009".
+        Seed("pb-pack", $"Побег {_tag} из тюрьмы: Коллекция", $"Prison {_tag} Break: Collection", 2005, serial,
+            $"Побег {_tag} из тюрьмы: Коллекция / Prison {_tag} Break: Collection (2005-2009) BDRip (Сезоны 1-4, серии 1-79 из 79)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990108", $"Prison {_tag} Break", $"Побег {_tag} из тюрьмы", 2005, "serial", series: true, season, new List<int> { 5000 });
+
+        Assert.Equal(season == 2 ? new[] { "pb-pack", "pb-s2" } : new[] { "pb-pack" }, ids);
+    }
+
+    [Theory]
+    [InlineData(2020, new[] { "mq-s2" })]
+    // Without the title's year any first season behind a subtitle reads as a spin-off.
+    [InlineData(0, new string[0])]
+    public async Task SeriesIdSearch_FirstSeasonOfTheTitlesYear_IsNoSpinOff(int year, string[] expected)
+    {
+        // A tracker names the first season by the full name, "Mythic Quest: Raven's Banquet (1 сезон)", in the title's year.
+        string[] serial = { "serial" };
+        Seed("mq-s1", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2020, serial,
+            $"Мифический {_tag} квест: Пир ворона (1 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2020 / WEB-DL (1080p)");
+        Seed("mq-s2", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2021, serial,
+            $"Мифический {_tag} квест: Пир ворона (2 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2021 / WEB-DL (1080p)");
+        Seed("mq-base", $"Мифический {_tag} квест", $"Mythic {_tag} Quest", 2022, serial, $"Мифический {_tag} квест / Mythic {_tag} Quest [S03] (2022) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990109", $"Mythic {_tag} Quest", $"Мифический {_tag} квест", year, "serial", series: true, 2, new List<int> { 5000 });
+
+        Assert.Equal(expected, ids);
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_FirstSeasonUploadedLater_IsNoSpinOff()
+    {
+        // A tracker's year may be the year of the rip or upload: the earliest first season is the one that counts.
+        string[] serial = { "serial" };
+        Seed("mq-s1", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2020, serial,
+            $"Мифический {_tag} квест: Пир ворона (1 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2020 / WEB-DL (1080p)");
+        Seed("mq-s1-late", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2021, serial,
+            $"Мифический {_tag} квест: Пир ворона (1 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2021 / WEB-DL (2160p)");
+        Seed("mq-s2", $"Мифический {_tag} квест: Пир ворона", $"Mythic {_tag} Quest: Raven's Banquet", 2021, serial,
+            $"Мифический {_tag} квест: Пир ворона (2 сезон: 1-9 серии из 9) / Mythic {_tag} Quest: Raven's Banquet / 2021 / WEB-DL (1080p)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990114", $"Mythic {_tag} Quest", $"Мифический {_tag} квест", 2020, "serial", series: true, 2, new List<int> { 5000 });
+
+        Assert.Equal(new[] { "mq-s2" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_SpinOffWithFirstSeasonInPackOnly_IsSpinOff()
+    {
+        string[] serial = { "serial" };
+        Seed("st-s2", $"Очень {_tag} странные дела", $"Stranger {_tag} Things", 2017, serial, $"Очень {_tag} странные дела / Stranger {_tag} Things [S02] (2017) WEB-DL");
+        Seed("tales-pack", $"Очень {_tag} странные дела: Байки", $"Stranger {_tag} Things: Tales", 2026, serial,
+            $"Очень {_tag} странные дела: Байки / Stranger {_tag} Things: Tales [S01-02] (2026) WEB-DL");
+        Seed("ik-s1", $"Озорной {_tag} поцелуй", $"Itazura {_tag} na Kiss", 2008, new[] { "anime", "serial" }, $"Озорной {_tag} поцелуй / Itazura {_tag} na Kiss [25 из 25] (2008) DVDRip");
+        Seed("ik-tokyo", $"Озорной {_tag} поцелуй: Любовь в Токио", $"Itazura {_tag} na Kiss: Love in Tokyo", 2013, serial,
+            $"Озорной {_tag} поцелуй: Любовь в Токио / Itazura {_tag} na Kiss: Love in Tokyo [s01-02] (2013) HDTVRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "st-s2" }, await IdSearch("tt9990115", $"Stranger {_tag} Things", $"Очень {_tag} странные дела", 2016, "serial", series: true, 2, new List<int> { 5000 }));
+        Assert.Empty(await IdSearch("tt9990116", $"Itazura {_tag} na Kiss", $"Озорной {_tag} поцелуй", 2008, "anime", series: true, 2, new List<int> { 5000 }));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(5000)]
+    public async Task SeriesIdSearch_FilmAndSpecialsNumberedAfterName_AreNoSeason(int? category)
+    {
+        string[] anime = { "anime", "serial" };
+        Seed("ov-s2", $"Повелитель {_tag}", $"Overlord {_tag}", 2018, anime, $"Повелитель {_tag} / Overlord {_tag} [ТВ-2] (13 из 13)");
+        Seed("ov-movie2", $"Повелитель {_tag}: Фильм 2", $"Overlord {_tag} Movie 2", 2017, new[] { "anime" },
+            $"Повелитель {_tag}: Фильм 2 / Overlord {_tag} Movie 2 / 2017 / [BDRip 1080p][HEVC][1-1]");
+        Seed("ov-sp2", $"Повелитель {_tag}: Спецвыпуски 2", $"Overlord {_tag} Specials 2", 2018, anime,
+            $"Повелитель {_tag}: Спецвыпуски 2 / Overlord {_tag} Specials 2 / 2018 / [BDRip 1080p][HEVC][1-13]");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        Assert.Equal(new[] { "ov-s2" }, await IdSearch("tt9990110", $"Overlord {_tag}", $"Повелитель {_tag}", 2015, "serial", series: true, 2, cats));
+    }
+
+    [Theory]
+    [InlineData("StudioBand")]
+    [InlineData("3 x ДБ")]
+    public async Task SeriesIdSearch_SameTorrentUnderSeasonName_OfAnotherType_KeepsTheTitlesRelease(string voices)
+    {
+        // A tracker that types anime as cartoons holds the same torrent under the season's own name, with more seeders.
+        // The merge keeps that record first, and FilterByType must not drop the torrent with it.
+        Seed("sl-s2", $"Поднятие {_tag} уровня в одиночку", $"Ore Dake Level Up {_tag} na Ken", 2025, new[] { "anime" },
+            $"Поднятие {_tag} уровня в одиночку (2 сезон: 1-13 серии из 13) / Ore Dake Level Up {_tag} na Ken / 2025 / {voices} / WEBRip (1080p)");
+        Seed("sl-s2-cartoon", $"Поднятие {_tag} уровня в одиночку 2: Восстаньте из тени", $"Solo Leveling {_tag} 2", 2025, new[] { "multfilm", "multserial" },
+            $"Поднятие {_tag} уровня в одиночку 2: Восстаньте из тени / Ore dake Level Up {_tag} na Ken Season 2: Arise from the Shadow (2025) WEBRip 1080p",
+            hashOf: "sl-s2", sid: 400);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990111", $"Ore dake Level Up {_tag} na Ken", $"Поднятие {_tag} уровня в одиночку", 2024, "anime", series: true, 2);
+
+        Assert.Equal(new[] { "sl-s2" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesIdSearch_SameTorrentUnderNumberedName_OfAnotherType_KeepsTheTitlesRelease()
+    {
+        Seed("jk-s2", $"Магическая {_tag} битва", $"Jujutsu {_tag} Kaisen", 2023, new[] { "anime" },
+            $"Магическая {_tag} битва (2 сезон: 1-23 серии из 23) / Jujutsu {_tag} Kaisen / 2023 / ДБ (Force Media), СТ / WEBRip (1080p)");
+        Seed("jk-s2-cartoon", $"Магическая {_tag} битва 2", $"JUJUTSU {_tag} KAISEN Season 2", 2023, new[] { "multfilm", "multserial" },
+            $"Магическая {_tag} битва 2 / JUJUTSU {_tag} KAISEN Season 2 [S02] (2023) WEBRip 1080p", hashOf: "jk-s2", sid: 26);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990112", $"Jujutsu {_tag} Kaisen", $"Магическая {_tag} битва", 2020, "anime", series: true, 2);
+
+        Assert.Equal(new[] { "jk-s2" }, ids);
+    }
+
+    [Theory]
+    [InlineData(20, 10)]
+    [InlineData(80, 115)]
+    public async Task FilmIdSearch_CopyOfUnknownYear_KeepsNoTorrentOfAnotherYear(int datedSid, int undatedSid)
+    {
+        // A remake under the same Russian name: one copy has its year, another none; whichever comes first in the merge.
+        Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
+        Seed("gf-2023", $"Голдфингер {_tag}", $"Голдфингер {_tag}", 2023, new[] { "movie" },
+            $"Голдфингер {_tag} / Золотой палец / Gam sau zi / The Goldfinger {_tag} (2023) HDRip-AVC", sid: datedSid);
+        Seed("gf-2023-copy", $"Голдфингер {_tag}", $"Голдфингер {_tag} / Золотой палец / Gam sau zi / The Goldfinger {_tag}", 0, new[] { "movie" },
+            $"Голдфингер {_tag} / Золотой палец / Gam sau zi / The Goldfinger {_tag} (2023) HDRip-AVC", hashOf: "gf-2023", sid: undatedSid);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990117", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null);
+
+        Assert.Equal(new[] { "gf-1964" }, ids);
+    }
+
+    [Theory]
+    // A series of another year: its dated copy is typed as a series, its copy of unknown year as a film.
+    [InlineData("Мастер {0} и Маргарита", 2023, "Мастер {0} и Маргарита (2023) WEB-DL 1080p",
+        2005, "Мастер {0} и Маргарита (2005) DVDRip [H.264] (серии 1-10 из 10)", "Мастер {0} и Маргарита ( 1 - 10 серии из 10 ) /2005 / РУ /  DVDRip")]
+    [InlineData("А зори {0} здесь тихие...", 1972, "А зори {0} здесь тихие... (1972) WEBRip [H.264/1080p-LQ]",
+        2015, "А зори {0} здесь тихие... (1-4 из 4) (2015) HDTVRip", "А зори {0} здесь тихие... (1-4 серии из 4) (2015) HDTVRip | Расширенная версия")]
+    public async Task FilmIdSearch_SeriesOfAnotherYear_WithFilmCopyOfUnknownYear_IsDropped(string name, int year, string filmTitle,
+        int seriesYear, string seriesTitle, string copyTitle)
+    {
+        string ru = string.Format(name, _tag);
+        Seed("film", ru, ru, year, new[] { "movie" }, string.Format(filmTitle, _tag));
+        Seed("series", ru, string.Format(seriesTitle, _tag), seriesYear, new[] { "serial" }, string.Format(seriesTitle, _tag), sid: 10);
+        Seed("series-film-copy", ru, string.Format(copyTitle, _tag), 0, new[] { "movie" }, string.Format(copyTitle, _tag), hashOf: "series", sid: 1);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990118", ru, ru, year, "movie", series: false, season: null);
+
+        Assert.Equal(new[] { "film" }, ids);
+    }
+
+    [Theory]
+    // bitru dates a release by its remaster or Blu-ray, with more seeders than the copies dated by the film.
+    [InlineData("Плохие {0} парни 2", "Bad {0} Boys II", 2003, "Плохие {0} парни 2 / Bad {0} Boys II ({1}) BDRip | Remastered", 2015)]
+    [InlineData("2001 год: Космическая {0} одиссея", "2001: A Space {0} Odyssey", 1968,
+        "2001 год: Космическая {0} одиссея / 2001: A Space {0} Odyssey ({1}) UHD BDRip [H.265/2160p] [4K, HDR10, Dolby Vision]", 2001)]
+    public async Task FilmIdSearch_CopyOfAnotherYearFirst_KeepsTheTorrentWithTheCopyOfItsYear(string ru, string en, int year, string title, int otherYear)
+    {
+        ru = string.Format(ru, _tag);
+        en = string.Format(en, _tag);
+        Seed("film", ru, en, year, new[] { "movie" }, string.Format(title, _tag, year), sid: 2);
+        Seed("film-copy", ru, en, otherYear, new[] { "movie" }, string.Format(title, _tag, otherYear), hashOf: "film", sid: 3);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990119", en, ru, year, "movie", series: false, season: null);
+
+        // The torrent comes with the copy of the film's year and the seeders of both.
+        Assert.Equal(new[] { "film" }, Ids(results));
+        var torrent = Ours(results).Single();
+        Assert.Equal(year, torrent.info.relased);
+        Assert.Equal(3, torrent.Seeders);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_CopyOfAnotherYear_BringsItsSeedersToTheKeptTorrent()
+    {
+        // Copies of the film's year with no seeders or inflated ones, and a copy dated by the remaster with the seeders.
+        string ru = $"Плохие {_tag} парни 2", en = $"Bad {_tag} Boys II";
+        Seed("film", ru, en, 2003, new[] { "movie" }, $"{ru} / {en} (2003) BDRip 1080p", sid: 0, tracker: "rutor");
+        Seed("film-inflated", ru, en, 2003, new[] { "movie" }, $"{ru} / {en} (2003) BDRip 1080p", hashOf: "film", sid: 2, tracker: "korsars");
+        Seed("film-remaster", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) BDRip 1080p | Remastered", hashOf: "film", sid: 3, tracker: "bitru");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990121", en, ru, 2003, "movie", series: false, season: null);
+
+        // The torrent comes as a copy of the film's year.
+        Assert.Contains(Assert.Single(Ids(results)), new[] { "film", "film-inflated" });
+        var torrent = Ours(results).Single();
+        Assert.Equal(2003, torrent.info.relased);
+        Assert.Equal(3, torrent.Seeders);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_CopyOfAnotherYear_DoesNotBringBackATorrentOfAnotherType()
+    {
+        // The copy of the film's year is a series and goes with the type; the copy dated otherwise must not stand in for it.
+        string ru = $"Плохие {_tag} парни 2", en = $"Bad {_tag} Boys II";
+        Seed("series", ru, en, 2003, new[] { "serial" }, $"{ru} / {en} (2003) (1-10 из 10) WEB-DL", sid: 2);
+        Seed("series-film-copy", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL", hashOf: "series", sid: 30);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990122", en, ru, 2003, "movie", series: false, season: null);
+
+        Assert.Empty(ids);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_RemakeDatedOnlyUnderTheAlternativeName_IsDropped()
+    {
+        // The remake's copy of unknown year comes under the film's name, its dated copy only under the alternative name.
+        Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
+        Seed("rm-2023", $"Золотой {_tag} палец", $"Золотой {_tag} палец", 2023, new[] { "movie" }, $"Золотой {_tag} палец (2023) BDRip", sid: 5);
+        Seed("rm-copy", $"Голдфингер {_tag}", $"Голдфингер {_tag} remake", 0, new[] { "movie" }, $"Голдфингер {_tag} (remake) BDRip", hashOf: "rm-2023", sid: 50);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990123", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null,
+            alternative: $"Золотой {_tag} палец");
+
+        Assert.Equal(new[] { "gf-1964" }, ids);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_YearFilterOff_KeepsEveryYear()
+    {
+        Seed("gf-1964", $"Голдфингер {_tag}", $"Goldfinger {_tag}", 1964, new[] { "movie" }, $"Голдфингер {_tag} / Goldfinger {_tag} (1964) BDRip");
+        Seed("gf-2023", $"Голдфингер {_tag}", $"Голдфингер {_tag}", 2023, new[] { "movie" }, $"Голдфингер {_tag} (2023) BDRip", sid: 20);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990124", $"Goldfinger {_tag}", $"Голдфингер {_tag}", 1964, "movie", series: false, season: null,
+            filterByYear: false);
+
+        Assert.Equal(new[] { "gf-1964", "gf-2023" }, Ids(results));
+    }
+
+    [Theory]
+    // Series keep later seasons: a later season with an early pack copy, a copy of year - 1 with one of unknown year.
+    [InlineData(2012, 2008, true)]
+    [InlineData(2009, 0, true)]
+    // Only an early copy and one of unknown year.
+    [InlineData(2008, 0, false)]
+    public async Task SeriesIdSearch_JudgesTheYearByAllCopies(int year, int copyYear, bool kept)
+    {
+        Seed("series", $"Сериал {_tag} проверка", $"Serial {_tag} Check", year, new[] { "serial" }, $"Сериал {_tag} проверка (сезоны 1-3) ({year}) WEB-DL");
+        Seed("series-copy", $"Сериал {_tag} проверка", $"Serial {_tag} Check", copyYear, new[] { "serial" }, $"Сериал {_tag} проверка [S01-03] WEB-DL",
+            hashOf: "series", sid: 50);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var results = await IdSearchResults("tt9990125", $"Serial {_tag} Check", $"Сериал {_tag} проверка", 2010, "serial", series: true, season: null);
+
+        // One torrent, with the seeders of every copy.
+        var torrents = Ours(results).ToList();
+        Assert.Equal(kept ? 1 : 0, torrents.Count);
+        if (kept) Assert.Equal(50, torrents[0].Seeders);
+    }
+
+    [Fact]
+    public async Task FilmIdSearch_CollectionOfUnknownYear_IsKept()
+    {
+        // The film with its sequel: no copy dates it otherwise, and the copy typed as a film keeps it.
+        Seed("film", $"Чебурашка {_tag}", $"Чебурашка {_tag}", 2022, new[] { "movie" }, $"Чебурашка {_tag} (2022) WEB-DL 1080p");
+        Seed("collection", $"Чебурашка {_tag}", $"Чебурашка {_tag}", 0, new[] { "multfilm", "multserial" },
+            $"Чебурашка {_tag} (2022 - 2025) WEB-DL [H.264/1080p] [Коллекция]", sid: 7);
+        Seed("collection-film", $"Чебурашка {_tag}", $"Чебурашка {_tag} (Коллекция) / 2022-2025 / РУ / WEB-DL (1080p)", 0, new[] { "movie" },
+            $"Чебурашка {_tag} (Коллекция) / 2022-2025 / РУ / WEB-DL (1080p)", hashOf: "collection", sid: 3);
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await IdSearch("tt9990120", $"Чебурашка {_tag}", $"Чебурашка {_tag}", 2022, "movie", series: false, season: null);
+
+        Assert.Equal(new[] { "collection-film", "film" }, ids);
+    }
+
+    [Theory]
+    [InlineData(1, new[] { "frost" })]
+    [InlineData(2, new string[0])]
+    public async Task SeriesIdSearch_FindsEpisodesInName(int season, string[] expected)
+    {
+        var ids = await IdSearch("tt9990102", $"Мороз {_tag}", $"Мороз {_tag}", 2026, "serial", series: true, season);
+
+        Assert.Equal(expected, ids);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2000)]
+    public async Task FilmIdSearch_FindsEpisodesInName_NotSequelOrSeries(int? category)
+    {
+        // With a category FilterByType is skipped: the form match itself must drop the series.
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await IdSearch("tt9990103", $"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, "movie", series: false, season: null, cats);
+
+        Assert.Equal(new[] { "film-brackets", "film-parts" }, ids);
+    }
+
+    [Theory]
+    [InlineData(2, null)]
+    [InlineData(0, 5000)]
+    public async Task SeriesCardSearch_FindsEpisodesInName(int isSerial, int? category)
+    {
+        // An exact name fills the card, so the search without the year, which takes any part with the title, does not run.
+        Seed("frost-exact", $"Мороз {_tag}", $"Мороз {_tag}", 2026, new[] { "serial" }, $"Мороз {_tag} [S01] (2026) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await CardSearch($"Мороз {_tag}", $"Мороз {_tag}", 2026, isSerial, cats);
+
+        Assert.Equal(new[] { "frost", "frost-exact" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesCardSearch_OnlyEpisodesInName_StillSearchesWithoutYear()
+    {
+        // No release has the name itself: the search without the year finds the later seasons.
+        string snow = $"Снег {_tag} идет";
+        string[] serial = { "serial" };
+        Seed("snow-s1", $"{snow} (1-10 из 10)", $"{snow} (1-10 из 10)", 2020, serial, $"{snow} (1-10 из 10) (2020) WEBRip");
+        Seed("snow-s2", $"{snow} 2", $"{snow} 2", 2022, serial, $"{snow} 2 (1-8 из 8) (2022) WEBRip");
+        Seed("snow-s2-word", $"{snow}. Сезон 2", $"{snow}. Сезон 2", 2022, serial, $"{snow}. Сезон 2 (2022) WEBRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch(snow, snow, 2020, 2);
+
+        Assert.Equal(new[] { "snow-s1", "snow-s2", "snow-s2-word" }, ids);
+    }
+
+    [Fact]
+    public async Task SeriesCardSearch_OneNameWithEpisodes_StillSearchesOtherSpellings()
+    {
+        // A card with the Russian title only; one release has it with episodes, another only in another spelling.
+        string ru = $"Холод {_tag} зимы", en = $"Cold {_tag} winter";
+        string[] serial = { "serial" };
+        Seed("cold-ru", $"{ru} (1-10 из 10)", $"{en} (1-10 из 10)", 2025, serial, $"{ru} (1-10 из 10) / {en} (2025)");
+        Seed("cold-other", $"{ru} сериал", $"{en} [1-10 из 10]", 2025, serial, $"{ru} / {en} [1-10 из 10] (2025)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch(ru, null, 2025, 2);
+
+        Assert.Equal(new[] { "cold-other", "cold-ru" }, ids);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task UnknownTypeCardSearch_KeepsExactNamesOnly(int isSerial)
+    {
+        // No type to check a release against, and a series is held only by a year open upwards.
+        Seed("frost-exact", $"Мороз {_tag}", $"Мороз {_tag}", 2026, new[] { "serial" }, $"Мороз {_tag} [S01] (2026) WEB-DL");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch($"Мороз {_tag}", $"Мороз {_tag}", 2026, isSerial);
+
+        Assert.Equal(new[] { "frost-exact" }, ids);
+    }
+
+    [Theory]
+    [InlineData(1, null)]
+    [InlineData(0, 2000)]
+    public async Task FilmCardSearch_FindsEpisodesInName_NotOtherNumberOrSeries(int isSerial, int? category)
+    {
+        Seed("film-exact", $"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, new[] { "movie" }, $"Ирония {_tag} судьбы (1975) DVDRip");
+        // A number in brackets that is no episodes: another film.
+        Seed("film-number", $"Ирония {_tag} судьбы (2)", $"Ирония {_tag} судьбы (2)", 1975, new[] { "movie" }, $"Ирония {_tag} судьбы (2) (1975) DVDRip");
+        FastDbIndex.Default.RebuildIfChanged();
+        var cats = category.HasValue ? new List<int> { category.Value } : null;
+
+        var ids = await CardSearch($"Ирония {_tag} судьбы", $"Ирония {_tag} судьбы", 1975, isSerial, cats);
+
+        // "film-brackets" names its parts "серии", and a film card drops such a title, as for an exact name.
+        Assert.Equal(new[] { "film-exact", "film-parts" }, ids);
+    }
+
+    [Fact]
+    public async Task FilmCardSearch_ManyEpisodesInBrackets_OnlyAsMovie()
+    {
+        // A film card takes anime, multfilm and documovie, and trackers give those types to series too.
+        string train = $"Клинок {_tag} поезд";
+        Seed("train-film", train, train, 2020, new[] { "anime" }, $"{train} (2020) BDRip");
+        Seed("train-anime", $"{train} (1-7 из 7)", $"{train} (1-7 из 7)", 2021, new[] { "anime" }, $"{train} (1-7 из 7) (2021) WEBRip");
+        Seed("train-mult", $"{train} [01-20 из 20]", $"{train} [01-20 из 20]", 2020, new[] { "multfilm", "multserial" }, $"{train} [01-20 из 20] (2020) WEB-DLRip");
+        Seed("train-docuserial", $"{train} (1-10 из 10)", $"{train} (1-10 из 10)", 2019, new[] { "docuserial", "documovie" }, $"{train} (1-10 из 10) (2019) HDTVRip");
+        Seed("train-documovie", $"{train} (1-16 из 16)", $"{train} (1-16 из 16)", 2019, new[] { "documovie" }, $"{train} (1-16 из 16) (2019) SATRip");
+        // Kept: a tracker that says movie, and two parts of any film type.
+        Seed("train-movie", $"{train} [01-05 из 05]", $"{train} [01-05 из 05]", 2020, new[] { "movie" }, $"{train} [01-05 из 05] (2020) DVDRip");
+        Seed("train-doc-parts", $"{train} (1-2 из 2)", $"{train} (1-2 из 2)", 2020, new[] { "documovie" }, $"{train} (1-2 из 2) (2020) HDTVRip");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        var ids = await CardSearch(train, train, 2020, 1);
+
+        Assert.Equal(new[] { "train-doc-parts", "train-film", "train-movie" }, ids);
+    }
+
+    [Fact]
+    public async Task CardSearch_TooManyEpisodeBuckets_GetsExactNamesOnly()
+    {
+        string chronicle = $"Летопись {_tag}";
+        string[] serial = { "serial" };
+        Seed("chr-exact", chronicle, chronicle, 2020, serial, $"{chronicle} [S01] (2020) WEB-DL");
+        Seed("chr-ep-0", $"{chronicle} (1-1 из 200)", $"{chronicle} (1-1 из 200)", 2020, serial, $"{chronicle} (1-1 из 200) (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "chr-ep-0", "chr-exact" }, await CardSearch(chronicle, chronicle, 2020, 2));
+
+        for (int i = 1; i <= FastDbIndex.MaxTitleFormKeys; i++)
+            Seed($"chr-ep-{i}", $"{chronicle} (1-{i + 1} из 200)", $"{chronicle} (1-{i + 1} из 200)", 2020, serial, $"{chronicle} (1-{i + 1} из 200) (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new[] { "chr-exact" }, await CardSearch(chronicle, chronicle, 2020, 2));
+    }
+
+    [Fact]
+    public void TitleFormKeys_SubtitlesAndBucketsAreBounded()
+    {
+        string saga = $"Сага {_tag}", sn = JacRed.Infrastructure.Utils.StringConvert.SearchName(saga);
+        string episodes = FileDB.KeyForTorrent($"{saga} (1-5 из 5)", $"{saga} (1-5 из 5)");
+        Seed("saga-episodes", $"{saga} (1-5 из 5)", $"{saga} (1-5 из 5)", 2020, new[] { "serial" }, $"{saga} (1-5 из 5) (2020)");
+        string subtitle = FileDB.KeyForTorrent($"{saga}: Глава", $"{saga}: Глава");
+        Seed("saga-subtitle", $"{saga}: Глава", $"{saga}: Глава", 2020, new[] { "serial" }, $"{saga}: Глава [S02] (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(new HashSet<string> { episodes, subtitle }, FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0));
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, null, 0, 0));
+
+        // A name with many letters behind it gets no subtitle buckets.
+        for (int i = 0; i < FastDbIndex.MaxSubtitleParts; i++)
+            Seed($"saga-word-{i}", $"{saga}{(char)('а' + i)}", $"{saga}{(char)('а' + i)}", 2020, new[] { "movie" }, $"{saga}{(char)('а' + i)} (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+        Assert.Equal(new HashSet<string> { episodes }, FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
+
+        // Too many buckets give nothing.
+        for (int i = 0; i < FastDbIndex.MaxTitleFormKeys; i++)
+            Seed($"saga-ep-{i}", $"{saga} (1-{i + 6} из 200)", $"{saga} (1-{i + 6} из 200)", 2020, new[] { "serial" }, $"{saga} (1-{i + 6} из 200) (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0));
+    }
+
+    [Fact]
+    public void TitleFormKeys_BoundCountsSubtitleBucketsBeforeReadingThem()
+    {
+        string chronicle = $"Хроника {_tag}", sn = JacRed.Infrastructure.Utils.StringConvert.SearchName(chronicle);
+        for (int i = 0; i < FastDbIndex.MaxTitleFormKeys - 1; i++)
+            Seed($"chr-ep-{i}", $"{chronicle} (1-{i + 1} из 200)", $"{chronicle} (1-{i + 1} из 200)", 2020, new[] { "serial" }, $"{chronicle} (1-{i + 1} из 200) (2020)");
+        Seed("chr-sub-a", $"{chronicle}: Глава", $"Chronicle {_tag}: Chapter", 2020, new[] { "serial" }, $"{chronicle}: Глава [S02] (2020)");
+        Seed("chr-sub-b", $"{chronicle}: Глава", $"Chronicle {_tag}: Part", 2020, new[] { "serial" }, $"{chronicle}: Глава [S02] (2020)");
+        FastDbIndex.Default.RebuildIfChanged();
+
+        Assert.Equal(FastDbIndex.MaxTitleFormKeys - 1, FastDbIndex.Default.TitleFormKeys(sn, null, 1, 0).Count);
+        // 99 episode buckets and 2 subtitle buckets: past the bound, so the subtitle buckets are not read.
+        Assert.Empty(FastDbIndex.Default.TitleFormKeys(sn, null, 2, 0));
+    }
+
+    // The name is found only where the output drops it: the search without the year must still run and find the other year.
+    [Fact]
+    public async Task FilmCard_ExactNameOnlyOnDisabledTracker_StillSearchesWithoutYear()
+    {
+        string ru = $"Мираж {_tag} пустыни", en = $"Mirage {_tag} desert";
+        Seed("exact-disabled", ru, en, 2020, new[] { "movie" }, $"{ru} / {en} (2020) WEB-DL", tracker: "kinozal");
+        // Episodes in brackets on a kept tracker: the output is not empty, but the name itself is still not found.
+        Seed("episodes", $"{ru} (1-2 из 2)", $"{ru} (1-2 из 2)", 2020, new[] { "movie" }, $"{ru} (1-2 из 2) (2020) BDRip", tracker: "rutor");
+        Seed("other-year", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL", tracker: "rutor");
+        FastDbIndex.Default.RebuildIfChanged();
+        var prev = AppInit.conf.disable_trackers;
+        AppInit.conf.disable_trackers = new[] { "kinozal" };
+        try
+        {
+            Assert.Equal(new[] { "episodes", "other-year" }, await CardSearch(ru, en, 2020, 1));
+        }
+        finally { AppInit.conf.disable_trackers = prev; }
+    }
+
+    [Fact]
+    public async Task FilmCard_ExactNameOnlyOnTrackerOutsideSyncTrackers_StillSearchesWithoutYear()
+    {
+        string ru = $"Мираж {_tag} пустыни", en = $"Mirage {_tag} desert";
+        Seed("exact-unsynced", ru, en, 2020, new[] { "movie" }, $"{ru} / {en} (2020) WEB-DL", tracker: "kinozal");
+        Seed("other-year", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL", tracker: "rutor");
+        FastDbIndex.Default.RebuildIfChanged();
+        var prev = AppInit.conf.synctrackers;
+        AppInit.conf.synctrackers = new[] { "rutor" };
+        try
+        {
+            Assert.Equal(new[] { "other-year" }, await CardSearch(ru, en, 2020, 1));
+        }
+        finally { AppInit.conf.synctrackers = prev; }
+    }
+
+    [Fact]
+    public async Task FilmCard_ExactNameOnlyWithoutRussian_RusKey_StillSearchesWithoutYear()
+    {
+        string ru = $"Мираж {_tag} пустыни", en = $"Mirage {_tag} desert";
+        Seed("exact-eng", ru, en, 2020, new[] { "movie" }, $"{ru} / {en} (2020) WEB-DL", tracker: "rutor");
+        // The voice in the title gives the release its Russian language on save.
+        Seed("other-year-rus", ru, en, 2015, new[] { "movie" }, $"{ru} / {en} (2015) WEB-DL | RuDub", tracker: "rutor");
+        FastDbIndex.Default.RebuildIfChanged();
+        Assert.Equal(new[] { "other-year-rus" }, await CardSearch(ru, en, 2020, 1, apiKey: "rus"));
+    }
+
+    // As Lampa sends a card: the original title as the query, both titles, the year and is_serial.
+    async Task<string[]> CardSearch(string title, string original, int year, int isSerial, List<int> categories = null, string apiKey = null)
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var results = await IndexerSearchEngine.SearchCombinedAsync(
+            new IndexerSearchRequest { Query = original, Title = title, TitleOriginal = original, Year = year, IsSerial = isSerial, Categories = categories, CardMode = true,
+                ApiKey = apiKey },
+            cache, new JackettSearchService(FastDbIndex.Default));
+        return Ids(results);
+    }
+
+    async Task<string[]> IdSearch(string imdbId, string search, string altName, int year, string type, bool series, int? season, List<int> categories = null,
+        string alternative = null) =>
+        Ids(await IdSearchResults(imdbId, search, altName, year, type, series, season, categories, alternative));
+
+    async Task<List<Result>> IdSearchResults(string imdbId, string search, string altName, int year, string type, bool series, int? season,
+        List<int> categories = null, string alternative = null, bool filterByYear = true)
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        cache.Set($"alloha:title:{imdbId}", new AllohaResolveResult
+        {
+            Search = search,
+            AltName = altName,
+            AlternativeName = alternative,
+            Year = year,
+            Type = type,
+            IsSeries = series,
+            ImdbId = imdbId
+        }, TimeSpan.FromHours(1));
+
+        var prev = AppInit.conf.alloha.filterByYear;
+        AppInit.conf.alloha.filterByYear = filterByYear;
+        try
+        {
+            return await IndexerSearchEngine.SearchCombinedAsync(
+                new IndexerSearchRequest { Query = imdbId, CardMode = false, Season = season, Categories = categories }, cache, jackettSearch: null);
+        }
+        finally
+        {
+            AppInit.conf.alloha.filterByYear = prev;
+        }
+    }
+
+    void Seed(string id, string name, string original, int year, string[] types, string title, string hashOf = null, int sid = 10,
+        string tracker = null)
+    {
+        string key = FileDB.KeyForTorrent(name, original);
+        if (!_keys.Contains(key))
+            _keys.Add(key);
+
+        using var fdb = FileDB.OpenWrite(key);
+        fdb.AddOrUpdate(new TorrentDetails
+        {
+            url = UrlBase + id + "/" + _tag,
+            trackerName = tracker ?? PickTracker(),
+            types = types,
+            title = title,
+            name = name,
+            originalname = original,
+            magnet = "magnet:?xt=urn:btih:" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes((hashOf ?? id) + _tag))),
+            sid = sid,
+            pir = 1,
+            sizeName = "1 GB",
+            relased = year,
+            createTime = DateTime.UtcNow,
+            updateTime = DateTime.UtcNow
+        });
+    }
+
+    IEnumerable<Result> Ours(IEnumerable<Result> results) =>
+        results.Where(r => r.Details != null && r.Details.StartsWith(UrlBase) && r.Details.EndsWith("/" + _tag));
+
+    string[] Ids(IEnumerable<Result> results) =>
+        Ours(results)
+            .Select(r => r.Details.Substring(UrlBase.Length, r.Details.Length - UrlBase.Length - _tag.Length - 1))
+            .Distinct()
+            .OrderBy(s => s, StringComparer.Ordinal)
+            .ToArray();
+
+    static string PickTracker()
+    {
+        var sync = AppInit.conf.synctrackers;
+        if (sync != null && sync.Length > 0)
+            return sync[0];
+        return "kinozal";
+    }
+}

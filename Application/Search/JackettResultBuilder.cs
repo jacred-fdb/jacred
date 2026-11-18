@@ -15,13 +15,14 @@ namespace JacRed.Application.Search
     internal static class JackettResultBuilder
     {
         #region AddTorrents
-        public static void AddTorrent(Dictionary<string, TorrentDetails> torrents, TorrentDetails t)
+        /// <returns>false when the config drops the torrent's tracker (outside synctrackers or in disable_trackers).</returns>
+        public static bool AddTorrent(Dictionary<string, TorrentDetails> torrents, TorrentDetails t)
         {
             if (AppInit.conf.synctrackers != null && !AppInit.conf.synctrackers.Contains(t.trackerName))
-                return;
+                return false;
 
             if (AppInit.conf.disable_trackers != null && AppInit.conf.disable_trackers.Contains(t.trackerName))
-                return;
+                return false;
 
             if (torrents.TryGetValue(t.url, out TorrentDetails val))
             {
@@ -32,6 +33,8 @@ namespace JacRed.Application.Search
             {
                 torrents.TryAdd(t.url, t);
             }
+
+            return true;
         }
         #endregion
 

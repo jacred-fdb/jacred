@@ -49,6 +49,62 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         /// <summary>
+        /// <see cref="FilterByYear"/> by torrent: the copies of one infohash across all <paramref name="batches"/> are judged
+        /// together. A torrent whose dated copies all miss the year goes whole, its copies of unknown year too; otherwise its
+        /// copies dated otherwise move to <paramref name="otherYearCopies"/>, for the merge to take the torrent's info from a
+        /// copy that matches and the seeders and voices from all. <paramref name="infoHashKey"/> may be
+        /// <see cref="IndexerResultMerger.InfoHashKeys"/> shared with the merge.
+        /// </summary>
+        public static List<Result>[] FilterTorrentsByYear(IReadOnlyList<List<Result>> batches, int year, bool movieLike, out List<Result> otherYearCopies,
+            Func<Result, string> infoHashKey = null)
+        {
+            infoHashKey ??= IndexerResultMerger.InfoHashKey;
+            var result = new List<Result>[batches.Count];
+            otherYearCopies = new List<Result>();
+            if (year <= 0)
+            {
+                for (int i = 0; i < batches.Count; i++) result[i] = batches[i];
+                return result;
+            }
+
+            var dated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var batch in batches)
+            {
+                foreach (var t in batch)
+                {
+                    int rel = t?.info?.relased ?? 0;
+                    string key = rel > 0 ? infoHashKey(t) : null;
+                    if (key == null) continue;
+                    dated.Add(key);
+                    if (MatchesCardYear(rel, year, movieLike)) matched.Add(key);
+                }
+            }
+
+            for (int i = 0; i < batches.Count; i++)
+            {
+                result[i] = new List<Result>();
+                foreach (var t in batches[i])
+                {
+                    int rel = t?.info?.relased ?? 0;
+                    if (rel > 0 && MatchesCardYear(rel, year, movieLike))
+                    {
+                        result[i].Add(t);
+                        continue;
+                    }
+                    string key = infoHashKey(t);
+                    if (rel > 0)
+                    {
+                        if (key != null && matched.Contains(key)) otherYearCopies.Add(t);
+                    }
+                    else if (key == null || !dated.Contains(key) || matched.Contains(key))
+                        result[i].Add(t);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Card-search year gate. Unknown <paramref name="relased"/> (≤0) passes.
         /// Movies: year ± 1. Serials and other: relased ≥ year − 1.
         /// </summary>
@@ -105,8 +161,8 @@ namespace JacRed.Infrastructure.Indexers
         {
             // 2nd Season
             new Regex(@"(?<![0-9])(?<season>[0-9]{1,2})(?:st|nd|rd|th)\s+season", Opts),
-            // 2 сезон, 1-3 сезоны, 2-й сезон
-            new Regex(@"(?<![0-9])(?<season>[0-9]{1,2})(?:-(?<seasonLast>[0-9]{1,2}))?(?:-?й)?\s*сезон", Opts),
+            // 2 сезон, 1-3 сезоны, 2-й сезон, 1ый сезон, 2-ой сезон
+            new Regex(@"(?<![0-9])(?<season>[0-9]{1,2})(?:-(?<seasonLast>[0-9]{1,2}))?(?:-?[ыои]?й)?\s*сезон", Opts),
             // Сезон: 4, сезон 5, Сезоны 1-3, Season 2, Season 1-3; not episodes (Третий сезон 1-10 из 10)
             new Regex(@"(?<!\p{L})(?:сезон\p{L}*|season)\s*[:№]?\s*(?<season>[0-9]{1,2})(?:-(?<seasonLast>[0-9]{1,2})(?!\s*из))?(?![0-9]|-(?!й))", Opts),
             // Anime: (ТВ-2), [TV-3], (TB-1), ТВ-3 / …; not the channel at the end (… из 22) ТВ-3)
@@ -115,10 +171,17 @@ namespace JacRed.Infrastructure.Indexers
             new Regex(@"(?<![0-9])s(?<season>[0-9]{1,2})(?:-s?(?<seasonLast>[0-9]{1,2}))?(?![0-9]|\s*e)(?:\s|\.|\]|/|$|[[(])", Opts),
         };
 
-        // [1-19 из 24], (28 из 28), 1-8 серии из 8, Серии: 1-16 из 16, [12+1 из 12+1], [1-7 из >12]. "N из K" is episodes 1-N.
-        static readonly Regex EpisodesOf = new Regex(@"(?<![0-9.-])(?<!(?<!\p{L})(?:диск|disc|dvd|том|vol)\p{L}*\.?\s*)(?:(?<first>[0-9]{1,4})\s*-{1,2}\s*)?(?<last>[0-9]{1,4})(?:\s*\+\s*[0-9]{1,3})?\s*(?:сери\p{L}*\s*)?из\s*>?\s*[0-9]", Opts);
+        // [1-19 из 24], (28 из 28), 1-8 серии из 8, Серии: 1-16 из 16, [12+1 из 12+1], [1-7 из >12], (серії 5-7 з 28). "N из K" is episodes 1-N.
+        static readonly Regex EpisodesOf = new Regex(@"(?<![0-9.-])(?<!(?<!\p{L})(?:диск|disc|dvd|том|vol)\p{L}*\.?\s*)(?:(?<first>[0-9]{1,4})\s*-{1,2}\s*)?(?<last>[0-9]{1,4})(?:\s*\+\s*[0-9]{1,3})?\s*(?:сери\p{L}*\s*)?(?:из|(?<=\s)з)\s*>?\s*[0-9]", Opts);
         // [2023, TV, 28 эп.], [2019, TV, 25 ep], [1999, TV, 207-1180 эп.]
         static readonly Regex EpisodeCount = new Regex(@"(?<![0-9.])(?:(?<first>[0-9]{1,4})-)?(?<last>[0-9]{1,4})\s*(?:эп|ep)(?!\p{L})", Opts);
+        // AniLiberty: … / 2023 / [WEBRip 1080p][HEVC][1-28]. Not years: [2005-2006].
+        static readonly Regex BracketedRange = new Regex(@"\[(?<first>[0-9]{1,3})\s*-\s*(?<last>[0-9]{1,3})\]", Opts);
+        // AniLiberty names a later season by a number after the name: "Повелитель 2 / Overlord II / 2018 / [HDTVRip 720p][AVC][1-13]".
+        // Not a number of the name itself: "Кайдзю № 8", "Kaiju No. 8", "Кайдзю номер 8", "Апгрейд 2.0", "Моб Психо 100",
+        // nor a volume: "Тетрадь смерти. Том 2", "Death Note Vol. 2".
+        static readonly Regex NameSeasonNumber = new Regex(@"(?<!(?:№|#|(?i:\b(?:no|vol)\.?|\b(?:номер|том)))\s*)\s(?:(?<n>[0-9]{1,2})|(?<r>II|III|IV|V|VI|VII|VIII|IX|X))$", RegexOptions.Compiled);
+        static readonly string[] Roman = { null, "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
         // A later part of a split season numbers its episodes from 1 again: (4 сезон. Часть 2: 1-12 серии из 12) is E17-28.
         static readonly Regex LaterPart = new Regex(@"(?<!\p{L})(?:част\p{L}*|part|cour)\s*(?<part>[0-9]{1,2})(?![0-9-])", Opts);
         // Episodes without a season are season 1, unless the title names a season in words or is a film, OVA or special.
@@ -168,6 +231,16 @@ namespace JacRed.Infrastructure.Indexers
         /// <summary>Whether the release title names the season, or lists episodes only and is read as season 1.</summary>
         public static bool TitleHasSeason(string title, int season) => ParseTitle(title)?.HasSeason(season) == true;
 
+        /// <summary>Whether the release title names the season itself, without the season 1 guess.</summary>
+        public static bool TitleNamesSeason(string title, int season) => ParseTitle(title)?.Seasons.Contains(season) == true;
+
+        /// <summary>Whether the release title names that season and no other, without the season 1 guess.</summary>
+        public static bool TitleNamesOnlySeason(string title, int season)
+        {
+            var seasons = ParseTitle(title)?.Seasons;
+            return seasons != null && seasons.Count == 1 && seasons.Contains(season);
+        }
+
         static TitleInfo ParseTitle(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return null;
@@ -191,15 +264,38 @@ namespace JacRed.Infrastructure.Indexers
 
             m = EpisodesOf.Match(rest);
             if (!m.Success) m = EpisodeCount.Match(rest);
+            bool bracketed = false;
+            if (!m.Success)
+            {
+                m = BracketedRange.Match(rest);
+                bracketed = m.Success;
+            }
             if (m.Success && !IsLaterPart(rest))
                 SetEpisodes(info, m.Groups["first"].Success ? int.Parse(m.Groups["first"].Value) : 1, int.Parse(m.Groups["last"].Value));
 
             if (info.Seasons.Count == 0)
             {
                 if (!info.FirstEpisode.HasValue) return null;
-                info.FirstSeasonByDefault = !NoSeasonOneGuess.IsMatch(title);
+                // Not a film, OVA or specials numbered after the name: "Повелитель: Фильм 2 / Overlord Movie 2 / … [1-1]".
+                int nameSeason = bracketed ? NameSeason(title) : 0;
+                if (nameSeason >= 2 && !NoSeasonOneGuess.IsMatch(title))
+                    info.Seasons.Add(nameSeason);
+                else
+                    info.FirstSeasonByDefault = !NoSeasonOneGuess.IsMatch(title);
             }
             return info;
+        }
+
+        // The number after the name, before the first " / ": "Повелитель 2", "Повелитель IV / Overlord IV".
+        // A Roman numeral counts only when it also ends the original name: "Досье лорда Эль-Меллоя II /
+        // Lord El-Melloi II Sei no Jikenbo" is a first season.
+        static int NameSeason(string title)
+        {
+            string[] names = title.Split(" / ", 3);
+            var m = NameSeasonNumber.Match(names[0].TrimEnd());
+            if (!m.Success) return 0;
+            if (m.Groups["n"].Success) return int.Parse(m.Groups["n"].Value);
+            return names.Length > 1 && NameSeasonNumber.IsMatch(names[1].TrimEnd()) ? Array.IndexOf(Roman, m.Groups["r"].Value) : 0;
         }
 
         static Match FirstNxnn(string title)

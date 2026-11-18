@@ -22,10 +22,13 @@ namespace JacRed.Application.Search
             Dictionary<string, string> category,
             int is_serial,
             bool rqnum,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            out bool nameFound,
+            bool franchise = false)
         {
             var fastdb = fastDbIndex.Get();
             var torrents = new Dictionary<string, TorrentDetails>();
+            nameFound = false;
 
             #region Запрос с NUM
             // NUM / Lampa free-text: "Ru En Year", "Ru En", or "Ru Year" → card title fields.
@@ -76,6 +79,7 @@ namespace JacRed.Application.Search
                 string _o = StringConvert.SearchName(title_original);
 
                 HashSet<string> keys = new HashSet<string>(20);
+                bool titleForms = is_serial > 0;
 
                 void updateKeys(string k)
                 {
@@ -86,11 +90,54 @@ namespace JacRed.Application.Search
                     }
                 }
 
-                updateKeys(_n);
-                updateKeys(_o);
+                if (franchise)
+                {
+                    // Франшиза перед названием (kinozal: "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger").
+                    // Только с годом карточки, и год релиза должен совпасть точно:
+                    // "Механик: Воскрешение" (2016) — не "Воскрешение" (2015).
+                    // Карточка сериала (is_serial 2, 3): проход ищет фильмы, он читал бы бакеты
+                    // впустую и взял бы лишь сериал с типом anime ("Клинок: Вызов").
+                    if (year <= 0 || is_serial == 2 || is_serial == 3)
+                        return torrents;
+                    keys = fastDbIndex.FranchiseKeys(_n, _o, FastDbIndex.MaxFranchiseKeys);
+                }
+                else
+                {
+                    updateKeys(_n);
+                    updateKeys(_o);
+                    // Серии в скобках за названием: "Холод (1-10 из 10)". Сезона в карточке нет, поэтому
+                    // только эта форма: она не говорит, какой это сезон или фильм. Без типа карточки
+                    // (is_serial -1 или 0 без категории) сериал держит только год, а он открыт вверх:
+                    // "Чебурашка (1-12 из 52)" (2025) пришёл бы на фильм 2023.
+                    if (titleForms)
+                        keys.UnionWith(fastDbIndex.TitleFormKeys(_n, _o, 0, year));
 
-                if ((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) && keys.Count > AppInit.conf.maxreadfile)
-                    keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
+                    if ((!AppInit.conf.evercache.enable || AppInit.conf.evercache.validHour > 0) && keys.Count > AppInit.conf.maxreadfile)
+                        keys = keys.Take(AppInit.conf.maxreadfile).ToHashSet();
+                }
+
+                // Только фильм: "Игра в кальмара: Вызов" (2023) — шоу, а не фильм "Вызов" (2023);
+                // и сборник с типами docuserial и documovie тоже не фильм.
+                bool film(string[] types) =>
+                    (types.Contains("movie") || types.Contains("multfilm") || types.Contains("documovie") || types.Contains("anime"))
+                    && !types.Contains("serial") && !types.Contains("multserial") && !types.Contains("docuserial") && !types.Contains("tvshow");
+
+                bool exactName(string name, string originalname) => (_n != null && _n == name) || (_o != null && _o == originalname);
+
+                bool matches(TorrentDetails t, string name, string originalname) => franchise
+                    ? t.relased == year && film(t.types) && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, _n, _o, otherNamePrefixed: true)
+                    // Точная выборка по name или originalname
+                    : exactName(name, originalname) || (titleForms && ReleaseTitleForms.Matches(t, _n, _o, 0));
+
+                // Записи только по сериям в скобках не считаются найденным именем: поиск без года ищет
+                // остальные сезоны и написания, и одна такая запись не должна его отменять.
+                // Так же и запись трекера, которого нет в выдаче (disable_trackers, вне synctrackers).
+                bool byEpisodes = false, foundByName = false;
+                void add(TorrentDetails t)
+                {
+                    if (JackettResultBuilder.AddTorrent(torrents, t))
+                        foundByName |= !byEpisodes;
+                }
 
                 foreach (string key in keys)
                 {
@@ -99,9 +146,11 @@ namespace JacRed.Application.Search
                         string name = t._sn ?? StringConvert.SearchName(t.name);
                         string originalname = t._so ?? StringConvert.SearchName(t.originalname);
 
-                        // Точная выборка по name или originalname
-                        if ((_n != null && _n == name) || (_o != null && _o == originalname))
+                        if (matches(t, name, originalname))
                         {
+                            // Только по сериям в скобках за названием: "Холод (1-10 из 10)"
+                            byEpisodes = !franchise && !exactName(name, originalname);
+
                             if (is_serial == 1)
                             {
                                 #region Фильм
@@ -110,8 +159,14 @@ namespace JacRed.Application.Search
                                     if (Regex.IsMatch(t.title, " (сезон|сери(и|я|й))", RegexOptions.IgnoreCase))
                                         continue;
 
+                                    // Больше двух серий в скобках — фильм, только если трекер так и записал (movie):
+                                    // anime, multfilm и documovie ставят и сериалам ("Холодная война (1-16 из 16)", documovie).
+                                    // Две серии — двухсерийный фильм: "Ирония судьбы (1-2 из 2)" с любым из этих типов.
+                                    if (byEpisodes && !t.types.Contains("movie") && ReleaseTitleForms.EpisodesTotal(t, _n, _o) > 2)
+                                        continue;
+
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: true))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -121,7 +176,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("serial") || t.types.Contains("multserial") || t.types.Contains("anime") || t.types.Contains("docuserial") || t.types.Contains("tvshow"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -131,7 +186,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("tvshow"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -141,7 +196,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("docuserial") || t.types.Contains("documovie"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -151,7 +206,7 @@ namespace JacRed.Application.Search
                                 if (t.types.Contains("anime"))
                                 {
                                     if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike: false))
-                                        JackettResultBuilder.AddTorrent(torrents, t);
+                                        add(t);
                                 }
                                 #endregion
                             }
@@ -160,13 +215,14 @@ namespace JacRed.Application.Search
                                 #region Неизвестно
                                 bool movieLike = t.types.Contains("movie") || t.types.Contains("multfilm") || t.types.Contains("documovie");
                                 if (IndexerResultFilters.MatchesCardYear(t.relased, year, movieLike))
-                                    JackettResultBuilder.AddTorrent(torrents, t);
+                                    add(t);
                                 #endregion
                             }
                         }
                     }
 
                 }
+                nameFound = foundByName;
                 #endregion
             }
             else if (!string.IsNullOrWhiteSpace(query) && query.Length > 1)
@@ -272,6 +328,7 @@ namespace JacRed.Application.Search
                     if (torrents.Count == 0)
                         torrentsSearch(exact: false, exactdb: false);
                 }
+                nameFound = torrents.Count > 0;
                 #endregion
             }
 

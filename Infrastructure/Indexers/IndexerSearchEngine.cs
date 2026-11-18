@@ -41,16 +41,25 @@ namespace JacRed.Infrastructure.Indexers
             if (imdbMode)
             {
                 var resolved = await AllohaTitleResolver.ResolveAsync(query, null, cache);
-                batches.Add(await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                int franchiseYear = resolved.IsSeries ? 0 : resolved.Year;
+                var found = new List<List<Result>> { await V1SearchAsync(resolved.Search, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.AlternativeName) };
                 if (!string.IsNullOrWhiteSpace(resolved.AlternativeName))
-                    batches.Add(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum));
+                    found.Add(await V1SearchAsync(resolved.AlternativeName, resolved.AltName, exact: true, settings.v1Sort, req.Trackers, req.Season, cache, req.RqNum, franchiseYear, resolved.Year, resolved.Search));
 
-                var merged = IndexerResultMerger.MergeAndSort(batches.ToArray());
-                if (req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true)
-                    merged = IndexerResultFilters.FilterByYear(merged, resolved.Year, movieLike: !resolved.IsSeries);
-                if ((req.Categories == null || req.Categories.Count == 0) && !string.IsNullOrWhiteSpace(resolved.Type))
-                    merged = IndexerResultFilters.FilterByType(merged, resolved.Type);
-                return merged;
+                // The year by torrent, over the copies of both names: a copy of unknown year must not keep a torrent its other
+                // copies date otherwise (a remake), and a copy dated by a remaster must not drop one the others date right.
+                List<Result> otherYearCopies = null;
+                var infoHashKey = IndexerResultMerger.InfoHashKeys();
+                var byTorrent = req.Year <= 0 && resolved.Year > 0 && AppInit.conf.alloha?.filterByYear == true
+                    ? IndexerResultFilters.FilterTorrentsByYear(found, resolved.Year, movieLike: !resolved.IsSeries, out otherYearCopies, infoHashKey)
+                    : found.ToArray();
+                // The type of each record before the merge: the merge keeps the first record's info, and one torrent may also
+                // sit under another name and type ("Магическая битва 2" typed as a cartoon on another tracker).
+                bool byType = (req.Categories == null || req.Categories.Count == 0) && !string.IsNullOrWhiteSpace(resolved.Type);
+                foreach (var items in byTorrent)
+                    batches.Add(byType ? IndexerResultFilters.FilterByType(items, resolved.Type) : items);
+                // The copies dated otherwise of a kept torrent come last: their seeders and voices count, its info is not theirs.
+                return IndexerResultMerger.MergeAndSort(batches.ToArray(), otherYearCopies, infoHashKey);
             }
 
             var category = BuildCategoryDict(req.Categories);
@@ -58,18 +67,22 @@ namespace JacRed.Infrastructure.Indexers
 
             if (req.CardMode)
             {
-                var card = jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache);
-                batches.Add(card);
-                if (card.Count == 0)
+                // Episodes in brackets alone ("Холод (1-10 из 10)") do not fill the card: the search without the year
+                // still runs, and it finds the other seasons and spellings.
+                batches.Add(jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, out bool nameFound));
+                if (!nameFound)
                 {
                     foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                        batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache));
+                        batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache, out _));
                 }
+                // A pass of its own: "Звёздные войны: Империя наносит ответный удар" (1980) must not stand
+                // in for the search without the year, which finds "Эпизод 5 - Империя наносит ответный удар".
+                batches.Add(jackettSearch.SearchResults(req.ApiKey, query, titleRu, titleEn, req.Year, category, isSerial, req.RqNum, cache, out _, franchise: true));
             }
             else
             {
                 foreach (var variant in BuildQueryVariants(query, titleRu, titleEn, settings))
-                    batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache));
+                    batches.Add(jackettSearch.SearchResults(req.ApiKey, variant, null, null, 0, null, isSerial, req.RqNum, cache, out _));
             }
 
             foreach (var pair in V1Pairs(query, titleRu, titleEn, settings, req.CardMode))
@@ -185,7 +198,7 @@ namespace JacRed.Infrastructure.Indexers
             return pairs;
         }
 
-        static async Task<List<Result>> V1SearchAsync(string search, string altname, bool exact, string sort, List<string> trackers, int? season, IMemoryCache cache, bool rqnum)
+        static async Task<List<Result>> V1SearchAsync(string search, string altname, bool exact, string sort, List<string> trackers, int? season, IMemoryCache cache, bool rqnum, int franchiseYear = 0, int titleYear = 0, string otherName = null)
         {
             if (string.IsNullOrWhiteSpace(search)) return new List<Result>();
 
@@ -209,14 +222,30 @@ namespace JacRed.Infrastructure.Indexers
 
             if (exact)
             {
-                foreach (string key in FastDbIndex.Default.ExactKeys(sn, altSn))
+                var keys = FastDbIndex.Default.ExactKeys(sn, altSn);
+                // kinozal names a film of a series "Джеймс Бонд 007: Голдфингер / James Bond 007: Goldfinger".
+                // Alloha gives the original name as search and the Russian one as altname.
+                // Only a film of the film year: "Механик: Воскрешение" (2016) is not "Воскрешение" (2015).
+                // FilterByType is skipped when the client sends categories, so the type is checked here.
+                bool franchise = franchiseYear > 0;
+                if (franchise)
+                    keys.UnionWith(FastDbIndex.Default.FranchiseKeys(altSn, sn, FastDbIndex.MaxFranchiseKeys));
+                // "Холод (1-10 из 10)", and for a season "Монолог фармацевта 2 / Kusuriya no Hitorigoto 2nd Season".
+                int formSeason = season ?? 0;
+                // A spin-off seen from the title's other name searched apart drops its buckets here too.
+                keys.UnionWith(FastDbIndex.Default.TitleFormKeys(sn, altSn, formSeason, titleYear, StringConvert.SearchName(otherName)));
+
+                foreach (string key in keys)
                 {
                     foreach (var t in FileDB.OpenRead(key, true).Values)
                     {
                         if (t.types == null) continue;
                         string n = t._sn ?? StringConvert.SearchName(t.name);
                         string o = t._so ?? StringConvert.SearchName(t.originalname);
-                        if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn)))
+                        if (n == sn || o == sn || (altSn != null && (n == altSn || o == altSn))
+                            || (franchise && t.relased == franchiseYear && IsFilm(t.types)
+                                && FastDbIndex.IsFranchiseMatch(t.name, t.originalname, altSn, sn))
+                            || ((!franchise || IsFilm(t.types)) && ReleaseTitleForms.Matches(t, sn, altSn, formSeason)))
                             add(t);
                     }
                 }
@@ -251,6 +280,9 @@ namespace JacRed.Infrastructure.Indexers
 
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
         }
+
+        static bool IsFilm(string[] types) =>
+            types.Contains("movie") || types.Contains("multfilm") || types.Contains("documovie") || types.Contains("anime");
 
         static bool MatchesTrackerFilter(string trackerName, List<string> trackers) =>
             TrackerNameMatching.Matches(trackerName, trackers);
