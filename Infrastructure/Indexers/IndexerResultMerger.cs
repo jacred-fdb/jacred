@@ -38,6 +38,9 @@ namespace JacRed.Infrastructure.Indexers
                         continue;
                     }
 
+                    if (IsLaterCopy(item, existing))
+                        TakeRecord(existing, item);
+
                     bool itemReliable = UnreliableSeeders.AnyReliable(item.Tracker);
                     if (itemReliable && !reliableSeeders[key])
                     {
@@ -72,6 +75,34 @@ namespace JacRed.Infrastructure.Indexers
             }
 
             return map.Values.OrderByDescending(r => r.Seeders).ThenByDescending(r => r.Peers).ToList();
+        }
+
+        /// <summary>
+        /// A later record of the same torrent on the same tracker: a renamed topic stays in its old bucket
+        /// (and under an old domain) with the old title. Copies from other trackers keep the first one's record.
+        /// </summary>
+        static bool IsLaterCopy(Result item, Result existing) =>
+            item.UpdateTime > existing.UpdateTime
+            && !string.IsNullOrEmpty(item.Tracker)
+            && string.Equals(item.Tracker, existing.Tracker, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The record fields of <paramref name="from"/>; seeders, voices and tracks stay merged over all copies.</summary>
+        static void TakeRecord(Result into, Result from)
+        {
+            into.Details = from.Details;
+            into.Title = from.Title;
+            into.Size = from.Size;
+            into.PublishDate = from.PublishDate;
+            into.UpdateTime = from.UpdateTime;
+            into.Category = from.Category;
+            into.CategoryDesc = from.CategoryDesc;
+            if (from.info == null) return;
+
+            var voices = into.info?.voices;
+            into.info = from.info.Clone();
+            if (voices == null) return;
+            into.info.voices ??= new HashSet<string>();
+            into.info.voices.UnionWith(voices);
         }
 
         static string InfoHashKey(Result item)
