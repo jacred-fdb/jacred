@@ -540,4 +540,15 @@ public class FileDBVoicesTests : IDisposable
     {
         Assert.Equal(expected, FileDB.CanonicalVoice(name));
     }
+
+    [Fact]
+    public void UpdateFullDetails_StatedAudio_AddedToLanguages()
+    {
+        var t = Details("Re:Zero kara Hajimeru Isekai Seikatsu 4th Season / Жизнь с нуля в альтернативном мире [ТВ-4] (1-7)");
+        t.audioLanguages = new HashSet<string> { "jpn" };
+
+        FileDB.updateFullDetails(t);
+
+        Assert.Contains("jpn", t.languages);
+    }
 }

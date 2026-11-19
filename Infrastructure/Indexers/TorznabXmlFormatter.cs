@@ -137,10 +137,14 @@ namespace JacRed.Infrastructure.Indexers
             string langCode = langTag.StartsWith("en") ? "en" : "ru";
             // The alphabet guess stays first (Ukrainian trackers: Ukrainian) and the known languages are added:
             // they come from heuristics and miss external audio tracks, so they must not replace the guess.
-            string primary = TorznabLanguages.IsUkrainianTracker(torrent.Tracker) ? "ukr" : (langCode == "en" ? "eng" : "rus");
+            // A tracker that states the audio languages (animelayer "Язык", already in languages) needs no guess:
+            // a Cyrillic title of a Japanese release would make it Russian.
+            string primary = torrent.audioLanguages is { Count: > 0 } ? null
+                : TorznabLanguages.IsUkrainianTracker(torrent.Tracker) ? "ukr" : (langCode == "en" ? "eng" : "rus");
             foreach (string language in TorznabLanguages.Resolve(primary, torrent.languages))
                 AppendAttr(attrs, "language", language);
-            foreach (string language in torrent.subs ?? TorznabLanguages.Subtitles(torrent.ffprobe))
+            // subs (the tracker's and the stored tracks, by name) with the ffprobe merged in from another batch
+            foreach (string language in TorznabLanguages.Subtitles(torrent.subs, torrent.ffprobe))
                 AppendAttr(attrs, "subs", language);
             AppendAttr(attrs, "lang", langCode);
 

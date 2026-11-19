@@ -59,13 +59,15 @@ namespace JacRed.Infrastructure.Indexers
             !string.IsNullOrWhiteSpace(tracker) && tracker.Split(',').All(t => UkrainianTrackers.Contains(t.Trim()));
 
         /// <summary>
-        /// The guessed primary language first, then the known ones (tracker, title, voices, ffprobe audio)
-        /// in ordinal order. Codes are normalised, duplicates and junk dropped.
+        /// The guessed primary language first (none when null), then the known ones (tracker, title, voices,
+        /// ffprobe audio) in ordinal order. Codes are normalised, duplicates and junk dropped.
         /// </summary>
         public static List<string> Resolve(string primaryCode, IEnumerable<string> known)
         {
             string primary = Name(primaryCode);
-            var result = new List<string> { primary };
+            var result = new List<string>();
+            if (primary != null)
+                result.Add(primary);
             if (known == null)
                 return result;
 
@@ -77,10 +79,16 @@ namespace JacRed.Infrastructure.Indexers
         /// Values of the Torznab <c>subs</c> attribute: languages of the ffprobe subtitle tracks,
         /// normalised as in <see cref="Resolve"/>.
         /// </summary>
-        public static List<string> Subtitles(IEnumerable<ffStream> streams) =>
-            streams == null
-                ? new List<string>()
-                : NamesOf(streams.Where(s => s?.codec_type == "subtitle").Select(s => s.tags?.language)).ToList();
+        public static List<string> Subtitles(IEnumerable<ffStream> streams) => Subtitles(null, streams);
+
+        /// <summary>
+        /// The subtitle languages the tracker states (codes or English names) and those of the ffprobe subtitle
+        /// tracks, normalised as in <see cref="Resolve"/>.
+        /// </summary>
+        public static List<string> Subtitles(IEnumerable<string> tracker, IEnumerable<ffStream> streams) =>
+            NamesOf((tracker ?? Enumerable.Empty<string>())
+                .Concat(streams?.Where(s => s?.codec_type == "subtitle").Select(s => s.tags?.language) ?? Enumerable.Empty<string>()))
+                .ToList();
 
         /// <summary>Distinct English names in ordinal order, junk dropped.</summary>
         static IEnumerable<string> NamesOf(IEnumerable<string> codes) =>

@@ -224,6 +224,20 @@ namespace JacRed.Infrastructure.Persistence
                     upt(uptfull: true);
                 }
 
+                // Only a source that states them (a tracker page, a synced record with them) changes them.
+                if (torrent.audioLanguages != null && !torrent.audioLanguages.SetEquals(t.audioLanguages ?? new HashSet<string>()))
+                {
+                    t.audioLanguages = torrent.audioLanguages;
+                    // they are added to languages
+                    upt(uptfull: true);
+                }
+
+                if (torrent.subtitleLanguages != null && !torrent.subtitleLanguages.SetEquals(t.subtitleLanguages ?? new HashSet<string>()))
+                {
+                    t.subtitleLanguages = torrent.subtitleLanguages;
+                    upt();
+                }
+
                 if (updateFull)
                 {
                     updateFullDetails(t);
@@ -296,7 +310,9 @@ namespace JacRed.Infrastructure.Persistence
                     relased = torrent.relased,
                     sizeName = torrent.sizeName,
                     magnet = torrent.magnet,
-                    ffprobe = torrent.ffprobe
+                    ffprobe = torrent.ffprobe,
+                    audioLanguages = torrent.audioLanguages,
+                    subtitleLanguages = torrent.subtitleLanguages
                 };
 
                 // Всегда заполняем _sn и _so, даже если name или originalname пустые

@@ -32,11 +32,18 @@ namespace JacRed.Models.Api
         public HashSet<string> languages { get; set; }
 
         /// <summary>
-        /// Torznab <c>subs</c> values from the stored ffprobe, set only where <see cref="ffprobe"/> is dropped
-        /// (v1 records with <c>tracks: false</c>); null means take them from <see cref="ffprobe"/>. Not in JSON.
+        /// Torznab <c>subs</c> values of a v1 record: the subtitle languages its tracker states and those of its
+        /// stored ffprobe, which v1 drops with <c>tracks: false</c>. Torznab adds those of <see cref="ffprobe"/>. Not in JSON.
         /// </summary>
         [JsonIgnore]
         public List<string> subs { get; set; }
+
+        /// <summary>
+        /// Audio languages the tracker states (<see cref="Details.TorrentBaseDetails.audioLanguages"/>), already in
+        /// <see cref="languages"/>: with them Torznab drops its alphabet guess. Not in JSON.
+        /// </summary>
+        [JsonIgnore]
+        public HashSet<string> audioLanguages { get; set; }
 
         public TorrentInfo info { get; set; }
 

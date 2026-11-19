@@ -39,6 +39,15 @@ namespace JacRed.Models.Details
 
         public HashSet<string> languages { get; set; }
 
+        /// <summary>
+        /// Audio languages the tracker states for the release (ISO 639-2), e.g. animelayer "Язык".
+        /// Kept apart from <see cref="languages"/>, which updateFullDetails rebuilds, and added to it there.
+        /// </summary>
+        public HashSet<string> audioLanguages { get; set; }
+
+        /// <summary>Subtitle languages the tracker states for the release (ISO 639-2), e.g. animelayer "Субтитры".</summary>
+        public HashSet<string> subtitleLanguages { get; set; }
+
         public List<ffStream> ffprobe { get; set; }
 
         public int ffprobe_tryingdata { get; set; }

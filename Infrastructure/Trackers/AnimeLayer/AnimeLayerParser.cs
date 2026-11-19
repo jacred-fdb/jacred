@@ -125,7 +125,10 @@ namespace JacRed.Infrastructure.Trackers.AnimeLayer
                         createTime = createTime,
                         name = name,
                         originalname = originalname,
-                        relased = relased
+                        relased = relased,
+                        // "Язык: японский", "Субтитры: русские (софтсаб), английские (полухардсаб)"
+                        audioLanguages = RussianLanguageNames.Codes(Match("Язык: ?</strong>([^<]+)")),
+                        subtitleLanguages = RussianLanguageNames.Codes(Match("Субтитры: ?</strong>([^<]+)"))
                     });
                 }
             }
