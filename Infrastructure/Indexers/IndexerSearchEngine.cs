@@ -262,9 +262,9 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         // Null, not empty: the Torznab formatter then falls back to an ffprobe merged in from another batch.
-        static List<string> Subtitles(List<ffStream> ffprobe)
+        static List<string> Subtitles(IEnumerable<string> tracker, List<ffStream> ffprobe)
         {
-            var subs = TorznabLanguages.Subtitles(ffprobe);
+            var subs = TorznabLanguages.Subtitles(tracker, ffprobe);
             return subs.Count > 0 ? subs : null;
         }
 
@@ -300,8 +300,9 @@ namespace JacRed.Infrastructure.Indexers
                 ffprobe = rqnum || !AppInit.conf.tracks ? null : i.ffprobe,
                 // Stored languages come from metadata only; add the audio tracks, as JackettResultBuilder does.
                 languages = TracksDB.Languages(i, i.ffprobe),
-                // Torznab subs need the stored tracks even when ffprobe is not returned.
-                subs = !rqnum && !AppInit.conf.tracks ? Subtitles(i.ffprobe) : null,
+                // Torznab subs: the ones the tracker states and the stored tracks, even when ffprobe is not returned.
+                subs = rqnum ? null : Subtitles(i.subtitleLanguages, i.ffprobe),
+                audioLanguages = rqnum ? null : i.audioLanguages,
                 info = rqnum ? null : new TorrentInfo
                 {
                     name = i.name,

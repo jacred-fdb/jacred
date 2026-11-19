@@ -126,6 +126,10 @@ namespace JacRed.Infrastructure.Persistence
 
             if (!t.languages.Contains("rus") && (VoiceDictionary.Rus.Overlaps(t.voices) || VoiceDictionary.Rus.Overlaps(hiddenVoices)))
                 t.languages.Add("rus");
+
+            // stated by the tracker (animelayer "Язык")
+            if (t.audioLanguages != null)
+                t.languages.UnionWith(t.audioLanguages);
             #endregion
 
             #region seasons

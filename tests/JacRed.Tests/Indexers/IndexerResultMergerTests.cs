@@ -89,4 +89,32 @@ public class IndexerResultMergerTests
         Assert.Equal(new[] { "English" }, merged.subs);
         Assert.Null(jackett.subs);
     }
+
+    [Fact]
+    public void MergeAndSort_StatedAudioOfAnotherCopy_Taken()
+    {
+        var rutor = new Result { Tracker = "rutor", MagnetUri = Magnet, Seeders = 9, languages = new HashSet<string> { "rus" } };
+        var animelayer = new Result { Tracker = "animelayer", MagnetUri = Magnet, Seeders = 1, languages = new HashSet<string> { "jpn" }, audioLanguages = new HashSet<string> { "jpn" } };
+
+        var merged = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { rutor }, new[] { animelayer }));
+
+        Assert.Equal(new[] { "jpn" }, merged.audioLanguages);
+        Assert.Equal(new[] { "jpn", "rus" }, merged.languages.OrderBy(l => l));
+        Assert.Equal(new[] { "rus" }, rutor.languages);
+
+        var reversed = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { animelayer }, new[] { rutor }));
+        Assert.Equal(new[] { "jpn", "rus" }, reversed.languages.OrderBy(l => l));
+    }
+
+    [Fact]
+    public void MergeAndSort_SubsOfCopies_United()
+    {
+        var nyaa = new Result { Tracker = "nyaa", MagnetUri = Magnet, subs = new List<string> { "English" } };
+        var animelayer = new Result { Tracker = "animelayer", MagnetUri = Magnet, subs = new List<string> { "Russian" } };
+
+        var merged = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { nyaa }, new[] { animelayer }));
+
+        Assert.Equal(new[] { "English", "Russian" }, merged.subs.OrderBy(s => s));
+        Assert.Equal(new[] { "English" }, nyaa.subs);
+    }
 }

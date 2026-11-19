@@ -61,9 +61,23 @@ namespace JacRed.Infrastructure.Indexers
                     if (existing.ffprobe == null && item.ffprobe != null)
                         existing.ffprobe = item.ffprobe;
 
-                    existing.subs ??= item.subs;
+                    // Copies of other trackers state other subtitles of the same files.
+                    if (existing.subs == null || item.subs == null)
+                        existing.subs ??= item.subs;
+                    else
+                        existing.subs = existing.subs.Union(item.subs).ToList();
 
-                    if ((existing.languages == null || existing.languages.Count == 0) && item.languages != null && item.languages.Count > 0)
+                    // The same files: the audio a copy's tracker states holds for all of them, so the languages
+                    // of both copies are kept, whichever comes first.
+                    if (existing.audioLanguages is { Count: > 0 } || item.audioLanguages is { Count: > 0 })
+                    {
+                        if (existing.audioLanguages is not { Count: > 0 })
+                            existing.audioLanguages = item.audioLanguages;
+                        existing.languages = new HashSet<string>(existing.languages ?? Enumerable.Empty<string>());
+                        if (item.languages != null)
+                            existing.languages.UnionWith(item.languages);
+                    }
+                    else if ((existing.languages == null || existing.languages.Count == 0) && item.languages != null && item.languages.Count > 0)
                         existing.languages = item.languages;
 
                     if (existing.info == null && item.info != null)

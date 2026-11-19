@@ -172,4 +172,68 @@ public class TorznabXmlFormatterLanguageTests
 
         Assert.DoesNotContain("subs", json);
     }
+
+    [Fact]
+    public void ItemsXml_TrackerStatesAudio_NoAlphabetGuess()
+    {
+        // animelayer "Язык: японский" under a Cyrillic title.
+        var result = IndexerSearchEngine.MapV1(new TorrentDetails
+        {
+            trackerName = "animelayer",
+            title = "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season / Жизнь с нуля в альтернативном мире [ТВ-4] (1-7)",
+            languages = new HashSet<string> { "jpn" },
+            audioLanguages = new HashSet<string> { "jpn" }
+        }, rqnum: false);
+
+        var xml = TorznabXmlFormatter.ItemsXml(new[] { result }, "5070", false, null);
+
+        Assert.Equal(new[] { "Japanese" }, Languages(xml));
+        Assert.Contains("name=\"lang\" value=\"ru\"", xml);
+    }
+
+    [Fact]
+    public void ItemsXml_TrackerStatesRussianAndJapaneseAudio_Both()
+    {
+        var result = new Result { Tracker = "animelayer", Title = "Атака титанов", languages = new HashSet<string> { "rus", "jpn" }, audioLanguages = new HashSet<string> { "rus", "jpn" } };
+
+        Assert.Equal(new[] { "Japanese", "Russian" }, Languages(TorznabXmlFormatter.ItemsXml(new[] { result }, "5070", false, null)));
+    }
+
+    [Fact]
+    public void MapV1_TrackerSubtitles_UnitedWithFfprobe()
+    {
+        var torrent = new TorrentDetails
+        {
+            trackerName = "animelayer",
+            title = "Атака титанов",
+            subtitleLanguages = new HashSet<string> { "rus", "eng" },
+            ffprobe = new List<ffStream> { Track("subtitle", "fre"), Track("subtitle", "rus") }
+        };
+
+        var result = IndexerSearchEngine.MapV1(torrent, rqnum: false);
+
+        Assert.Equal(new[] { "English", "French", "Russian" }, Subs(TorznabXmlFormatter.ItemsXml(new[] { result }, "5070", false, null)));
+    }
+
+    [Fact]
+    public void ItemsXml_TrackerSubsAndFfprobeOfAnotherBatch_United()
+    {
+        // tracks: true - a Jackett copy brings ffprobe, the v1 copy only the subtitles its tracker states.
+        var jackett = new Result { Tracker = "animelayer", MagnetUri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567", ffprobe = new List<ffStream> { Track("subtitle", "eng"), Track("subtitle", "rus") } };
+        var v1 = new Result { Tracker = "animelayer", MagnetUri = jackett.MagnetUri, subs = new List<string> { "Russian", "French" } };
+
+        var merged = IndexerResultMerger.MergeAndSort(new[] { jackett }, new[] { v1 });
+
+        Assert.Equal(new[] { "English", "French", "Russian" }, Subs(TorznabXmlFormatter.ItemsXml(merged, "5070", false, null)));
+    }
+
+    [Fact]
+    public void Result_AudioLanguagesNotInJson()
+    {
+        var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = null };
+
+        var json = JsonSerializer.Serialize(new Result { Title = "Дюна", audioLanguages = new HashSet<string> { "jpn" } }, options);
+
+        Assert.DoesNotContain("audioLanguages", json);
+    }
 }
