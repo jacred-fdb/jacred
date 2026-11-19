@@ -284,10 +284,23 @@ namespace JacRed.Infrastructure.Indexers
 
         static string CopyKey(TorrentDetails t)
         {
-            if (string.IsNullOrWhiteSpace(t.magnet)) return null;
+            string hex = InfoHashHex(t.magnet);
+            return hex == null ? null : t.trackerName + "|" + hex;
+        }
+
+        // Most magnets carry a 40-char hex btih: take it as is, parse only the other forms (base32, v2).
+        static string InfoHashHex(string magnet)
+        {
+            if (string.IsNullOrWhiteSpace(magnet)) return null;
+
+            int start = magnet.IndexOf("btih:", StringComparison.OrdinalIgnoreCase) + 5;
+            if (start >= 5 && magnet.Length >= start + 40 && (magnet.Length == start + 40 || magnet[start + 40] == '&')
+                && magnet.AsSpan(start, 40).IndexOfAnyExcept("0123456789abcdefABCDEF") < 0)
+                return magnet.Substring(start, 40).ToUpperInvariant();
+
             try
             {
-                return t.trackerName + "|" + MagnetLink.Parse(t.magnet).InfoHashes.V1OrV2.ToHex();
+                return MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex().ToUpperInvariant();
             }
             catch
             {
