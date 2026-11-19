@@ -253,7 +253,10 @@ namespace JacRed.Application.Search
         }
         #endregion
 
-        /// <summary>The record fields of <paramref name="from"/>; trackers, magnet, seeders, voices and tracks stay merged.</summary>
+        /// <summary>
+        /// The record fields of <paramref name="from"/>; trackers, magnet, seeders, voices and tracks stay merged,
+        /// and <c>createTime</c> stays the latest of the copies: the output keeps its newest-first order.
+        /// </summary>
         static void TakeRecord(TorrentDetails into, TorrentDetails from, bool keepTitle)
         {
             into.url = from.url;

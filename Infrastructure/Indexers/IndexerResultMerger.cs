@@ -41,6 +41,10 @@ namespace JacRed.Infrastructure.Indexers
                     if (IsLaterCopy(item, existing))
                         TakeRecord(existing, item);
 
+                    // The latest date of the copies, as in the card merge (JackettResultBuilder keeps the latest createTime).
+                    if (item.PublishDate > existing.PublishDate)
+                        existing.PublishDate = item.PublishDate;
+
                     bool itemReliable = UnreliableSeeders.AnyReliable(item.Tracker);
                     if (itemReliable && !reliableSeeders[key])
                     {
@@ -92,13 +96,12 @@ namespace JacRed.Infrastructure.Indexers
             && !string.IsNullOrEmpty(item.Tracker)
             && string.Equals(item.Tracker, existing.Tracker, StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>The record fields of <paramref name="from"/>; seeders, voices and tracks stay merged over all copies.</summary>
+        /// <summary>The record fields of <paramref name="from"/>; seeders, voices, tracks and the date stay merged over all copies.</summary>
         static void TakeRecord(Result into, Result from)
         {
             into.Details = from.Details;
             into.Title = from.Title;
             into.Size = from.Size;
-            into.PublishDate = from.PublishDate;
             into.UpdateTime = from.UpdateTime;
             into.Category = from.Category;
             into.CategoryDesc = from.CategoryDesc;

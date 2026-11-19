@@ -112,6 +112,8 @@ public class IndexerResultMergerTests
     {
         var old = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "Old title [TV+Special]", Renamed, 8, "AniDub");
         var fresh = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "New title (TV-1) [TV+Special]", Renamed.AddMonths(9), 6);
+        old.PublishDate = new DateTime(2020, 5, 6);
+        fresh.PublishDate = new DateTime(2016, 7, 25);
 
         var result = Assert.Single(reversed
             ? IndexerResultMerger.MergeAndSort(new[] { fresh }, new[] { old })
@@ -120,6 +122,8 @@ public class IndexerResultMergerTests
         Assert.Equal("New title (TV-1) [TV+Special]", result.Title);
         Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
         Assert.Equal("New title (TV-1) [TV+Special]", result.info.name);
+        // The later date stays, as in the card merge.
+        Assert.Equal(new DateTime(2020, 5, 6), result.PublishDate);
         Assert.Equal(8, result.Seeders);
         Assert.Equal(new[] { "AniDub" }, result.info.voices);
         Assert.Equal("Old title [TV+Special]", old.Title);
