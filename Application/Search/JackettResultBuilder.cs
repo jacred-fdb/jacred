@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Web;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Trackers;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Models.Api;
@@ -86,6 +87,8 @@ namespace JacRed.Application.Search
             if ((!rqnum && AppInit.conf.mergeduplicates) || (rqnum && AppInit.conf.mergenumduplicates))
             {
                 Dictionary<string, (TorrentDetails torrent, string title, string Name, List<string> AnnounceUrls)> temp = new Dictionary<string, (TorrentDetails, string, string, List<string>)>();
+                // The copy the merged record (title, link, size, info) comes from, by hash.
+                var records = new Dictionary<string, TorrentDetails>();
 
                 foreach (var torrent in torrents.Values.OrderByDescending(i => i.createTime).ThenBy(i => i.trackerName == "selezen"))
                 {
@@ -105,11 +108,21 @@ namespace JacRed.Application.Search
                     if (!temp.TryGetValue(hex, out _))
                     {
                         temp.TryAdd(hex, ((TorrentDetails)torrent.Clone(), torrent.trackerName == "kinozal" ? torrent.title : null, magnetLink.Name, magnetLink.AnnounceUrls?.ToList() ?? new List<string>()));
+                        records[hex] = torrent;
                     }
                     else
                     {
                         var t = temp[hex];
                         bool reliableSeeders = UnreliableSeeders.AnyReliable(t.torrent.trackerName);
+
+                        // A renamed topic keeps its old record in the old bucket (and under an old domain):
+                        // a later copy on the same tracker has the current title.
+                        var record = records[hex];
+                        if (torrent.trackerName == record.trackerName && IndexerResultMerger.IsLaterUpdate(torrent.updateTime, record.updateTime))
+                        {
+                            records[hex] = torrent;
+                            TakeRecord(t.torrent, torrent, keepTitle: t.title != null);
+                        }
 
                         if (!t.torrent.trackerName.Contains(torrent.trackerName))
                             t.torrent.trackerName += $", {torrent.trackerName}";
@@ -240,6 +253,29 @@ namespace JacRed.Application.Search
         }
         #endregion
 
+        /// <summary>
+        /// The record fields of <paramref name="from"/>; trackers, magnet, seeders, voices and tracks stay merged,
+        /// and <c>createTime</c> stays the latest of the copies: the output keeps its newest-first order.
+        /// </summary>
+        static void TakeRecord(TorrentDetails into, TorrentDetails from, bool keepTitle)
+        {
+            into.url = from.url;
+            if (!keepTitle)
+                into.title = from.title;
+            into.size = from.size;
+            into.sizeName = from.sizeName;
+            into.types = from.types;
+            into.name = from.name;
+            into.originalname = from.originalname;
+            into._sn = from._sn;
+            into._so = from._so;
+            into.relased = from.relased;
+            into.quality = from.quality;
+            into.videotype = from.videotype;
+            into.seasons = from.seasons;
+            into.updateTime = from.updateTime;
+        }
+
         #region FFprobe
         static List<ffStream> GetFfprobe(TorrentDetails t, out HashSet<string> langs)
         {
@@ -281,6 +317,7 @@ namespace JacRed.Application.Search
                     Title = i.title,
                     Size = i.size,
                     PublishDate = i.createTime,
+                    UpdateTime = i.updateTime,
                     Category = GetCategoryIds(i, out string categoryDesc),
                     CategoryDesc = categoryDesc,
                     Seeders = i.sid,

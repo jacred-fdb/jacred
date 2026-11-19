@@ -9,6 +9,7 @@ using JacRed.Models.AppConf;
 using JacRed.Models.Details;
 using JacRed.Models.Tracks;
 using Microsoft.Extensions.Caching.Memory;
+using MonoTorrent;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -244,12 +245,67 @@ namespace JacRed.Infrastructure.Indexers
             }
 
             if (season.HasValue && season.Value > 0)
-                // No stored seasons: match the season in the title.
-                query = query.Where(i => i.seasons != null && i.seasons.Count > 0
-                    ? i.seasons.Contains(season.Value)
-                    : SeasonEpisodeFilter.TitleHasSeason(i.title, season.Value));
+            {
+                var withSeason = WithSeason(torrents.Values, season.Value);
+                query = query.Where(withSeason.Contains);
+            }
 
             return query.Take(2000).Select(i => MapV1(i, rqnum)).ToList();
+        }
+
+        /// <summary>
+        /// Records of <paramref name="season"/>, judged by torrent: a renamed topic keeps its old record in the old bucket,
+        /// and an old title must not bring in a torrent whose later copy on the same tracker is of another season.
+        /// </summary>
+        static HashSet<TorrentDetails> WithSeason(IEnumerable<TorrentDetails> records, int season)
+        {
+            var kept = new HashSet<TorrentDetails>(ReferenceEqualityComparer.Instance);
+            var keys = new Dictionary<TorrentDetails, string>(ReferenceEqualityComparer.Instance);
+            // The latest copy without the season, by torrent on a tracker.
+            var latestMiss = new Dictionary<string, DateTime>();
+            foreach (var t in records)
+            {
+                string key = CopyKey(t);
+                if (key != null) keys[t] = key;
+                if (HasSeason(t, season)) kept.Add(t);
+                else if (key != null && (!latestMiss.TryGetValue(key, out var miss) || t.updateTime > miss))
+                    latestMiss[key] = t.updateTime;
+            }
+
+            kept.RemoveWhere(t => keys.TryGetValue(t, out var key) && latestMiss.TryGetValue(key, out var miss)
+                && IndexerResultMerger.IsLaterUpdate(miss, t.updateTime));
+            return kept;
+        }
+
+        // No stored seasons: match the season in the title.
+        static bool HasSeason(TorrentDetails t, int season) => t.seasons != null && t.seasons.Count > 0
+            ? t.seasons.Contains(season)
+            : SeasonEpisodeFilter.TitleHasSeason(t.title, season);
+
+        static string CopyKey(TorrentDetails t)
+        {
+            string hex = InfoHashHex(t.magnet);
+            return hex == null ? null : t.trackerName + "|" + hex;
+        }
+
+        // Most magnets carry a 40-char hex btih: take it as is, parse only the other forms (base32, v2).
+        static string InfoHashHex(string magnet)
+        {
+            if (string.IsNullOrWhiteSpace(magnet)) return null;
+
+            int start = magnet.IndexOf("btih:", StringComparison.OrdinalIgnoreCase) + 5;
+            if (start >= 5 && magnet.Length >= start + 40 && (magnet.Length == start + 40 || magnet[start + 40] == '&')
+                && magnet.AsSpan(start, 40).IndexOfAnyExcept("0123456789abcdefABCDEF") < 0)
+                return magnet.Substring(start, 40).ToUpperInvariant();
+
+            try
+            {
+                return MagnetLink.Parse(magnet).InfoHashes.V1OrV2.ToHex().ToUpperInvariant();
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         static bool MatchesTrackerFilter(string trackerName, List<string> trackers) =>
@@ -292,6 +348,7 @@ namespace JacRed.Infrastructure.Indexers
                 Title = i.title,
                 Size = i.size,
                 PublishDate = i.createTime,
+                UpdateTime = i.updateTime,
                 Category = cats,
                 CategoryDesc = catDesc,
                 Seeders = i.sid,
