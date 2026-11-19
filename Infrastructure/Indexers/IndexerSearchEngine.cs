@@ -272,7 +272,8 @@ namespace JacRed.Infrastructure.Indexers
                     latestMiss[key] = t.updateTime;
             }
 
-            kept.RemoveWhere(t => keys.TryGetValue(t, out var key) && latestMiss.TryGetValue(key, out var miss) && miss > t.updateTime);
+            kept.RemoveWhere(t => keys.TryGetValue(t, out var key) && latestMiss.TryGetValue(key, out var miss)
+                && IndexerResultMerger.IsLaterUpdate(miss, t.updateTime));
             return kept;
         }
 

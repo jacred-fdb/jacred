@@ -78,11 +78,17 @@ namespace JacRed.Infrastructure.Indexers
         }
 
         /// <summary>
+        /// Whether a copy updated at <paramref name="time"/> is later than one updated at <paramref name="than"/>.
+        /// Copies written by one sync pass get times a few microseconds apart, in the order of writing: those count as equal.
+        /// </summary>
+        internal static bool IsLaterUpdate(DateTime time, DateTime than) => time - than > TimeSpan.FromSeconds(1);
+
+        /// <summary>
         /// A later record of the same torrent on the same tracker: a renamed topic stays in its old bucket
         /// (and under an old domain) with the old title. Copies from other trackers keep the first one's record.
         /// </summary>
         static bool IsLaterCopy(Result item, Result existing) =>
-            item.UpdateTime > existing.UpdateTime
+            IsLaterUpdate(item.UpdateTime, existing.UpdateTime)
             && !string.IsNullOrEmpty(item.Tracker)
             && string.Equals(item.Tracker, existing.Tracker, StringComparison.OrdinalIgnoreCase);
 

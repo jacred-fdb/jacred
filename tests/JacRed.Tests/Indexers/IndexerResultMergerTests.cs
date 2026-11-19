@@ -126,11 +126,14 @@ public class IndexerResultMergerTests
         Assert.Empty(fresh.info.voices);
     }
 
-    [Fact]
-    public void MergeAndSort_KeepsFirstRecordOnEqualUpdateTime()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(0.5)]
+    public void MergeAndSort_KeepsFirstRecordOnEqualUpdateTime(double laterSeconds)
     {
+        // One sync pass writes copies microseconds apart: that order says nothing of the topic.
         var first = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "First", Renamed);
-        var second = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "Second", Renamed);
+        var second = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "Second", Renamed.AddSeconds(laterSeconds));
 
         var result = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { first }, new[] { second }));
 

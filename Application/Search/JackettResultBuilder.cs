@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Web;
+using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Trackers;
 using JacRed.Infrastructure.Tracks;
 using JacRed.Models.Api;
@@ -117,7 +118,7 @@ namespace JacRed.Application.Search
                         // A renamed topic keeps its old record in the old bucket (and under an old domain):
                         // a later copy on the same tracker has the current title.
                         var record = records[hex];
-                        if (torrent.trackerName == record.trackerName && torrent.updateTime > record.updateTime)
+                        if (torrent.trackerName == record.trackerName && IndexerResultMerger.IsLaterUpdate(torrent.updateTime, record.updateTime))
                         {
                             records[hex] = torrent;
                             TakeRecord(t.torrent, torrent, keepTitle: t.title != null);
