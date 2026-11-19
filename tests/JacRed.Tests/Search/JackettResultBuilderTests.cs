@@ -109,4 +109,59 @@ public class JackettResultBuilderTests
         Assert.Equal(7, result.Seeders);
         Assert.Equal(1, result.Peers);
     }
+
+    // A renamed topic: the old record stays in its old bucket and under an old domain, here with a later createTime.
+    static TorrentDetails Copy(string tracker, string url, string title, DateTime createTime, DateTime updateTime, int sid) => new()
+    {
+        trackerName = tracker,
+        url = url,
+        title = title,
+        name = title,
+        magnet = Magnet,
+        types = new[] { "anime" },
+        sid = sid,
+        createTime = createTime,
+        updateTime = updateTime,
+    };
+
+    static readonly DateTime Renamed = new(2026, 2, 4, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void Build_MergeDuplicates_TakesRecordOfLaterCopyOnSameTracker()
+    {
+        var old = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "Old title [TV+Special]", new DateTime(2020, 5, 6), Renamed, 6);
+        var fresh = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "New title (TV-1) [TV+Special]", new DateTime(2016, 7, 25), Renamed.AddMinutes(1), 12);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(old, fresh), null, false));
+
+        Assert.Equal("New title (TV-1) [TV+Special]", result.Title);
+        Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
+        Assert.Equal("New title (TV-1) [TV+Special]", result.info.name);
+        Assert.Equal(Renamed.AddMinutes(1), result.UpdateTime);
+        Assert.Equal(12, result.Seeders);
+        Assert.Equal("Old title [TV+Special]", old.title);
+    }
+
+    [Fact]
+    public void Build_MergeDuplicates_KeepsNewestRecordOnEqualUpdateTime()
+    {
+        var newest = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "Newest", new DateTime(2020, 5, 6), Renamed, 6);
+        var other = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "Other", new DateTime(2016, 7, 25), Renamed, 12);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(other, newest), null, false));
+
+        Assert.Equal("Newest", result.Title);
+    }
+
+    [Fact]
+    public void Build_MergeDuplicates_KeepsRecordForLaterCopyOfOtherTracker()
+    {
+        var rutracker = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "Rutracker title", new DateTime(2020, 5, 6), Renamed, 6);
+        var rutor = Copy("rutor", "https://rutor.info/torrent/1", "Rutor title", new DateTime(2016, 7, 25), Renamed.AddDays(1), 12);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(rutracker, rutor), null, false));
+
+        Assert.Equal("Rutracker title", result.Title);
+        Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
+    }
 }
