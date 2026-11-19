@@ -138,6 +138,8 @@ public class JackettResultBuilderTests
         Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
         Assert.Equal("New title (TV-1) [TV+Special]", result.info.name);
         Assert.Equal(Renamed.AddMinutes(1), result.UpdateTime);
+        // The date stays the latest createTime: the output is newest first.
+        Assert.Equal(new DateTime(2020, 5, 6), result.PublishDate);
         Assert.Equal(12, result.Seeders);
         Assert.Equal("Old title [TV+Special]", old.title);
     }
@@ -163,5 +165,20 @@ public class JackettResultBuilderTests
 
         Assert.Equal("Rutracker title", result.Title);
         Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
+    }
+
+    [Fact]
+    public void Build_MergeDuplicates_KeepsKinozalTitleWithLinkOfLaterCopy()
+    {
+        // Newest createTime first: the old rutracker copy, then kinozal, then the later rutracker copy.
+        var old = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "Old title [TV+Special]", new DateTime(2020, 5, 6), Renamed, 6);
+        var kinozal = Copy("kinozal", "https://kinozal.tv/details.php?id=1", "Kinozal title", new DateTime(2018, 3, 1), Renamed, 4);
+        var fresh = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "New title (TV-1) [TV+Special]", new DateTime(2016, 7, 25), Renamed.AddMinutes(1), 12);
+
+        var result = Assert.Single(JackettResultBuilder.Build(Db(old, kinozal, fresh), null, false));
+
+        Assert.Equal("Kinozal title", result.Title);
+        Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
+        Assert.Equal("New title (TV-1) [TV+Special]", result.info.name);
     }
 }

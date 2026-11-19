@@ -1,4 +1,5 @@
 using JacRed.Application.Index;
+using JacRed.Application.Search;
 using JacRed.Infrastructure.External;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Infrastructure.Persistence;
@@ -71,13 +72,18 @@ public class RenamedTopicSearchTests : IDisposable
     }
 
     [Fact]
-    public async Task FirstSeasonPack_NotFoundForFourthSeason()
+    public async Task TextQueryForFourthSeason_GetsFirstSeasonPackWithLaterTitle()
     {
-        Store(oldTitle: $"{OldRu} / {En} [TV+Special] [25 из 25]", newTitle: $"{NewRu} (ТВ-1) / {En} [TV+Special] [25 из 25]", 8, 6);
+        // The old copy has the later createTime, so the card/text merge met it first. Its title names no season,
+        // so a client could not drop this season 1 pack from a season 4 search; the later "(ТВ-1)" says season 1.
+        Store(oldTitle: $"{OldRu} / {En} [TV+Special] [25 из 25]", newTitle: $"{NewRu} (ТВ-1) / {En} [TV+Special] [25 из 25]", 8, 6,
+            oldCreated: new DateTime(2020, 5, 6, 0, 0, 0, DateTimeKind.Utc), newCreated: new DateTime(2016, 7, 25, 0, 0, 0, DateTimeKind.Utc));
 
-        var results = await Search(season: 4);
+        var result = Assert.Single(await TextSearch($"{En} S04"));
 
-        Assert.Empty(SeasonEpisodeFilter.Filter(results, 4, 7));
+        Assert.Equal($"{NewRu} (ТВ-1) / {En} [TV+Special] [25 из 25]", result.Title);
+        Assert.Equal(Url("org"), result.Details);
+        Assert.True(SeasonEpisodeFilter.TitleHasSeason(result.Title, 1));
     }
 
     [Fact]
@@ -92,11 +98,23 @@ public class RenamedTopicSearchTests : IDisposable
         Assert.Single(await Search(season: 2));
     }
 
-    void Store(string oldTitle, string newTitle, int oldSeeders, int newSeeders)
+    [Fact]
+    public async Task CopyWithoutSeasonUnderSecondLater_DoesNotDropCopyWithSeason()
+    {
+        // One sync pass writes copies microseconds apart: that order does not make the copy without the season later.
+        Store(oldTitle: $"{OldRu} (ТВ-2) / {En} [25 из 25]", newTitle: $"{NewRu} / {En} [25 из 25]", 8, 6, later: TimeSpan.FromSeconds(0.5));
+
+        var result = Assert.Single(await Search(season: 2));
+
+        Assert.Equal(Url("net"), result.Details);
+    }
+
+    void Store(string oldTitle, string newTitle, int oldSeeders, int newSeeders,
+        TimeSpan? later = null, DateTime? oldCreated = null, DateTime? newCreated = null)
     {
         string tracker = PickTracker();
-        Add(OldRu, Torrent(tracker, Url("net"), OldRu, oldTitle, oldSeeders, Renamed));
-        Add(NewRu, Torrent(tracker, Url("org"), NewRu, newTitle, newSeeders, Renamed.AddMonths(9)));
+        Add(OldRu, Torrent(tracker, Url("net"), OldRu, oldTitle, oldSeeders, oldCreated ?? Renamed, Renamed));
+        Add(NewRu, Torrent(tracker, Url("org"), NewRu, newTitle, newSeeders, newCreated ?? Renamed, later.HasValue ? Renamed + later.Value : Renamed.AddMonths(9)));
         // Exact (id) search reads bucket keys from fastdb.
         FastDbIndex.Default.RebuildIfChanged();
     }
@@ -111,7 +129,7 @@ public class RenamedTopicSearchTests : IDisposable
 
     string Url(string domain) => $"https://rutracker.{domain}/forum/viewtopic.php?t={_tag}";
 
-    TorrentDetails Torrent(string tracker, string url, string ru, string title, int seeders, DateTime updateTime) => new()
+    TorrentDetails Torrent(string tracker, string url, string ru, string title, int seeders, DateTime createTime, DateTime updateTime) => new()
     {
         url = url,
         trackerName = tracker,
@@ -124,7 +142,7 @@ public class RenamedTopicSearchTests : IDisposable
         pir = 1,
         sizeName = "170 GB",
         relased = 2016,
-        createTime = Renamed,
+        createTime = createTime,
         updateTime = updateTime
     };
 
@@ -137,6 +155,17 @@ public class RenamedTopicSearchTests : IDisposable
             new IndexerSearchRequest { Query = ImdbId, Season = season, CardMode = false },
             cache,
             jackettSearch: null);
+    }
+
+    async Task<List<Result>> TextSearch(string query)
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var jackett = new JackettSearchService(FastDbIndex.Default);
+
+        return await IndexerSearchEngine.SearchCombinedAsync(
+            new IndexerSearchRequest { Query = query, CardMode = false },
+            cache,
+            jackett);
     }
 
     static string PickTracker()
