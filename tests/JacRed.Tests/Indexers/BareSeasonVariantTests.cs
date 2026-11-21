@@ -109,6 +109,40 @@ public class BareSeasonVariantTests : IDisposable
         Assert.False(IndexerRequestParams.IsSeasonEpisodeOnly(text));
     }
 
+    public static TheoryData<string> HostileSeasonTails => new()
+    {
+        // Each made the old nested-quantifier pattern backtrack for seconds to minutes.
+        "S" + new string('1', 30) + "x",
+        "S1" + string.Concat(Enumerable.Repeat("E1", 14)) + "x",
+        "E1" + string.Concat(Enumerable.Repeat("1E1", 9)) + "x",
+        "S1" + string.Concat(Enumerable.Repeat("E1", 32)) + "x",
+        "E1" + string.Concat(Enumerable.Repeat("1E1", 18)) + "x",
+        "S1" + string.Concat(Enumerable.Repeat("E1", 40)) + "x",
+        "S" + new string('1', 5000) + "x",
+        "S1" + string.Concat(Enumerable.Repeat("E1-", 2000)) + "x",
+    };
+
+    [Theory]
+    [MemberData(nameof(HostileSeasonTails))]
+    public void IsSeasonEpisodeOnly_HostileTail_IsFast(string text)
+    {
+        IndexerRequestParams.IsSeasonEpisodeOnly("S01"); // warm up the compiled regex
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        bool result = IndexerRequestParams.IsSeasonEpisodeOnly(text);
+        sw.Stop();
+
+        Assert.False(result);
+        Assert.True(sw.ElapsedMilliseconds < 100, $"{sw.ElapsedMilliseconds} ms for length {text.Length}");
+    }
+
+    [Fact]
+    public void IsSeasonEpisodeOnly_LongerThanCap_IsFalse()
+    {
+        Assert.True(IndexerRequestParams.IsSeasonEpisodeOnly("S01E01-E02 S01E03-E04 S01E05-E06"));
+        Assert.False(IndexerRequestParams.IsSeasonEpisodeOnly("S01E01-E02 S01E03-E04 S01E05-E06 "+"S01E07"));
+    }
+
     [Theory]
     [InlineData("знахарь 2019 S01", "знахарь 2019", "S01")]
     [InlineData("знахарь S01E02", "знахарь", "S01E02")]
