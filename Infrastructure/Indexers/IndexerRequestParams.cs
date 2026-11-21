@@ -315,5 +315,25 @@ namespace JacRed.Infrastructure.Indexers
 
             return t;
         }
+
+        // S01, s1, S01E02, E05 and ranges/tails like S01-S03, S01E01-02, "S01." — what
+        // NumQueryParser leaves in the original title of "Ru 2019 S01". Not 4x4 or "Season 1": real titles.
+        // The alternatives start with different characters (letter, digit, separator), so the
+        // match never backtracks: linear in the input, which comes from an anonymous query.
+        static readonly Regex SeasonEpisodeOnlyRe = new Regex(
+            @"^[SE]\d(?:[SE]\d|\d|[\s.,:;_\-–])*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        const int SeasonEpisodeOnlyMaxLength = 32;
+
+        /// <summary>
+        /// True when the text is nothing but S/E season-episode tokens (<c>S01</c>, <c>S01E02</c>, <c>E05</c>, <c>S01-S03</c>).
+        /// </summary>
+        public static bool IsSeasonEpisodeOnly(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string t = text.Trim();
+            return t.Length <= SeasonEpisodeOnlyMaxLength && SeasonEpisodeOnlyRe.IsMatch(t);
+        }
     }
 }
