@@ -93,7 +93,7 @@ namespace JacRed.Infrastructure.Indexers
             return req.IsSerial;
         }
 
-        static List<string> BuildQueryVariants(string query, string titleRu, string titleEn, SearchSettings settings)
+        internal static List<string> BuildQueryVariants(string query, string titleRu, string titleEn, SearchSettings settings)
         {
             var variants = new List<string>();
             bool skipCombined = !string.IsNullOrWhiteSpace(query) && query.Contains(" / ") && (!string.IsNullOrWhiteSpace(titleRu) || !string.IsNullOrWhiteSpace(titleEn));
@@ -125,7 +125,10 @@ namespace JacRed.Infrastructure.Indexers
 
             foreach (var term in new[] { titleRu, titleEn })
             {
-                if (!string.IsNullOrWhiteSpace(term) && !variants.Contains(term))
+                // "Ru 2019 S01" parses into title "Ru 2019" + original "S01": a bare season
+                // token as a fuzzy query matches the first season of every other show.
+                if (!string.IsNullOrWhiteSpace(term) && !variants.Contains(term)
+                    && !IndexerRequestParams.IsSeasonEpisodeOnly(term))
                     variants.Add(term);
             }
 
@@ -150,8 +153,13 @@ namespace JacRed.Infrastructure.Indexers
             return V1SearchPairs(query, titleRu, titleEn, settings, Math.Max(1, settings.maxV1Pairs));
         }
 
-        static List<(string search, string altname)> V1SearchPairs(string query, string titleRu, string titleEn, SearchSettings settings, int? maxPairs)
+        internal static List<(string search, string altname)> V1SearchPairs(string query, string titleRu, string titleEn, SearchSettings settings, int? maxPairs)
         {
+            // Same as BuildQueryVariants: a bare season token ("S01") as search or altname
+            // matches the first season of every other show.
+            if (IndexerRequestParams.IsSeasonEpisodeOnly(titleRu)) titleRu = null;
+            if (IndexerRequestParams.IsSeasonEpisodeOnly(titleEn)) titleEn = null;
+
             var pairs = new List<(string, string)>();
             var seen = new HashSet<string>();
 
