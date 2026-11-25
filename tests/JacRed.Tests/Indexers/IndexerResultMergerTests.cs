@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using JacRed.Infrastructure.Indexers;
@@ -88,5 +89,72 @@ public class IndexerResultMergerTests
 
         Assert.Equal(new[] { "English" }, merged.subs);
         Assert.Null(jackett.subs);
+    }
+
+    static readonly DateTime Renamed = new(2026, 2, 4, 12, 0, 0, DateTimeKind.Utc);
+
+    // A renamed topic: the old record stays in its old bucket and under the old domain.
+    static Result Copy(string tracker, string details, string title, DateTime updateTime, int seeders = 5, params string[] voices) => new()
+    {
+        Tracker = tracker,
+        Details = details,
+        Title = title,
+        MagnetUri = Magnet,
+        Seeders = seeders,
+        UpdateTime = updateTime,
+        info = new TorrentInfo { name = title, voices = new HashSet<string>(voices) },
+    };
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MergeAndSort_TakesRecordOfLaterCopyOnSameTracker(bool reversed)
+    {
+        var old = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "Old title [TV+Special]", Renamed, 8, "AniDub");
+        var fresh = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "New title (TV-1) [TV+Special]", Renamed.AddMonths(9), 6);
+        old.PublishDate = new DateTime(2020, 5, 6);
+        fresh.PublishDate = new DateTime(2016, 7, 25);
+
+        var result = Assert.Single(reversed
+            ? IndexerResultMerger.MergeAndSort(new[] { fresh }, new[] { old })
+            : IndexerResultMerger.MergeAndSort(new[] { old }, new[] { fresh }));
+
+        Assert.Equal("New title (TV-1) [TV+Special]", result.Title);
+        Assert.Equal("https://rutracker.org/forum/viewtopic.php?t=1", result.Details);
+        Assert.Equal("New title (TV-1) [TV+Special]", result.info.name);
+        // The later date stays, as in the card merge.
+        Assert.Equal(new DateTime(2020, 5, 6), result.PublishDate);
+        Assert.Equal(8, result.Seeders);
+        Assert.Equal(new[] { "AniDub" }, result.info.voices);
+        Assert.Equal("Old title [TV+Special]", old.Title);
+        Assert.Empty(fresh.info.voices);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(0.5)]
+    public void MergeAndSort_KeepsFirstRecordOnEqualUpdateTime(double laterSeconds)
+    {
+        // One sync pass writes copies microseconds apart: that order says nothing of the topic.
+        var first = Copy("rutracker", "https://rutracker.net/forum/viewtopic.php?t=1", "First", Renamed);
+        var second = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "Second", Renamed.AddSeconds(laterSeconds));
+
+        var result = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { first }, new[] { second }));
+
+        Assert.Equal("First", result.Title);
+        Assert.Equal("https://rutracker.net/forum/viewtopic.php?t=1", result.Details);
+    }
+
+    [Fact]
+    public void MergeAndSort_KeepsFirstRecordForLaterCopyOfOtherTracker()
+    {
+        // The update time of another tracker's record tells nothing about this title.
+        var rutracker = Copy("rutracker", "https://rutracker.org/forum/viewtopic.php?t=1", "Rutracker title", Renamed);
+        var kinozal = Copy("kinozal", "https://kinozal.tv/details.php?id=1", "Kinozal title", Renamed.AddDays(1));
+
+        var result = Assert.Single(IndexerResultMerger.MergeAndSort(new[] { rutracker }, new[] { kinozal }));
+
+        Assert.Equal("Rutracker title", result.Title);
+        Assert.Equal("rutracker", result.Tracker);
     }
 }

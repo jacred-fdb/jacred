@@ -38,6 +38,13 @@ namespace JacRed.Infrastructure.Indexers
                         continue;
                     }
 
+                    if (IsLaterCopy(item, existing))
+                        TakeRecord(existing, item);
+
+                    // The latest date of the copies, as in the card merge (JackettResultBuilder keeps the latest createTime).
+                    if (item.PublishDate > existing.PublishDate)
+                        existing.PublishDate = item.PublishDate;
+
                     bool itemReliable = UnreliableSeeders.AnyReliable(item.Tracker);
                     if (itemReliable && !reliableSeeders[key])
                     {
@@ -72,6 +79,39 @@ namespace JacRed.Infrastructure.Indexers
             }
 
             return map.Values.OrderByDescending(r => r.Seeders).ThenByDescending(r => r.Peers).ToList();
+        }
+
+        /// <summary>
+        /// Whether a copy updated at <paramref name="time"/> is later than one updated at <paramref name="than"/>.
+        /// Copies written by one sync pass get times a few microseconds apart, in the order of writing: those count as equal.
+        /// </summary>
+        internal static bool IsLaterUpdate(DateTime time, DateTime than) => time - than > TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// A later record of the same torrent on the same tracker: a renamed topic stays in its old bucket
+        /// (and under an old domain) with the old title. Copies from other trackers keep the first one's record.
+        /// </summary>
+        static bool IsLaterCopy(Result item, Result existing) =>
+            IsLaterUpdate(item.UpdateTime, existing.UpdateTime)
+            && !string.IsNullOrEmpty(item.Tracker)
+            && string.Equals(item.Tracker, existing.Tracker, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The record fields of <paramref name="from"/>; seeders, voices, tracks and the date stay merged over all copies.</summary>
+        static void TakeRecord(Result into, Result from)
+        {
+            into.Details = from.Details;
+            into.Title = from.Title;
+            into.Size = from.Size;
+            into.UpdateTime = from.UpdateTime;
+            into.Category = from.Category;
+            into.CategoryDesc = from.CategoryDesc;
+            if (from.info == null) return;
+
+            var voices = into.info?.voices;
+            into.info = from.info.Clone();
+            if (voices == null) return;
+            into.info.voices ??= new HashSet<string>();
+            into.info.voices.UnionWith(voices);
         }
 
         static string InfoHashKey(Result item)

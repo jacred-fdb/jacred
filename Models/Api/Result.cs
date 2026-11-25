@@ -40,6 +40,13 @@ namespace JacRed.Models.Api
 
         public TorrentInfo info { get; set; }
 
+        /// <summary>
+        /// <c>updateTime</c> of the record the title and details come from: of two copies of one torrent on one tracker
+        /// (a renamed topic left in its old bucket) the later one has the current title. Not in JSON.
+        /// </summary>
+        [JsonIgnore]
+        public DateTime UpdateTime { get; set; }
+
 
         public Result Clone()
         {
