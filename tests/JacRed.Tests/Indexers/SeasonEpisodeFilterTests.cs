@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using JacRed.Infrastructure.Indexers;
 using JacRed.Models.Api;
 using Xunit;
@@ -58,6 +60,21 @@ public class SeasonEpisodeFilterTests
     [InlineData("Полицейский с Рублевки (2016) SATRip (серии 1-8 из 8)", 1, 8, true)]
     [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 1, 1180, true)]
     [InlineData("One Piece | Ван-Пис [1999, TV, 207-1180 эп.] WEBRip 1080p raw+rus", 1, 206, false)]
+    // rutracker Asian series: [N/K] is episodes 1-N of K
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 1, null, true)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 1, 50, true)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 1, 51, false)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 2, null, false)]
+    [InlineData("Наследники / Sangsok Jadeul / The Heirs [15/20] [Южная Корея, 2013, комедия, романтика, школа, HDTVRip] [720p] [Южная Корея, DVO] (GREEN TEA)", 1, 15, true)]
+    [InlineData("Наследники / Sangsok Jadeul / The Heirs [15/20] [Южная Корея, 2013, комедия, романтика, школа, HDTVRip] [720p] [Южная Корея, DVO] (GREEN TEA)", 1, 16, false)]
+    [InlineData("Друзья-призраки / Ghost Friends (Kasaura Tomochika, Nagikawa Yoshiro, Tanaka Eiji)[10/10] [RAW] [JAP+Sub Rus] [Япония, 2009 г., романтика, фантастика, TVRip]", 1, 3, true)]
+    // ...with a special after or inside the count
+    [InlineData("Шерлок / Шерлок: Нерассказанные истории / Sherlock: Untold Stories [11/11] + SP [2019, детектив, WEBRip] [720p] DVO (KIRIANA & strOgg)", 1, 11, true)]
+    [InlineData("Шерлок / Шерлок: Нерассказанные истории / Sherlock: Untold Stories [11/11] + SP [2019, детектив, WEBRip] [720p] DVO (KIRIANA & strOgg)", 1, 12, false)]
+    [InlineData("Шерлок / Шерлок: Нерассказанные истории / Sherlock: Untold Stories [11/11] + SP [2019, детектив, WEBRip] [720p] DVO (KIRIANA & strOgg)", 2, null, false)]
+    [InlineData("Сериал S[10/10]P", 1, 3, true)]
+    [InlineData("Сериал [16+SP/16+SP] [2016, HDTVRip] [RAW] [720p]", 1, 16, true)]
+    [InlineData("Сериал [16+SP/16+SP] [2016, HDTVRip] [RAW] [720p]", 2, null, false)]
     // ...so a first-season release without a season mark stays out of season 2
     [InlineData("Монолог фармацевта / Kusuriya no Hitorigoto / Записки аптекаря / The Apothecary Diaries (Норихиро Наганума) [TV] [1-19 из 24] [RUS(int), JAP+Sub] [2023, драма, детектив, исторический, WEB-DL] [1080p]", 2, 5, false)]
     [InlineData("Ore dake Level Up na Ken | Solo Leveling | Поднятие уровня в одиночку [2024, TV, 12 из 12] WEBRip 396p Raw+Rus", 2, 3, false)]
@@ -85,6 +102,14 @@ public class SeasonEpisodeFilterTests
     [InlineData("Эстафета 4x100", 4, null, false)]
     [InlineData("Сериал [12х24 мин] (2020)", 12, null, false)]
     [InlineData("BBC: Планета Земля (диск 2 из 4)", 1, null, false)]
+    // Not episode counts: years, a codec, a count with a season named in words
+    [InlineData("Сериал [12/2021] WEBRip", 1, null, false)]
+    [InlineData("Симпсоны / The Simpsons / Серии: 1-22 (Мэтт Гроунинг, Дэвид Сильверман) [2003/2004, США, Комедия, Мультсериал, SATRip] MVO", 1, null, false)]
+    [InlineData("Место встречи изменить нельзя (1979) WEBRip [VP9/2160p]", 1, null, false)]
+    [InlineData("Сериал / Сезон 2 [16/16] [2016, HDTVRip]", 1, null, false)]
+    [InlineData("Сериал / Сезон 2 [16/16] [2016, HDTVRip]", 2, 16, true)]
+    [InlineData("Сериал / Сезон 2 [16/16] [2016, HDTVRip]", 2, 17, false)]
+    [InlineData("Сериал [S02] [16/16] [2016, HDTVRip]", 1, null, false)]
     // The TV-3 channel after the episodes is not season 3
     [InlineData("Секретные материалы (сезон 7, серии 1-22 из 22) ТВ-3", 7, 5, true)]
     [InlineData("Секретные материалы (сезон 7, серии 1-22 из 22) ТВ-3", 3, null, false)]
@@ -95,6 +120,7 @@ public class SeasonEpisodeFilterTests
     [InlineData("Фантом 1-8 из 8", 1, 3, true)]
     // A later part of a split season numbers episodes from 1: the season passes whole
     [InlineData("Spy x Family (2022) / Семья шпиона [ТВ-1, часть 2] (13 из 13) Complete [1080p]", 1, 20, true)]
+    [InlineData("Сериал (2 сезон, часть 2) [12/12]", 2, 20, true)]
     public void Filter_EmptyStoredSeasons_UsesTitle(string title, int season, int? episode, bool expected)
     {
         Assert.Equal(expected, Passes(title, season, episode));
@@ -107,6 +133,8 @@ public class SeasonEpisodeFilterTests
     [InlineData("Поднятие уровня в одиночку (2 сезон: 1-13 серии из 13) / Ore Dake Level Up na Ken / 2025 / ДБ (StudioBand) / WEBRip (1080p)", 2, 13, true)]
     [InlineData("Поднятие уровня в одиночку (2 сезон: 1-13 серии из 13) / Ore Dake Level Up na Ken / 2025 / ДБ (StudioBand) / WEBRip (1080p)", 2, 14, false)]
     [InlineData("Провожаюшая в последний путь Фрирен / Sousou no Frieren [01x01-13 из 28] (2023) WEBRip 1080p от KORSARS", 1, 13, true)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 1, 50, true)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 1, 51, false)]
     // Episodes without a season use the stored season, not season 1
     [InlineData("Ателье колдовских колпаков (1-13 серии из 13) / Tongari Boushi no Atelier / 2026 / ДБ (DEEP) / WEB-DLRip", 2, 3, true)]
     // A title without a season or episodes keeps the stored season
@@ -121,6 +149,15 @@ public class SeasonEpisodeFilterTests
     {
         int stored = season;
         Assert.Equal(expected, Passes(title, season, episode, stored));
+    }
+
+    [Fact]
+    public void Filter_BracketedCount_HostileTitle_IsLinear()
+    {
+        string hostile = string.Concat(Enumerable.Repeat("[123+SP/123+SP[12/] + ]+SP", 2000));
+        var watch = Stopwatch.StartNew();
+        Assert.False(Passes(hostile, 1, 1));
+        Assert.True(watch.ElapsedMilliseconds < 2000, $"{hostile.Length} chars took {watch.ElapsedMilliseconds} ms");
     }
 
     [Fact]
@@ -145,6 +182,8 @@ public class SeasonEpisodeFilterTests
     [InlineData("Беспринципные (1-3 сезоны: 1-24 серии из 24) / 2020-2022 / РУ, СТ / WEB-DLRip", 3, true)]
     [InlineData("Sousou no Frieren (2026) / Фрирен [ТВ-2] (10 из 10) Complete [1080p]", 2, true)]
     [InlineData("[SubsPlease] Sousou no Frieren - 28 (1080p)", 1, false)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 1, true)]
+    [InlineData("Неукротимый: Повелитель Чэньцин / Магистр дьявольского культа / The Untamed / Mo Dao Zu Shi [50/50] [Китай, 2019, историческое фэнтези, броманс, HDTVRip] [720p] VO (SEOUL BAY)", 2, false)]
     [InlineData("Третий сезон 1-10 из 10", 5, false)]
     [InlineData(null, 1, false)]
     public void TitleHasSeason(string title, int season, bool expected)
