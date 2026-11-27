@@ -119,6 +119,8 @@ namespace JacRed.Infrastructure.Indexers
         static readonly Regex EpisodesOf = new Regex(@"(?<![0-9.-])(?<!(?<!\p{L})(?:диск|disc|dvd|том|vol)\p{L}*\.?\s*)(?:(?<first>[0-9]{1,4})\s*-{1,2}\s*)?(?<last>[0-9]{1,4})(?:\s*\+\s*[0-9]{1,3})?\s*(?:сери\p{L}*\s*)?из\s*>?\s*[0-9]", Opts);
         // [2023, TV, 28 эп.], [2019, TV, 25 ep], [1999, TV, 207-1180 эп.]
         static readonly Regex EpisodeCount = new Regex(@"(?<![0-9.])(?:(?<first>[0-9]{1,4})-)?(?<last>[0-9]{1,4})\s*(?:эп|ep)(?!\p{L})", Opts);
+        // rutracker Asian series: [31/31], [15/20], [16+SP/16+SP], [11/11] + SP. "N/K" is episodes 1-N; not a year ([12/2021]).
+        static readonly Regex BracketedCount = new Regex(@"\[(?<last>[0-9]{1,3})(?:\+SP)?/[0-9]{1,3}(?:\+SP)?\](?:\s*\+\s*SP\b)?", Opts);
         // A later part of a split season numbers its episodes from 1 again: (4 сезон. Часть 2: 1-12 серии из 12) is E17-28.
         static readonly Regex LaterPart = new Regex(@"(?<!\p{L})(?:част\p{L}*|part|cour)\s*(?<part>[0-9]{1,2})(?![0-9-])", Opts);
         // Episodes without a season are season 1, unless the title names a season in words or is a film, OVA or special.
@@ -191,6 +193,12 @@ namespace JacRed.Infrastructure.Indexers
 
             m = EpisodesOf.Match(rest);
             if (!m.Success) m = EpisodeCount.Match(rest);
+            if (!m.Success)
+            {
+                m = BracketedCount.Match(rest);
+                // The count is blanked out: its "+SP" is episodes with a special, not a special on its own.
+                if (m.Success) title = title.Remove(m.Index, m.Length).Insert(m.Index, new string(' ', m.Length));
+            }
             if (m.Success && !IsLaterPart(rest))
                 SetEpisodes(info, m.Groups["first"].Success ? int.Parse(m.Groups["first"].Value) : 1, int.Parse(m.Groups["last"].Value));
 
